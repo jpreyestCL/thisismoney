@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>This is Money</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
+    font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; user-select: none; }
+  #game { width: 100%; height: 100%; display: block; }
+
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  .topbar { position: absolute; top: 12px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 6px; }
+  .stat { background: rgba(0,0,0,.45); padding: 6px 12px; border-radius: 10px; backdrop-filter: blur(4px); }
+  .stat b { font-size: 11px; opacity: .7; display: block; letter-spacing: 1px; }
+  .stat span { font-size: 18px; font-weight: 700; }
+  .money { color: #4ade80; }
+  .bar { width: 130px; height: 11px; background: rgba(255,255,255,.15); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+  .bar > div { height: 100%; transition: width .15s; }
+  .hp > div { background: #ef4444; } .dad > div { background: #38bdf8; }
+
+  #objective { position: absolute; top: 92px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.5); padding: 7px 16px; border-radius: 18px; font-size: 14px; font-weight: 600; text-align: center; max-width: 90%; }
+  #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; background: #fff; border-radius: 50%; opacity: .8; }
+  #toast { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.65); padding: 9px 20px; border-radius: 10px; font-size: 15px; font-weight: 600; opacity: 0; transition: opacity .3s; text-align: center; }
+  #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
+  #dadhud { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; }
+  #dadhud b { color: #38bdf8; }
+  #gearhud { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; text-align: right; }
+
+  /* inventario estilo Minecraft (hotbar) */
+  #buildbar { position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%); display: none; gap: 5px; }
+  .slot { position: relative; width: 56px; height: 56px; background: rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.22);
+    border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .slot.sel { border-color: #fff; background: rgba(255,255,255,.18); box-shadow: 0 0 10px rgba(255,255,255,.4); }
+  .slot .ic { font-size: 22px; line-height: 1; }
+  .slot .nm { font-size: 8px; opacity: .75; margin-top: 1px; }
+  .slot .ct { position: absolute; bottom: 1px; right: 4px; font-size: 12px; font-weight: 800; text-shadow: 0 1px 2px #000; }
+  .slot .kk { position: absolute; top: 1px; left: 4px; font-size: 9px; opacity: .5; }
+  #rotateBtn, #deleteBtn { position: absolute; bottom: 124px; display: none; pointer-events: all; cursor: pointer;
+    color: #042; border: none; padding: 10px 20px; font-size: 15px; font-weight: 800; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  #rotateBtn { left: 50%; transform: translateX(-108%); background: rgba(34,197,94,.85); }
+  #rotateBtn:hover { background: #22c55e; }
+  #deleteBtn { left: 50%; transform: translateX(8%); background: rgba(239,68,68,.85); color: #fff; }
+  #deleteBtn:hover { background: #ef4444; }
+
+  /* círculo de compra (mantener apretado) */
+  #buyring { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 90px; height: 90px; display: none; }
+  #buyring svg { transform: rotate(-90deg); }
+  #buyring .label { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 13px; font-weight: 700; text-align: center; }
+
+  .screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 26px;
+    background: radial-gradient(circle at 50% 30%, #1e293b, #020617); overflow-y: auto; }
+  .screen.hidden { display: none; }
+  .screen h1 { font-size: 50px; font-weight: 900; letter-spacing: 2px; background: linear-gradient(90deg,#4ade80,#22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px; }
+  .screen p { max-width: 600px; line-height: 1.6; opacity: .88; margin-bottom: 8px; }
+  .keys { margin: 14px 0; display: grid; grid-template-columns: auto auto; gap: 5px 16px; font-size: 14px; opacity: .9; text-align: left; }
+  .keys b { color: #4ade80; }
+  .btn { margin-top: 14px; pointer-events: all; cursor: pointer; background: linear-gradient(90deg,#22c55e,#16a34a); color: #042; border: none;
+    padding: 14px 40px; font-size: 19px; font-weight: 800; border-radius: 14px; box-shadow: 0 8px 24px rgba(34,197,94,.4); }
+  .btn:hover { transform: scale(1.04); }
+  .big { font-size: 34px; margin: 8px 0; }
+  #help { position: fixed; inset: 0; background: rgba(2,6,23,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 26px; z-index: 5; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" style="display:none">
+  <div class="topbar">
+    <div style="display:flex; gap:6px; flex-wrap:wrap">
+      <div class="stat"><b>DINERO</b><span class="money" id="ui-money">$0</span></div>
+      <div class="stat"><b>ETAPA</b><span id="ui-stage">1</span></div>
+      <div class="stat"><b>PLANETA</b><span id="ui-planet">Tierra</span></div>
+      <div class="stat"><b>TIEMPO</b><span id="ui-time">--</span></div>
+    </div>
+    <div style="display:flex; gap:6px">
+      <div class="stat"><b>TU VIDA</b><div class="bar hp"><div id="ui-hp" style="width:100%"></div></div></div>
+      <div class="stat"><b>HAMBRE</b><div class="bar food"><div id="ui-food" style="width:100%;background:#f59e0b"></div></div></div>
+      <div class="stat"><b>PAPÁ</b><div class="bar dad"><div id="ui-dad" style="width:100%"></div></div></div>
+    </div>
+  </div>
+  <canvas id="minimap" width="150" height="150" style="position:absolute;top:96px;right:12px;background:rgba(0,0,0,.4);border-radius:10px"></canvas>
+  <div id="hurt" style="position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(239,68,68,.9);opacity:0;transition:opacity .15s"></div>
+  <div id="phase"></div>
+  <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
+  <div id="objective">Objetivo</div>
+  <div id="crosshair"></div>
+  <div id="toast"></div>
+  <div id="dadhud"></div>
+  <div id="gearhud"></div>
+  <div id="buildbar"></div>
+  <button id="rotateBtn">🔄 Girar</button>
+  <button id="deleteBtn">🗑️ Quitar</button>
+  <div id="buyring">
+    <svg width="90" height="90"><circle cx="45" cy="45" r="38" stroke="rgba(255,255,255,.2)" stroke-width="7" fill="none"/>
+      <circle id="ring-fg" cx="45" cy="45" r="38" stroke="#4ade80" stroke-width="7" fill="none" stroke-dasharray="239" stroke-dashoffset="239" stroke-linecap="round"/></svg>
+    <div class="label" id="ring-label"></div>
+  </div>
+  <div id="shopbox" style="position:absolute; bottom:200px; left:50%; transform:translateX(-50%); display:none; pointer-events:all; background:rgba(0,0,0,.8); padding:14px 18px; border-radius:14px; text-align:center;">
+    <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#34d399">VENDEDOR — escribe qué comprar y pulsa Enter (Esc cierra)</div>
+    <input id="shopInput" type="text" placeholder="ej: espada metal, madera, comida…" autocomplete="off"
+      style="width:320px; max-width:80vw; padding:10px 12px; font-size:15px; border-radius:8px; border:2px solid #34d399; background:#0b1220; color:#fff; outline:none;">
+  </div>
+</div>
+
+<div class="screen" id="start" style="background:linear-gradient(rgba(2,6,23,.55),rgba(2,6,23,.85)), url('assets/img_58.png') center/cover;">
+  <h1 style="margin-top:-10px">THIS IS MONEY</h1>
+  <p>Vives con tu <b style="color:#38bdf8">papá</b> y empiezas con <b style="color:#4ade80">$1000</b>. Entra al <b style="color:#facc15">SÚPER</b>,
+     compra cosas (manteniendo apretado), <b style="color:#fb923c">construye</b> tu casa donde quieras y gana dinero.
+     Mientras mejor sea (¡una mansión!), más dinero. Sobrevive la <b style="color:#ef4444">noche</b> contra monstruos.</p>
+  <p style="font-size:13px;opacity:.7">En la ciudad hay una <b>casa secreta</b> con un tesoro (¡es la única en la que puedes entrar!). En los <b style="color:#22c55e">estadios</b> puedes robarle a la gente con <b>E</b>… pero cuidado con la <b style="color:#60a5fa">policía</b> (¡corre!). Cada 1000 monedas sube la <b>etapa</b>. A las 20.000 conoces a la <b style="color:#f9a8d4">mamá</b>. Al final cae un meteorito… ¡compra un cohete y escapa a otro planeta!</p>
+  <div class="keys">
+    <span><b>WASD / Flechas</b></span><span>Caminar · <b>Shift</b> Correr · <b>Espacio</b> Saltar · <b>Ctrl</b> Agacharse</span>
+    <span><b>Mouse</b></span><span>Mirar (solo mueve el mouse, sin clic)</span>
+    <span><b>E</b> (mantener)</span><span>Comprar / Cobrar casa dorada</span>
+    <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
+    <span><b>1-9</b></span><span>Inventario: <b>1</b> herramienta · <b>2-9</b> construir · <b>Q</b> comer</span>
+    <span><b>B</b></span><span>Modo construir &nbsp; · &nbsp; <b>T</b> cavar (con pala)</span>
+    <span><b>P / L</b></span><span>Girar vertical / horizontal</span>
+    <span><b>F</b> / <b>X</b></span><span>Colocar / Borrar objeto</span>
+    <span><b>C / V / O</b></span><span>Papá: seguir / quieto / limpiar</span>
+    <span><b>G</b></span><span>Dar/quitar arma al papá</span>
+    <span><b>H</b></span><span>Spawnear ayudante (con mamá)</span>
+    <span><b>Clic</b></span><span>Atacar de noche &nbsp; · &nbsp; <b>N</b> empezar noche</span>
+    <span><b>R</b></span><span>Lanzar cohete (con papá, tras meteorito)</span>
+  </div>
+  <button class="btn" id="startBtn">JUGAR</button>
+</div>
+
+<div class="screen hidden" id="jail">
+  <h1 style="background:linear-gradient(90deg,#f87171,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent">CÁRCEL</h1>
+  <p>Te atraparon. Perdiste tu dinero… pero tu casa sigue en pie.</p>
+  <button class="btn" id="jailBtn">SALIR Y SEGUIR</button>
+</div>
+
+<div class="screen hidden" id="over">
+  <h1 style="background:linear-gradient(90deg,#ef4444,#7f1d1d);-webkit-background-clip:text;-webkit-text-fill-color:transparent">PERDISTE A TU PAPÁ</h1>
+  <p>Lo perdiste todo. Empiezas desde cero.</p>
+  <p class="big" id="over-score"></p>
+  <button class="btn" id="overBtn">EMPEZAR DE NUEVO</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ===================================================================
+//  THIS IS MONEY  —  prototipo grande (un solo archivo)
+// ===================================================================
+
+const canvas = document.getElementById('game');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const SKY_DAY = new THREE.Color(0x87ceeb);
+const SKY_NIGHT = new THREE.Color(0x0a1026);
+scene.background = SKY_DAY.clone();
+scene.fog = new THREE.Fog(SKY_DAY.getHex(), 40, 160);
+
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 600);
+
+const ambient = new THREE.HemisphereLight(0xffffff, 0x445533, 1.0);
+scene.add(ambient);
+const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+sun.position.set(40, 70, 25);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 240;
+sun.shadow.camera.left = -90; sun.shadow.camera.right = 90;
+sun.shadow.camera.top = 90; sun.shadow.camera.bottom = -90;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 });
+const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el plano
+
+// Suelo (cambia de color al viajar de planeta)
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a7c3a });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), groundMat);
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------- Cámara en primera persona ----------
+const player = camera;
+scene.add(player);
+const PLAYER_EYE = 1.7;
+camera.rotation.order = 'YXZ';
+let yaw = 0, pitch = 0;
+const LOOK_SENS = 0.0025;
+let vy = 0, grounded = true;        // salto/gravedad
+const CROUCH_EYE = 1.0;
+
+// Brazo/puño tipo Minecraft en primera persona (no se puede ver al revés)
+function makeViewmodel() {
+  const g = new THREE.Group();
+  g.position.set(0.45, -0.55, -0.9);
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe0ac69, roughness: 0.9 });
+  const sleeve = new THREE.MeshStandardMaterial({ color: 0x3f6212, roughness: 0.9 });
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.7), sleeve);  // manga
+  arm.position.set(0, 0, 0.15); g.add(arm);
+  const fist = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.34), skin);   // puño al frente
+  fist.position.set(0, 0.01, -0.35); g.add(fist);
+  return g;
+}
+const viewmodel = makeViewmodel();
+camera.add(viewmodel);
+let vmSwing = 0, vmBob = 0;
+
+// ===================================================================
+//  PERSONAS (papá, enemigos, vendedor, mamá, ayudantes)
+// ===================================================================
+function makePerson(colorBody, colorHead) {
+  const g = new THREE.Group();
+  const pants = 0x1f2937;
+  const addBox = (w, h, d, col, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
+    m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+  };
+  addBox(0.75, 0.95, 0.42, colorBody, 0, 1.35, 0);
+  addBox(0.5, 0.5, 0.5, colorHead, 0, 2.05, 0);
+  const limb = (col, w, h, d, x, pivotY) => {
+    const pivot = new THREE.Group(); pivot.position.set(x, pivotY, 0);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
+    m.position.y = -h / 2; m.castShadow = true; pivot.add(m); g.add(pivot); return pivot;
+  };
+  const armL = limb(colorBody, 0.22, 0.8, 0.28, -0.5, 1.78);
+  const armR = limb(colorBody, 0.22, 0.8, 0.28,  0.5, 1.78);
+  const legL = limb(pants, 0.28, 0.85, 0.32, -0.2, 0.9);
+  const legR = limb(pants, 0.28, 0.85, 0.32,  0.2, 0.9);
+  g.userData.limbs = { armL, armR, legL, legR };
+  return g;
+}
+function makeSign(text, color) {
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 128;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+  ctx.fillRect(0, 0, 512, 128);
+  ctx.fillStyle = '#000'; ctx.font = 'bold 64px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 64);
+  const tex = new THREE.CanvasTexture(cv);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+  m.userData.billboard = true;
+  return m;
+}
+
+// ----- Sprites: usa tus imágenes reales (les quito el fondo gris) -----
+const SPRITES = {};
+function loadSprite(path, mirror) {
+  const key = path + (mirror ? '_m' : '');
+  if (SPRITES[key]) return SPRITES[key];
+  const tex = new THREE.Texture(); tex.colorSpace = THREE.SRGBColorSpace;
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+      const ctx = cv.getContext('2d');
+      if (mirror) { ctx.translate(cv.width, 0); ctx.scale(-1, 1); }   // espejo horizontal
+      ctx.drawImage(img, 0, 0);
+      const im = ctx.getImageData(0, 0, cv.width, cv.height), d = im.data;
+      const br = d[0], bg = d[1], bb = d[2];   // color de la esquina = fondo
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i] - br, g = d[i + 1] - bg, b = d[i + 2] - bb;
+        if (r * r + g * g + b * b < 1500) d[i + 3] = 0;   // cerca del fondo -> transparente
+      }
+      ctx.putImageData(im, 0, 0); tex.image = cv;
+    } catch (e) { tex.image = img; }   // navegador bloqueó canvas (archivo local): usa imagen tal cual
+    tex.needsUpdate = true;
+  };
+  img.src = path;
+  SPRITES[key] = tex; return tex;
+}
+// frames: un string (1 cuadro) o un array de strings/objetos {path, mirror}
+function makeSprite(frames, w, h) {
+  if (typeof frames === 'string') frames = [frames];
+  const texs = frames.map(f => typeof f === 'string' ? loadSprite(f) : loadSprite(f.path, f.mirror));
+  const g = new THREE.Group();
+  const m = new THREE.MeshBasicMaterial({ map: texs[0], transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); plane.position.y = h / 2;
+  g.add(plane); g.userData.spriteBillboard = true; g.userData.plane = plane; g.userData.baseY = h / 2;
+  g.userData.frames = texs; g.userData.frameMat = m;
+  return g;
+}
+
+// El papá (usa tu imagen del señor mayor)
+const HOUSE = new THREE.Vector3(0, 0, 0);
+const dad = new THREE.Group();
+dad.position.set(2, 0, 9);
+dad.userData = { mode: 'follow', armed: false, atkCd: 0 };
+scene.add(dad);
+const dadTag = makeSign('PAPÁ', 0x38bdf8);
+dadTag.scale.set(.5, .5, .5); dadTag.position.set(0, 3, 0); dad.add(dadTag);
+// Cargar el modelo 3D ANIMADO del papá (con caminata de verdad)
+let dadMixer = null, dadWalkAction = null;
+new GLTFLoader().load('assets/papa_anim.glb', (gltf) => {
+  const model = gltf.scene;
+  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  model.updateMatrixWorld(true);
+  let box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3());
+  model.scale.setScalar(2.0 / size.y);                 // alto ~2.0 (un poco más chico que las personas)
+  model.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(model); const c = box.getCenter(new THREE.Vector3());
+  model.position.x -= c.x; model.position.z -= c.z; model.position.y -= box.min.y;   // centrar y pies al suelo
+  model.userData.footY = model.position.y;
+  model.rotation.y = 0;                                 // mira hacia donde camina (no al revés)
+  dad.add(model); dad.userData.model = model;
+  if (gltf.animations.length) {                        // ¡reproducir la caminata!
+    dadMixer = new THREE.AnimationMixer(model);
+    dadWalkAction = dadMixer.clipAction(gltf.animations[0]);
+    dadWalkAction.play(); dadWalkAction.paused = true;  // empieza parado
+  }
+});
+
+// La mamá (aparece a las 20.000)
+const mom = makePerson(0xdb2777, 0xf1c27d);
+mom.visible = false; scene.add(mom);
+const momTag = makeSign('MAMÁ', 0xf9a8d4);
+momTag.scale.set(.5, .5, .5); momTag.position.set(0, 3, 0); mom.add(momTag); momTag.visible = false;
+
+// ===================================================================
+//  EL SÚPER (con productos realistas y compra de mantener apretado)
+// ===================================================================
+const SUPER_POS = new THREE.Vector3(40, 0, -18);
+const obstacles = [];   // cajas que bloquean al jugador
+
+function addObstacle(cx, cz, w, d) {
+  obstacles.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
+}
+function addWallMesh(cx, cz, w, d, h, color, addColl) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+  mesh.position.set(cx, h / 2, cz); mesh.castShadow = true; mesh.receiveShadow = true;
+  scene.add(mesh);
+  if (addColl) addObstacle(cx, cz, w, d);
+  return mesh;
+}
+
+// DOS supermercados con productos distintos.
+// value = dinero al construirlo · dmg = daño del arma · factor = daño que recibes con la armadura
+const STORE_A = [   // SÚPER 1: construcción y comida
+  { key: 'wallWood', name: 'Pared madera', price: 60,  value: 25,  color: 0x8b5a2b, build: true },
+  { key: 'wallRock', name: 'Pared roca',   price: 120, value: 55,  color: 0x6b7280, build: true },
+  { key: 'door',     name: 'Puerta',       price: 90,  value: 45,  color: 0x6b4423, build: true },
+  { key: 'roof',     name: 'Techo',        price: 200, value: 120, color: 0x475569, build: true },
+  { key: 'lamp',     name: 'Lampara',      price: 150, value: 90,  color: 0xfde047, build: true },
+  { key: 'oven',     name: 'Horno',        price: 120, value: 70,  color: 0x9ca3af, build: true },
+  { key: 'comida',   name: 'Comida',       price: 100, color: 0xef4444, eat: 45 },
+  { key: 'carne',    name: 'Carne',        price: 120, color: 0x8b3a3a, eat: 50 },
+  { key: 'papas',    name: 'Papas fritas', price: 70,  color: 0xfacc15, eat: 30 },
+  { key: 'pollo',    name: 'Pollo',        price: 110, color: 0xe8c170, eat: 45 },
+  { key: 'manzana',  name: 'Manzana',      price: 60,  color: 0xef4444, eat: 25 },
+  { key: 'coca',     name: 'Coca-Cola',    price: 80,  color: 0xdc2626, eat: 20 },
+  { key: 'dadgun',   name: 'Arma papa',    price: 400, color: 0xf59e0b },
+  { key: 'rocket',   name: 'Cohete',       price: 1000000, color: 0xf97316 },
+];
+const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
+  { key: 'pala_madera',    name: 'Pala madera',    price: 200, color: 0x8b5a2b, dmg: 1 },
+  { key: 'pala_metal',     name: 'Pala metal',     price: 400, color: 0x9ca3af, dmg: 4 },
+  { key: 'pala_obsidiana', name: 'Pala obsidiana', price: 700, color: 0x6d28d9, dmg: 8 },
+  { key: 'espada_madera',    name: 'Espada madera',    price: 300,  color: 0x8b5a2b, dmg: 2 },
+  { key: 'espada_metal',     name: 'Espada metal',     price: 500,  color: 0xcbd5e1, dmg: 7 },
+  { key: 'espada_obsidiana', name: 'Espada obsidiana', price: 1000, color: 0x6d28d9, dmg: 13 },
+  { key: 'armadura_cuero',     name: 'Armadura cuero',     price: 300,  color: 0x92400e, factor: 0.8 },
+  { key: 'armadura_metal',     name: 'Armadura metal',     price: 600,  color: 0x9ca3af, factor: 0.6 },
+  { key: 'armadura_obsidiana', name: 'Armadura obsidiana', price: 1200, color: 0x6d28d9, factor: 0.3 },
+  { key: 'ballesta', name: 'Ballesta', price: 500,  value: 40, color: 0x8b5a2b, build: true, defense: true },
+  { key: 'torreta',  name: 'Torreta',  price: 1000, value: 80, color: 0x334155, build: true, defense: true },
+];
+const SHOP = [...STORE_A, ...STORE_B];
+
+// Dibuja un producto que se parece a lo que es
+function makeProductMesh(key, color) {
+  const g = new THREE.Group();
+  if (key === 'wallWood' || key === 'wallRock') {
+    for (let i = 0; i < 3; i++) { const p = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.22, 0.5), mat(color)); p.position.y = 0.15 + i * 0.25; p.castShadow = true; g.add(p); }
+  } else if (key === 'door') {
+    const d = new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.2, 0.12), mat(color)); d.position.y = 0.6; d.castShadow = true; g.add(d);
+    const kn = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), mat(0xfacc15)); kn.position.set(0.24, 0.6, 0.1); g.add(kn);
+  } else if (key === 'roof') {
+    const r = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.7, 4), mat(color)); r.position.y = 0.5; r.rotation.y = Math.PI / 4; r.castShadow = true; g.add(r);
+  } else if (key === 'lamp') {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.8), mat(0x334155)); post.position.y = 0.4; g.add(post);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), new THREE.MeshStandardMaterial({ color, emissive: 0xfde047, emissiveIntensity: 0.6 })); bulb.position.y = 0.9; bulb.castShadow = true; g.add(bulb);
+  } else if (key === 'oven') {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.6), mat(color)); b.position.y = 0.4; b.castShadow = true; g.add(b);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.05), mat(0x1f2937)); door.position.set(0, 0.4, 0.31); g.add(door);
+  } else if (key === 'comida') {
+    const apple = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 14), mat(color)); apple.position.y = 0.4; apple.castShadow = true; g.add(apple);
+  } else if (key === 'carne') {
+    const steak = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.4), mat(color)); steak.position.y = 0.4; steak.castShadow = true; g.add(steak);
+    const bone = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.4), mat(0xf5f5dc)); bone.rotation.z = Math.PI / 2; bone.position.set(-0.32, 0.4, 0); g.add(bone);
+  } else if (key === 'papas') {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.4, 0.32), mat(0xef4444)); box.position.y = 0.3; box.castShadow = true; g.add(box);
+    for (let i = 0; i < 4; i++) { const fry = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.4, 0.05), mat(color)); fry.position.set((i - 1.5) * 0.08, 0.6, 0); g.add(fry); }
+  } else if (key === 'pollo') {
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 12), mat(color)); body.position.y = 0.4; body.scale.set(1, 0.8, 1.2); body.castShadow = true; g.add(body);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2), mat(0xc89860)); leg.position.set(0, 0.18, 0.18); g.add(leg);
+  } else if (key === 'manzana') {
+    const apple = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 14), mat(color)); apple.position.y = 0.4; apple.castShadow = true; g.add(apple);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.15), mat(0x6b4423)); stem.position.y = 0.7; g.add(stem);
+  } else if (key === 'coca') {
+    const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.6), mat(color)); bottle.position.y = 0.45; bottle.castShadow = true; g.add(bottle);
+  } else if (key.startsWith('espada')) {
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.04), mat(color)); blade.position.y = 0.7; blade.castShadow = true; g.add(blade);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.1), mat(0x6b4423)); guard.position.y = 0.3; g.add(guard);
+  } else if (key.startsWith('pala')) {
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8), mat(0x6b4423)); handle.position.y = 0.5; g.add(handle);
+    const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.06), mat(color)); scoop.position.y = 0.95; scoop.castShadow = true; g.add(scoop);
+  } else if (key.startsWith('armadura')) {
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.35), mat(color)); chest.position.y = 0.5; chest.castShadow = true; g.add(chest);
+  } else if (key === 'dadgun') {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.18), mat(color)); body.position.y = 0.5; g.add(body);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5), mat(0x334155)); barrel.rotation.z = Math.PI / 2; barrel.position.set(0.45, 0.5, 0); g.add(barrel);
+  } else if (key === 'rocket') {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.9), mat(0xe5e7eb)); body.position.y = 0.6; g.add(body);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.4, 16), mat(color)); nose.position.y = 1.2; g.add(nose);
+  } else if (key === 'ballesta' || key === 'torreta') {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.7), mat(color)); base.position.y = 0.4; base.castShadow = true; g.add(base);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.7), mat(0x1f2937)); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.5, 0.4); g.add(barrel);
+  }
+  return g;
+}
+
+const shopStands = [];
+const keepers = [];   // posiciones de los vendedores (para comprar escribiendo con Y)
+function makeStore(cx, cz, items, title, roofColor) {
+  const wallC = 0xe2e8f0, H = 5, T = 0.5, hw = 11, hd = 11;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(hw * 2, hd * 2), mat(0xcbd5e1));
+  floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0.06, cz); floor.receiveShadow = true; scene.add(floor);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 + 1, T, hd * 2 + 1), mat(roofColor));
+  roof.position.set(cx, H, cz); roof.castShadow = true; scene.add(roof);
+  addWallMesh(cx, cz - hd, hw * 2, T, H, wallC, true);
+  addWallMesh(cx - hw, cz, T, hd * 2, H, wallC, true);
+  addWallMesh(cx + hw, cz, T, hd * 2, H, wallC, true);
+  addWallMesh(cx - hw / 2 - 1.5, cz + hd, hw - 3, T, H, wallC, true);
+  addWallMesh(cx + hw / 2 + 1.5, cz + hd, hw - 3, T, H, wallC, true);
+  const sign = makeSign(title, 0xfacc15); sign.position.set(cx, 6, cz + hd); scene.add(sign);
+  const cols = [cx - 7, cx - 3.5, cx, cx + 3.5, cx + 7];
+  const rows = [cz - 6, cz, cz + 6];
+  items.forEach((item, idx) => {
+    const x = cols[idx % 5], z = rows[Math.floor(idx / 5)];
+    item.pos = new THREE.Vector3(x, 0, z);
+    const table = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 1.6), mat(0x94a3b8));
+    table.position.set(x, 0.5, z); table.castShadow = true; scene.add(table);
+    const prod = makeProductMesh(item.key, item.color); prod.position.set(x, 1.0, z); scene.add(prod);
+    const price = makeSign(item.name + ' $' + item.price, 0xfacc15);
+    price.scale.set(.5, .5, .5); price.position.set(x, 2.3, z); scene.add(price);
+    shopStands.push(item);
+  });
+  const keeper = makePerson(0x059669, 0xf1c27d); keeper.position.set(cx, 0, cz - 9); scene.add(keeper);
+  keepers.push(new THREE.Vector3(cx, 0, cz - 9));
+  const kt = makeSign('VENDEDOR (Y)', 0x34d399); kt.scale.set(.45, .45, .45); kt.position.set(cx, 3.2, cz - 9); scene.add(kt);
+  return new THREE.Vector3(cx, 0, cz + hd);   // posición de la entrada
+}
+const SUPER_B_POS = makeStore(-2, -40, STORE_B, 'ARMERIA', 0x6d28d9);
+makeStore(40, -22, STORE_A, 'SUPER', 0xdc2626);
+
+// ===================================================================
+//  LA CIUDAD (casas que no se entran + gente que no te ataca)
+// ===================================================================
+const npcs = [];
+let goldenHouse = null, goldenCollectedToday = false;
+function makeCityHouse(x, z, golden) {
+  const g = new THREE.Group();
+  // La casa del tesoro se ve IGUAL que las demás (sin color ni cartel): es un secreto
+  const col = [0xcba37a, 0xb0c4de, 0xd8a7b1, 0xa7c4bc, 0xe0c097, 0xc4b5a0][Math.floor(Math.random() * 6)];
+  const w = 4 + Math.random() * 3;
+  const h1 = 3.5 + Math.random() * 1.5;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h1, w), mat(col)); body.position.y = h1 / 2; body.castShadow = true; body.receiveShadow = true; g.add(body);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.8, 0.1), mat(0x5b3a1a)); door.position.set(0, 0.9, w / 2 + 0.05); g.add(door);
+  [-w / 4, w / 4].forEach(wx => { const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.1), mat(0x93c5fd)); win.position.set(wx, h1 * 0.6, w / 2 + 0.05); g.add(win); });
+  let topY = h1;
+  if (Math.random() < 0.4) {   // segundo piso (cualquier casa)
+    const h2 = 2.5 + Math.random();
+    const f2 = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, h2, w * 0.8), mat(col)); f2.position.y = h1 + h2 / 2; f2.castShadow = true; g.add(f2); topY = h1 + h2;
+  }
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.8, 2.2, 4), mat([0x8b3a3a, 0x475569, 0x713f12][Math.floor(Math.random() * 3)]));
+  roof.position.y = topY + 1.1; roof.rotation.y = Math.PI / 4; roof.castShadow = true; g.add(roof);
+  g.position.set(x, 0, z); scene.add(g);
+  // pista secreta: la del tesoro es la ÚNICA en la que puedes entrar (las demás te bloquean)
+  if (!golden) addObstacle(x, z, w, w);
+  return g;
+}
+function buildCity() {
+  // barrio al oeste/sur
+  let placed = 0;
+  for (let gx = -85; gx <= -35 && placed < 48; gx += 9) {
+    for (let gz = 24; gz <= 78 && placed < 48; gz += 9) {
+      const golden = (placed === 23);   // una sola casa dorada entre todas
+      const h = makeCityHouse(gx + (Math.random() * 2 - 1), gz + (Math.random() * 2 - 1), golden);
+      if (golden) { goldenHouse = h; }
+      placed++;
+    }
+  }
+  for (let i = 0; i < 14; i++) {
+    const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
+    n.position.set(-85 + Math.random() * 50, 0, 24 + Math.random() * 54);
+    n.userData.wanderT = 0; n.userData.dir = Math.random() * Math.PI * 2;
+    scene.add(n); npcs.push(n);
+  }
+}
+buildCity();
+
+// Barrios extra (más ciudades, sin casa dorada) alrededor de un centro dado
+function buildNeighborhood(cx, cz, houses, npcCount) {
+  const cols = Math.ceil(Math.sqrt(houses));
+  let placed = 0;
+  for (let i = 0; i < cols && placed < houses; i++) {
+    for (let j = 0; j < cols && placed < houses; j++) {
+      const x = cx + (i - cols / 2) * 9 + (Math.random() * 2 - 1);
+      const z = cz + (j - cols / 2) * 9 + (Math.random() * 2 - 1);
+      makeCityHouse(x, z, false);
+      placed++;
+    }
+  }
+  for (let i = 0; i < npcCount; i++) {
+    const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
+    n.position.set(cx + (Math.random() * 36 - 18), 0, cz + (Math.random() * 36 - 18));
+    n.userData.wanderT = 0; n.userData.dir = Math.random() * Math.PI * 2;
+    scene.add(n); npcs.push(n);
+  }
+}
+buildNeighborhood(90, 90, 16, 8);     // ciudad noreste
+buildNeighborhood(-95, -90, 16, 8);   // ciudad suroeste
+
+// Edificios 3D reales de la ciudad (tienda y edificio que mandó el usuario)
+function loadBuilding(path, x, z, targetH) {
+  new GLTFLoader().load(path, (gltf) => {
+    const m = gltf.scene;
+    m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    m.updateMatrixWorld(true);
+    let box = new THREE.Box3().setFromObject(m);
+    m.scale.setScalar(targetH / (box.max.y - box.min.y)); m.updateMatrixWorld(true);
+    box = new THREE.Box3().setFromObject(m); const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+    m.position.set(x - c.x, -box.min.y, z - c.z);
+    scene.add(m);
+    addObstacle(x, z, s.x * 0.9, s.z * 0.9);
+  });
+}
+loadBuilding('assets/edificio.glb', -30, 40, 14);
+loadBuilding('assets/edificio.glb', -30, 20, 12);
+loadBuilding('assets/tienda.glb', -30, 58, 6);
+loadBuilding('assets/tienda.glb', -52, 16, 6);
+function updateNPCs(dt) {
+  if (state.phase === 'NIGHT') return;   // de noche los habitantes duermen
+  for (const n of npcs) {
+    n.userData.wanderT -= dt;
+    if (n.userData.wanderT <= 0) { n.userData.dir = Math.random() * Math.PI * 2; n.userData.wanderT = 2 + Math.random() * 3; }
+    n.position.x += Math.sin(n.userData.dir) * 0.6 * dt;
+    n.position.z += Math.cos(n.userData.dir) * 0.6 * dt;
+    n.rotation.y = n.userData.dir;
+    swingLimbs(n, dt);
+  }
+}
+
+// ===================================================================
+//  ESTADIOS + ROBAR + POLICÍA + CÁRCEL
+// ===================================================================
+const victims = [];     // gente sentada en los estadios (les puedes robar)
+const stadiums = [];    // centros (para el mini-mapa)
+const soccer = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0 };   // partido de fútbol decorativo
+function makeStadium(cx, cz, fieldColor, name) {
+  const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), mat(fieldColor));
+  field.rotation.x = -Math.PI / 2; field.position.set(cx, 0.05, cz); field.receiveShadow = true; scene.add(field);
+  // graderías en los 4 lados (bloquean al jugador)
+  [[0, -9, 20, 2], [0, 9, 20, 2], [-11, 0, 2, 16], [11, 0, 2, 16]].forEach(([dx, dz, w, d]) => {
+    const s = new THREE.Mesh(new THREE.BoxGeometry(w, 2, d), mat(0x9ca3af));
+    s.position.set(cx + dx, 1, cz + dz); s.castShadow = true; s.receiveShadow = true; scene.add(s);
+    addObstacle(cx + dx, cz + dz, w, d);
+  });
+  const sign = makeSign(name, 0xfacc15); sign.position.set(cx, 5, cz - 9); scene.add(sign);
+  // gente sentada (víctimas)
+  for (let i = 0; i < 8; i++) {
+    const v = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
+    const side = i < 4 ? -8.2 : 8.2, off = ((i % 4) - 1.5) * 3;
+    v.position.set(cx + off, 1.2, cz + side); v.userData.victim = true; v.userData.robbed = false;
+    scene.add(v); victims.push(v);
+  }
+  if (name === 'FUTBOL') setupSoccer(cx, cz);
+  stadiums.push(new THREE.Vector3(cx, 0, cz));
+}
+
+// Partido de fútbol decorativo: 2 arcos, una pelota y jugadores que la persiguen
+function setupSoccer(cx, cz) {
+  soccer.cx = cx; soccer.cz = cz;
+  const postMat = mat(0xffffff);
+  // dos arcos (porterías) en los extremos del campo (eje x)
+  [-9, 9].forEach(gx => {
+    const goal = new THREE.Group();
+    [-2, 2].forEach(zp => { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4), postMat); post.position.set(0, 1.2, zp); post.castShadow = true; goal.add(post); });
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4), postMat); bar.rotation.x = Math.PI / 2; bar.position.set(0, 2.4, 0); goal.add(bar);
+    goal.position.set(cx + gx, 0, cz); scene.add(goal);
+  });
+  // pelota
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
+  ball.position.set(cx, 0.35, cz); ball.castShadow = true; scene.add(ball);
+  soccer.ball = ball; soccer.vel.set((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4);
+  // jugadores de dos equipos (rojo y azul)
+  for (let i = 0; i < 6; i++) {
+    const team = i < 3 ? 0xdc2626 : 0x2563eb;
+    const p = makePerson(team, 0xf1c27d); p.scale.set(0.9, 0.9, 0.9);
+    p.position.set(cx + (Math.random() * 12 - 6), 0, cz + (Math.random() * 8 - 4));
+    p.userData.kickCd = 0;
+    scene.add(p); soccer.players.push(p);
+  }
+}
+function updateSoccer(dt) {
+  if (!soccer.ball) return;
+  const ball = soccer.ball, b = ball.position;
+  // mover pelota y frenarla por roce
+  b.x += soccer.vel.x * dt; b.z += soccer.vel.z * dt;
+  soccer.vel.multiplyScalar(0.97);
+  // rebotar en los límites del campo (campo 20x14 -> media 9.5 x 6.5 dejando margen)
+  if (b.x < soccer.cx - 9) { b.x = soccer.cx - 9; soccer.vel.x = Math.abs(soccer.vel.x); }
+  if (b.x > soccer.cx + 9) { b.x = soccer.cx + 9; soccer.vel.x = -Math.abs(soccer.vel.x); }
+  if (b.z < soccer.cz - 6) { b.z = soccer.cz - 6; soccer.vel.z = Math.abs(soccer.vel.z); }
+  if (b.z > soccer.cz + 6) { b.z = soccer.cz + 6; soccer.vel.z = -Math.abs(soccer.vel.z); }
+  ball.rotation.x += soccer.vel.z * dt; ball.rotation.z -= soccer.vel.x * dt;   // rodar
+  // jugadores corren hacia la pelota; el más cercano la patea
+  let nearest = null, nd = 1e9;
+  for (const p of soccer.players) {
+    const d = dist2D(p.position, b);
+    if (d < nd) { nd = d; nearest = p; }
+    if (d > 1.1) { moveToward(p, b, 4.5 * dt); p.rotation.y = Math.atan2(b.x - p.position.x, b.z - p.position.z); }
+    if (p.userData.kickCd > 0) p.userData.kickCd -= dt;
+    swingLimbs(p, dt);
+  }
+  if (nearest && nd <= 1.3 && nearest.userData.kickCd <= 0) {
+    const ang = Math.random() * Math.PI * 2;
+    soccer.vel.set(Math.cos(ang) * (8 + Math.random() * 4), 0, Math.sin(ang) * (8 + Math.random() * 4));
+    nearest.userData.kickCd = 0.6;
+  }
+}
+function buildStadiums() {
+  makeStadium(70, 25, 0x2d6a4f, 'FUTBOL');
+  makeStadium(20, 58, 0xb45309, 'BASQUET');
+  makeStadium(-70, -10, 0x1d4ed8, 'TENIS');
+}
+buildStadiums();
+
+// La cárcel (edificio con rejas)
+function buildJail() {
+  const cx = 55, cz = -8;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 8), mat(0x9ca3af)); body.position.set(cx, 2.5, cz); body.castShadow = true; body.receiveShadow = true; scene.add(body);
+  for (let i = -2; i <= 2; i++) { const bar = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3, 0.15), mat(0x334155)); bar.position.set(cx + i * 0.8, 2.5, cz + 4.05); scene.add(bar); }
+  const sign = makeSign('CARCEL', 0x94a3b8); sign.position.set(cx, 6.2, cz); scene.add(sign);
+  addObstacle(cx, cz, 10, 8);
+}
+buildJail();
+
+// Policías: aparecen cuando estás "buscado" y te persiguen
+const police = [];
+function spawnPolice(n) {
+  for (let k = 0; k < n; k++) {
+    const p = makePerson(0x1e3a8a, 0xf1c27d);
+    const helm = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.22, 0.52), mat(0x1e40af)); helm.position.y = 2.35; p.add(helm);
+    const tag = makeSign('POLICIA', 0x60a5fa); tag.scale.set(.5, .5, .5); tag.position.set(0, 3, 0); p.add(tag);
+    const a = Math.random() * Math.PI * 2, r = 28;
+    p.position.set(player.position.x + Math.cos(a) * r, 0, player.position.z + Math.sin(a) * r);
+    scene.add(p); police.push(p);
+  }
+}
+function clearPolice() { police.forEach(p => scene.remove(p)); police.length = 0; }
+function updatePolice(dt) {
+  if (state.wanted > 0) {
+    state.wanted -= dt;
+    if (police.length === 0) spawnPolice(2);
+    for (const p of police) {
+      const d = dist2D(p.position, player.position);
+      if (d <= 1.9) { policeCatch(); return; }
+      moveToward(p, player.position, 10 * dt);   // más rápido que caminar, más lento que correr
+      p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
+      swingLimbs(p, dt);
+    }
+  } else if (police.length) clearPolice();
+}
+function policeCatch() { state.wanted = 0; clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
+
+// Robar a la gente del estadio (con E cerca). Riesgo: que te persiga la policía
+function tryRob() {
+  for (const v of victims) {
+    if (!v.userData.robbed && dist2D(player.position, v.position) < 3) {
+      v.userData.robbed = true;
+      const loot = 100 + Math.floor(Math.random() * 300); addMoney(loot);
+      if (Math.random() < 0.6) { state.wanted = 15; if (police.length === 0) spawnPolice(2); toast('🚨 ¡Robaste $' + loot + ' pero te vieron! ¡Corre (Shift)!'); }
+      else toast('🤑 Robaste $' + loot + ' sin que te vieran');
+      return;
+    }
+  }
+}
+
+// Árboles (en la Tierra)
+const decor = [];
+function buildTrees() {
+  for (let i = 0; i < 36; i++) {
+    const a = Math.random() * Math.PI * 2, r = 28 + Math.random() * 60;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if ((Math.abs(x) < 14 && Math.abs(z) < 14) || (x > 25 && z < -8)) continue;
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.4, .5, 3), mat(0x6b4423)); trunk.position.y = 1.5; trunk.castShadow = true; tree.add(trunk);
+    const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 8), mat(0x2d5016)); leaves.position.y = 4.5; leaves.castShadow = true; tree.add(leaves);
+    tree.position.set(x, 0, z); scene.add(tree); decor.push(tree);
+  }
+}
+buildTrees();
+
+// Zona de DESIERTO (arena + cactus de bloques), lejana
+function buildDesert(cx, cz) {
+  const sand = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), mat(0xE0C56E));
+  sand.rotation.x = -Math.PI / 2; sand.position.set(cx, 0.04, cz); sand.receiveShadow = true; scene.add(sand);
+  const cactusMat = mat(0x2E8B2E);
+  for (let i = 0; i < 18; i++) {
+    const x = cx + (Math.random() * 60 - 30), z = cz + (Math.random() * 60 - 30);
+    const cac = new THREE.Group();
+    const h = 2 + Math.floor(Math.random() * 3);
+    for (let b = 0; b < h; b++) { const seg = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.7), cactusMat); seg.position.y = 0.45 + b * 0.9; seg.castShadow = true; cac.add(seg); }
+    if (h >= 2) {   // brazos
+      const armL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), cactusMat); armL.position.set(-0.55, (h - 1) * 0.9, 0); cac.add(armL);
+      const armLu = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4), cactusMat); armLu.position.set(-0.55, (h - 1) * 0.9 + 0.5, 0); cac.add(armLu);
+      const armR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.4), cactusMat); armR.position.set(0.55, (h - 1.5) * 0.9, 0); cac.add(armR);
+      const armRu = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.4), cactusMat); armRu.position.set(0.55, (h - 1.5) * 0.9 + 0.5, 0); cac.add(armRu);
+    }
+    cac.position.set(x, 0, z); scene.add(cac); decor.push(cac);
+    addObstacle(x, z, 0.7, 0.7);
+  }
+}
+buildDesert(120, -60);
+
+// Flecha guía
+const arrow = new THREE.Group();
+const arrowCone = new THREE.Mesh(new THREE.ConeGeometry(.6, 1.4, 4), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
+arrow.add(arrowCone); scene.add(arrow);
+
+// ===================================================================
+//  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
+// ===================================================================
+const placed = [];          // objetos colocados {mesh, key, hp, light?}
+const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta'];
+let buildSel = 0, buildRot = 0;
+const ghost = new THREE.Group(); scene.add(ghost); ghost.visible = false;
+let ghostMesh = null;
+// línea brillante debajo del objeto
+const ghostLine = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.7, 24),
+  new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
+ghostLine.rotation.x = -Math.PI / 2; ghostLine.position.y = 0.05; ghost.add(ghostLine);
+
+function objGeometry(key) {
+  if (key === 'wallWood' || key === 'wallRock') return new THREE.BoxGeometry(4, 3, 0.4);
+  if (key === 'door') return new THREE.BoxGeometry(1.5, 2.6, 0.18);   // tamaño de puerta normal
+  if (key === 'roof') return new THREE.BoxGeometry(5, 0.4, 5);
+  if (key === 'lamp') return new THREE.CylinderGeometry(0.12, 0.12, 2.4);
+  if (key === 'oven') return new THREE.BoxGeometry(1.2, 1.4, 1);
+  if (key === 'ballesta' || key === 'torreta') return new THREE.BoxGeometry(0.8, 0.9, 1.2);
+  return new THREE.BoxGeometry(1, 1, 1);
+}
+function objColor(key) { return SHOP.find(s => s.key === key).color; }
+function objY(key) { return key === 'roof' ? 3.2 : key === 'lamp' ? 1.2 : key === 'door' ? 1.3 : (key === 'ballesta' || key === 'torreta') ? 0.6 : 1.5; }
+
+function refreshGhost() {
+  if (ghostMesh) ghost.remove(ghostMesh);
+  const key = BUILD_KEYS[buildSel];
+  ghostMesh = new THREE.Mesh(objGeometry(key), new THREE.MeshStandardMaterial({ color: objColor(key), transparent: true, opacity: 0.5 }));
+  ghostMesh.position.y = objY(key); ghost.add(ghostMesh);
+}
+refreshGhost();
+
+function updateBuild() {
+  ghost.visible = state.buildMode && state.phase === 'DAY';
+  if (!ghost.visible) return;
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const t = player.position.clone().addScaledVector(fwd, 5); t.y = 0;
+  ghost.position.set(t.x, 0, t.z);
+  ghost.rotation.y = buildRot;
+  const have = state.inv[BUILD_KEYS[buildSel]] > 0;
+  ghostLine.material.color.set(have ? 0x4ade80 : 0xef4444);
+}
+
+function placeObject() {
+  if (!state.buildMode || state.phase !== 'DAY') return;
+  const key = BUILD_KEYS[buildSel];
+  if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
+  state.inv[key]--;
+  const m = new THREE.Mesh(objGeometry(key), mat(objColor(key)));
+  m.position.set(ghost.position.x, objY(key), ghost.position.z); m.rotation.y = buildRot;
+  m.castShadow = true; m.receiveShadow = true; scene.add(m);
+  const obj = { mesh: m, key, hp: key === 'wallRock' ? 200 : 100 };
+  if (key === 'door') {
+    const fr = new THREE.MeshStandardMaterial({ color: 0x4a2f15, roughness: 0.9 });
+    const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.22), fr); b.position.set(x, y, 0); m.add(b); };
+    bar(1.6, 0.2, 0, 1.3); bar(1.6, 0.2, 0, -1.3); bar(0.2, 2.6, -0.75, 0); bar(0.2, 2.6, 0.75, 0);  // marco
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), mat(0xfacc15)); knob.position.set(0.55, 0, 0.13); m.add(knob);  // manilla
+  }
+  if (key === 'ballesta' || key === 'torreta') {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9), mat(0x1f2937));
+    barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.15, 0.5); m.add(barrel);
+    obj.ammo = 5; obj.shotCd = 0; obj.reloading = false; obj.reloadT = 0;
+  }
+  if (key === 'lamp') {
+    const light = new THREE.PointLight(0xfff1a8, 0, 18); light.position.set(m.position.x, 2.6, m.position.z); scene.add(light); obj.light = light;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xfde047, emissiveIntensity: 1 }));
+    bulb.position.set(m.position.x, 2.5, m.position.z); scene.add(bulb); obj.bulb = bulb;
+  }
+  if (key === 'wallWood' || key === 'wallRock') {
+    // bloquea al jugador y a los enemigos
+    const w = Math.abs(Math.cos(buildRot)) > 0.5 ? 4 : 0.4;
+    const d = Math.abs(Math.cos(buildRot)) > 0.5 ? 0.4 : 4;
+    obj.aabb = { minX: m.position.x - w / 2, maxX: m.position.x + w / 2, minZ: m.position.z - d / 2, maxZ: m.position.z + d / 2 };
+    obstacles.push(obj.aabb);
+  }
+  placed.push(obj);
+  const val = SHOP.find(s => s.key === key).value;
+  addMoney(val);
+  toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + ' +$' + val);
+  checkConstructionBonus();
+}
+
+function deleteObject() {
+  if (!state.buildMode) return;
+  let best = null, bd = 4;
+  for (const o of placed) { const d = dist2D(o.mesh.position, ghost.position); if (d < bd) { bd = d; best = o; } }
+  if (!best) { toast('Apunta cerca de un objeto para borrarlo'); return; }
+  state.inv[best.key] = (state.inv[best.key] || 0) + 1;   // te lo devuelve al inventario
+  const nm = SHOP.find(s => s.key === best.key);
+  removePlaced(best);
+  toast('↩️ Recuperaste ' + (nm ? nm.name : 'el objeto'));
+}
+function removePlaced(o) {
+  scene.remove(o.mesh); if (o.light) scene.remove(o.light); if (o.bulb) scene.remove(o.bulb);
+  if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
+  const i = placed.indexOf(o); if (i >= 0) placed.splice(i, 1);
+  if (['wallWood', 'wallRock', 'door', 'roof'].includes(o.key)) houseRewarded = false;  // se rompió: puedes volver a ganar el bono
+}
+
+// ¿Cómo es la casa? (para pagar más por mansiones y permitir la noche)
+function houseStats() {
+  let walls = 0, roofs = 0, lamps = 0;
+  for (const o of placed) {
+    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'door') && dist2D(o.mesh.position, HOUSE) < 18) walls++;
+    else if (o.key === 'roof') roofs++;
+    else if (o.key === 'lamp') lamps++;
+  }
+  const ready = walls >= 4;
+  const mansion = walls >= 7 && roofs >= 1 && lamps >= 2;
+  return { walls, roofs, lamps, ready, mansion };
+}
+// Bono al terminar una construcción completa (4 paredes + techo): ganas MÁS de lo que gastaste
+let houseRewarded = false;
+function checkConstructionBonus() {
+  if (houseRewarded) return;
+  const hs = houseStats();
+  if (hs.walls >= 4 && hs.roofs >= 1) {
+    houseRewarded = true;
+    const bonus = hs.mansion ? 1500 : 600;
+    addMoney(bonus);
+    toast('🏠 ¡Construcción completa! Bono +$' + bonus + ' (ganaste más de lo que gastaste 🤑)');
+  }
+}
+
+// ===================================================================
+//  ENEMIGOS
+// ===================================================================
+const enemies = [];
+const projectiles = [];
+
+function makeZombie() {   // zombi verde tipo Minecraft (de bloques)
+  const g = makePerson(0x4d7c0f, 0x84cc16);
+  // brazos al frente
+  if (g.userData.limbs) { g.userData.limbs.armL.rotation.x = -1.4; g.userData.limbs.armR.rotation.x = -1.4; }
+  return g;
+}
+function makeSmart() {    // zombi inteligente (bata clara)
+  const g = makePerson(0xe5e7eb, 0x84cc16);
+  return g;
+}
+function makeKnight() {   // comandante de los toros (armadura + espada)
+  const g = makePerson(0x475569, 0x94a3b8);
+  const sword = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.6, .12), mat(0xe2e8f0)); sword.position.set(.6, 1.3, .4); g.add(sword);
+  const helmet = new THREE.Mesh(new THREE.BoxGeometry(.55, .35, .55), mat(0x334155)); helmet.position.y = 2.35; g.add(helmet);
+  return g;
+}
+function makeBull() {     // toro de bloques
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1, .9, 1.8), mat(0x5b3a1a)); body.position.y = .8; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(.7, .7, .7), mat(0x4a2f15)); head.position.set(0, 1, 1); head.castShadow = true; g.add(head);
+  [-.3, .3].forEach(x => { const h = new THREE.Mesh(new THREE.ConeGeometry(.08, .5, 6), mat(0xf8fafc)); h.position.set(x, 1.3, 1.1); h.rotation.x = -.4; g.add(h); });
+  return g;
+}
+function makeMole() {     // topo de bloques
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 1.2), mat(0x4a2f15)); body.position.y = 0.4; body.castShadow = true; g.add(body);
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), mat(0xf9a8d4)); nose.position.set(0, 0.4, 0.7); g.add(nose);
+  return g;
+}
+function makeGhost() {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.6, roughness: 0.3 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), m); body.position.y = 1.7; g.add(body);
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.3, 16), m); tail.position.y = 1.0; g.add(tail);
+  [-0.22, 0.22].forEach(x => { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshBasicMaterial({ color: 0x1e293b })); eye.position.set(x, 1.8, 0.5); g.add(eye); });
+  return g;
+}
+function makeOgre() {     // ogro de bloques
+  const g = makePerson(0x166534, 0x4ade80); g.scale.set(1.8, 1.9, 1.8);
+  const club = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.22, 1.6), mat(0x6b4423)); club.position.set(0.62, 1.0, 0.4); club.rotation.z = 0.35; club.castShadow = true; g.add(club);
+  return g;
+}
+// monstruo alienígena (solo en otro planeta) — sin imagen, queda como figura morada
+function makeAlien() {
+  const g = makePerson(0x7c3aed, 0xa78bfa); g.scale.set(1.2, 1.3, 1.2);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 0.7 }));
+  eye.position.set(0, 2.1, 0.4); g.add(eye);
+  return g;
+}
+
+// Zombi con armadura (etapa 2) — usa la imagen del zombi, más grande
+function makeZombieArmored() {   // zombi con armadura, de bloques
+  const g = makePerson(0x4d7c0f, 0x84cc16);
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.7, 0.5), mat(0x6b7280)); chest.position.y = 1.35; chest.castShadow = true; g.add(chest);
+  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.3, 0.55), mat(0x4b5563)); helm.position.y = 2.3; g.add(helm);
+  return g;
+}
+// Dragón volador (etapa 10 / $10.000)
+function makeDragon() {   // dragón volador de bloques
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 2.2), mat(0x7f1d1d)); body.position.y = 3; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1), mat(0x991b1b)); head.position.set(0, 3.2, 1.4); g.add(head);
+  [-1, 1].forEach(s => { const wing = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 1.2), mat(0xb91c1c)); wing.position.set(s * 1.4, 3.3, 0); g.add(wing); });
+  return g;
+}
+
+function pickEnemyType() {
+  const S = state.stage, r = Math.random();
+  if (state.planet === 'marte' && r < 0.4) return 'alien';
+  if (S >= 10 && r < 0.12) return 'dragon';
+  if (S >= 6 && r < 0.13) return 'ogre';
+  if (S >= 4 && r < 0.22) return 'ghost';   // el topo NO sale de noche: solo cavando con la pala
+  if (S >= 3 && r < 0.40) return 'knight';
+  if (S >= 2 && r < 0.40) return 'smart';
+  if (S >= 2 && r < 0.60) return 'zombieArmored';
+  return 'zombie';
+}
+function spawnEnemy(type, atPos) {
+  let e, data, barY = 3.3;
+  if (type === 'knight') { e = makeKnight(); data = { type, hp: 80, maxhp: 80, speed: 1.6, attackCd: 0, shootCd: 2, bullCd: 4 }; barY = 3.7; }
+  else if (type === 'ghost') { e = makeGhost(); data = { type, hp: 30, maxhp: 30, speed: 3.2 + state.stage * 0.1, attackCd: 0 }; barY = 3.2; }
+  else if (type === 'ogre') { e = makeOgre(); data = { type, hp: 220, maxhp: 220, speed: 1.1, attackCd: 0 }; barY = 4.5; }
+  else if (type === 'alien') { e = makeAlien(); data = { type, hp: 90, maxhp: 90, speed: 2.4, attackCd: 0 }; barY = 3.2; }
+  else if (type === 'zombieArmored') { e = makeZombieArmored(); data = { type, hp: 30, maxhp: 30, speed: 1.6 + state.stage * 0.1, attackCd: 0 }; barY = 3.8; }
+  else if (type === 'smart') { e = makeSmart(); data = { type, hp: 20, maxhp: 20, speed: 1.9 + state.stage * 0.12, attackCd: 0 }; barY = 3.3; }
+  else if (type === 'mole') { e = makeMole(); data = { type, hp: 20, maxhp: 20, speed: 2.8, attackCd: 0 }; barY = 1.9; }
+  else if (type === 'dragon') { e = makeDragon(); data = { type, hp: 150, maxhp: 150, speed: 3.5, attackCd: 0, fly: true }; barY = 6.2; }
+  else { e = makeZombie(); data = { type: 'zombie', hp: 10, maxhp: 10, speed: 1.8 + state.stage * 0.15, attackCd: 0 }; barY = 3.3; }
+  if (atPos) e.position.copy(atPos);
+  else { const a = Math.random() * Math.PI * 2, r = 32; e.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); }
+  data.barY = barY;
+  Object.assign(e.userData, data);
+  addHealthBar(e);
+  scene.add(e); enemies.push(e);
+}
+
+// Barra de vida flotante sobre cada enemigo
+function addHealthBar(e) {
+  const g = new THREE.Group();
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.18), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+  const fg = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.18), new THREE.MeshBasicMaterial({ color: 0x22c55e })); fg.position.z = 0.01;
+  g.add(bg); g.add(fg); scene.add(g); e.userData.bar = { g, fg };
+}
+function flashEnemy(e, on) {
+  e.traverse(o => {
+    if (!o.isMesh || !o.material) return;
+    if (o.material.emissive) o.material.emissive.setHex(on ? 0x991b1b : 0x000000);   // modelos
+    else if (o.material.map) o.material.color.setHex(on ? 0xff6666 : 0xffffff);       // sprites
+  });
+}
+// Golpear a un enemigo: baja vida, lo pone rojo, lo empuja; devuelve true si murió
+function hitEnemy(e, dmg, fromPos) {
+  e.userData.hp -= dmg; e.userData.flash = 0.15;
+  if (fromPos) { const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1; e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6; }
+  beep(180, 0.05, 0.035);
+  if (e.userData.hp <= 0) { killEnemy(e); addMoney(15); return true; }
+  return false;
+}
+function updateEnemyFX(dt) {
+  for (const e of enemies) {
+    const ud = e.userData;
+    if (ud.flash > 0) { ud.flash -= dt; flashEnemy(e, ud.flash > 0); }
+    if (ud.bar) {
+      ud.bar.g.position.set(e.position.x, ud.barY || 2.6, e.position.z); ud.bar.g.quaternion.copy(camera.quaternion);
+      const f = Math.max(0, Math.min(1, ud.hp / ud.maxhp)); ud.bar.fg.scale.x = f || 0.001;
+      ud.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : (f > 0.25 ? 0xf59e0b : 0xef4444));
+    }
+  }
+}
+function shootSword(k) {
+  const t = pickTarget(k.position); const dx = t.x - k.position.x, dz = t.z - k.position.z; const len = Math.hypot(dx, dz) || 1;
+  const s = new THREE.Mesh(new THREE.BoxGeometry(.15, .15, 1.2), mat(0xcbd5e1)); s.position.copy(k.position); s.position.y = 1.2; s.rotation.y = Math.atan2(dx, dz);
+  s.userData = { vel: new THREE.Vector3(dx / len * 16, 0, dz / len * 16), dmg: 8, life: 4 }; scene.add(s); projectiles.push(s);
+}
+function launchBull(k) {
+  const t = pickTarget(k.position); const dx = t.x - k.position.x, dz = t.z - k.position.z; const len = Math.hypot(dx, dz) || 1;
+  const e = makeBull(); e.position.copy(k.position); e.rotation.y = Math.atan2(dx, dz);
+  e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
+}
+function pickTarget(from) {
+  const cands = [player.position];
+  if (dad.visible) cands.push(dad.position);
+  for (const h of helpers) cands.push(h.position);
+  let best = cands[0], bd = dist2D(from, best);
+  for (const c of cands) { const d = dist2D(from, c); if (d < bd) { bd = d; best = c; } }
+  return best;
+}
+function moveToward(e, target, step) {
+  const dx = target.x - e.position.x, dz = target.z - e.position.z; const len = Math.hypot(dx, dz) || 1;
+  e.position.x += (dx / len) * step; e.position.z += (dz / len) * step;
+}
+function removeEnemy(i) { const e = enemies[i]; if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); enemies.splice(i, 1); }
+function killEnemy(e) { const i = enemies.indexOf(e); if (i >= 0) removeEnemy(i); }
+function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; }
+function updateProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i], ud = p.userData;
+    p.position.x += ud.vel.x * dt; p.position.z += ud.vel.z * dt; ud.life -= dt;
+    let hit = false;
+    if (ud.friendly) {                                  // dardo de ballesta/torreta: pega a los monstruos
+      for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (e.userData.type === 'bull') continue; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
+    } else {                                            // proyectil enemigo: te pega a ti o al papá
+      if (dist2D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg); hit = true; }
+      else if (dad.visible && dist2D(p.position, dad.position) < 1.4) { state.dadHp -= ud.dmg; hit = true; }
+    }
+    if (hit || ud.life <= 0) { scene.remove(p); projectiles.splice(i, 1); }
+  }
+}
+// Dardo amigo (de ballesta/torreta) hacia un objetivo
+function spawnBolt(from, target, dmg) {
+  const dx = target.x - from.x, dz = target.z - from.z, len = Math.hypot(dx, dz) || 1;
+  const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.7), mat(0xfde047));
+  b.position.set(from.x, 0.9, from.z); b.rotation.y = Math.atan2(dx, dz);
+  b.userData = { friendly: true, vel: new THREE.Vector3(dx / len * 32, 0, dz / len * 32), dmg, life: 2 };
+  scene.add(b); projectiles.push(b);
+}
+// Las ballestas/torretas colocadas disparan solas a los zombis de noche
+function updateDefenses(dt) {
+  for (const o of placed) {
+    if (o.key !== 'ballesta' && o.key !== 'torreta') continue;
+    const turret = o.key === 'torreta';
+    o.shotCd -= dt;
+    if (o.reloading) { o.reloadT -= dt; if (o.reloadT <= 0) { o.reloading = false; o.ammo = 5; } continue; }
+    let near = null, nd = 26;
+    for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(o.mesh.position, e.position); if (d < nd) { nd = d; near = e; } }
+    if (!near) continue;               // sin objetivo, no dispara
+    o.mesh.rotation.y = Math.atan2(near.position.x - o.mesh.position.x, near.position.z - o.mesh.position.z);
+    if (o.shotCd <= 0 && o.ammo > 0) {
+      spawnBolt(o.mesh.position, near.position, turret ? 12 : 16);
+      o.ammo--; o.shotCd = turret ? 0.4 : 1.0;
+      if (o.ammo <= 0) { o.reloading = true; o.reloadT = turret ? 1 : 3; }   // recarga: torreta 1s, ballesta 3s
+    }
+  }
+}
+
+// ===================================================================
+//  AYUDANTES (hijos) — se desbloquean con la mamá
+// ===================================================================
+const helpers = [];
+function spawnHelper() {
+  if (state.phase !== 'DAY') { toast('Solo puedes llamar ayudantes de día'); return; }
+  if (!state.momUnlocked) { toast('Necesitas conocer a la mamá (a las $20.000)'); return; }
+  if (state.money < 300) { toast('Un ayudante cuesta $300'); return; }
+  state.money -= 300;
+  const h = makePerson(0xf472b6, 0xf1c27d); h.scale.set(0.7, 0.7, 0.7);
+  h.position.set(HOUSE.x + (Math.random() * 4 - 2), 0, HOUSE.z + 6);
+  h.userData.atkCd = 0; scene.add(h); helpers.push(h);
+  toast('👧 ¡Nuevo ayudante! (' + helpers.length + ')');
+}
+function updateHelpers(dt) {
+  for (const h of helpers) {
+    let near = null, nd = 14;
+    if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(h.position, e.position); if (d < nd) { nd = d; near = e; } }
+    if (near) {
+      if (nd > 1.5) { moveToward(h, near.position, 3 * dt); h.rotation.y = Math.atan2(near.position.x - h.position.x, near.position.z - h.position.z); }
+      else { h.userData.atkCd -= dt; if (h.userData.atkCd <= 0) { h.userData.atkCd = 0.6; hitEnemy(near, 20, h.position); } }
+    } else { const d = dist2D(h.position, player.position); if (d > 4) { moveToward(h, player.position, 3 * dt); h.rotation.y = Math.atan2(player.position.x - h.position.x, player.position.z - h.position.z); } }
+    swingLimbs(h, dt);
+  }
+}
+
+// ===================================================================
+//  LIMPIEZA (si el papá no limpia, salen zombis dentro de la casa)
+// ===================================================================
+const dirt = []; let dirtTimer = 6;
+function spawnDirt() {
+  const x = HOUSE.x + (Math.random() * 6 - 3), z = HOUSE.z + (Math.random() * 6 - 3);
+  const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), new THREE.MeshStandardMaterial({ color: 0x4d7c0f }));
+  mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, 0.08, z); scene.add(mesh);
+  dirt.push({ mesh, pos: new THREE.Vector3(x, 0, z), infection: 0 });
+}
+function nearestDirt() { let b = null, bd = 1e9; for (const d of dirt) { const dd = dist2D(dad.position, d.pos); if (dd < bd) { bd = dd; b = d; } } return b; }
+function removeDirt(d) { scene.remove(d.mesh); const i = dirt.indexOf(d); if (i >= 0) dirt.splice(i, 1); }
+function clearDirt() { dirt.forEach(d => scene.remove(d.mesh)); dirt.length = 0; }
+function updateDirt(dt) {
+  if (!houseStats().ready) return;
+  dirtTimer -= dt;
+  if (dirtTimer <= 0 && dirt.length < 6) { spawnDirt(); dirtTimer = 9; }
+  for (let i = dirt.length - 1; i >= 0; i--) {
+    const d = dirt[i]; d.infection += dt;
+    d.mesh.material.color.lerp(new THREE.Color(0x166534), 0.008);
+    if (d.infection > 16) {
+      spawnEnemy('zombie', new THREE.Vector3(d.pos.x, 0, d.pos.z));
+      removeDirt(d); toast('🧟 ¡Un zombi salió de la suciedad! (¡limpia con O!)');
+    }
+  }
+}
+
+// ===================================================================
+//  PAPÁ — obedece teclas y pelea si está armado
+// ===================================================================
+function setDadMode(m) { dad.userData.mode = m; toast('👨 Papá: ' + ({ follow: 'te sigue', stay: 'se queda quieto', clean: 'a limpiar' })[m]); }
+function toggleDadArm() {
+  if (!state.dadGun) { toast('Compra un "Arma papá" en el súper'); return; }
+  dad.userData.armed = !dad.userData.armed;
+  if (dad.userData.armed && !dad.userData.weapon) {
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.16), mat(0xf59e0b)); w.position.set(0.6, 1.3, 0.3); dad.add(w); dad.userData.weapon = w;
+  }
+  if (dad.userData.weapon) dad.userData.weapon.visible = dad.userData.armed;
+  toast(dad.userData.armed ? '🔫 Papá armado: peleará de noche' : 'Papá desarmado');
+}
+function updateDad(dt) {
+  if (!dad.visible) return;
+  // si está armado y es de noche, ataca al enemigo más cercano
+  if (state.phase === 'NIGHT' && dad.userData.armed) {
+    dad.userData.atkCd -= dt;
+    let near = null, nd = 6;
+    for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(dad.position, e.position); if (d < nd) { nd = d; near = e; } }
+    if (near) {
+      dad.rotation.y = Math.atan2(near.position.x - dad.position.x, near.position.z - dad.position.z);
+      if (nd > 3) moveToward(dad, near.position, 2 * dt);
+      else if (dad.userData.atkCd <= 0) { dad.userData.atkCd = 0.7; hitEnemy(near, 30, dad.position); }
+      swingLimbs(dad, dt); return;
+    }
+  }
+  const m = dad.userData.mode;
+  if (m === 'follow') {
+    const d = dist2D(dad.position, player.position);
+    if (d > 3) { moveToward(dad, player.position, 2.6 * dt); dad.rotation.y = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z); }
+  } else if (m === 'clean') {
+    const spot = nearestDirt();
+    if (spot) {
+      const d = dist2D(dad.position, spot.pos);
+      if (d > 1) { moveToward(dad, spot.pos, 2.6 * dt); dad.rotation.y = Math.atan2(spot.pos.x - dad.position.x, spot.pos.z - dad.position.z); }
+      else { removeDirt(spot); toast('🧹 Papá limpió la suciedad'); }
+    }
+  } // stay: no hace nada
+  swingLimbs(dad, dt);
+}
+
+// ===================================================================
+//  ESTADO
+// ===================================================================
+const START_MONEY = 1000;
+const DAY_LENGTH = 600;     // 10 minutos de día
+const NIGHT_LENGTH = 600;   // 10 minutos de noche
+const METEOR_AT = 1000000;  // el "millón": cae el meteorito (también con tecla M para probar)
+const MOM_AT = 20000;
+const state = {
+  phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
+  hp: 100, dadHp: 100,
+  inv: { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 },
+  weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadGun: false, hasRocket: false,
+  hunger: 100, night: 0,
+  momUnlocked: false, momEventPending: false,
+  planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0,
+  buildMode: false,
+  dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, running: false,
+};
+let lastHp = 100;   // para detectar cuándo te hacen daño
+
+function addMoney(n) {
+  state.money += n;
+  if (n > 0) { state.totalEarned += n; checkProgress(); }
+}
+function checkProgress() {
+  const newStage = 1 + Math.floor(state.totalEarned / 1000);
+  if (newStage > state.stage) { state.stage = newStage; toast('⭐ ¡ETAPA ' + state.stage + '! El juego se pone más difícil'); phaseText('ETAPA ' + state.stage); }
+  if (!state.momUnlocked && state.totalEarned >= MOM_AT) { state.momUnlocked = true; state.momEventPending = true; toast('💃 A las $20.000: ¡esta noche el papá irá a una fiesta!'); }
+  if (!state.meteorTriggered && state.totalEarned >= METEOR_AT) triggerMeteor();
+}
+
+function damagePlayer(amount) { state.hp -= amount * state.armorFactor; }
+
+// Sonido corto (bip) con WebAudio
+let audioCtx = null;
+function beep(freq, dur, vol) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = freq; o.type = 'square'; g.gain.value = vol || 0.05;
+    o.connect(g); g.connect(audioCtx.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur || 0.1));
+    o.stop(audioCtx.currentTime + (dur || 0.1));
+  } catch (e) {}
+}
+
+// ===================================================================
+//  ENTRADA (teclado y mouse)
+// ===================================================================
+const keys = {};
+let typing = false;   // true mientras el input del vendedor está abierto (bloquea controles del juego)
+addEventListener('keydown', e => {
+  if (typing) return;   // si está escribiendo en el vendedor, el juego ignora el teclado
+  keys[e.code] = true;
+  if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
+  if (!state.running) return;
+  if (e.code === 'KeyY') { openShopInput(); return; }   // abrir vendedor (comprar escribiendo)
+  if (e.code === 'KeyN') tryStartNight();
+  if (e.code === 'KeyB') { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (1-5 elegir, F colocar, X borrar)' : 'Modo construir OFF'); }
+  if (e.code === 'KeyP') buildRot = Math.PI / 2;
+  if (e.code === 'KeyL') buildRot = 0;
+  if (e.code === 'KeyF') placeObject();
+  if (e.code === 'KeyX') deleteObject();
+  if (e.code === 'KeyC') setDadMode('follow');
+  if (e.code === 'KeyV') setDadMode('stay');
+  if (e.code === 'KeyO') setDadMode('clean');
+  if (e.code === 'KeyG') toggleDadArm();
+  if (e.code === 'KeyH') spawnHelper();
+  if (e.code === 'KeyR') tryLaunchRocket();
+  if (e.code === 'KeyT') digHole();                                  // cavar con la pala
+  if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
+  if (e.code === 'KeyE') { tryCollectGolden(); tryRob(); }   // casa dorada o robar en el estadio
+  if (e.code === 'KeyJ') tryCollectGolden();
+  if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
+  if (e.code === 'KeyQ') eatFood();   // comer
+});
+// Inventario tipo Minecraft: elegir un espacio (slot)
+function selectSlot(n) {
+  if (n === 1) state.buildMode = false;                       // 1 = herramienta en mano (pala/espada)
+  else if (n >= 2 && n <= 9) { buildSel = n - 2; state.buildMode = true; refreshGhost(); }  // construir (incluye ballesta/torreta)
+}
+function eatFood() {
+  if ((state.inv.food || 0) <= 0) { toast('No tienes comida (cómprala en el SÚPER)'); return; }
+  if (state.hunger >= 100) { toast('No tienes hambre todavía'); return; }
+  state.inv.food--; state.hunger = Math.min(100, state.hunger + 45); state.hp = Math.min(100, state.hp + 8);
+  toast('🍖 Comiste (+45 hambre)'); beep(440, 0.08, 0.04);
+}
+addEventListener('keyup', e => { if (!typing) keys[e.code] = false; });
+
+// ----- Vendedor por texto (tecla Y cerca de un vendedor) -----
+function nearKeeper() {
+  for (const k of keepers) if (dist2D(player.position, k) < 6) return true;
+  return false;
+}
+function openShopInput() {
+  if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
+  if (!nearKeeper()) { toast('🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
+  typing = true;
+  for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
+  const box = ui('shopbox'), inp = ui('shopInput');
+  box.style.display = 'block'; inp.value = ''; inp.focus();
+}
+function closeShopInput() {
+  typing = false;
+  ui('shopbox').style.display = 'none';
+  ui('shopInput').blur();
+}
+function processShopBuy() {
+  const text = ui('shopInput').value.trim().toLowerCase();
+  if (!text) { closeShopInput(); return; }
+  const item = SHOP.find(s => s.name.toLowerCase().includes(text));
+  if (!item) { toast('🤔 No existe "' + text + '" (prueba: espada metal, madera, comida…)'); ui('shopInput').value = ''; return; }
+  if (state.money < item.price) { toast('💸 Te falta plata para ' + item.name + ' ($' + item.price + ')'); ui('shopInput').value = ''; return; }
+  buyItem(item);
+  ui('shopInput').value = '';   // queda abierto para seguir comprando
+}
+
+// Cámara libre: mueves el mouse (sin hacer clic) y la cámara mira hacia allá
+addEventListener('mousemove', e => {
+  if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
+  yaw -= e.movementX * LOOK_SENS; pitch -= e.movementY * LOOK_SENS;
+  pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
+});
+canvas.addEventListener('mousedown', () => { if (state.phase === 'NIGHT') attack(); });  // clic = atacar de noche
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+const ui = id => document.getElementById(id);
+function rotateBuild() { buildRot = (buildRot + Math.PI / 2) % (Math.PI * 2); state.buildMode = true; refreshGhost(); }
+ui('rotateBtn').onclick = rotateBuild;
+ui('deleteBtn').onclick = deleteObject;
+ui('startBtn').onclick = startGame;
+ui('jailBtn').onclick = () => hideScreens();
+ui('overBtn').onclick = () => { resetAll(); startGame(); };
+ui('shopInput').addEventListener('keydown', e => {
+  e.stopPropagation();   // que el teclado del juego no lo vea
+  if (e.code === 'Enter') processShopBuy();
+  else if (e.code === 'Escape') closeShopInput();
+});
+
+function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; }
+
+function startGame() {
+  hideScreens();
+  state.phase = 'DAY'; state.running = true;
+  state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
+  state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
+  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; setWeaponColor(0x94a3b8);
+  state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 };
+  state.wanted = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
+  houseRewarded = false;
+  player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
+  dad.position.set(2, 0, 11); dad.userData.mode = 'follow'; dad.visible = true;
+  toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
+}
+
+function resetAll() {
+  state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
+  state.hunger = 100; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1;
+  state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 };
+  state.dadGun = state.hasRocket = false;
+  state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
+  if (ui('escape')) ui('escape').style.display = 'none';
+  state.buildMode = false;
+  dad.position.set(2, 0, 11); dad.visible = true; dad.userData.armed = false; if (dad.userData.weapon) dad.userData.weapon.visible = false;
+  mom.visible = false; momTag.visible = false;
+  helpers.forEach(h => scene.remove(h)); helpers.length = 0;
+  placed.slice().forEach(removePlaced);
+  clearWaves(); clearDirt(); clearPolice(); state.wanted = 0;
+  victims.forEach(v => v.userData.robbed = false);
+  groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
+  if (state.rocket) { scene.remove(state.rocket); state.rocket = null; }
+}
+
+// ===================================================================
+//  COMPRAR (manteniendo apretado E cerca del producto)
+// ===================================================================
+let buyHold = 0;
+function updateBuying(dt) {
+  const ring = ui('buyring');
+  if (state.phase !== 'DAY' || state.buildMode) { ring.style.display = 'none'; buyHold = 0; return; }
+  let near = null; for (const it of shopStands) { if (dist2D(player.position, it.pos) < 2.8) { near = it; break; } }
+  if (!near) { ring.style.display = 'none'; buyHold = 0; return; }
+  ring.style.display = 'block';
+  const enough = state.money >= near.price;
+  ui('ring-label').textContent = near.name + '  $' + near.price + (enough ? '  (mantén E)' : '  (sin plata)');
+  if (keys['KeyE'] && enough) buyHold += dt; else buyHold = Math.max(0, buyHold - dt * 2);
+  const frac = Math.min(1, buyHold / 0.8);
+  ui('ring-fg').setAttribute('stroke-dashoffset', String(239 * (1 - frac)));
+  if (buyHold >= 0.8) { buyItem(near); buyHold = -0.4; }
+}
+function buyItem(item) {
+  if (state.money < item.price) { toast('💸 Te falta plata'); return; }
+  state.money -= item.price;
+  if (item.build) { state.inv[item.key]++; toast('🛒 Compraste ' + item.name + ' (constrúyela con B/F)'); }
+  else if (item.eat) { state.inv.food++; toast('🍖 ' + item.name + ' guardada en el inventario (pulsa 7 para comer)'); }
+  else if (item.dmg) {   // arma (espada o pala): equipa la más fuerte
+    if (item.dmg > state.weaponDmg) { state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color); toast('⚔️ ' + item.name + ' equipada: hace ' + item.dmg + ' de daño'); }
+    else toast('Ya tienes un arma más fuerte (' + state.weaponName + ')');
+  }
+  else if (item.factor) {  // armadura: deja la que menos daño recibe
+    if (item.factor < state.armorFactor) { state.armorFactor = item.factor; toast('🛡️ ' + item.name + ': un zombi te hace ' + Math.round(10 * item.factor) + ' (antes 10)'); }
+    else toast('Ya tienes una armadura mejor');
+  }
+  else if (item.key === 'dadgun') { state.dadGun = true; toast('🔫 Arma para papá comprada (G para armarlo)'); }
+  else if (item.key === 'rocket') { giveRocket(); }
+}
+function setWeaponColor(c) {   // pinta la hoja del pico/arma en primera persona
+  if (viewmodel.children[2]) viewmodel.children[2].material.color.setHex(c);
+}
+
+// ===================================================================
+//  CASA DORADA
+// ===================================================================
+function tryCollectGolden() {
+  if (!goldenHouse || goldenCollectedToday) return;
+  if (dist2D(player.position, goldenHouse.position) < 5) {
+    goldenCollectedToday = true; addMoney(1000); toast('🪙 ¡Casa secreta! Encontraste 1000 de oro (vuelve mañana)'); beep(660, 0.18, 0.05);
+  }
+}
+
+// ===================================================================
+//  MAMÁ
+// ===================================================================
+function dadGoesToParty() {
+  state.momEventPending = false; dad.visible = false; momTag.visible = false;
+  toast('💃 El papá se fue a una fiesta… (no lo puedes parar)');
+}
+function dadReturnsWithMom() {
+  dad.visible = true; dad.position.set(2, 0, 9);
+  mom.visible = true; momTag.visible = true; mom.position.set(-2, 0, 9);
+  toast('❤️ El papá volvió… ¡con la MAMÁ! Ahora pulsa H para crear ayudantes ($300)');
+}
+
+// ===================================================================
+//  METEORITO / COHETE / PLANETA
+// ===================================================================
+function triggerMeteor() {
+  state.meteorTriggered = true;
+  state.escapeTimer = 600;   // 10 minutos para comprar el cohete y escapar con el papá
+  toast('☄️ ¡UN METEORITO VA A DESTRUIR LA TIERRA! Tienes 10 min: compra un COHETE y escapa con tu papá.');
+  phaseText('☄️ FIN DEL MUNDO');
+}
+// Cuenta regresiva del meteorito: si llega a 0 sin escapar -> game over
+function updateEscape(dt) {
+  if (!state.meteorTriggered) { ui('escape').style.display = 'none'; return; }
+  state.escapeTimer -= dt;
+  const el = ui('escape');
+  el.style.display = 'block';
+  el.textContent = '☄️ ¡Escapa! Quedan ' + fmt(state.escapeTimer);
+  if (state.escapeTimer <= 0) {
+    state.escapeTimer = 0; el.style.display = 'none';
+    meteorImpact();
+  }
+}
+function meteorImpact() {
+  state.meteorTriggered = false;
+  toast('💥 ¡El meteorito cayó! No alcanzaste a escapar…');
+  phaseText('💥 IMPACTO');
+  gameOver();
+}
+function giveRocket() {
+  state.hasRocket = true;
+  if (!state.rocket) {
+    const r = makeProductMesh('rocket', 0xf97316); r.scale.set(4, 4, 4); r.position.set(10, 0, 10); scene.add(r);
+    const s = makeSign('COHETE (R)', 0xf97316); s.position.set(10, 6, 10); scene.add(s);
+    state.rocket = r;
+  }
+  toast('🚀 ¡Cohete listo en (10,10)! Ve con tu PAPÁ y pulsa R');
+}
+function tryLaunchRocket() {
+  if (!state.hasRocket || !state.rocket) { toast('Primero compra un Cohete ($2000) en el súper'); return; }
+  if (dist2D(player.position, state.rocket.position) > 6) { toast('Acércate al cohete'); return; }
+  if (dist2D(dad.position, state.rocket.position) > 8) { toast('¡Tienes que ir con tu PAPÁ al cohete!'); return; }
+  goToPlanet();
+}
+function goToPlanet() {
+  state.planet = 'marte'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
+  state.money = 200; state.hunger = 100; state.night = 0; state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 };
+  placed.slice().forEach(removePlaced); clearDirt(); clearWaves();
+  groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Marte: rojo y sin árboles
+  if (state.rocket) { scene.remove(state.rocket); state.rocket = null; } state.hasRocket = false;
+  player.position.set(0, PLAYER_EYE, 14); dad.position.set(2, 0, 11);
+  state.phase = 'DAY'; state.dayTime = 0;
+  toast('🪐 Llegaste a otro planeta. Empiezas de cero: pocos recursos, sin árboles. ¡Sobrevive!');
+  phaseText('PLANETA NUEVO');
+}
+
+// ===================================================================
+//  CONSTRUIR LA NOCHE / COMBATE
+// ===================================================================
+function tryStartNight() {
+  if (state.phase !== 'DAY') return;
+  if (!houseStats().ready) { toast('Construye al menos 4 paredes cerca de tu casa (B para construir)'); return; }
+  startNight();
+}
+function startNight() {
+  state.phase = 'NIGHT'; state.nightTime = 0; state.spawnTimer = 0; state.buildMode = false;
+  state.night++;
+  if (state.momEventPending) dadGoesToParty();
+  const n = enemiesForNight(state.night);
+  toast(n === 0 ? '🌙 Noche tranquila: ¡aprovecha para construir!' : '🌙 ¡Noche ' + state.night + '! Vienen ' + n + ' monstruos');
+  phaseText('NOCHE ' + state.night);
+}
+// Cuántos monstruos por noche (noche 1 libre; luego 3,5,7,9...)
+function enemiesForNight(n) { return n <= 1 ? 3 : Math.min(40, 2 * n - 1); }   // noche 1 ya trae 3 monstruos
+function attack() {
+  if (state.buildMode) return;
+  vmSwing = 1; beep(320, 0.05, 0.03);
+  const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const range = 5, dmg = state.weaponDmg;
+  let best = null, bestD = range;
+  for (const e of enemies) {
+    if (e.userData.type === 'bull') continue;
+    const d = dist2D(p, e.position);
+    if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
+  }
+  if (best && hitEnemy(best, dmg, p)) toast('💥 Enemigo eliminado +$15');
+}
+
+// Cavar un hoyo con la PALA: a veces salen topos (que viven bajo tierra)
+function digHole() {
+  if (state.phase !== 'DAY' && state.phase !== 'NIGHT') return;
+  if (!state.weaponName.toLowerCase().includes('pala')) { toast('🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
+  if (state.digCd > 0) return;
+  state.digCd = 0.8; vmSwing = 1; beep(140, 0.1, 0.04);
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const t = player.position.clone().addScaledVector(fwd, 3); t.y = 0;
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0x2e1f12 }));
+  hole.rotation.x = -Math.PI / 2; hole.position.set(t.x, 0.07, t.z); scene.add(hole);
+  const r = Math.random();
+  if (r < 0.5) {                       // ¡encontraste topos! salen en grupo si vas avanzado
+    const n = state.stage >= 5 ? 2 + Math.floor(Math.random() * 2) : 1;
+    for (let k = 0; k < n; k++) spawnEnemy('mole', new THREE.Vector3(t.x + (Math.random() * 2 - 1), 0, t.z + (Math.random() * 2 - 1)));
+    toast('🦣 ¡Salió ' + (n > 1 ? n + ' topos' : 'un topo') + ' del hoyo!');
+  } else if (r < 0.72) { const m = 50 + Math.floor(Math.random() * 150); addMoney(m); toast('💰 Cavaste y encontraste $' + m); }
+  else toast('⛏️ Solo tierra… sigue cavando');
+}
+
+// Los topos se mueven y atacan siempre (de día o de noche), porque salen al cavar
+function updateMoles(dt) {
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i], ud = e.userData;
+    if (ud.type !== 'mole') continue;
+    ud.attackCd -= dt;
+    const tgt = pickTarget(e.position);
+    const isPlayer = tgt === player.position;
+    const d = dist2D(e.position, tgt);
+    if (d > 1.4) { moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
+    else if (ud.attackCd <= 0) { ud.attackCd = 1; if (isPlayer) damagePlayer(10); else state.dadHp -= 7; }
+  }
+}
+
+function updateNight(dt) {
+  state.nightTime += dt;
+  state.spawnTimer -= dt;
+  const aliveCount = enemies.filter(e => e.userData.type !== 'bull').length;
+  const maxEnemies = enemiesForNight(state.night);
+  if (state.spawnTimer <= 0 && aliveCount < maxEnemies && state.nightTime < NIGHT_LENGTH - 8) {
+    const t = state.night <= 3 ? 'zombie' : pickEnemyType();   // primeras noches solo zombis
+    spawnEnemy(t); state.spawnTimer = Math.max(1.0, 3.5 - state.stage * 0.15);
+  }
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i], ud = e.userData;
+    if (ud.type === 'bull') {
+      e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
+      if (dist2D(e.position, player.position) < 1.5) { damagePlayer(25); removeEnemy(i); continue; }
+      if (dad.visible && dist2D(e.position, dad.position) < 1.6) { state.dadHp -= 20; removeEnemy(i); continue; }
+      if (ud.life <= 0) removeEnemy(i); continue;
+    }
+    if (ud.type === 'mole') continue;   // los topos los maneja updateMoles (día y noche)
+    ud.attackCd -= dt;
+    const tgt = pickTarget(e.position);
+    const isPlayer = tgt === player.position;
+    const d = dist2D(e.position, tgt);
+    if (ud.type === 'knight') {
+      const ideal = 12;
+      if (d > ideal + 3) moveToward(e, tgt, ud.speed * dt); else if (d < ideal - 3) moveToward(e, tgt, -ud.speed * dt);
+      e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
+      ud.shootCd -= dt; ud.bullCd -= dt;
+      if (ud.shootCd <= 0) { shootSword(e); ud.shootCd = 2.2; }
+      if (ud.bullCd <= 0) { launchBull(e); ud.bullCd = 4.5; }
+      continue;
+    }
+    // zombi / zombi con armadura / ogro / fantasma / alien / dragón
+    const flies = ud.type === 'ghost' || ud.fly;
+    let blocked = null;
+    if (!flies) { for (const o of placed) {
+      const isBarrier = o.key === 'wallWood' || o.key === 'wallRock' || (o.key === 'door' && ud.type !== 'smart'); // el zombi inteligente abre puertas
+      if (isBarrier && o.hp > 0 && dist2D(e.position, o.mesh.position) < 2.2) blocked = o;
+    } }
+    if (flies) e.position.y = (ud.fly ? 3 : 0.3) + Math.sin(state.nightTime * 4 + i) * 0.2;   // flotar
+    if (blocked) {
+      // el zombi inteligente rompe las paredes mucho más rápido
+      if (ud.attackCd <= 0) { blocked.hp -= ud.type === 'smart' ? 30 : 10; ud.attackCd = 1; if (blocked.hp <= 0) removePlaced(blocked); }
+    } else if (d > 1.4) {
+      moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
+    } else if (ud.attackCd <= 0) {
+      ud.attackCd = 1;
+      const dmg = ud.type === 'ogre' ? 26 : ud.type === 'alien' ? 18 : ud.type === 'dragon' ? 20 : 10;
+      if (isPlayer) damagePlayer(dmg); else state.dadHp -= dmg * 0.7;
+    }
+  }
+  updateDefenses(dt);
+  updateProjectiles(dt);
+  if (state.nightTime >= NIGHT_LENGTH) surviveNight();
+}
+
+function surviveNight() {
+  clearWaves();
+  const hs = houseStats();
+  let reward = 100 * state.stage + (hs.mansion ? 800 : (hs.ready ? 200 : 0));
+  addMoney(reward);
+  state.hp = Math.min(100, state.hp + 40); state.dadHp = Math.min(100, state.dadHp + 30);
+  state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
+  victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
+  if (state.momUnlocked && !mom.visible) dadReturnsWithMom();
+  toast('🌅 ¡Sobreviviste! +$' + reward + (hs.mansion ? ' (¡bono mansión!)' : ''));
+  phaseText('DÍA');
+}
+function goToJail() {
+  if (state.phase === 'JAIL' || state.phase === 'OVER') return;
+  clearWaves(); state.money = 0; state.hp = 100; state.phase = 'JAIL';
+  ui('hud').style.display = 'none'; ui('jail').classList.remove('hidden');
+  setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(0, PLAYER_EYE, 14); }, 0);
+}
+function gameOver() {
+  if (state.phase === 'OVER') return;
+  clearWaves(); dad.visible = false; state.phase = 'OVER'; state.running = false;
+  ui('hud').style.display = 'none';
+  ui('over-score').textContent = 'Etapa ' + state.stage + ' · $' + state.totalEarned + ' ganados';
+  ui('over').classList.remove('hidden');
+}
+
+// ===================================================================
+//  AVISOS
+// ===================================================================
+let toastTimer = 0;
+function toast(msg) { const t = ui('toast'); t.textContent = msg; t.style.opacity = 1; toastTimer = 3; }
+function phaseText(msg) { ui('phase').textContent = msg; setTimeout(() => { if (ui('phase').textContent === msg) ui('phase').textContent = ''; }, 2600); }
+
+// ===================================================================
+//  BUCLE PRINCIPAL
+// ===================================================================
+const clock = new THREE.Clock();
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (state.running && (state.phase === 'DAY' || state.phase === 'NIGHT')) {
+    updateMovement(dt);
+    updateViewmodel(dt);
+    updateBuild();
+    updateDad(dt);
+    dadWalkBob(dt);
+    updateHelpers(dt);
+    updateNPCs(dt);
+    updateSoccer(dt);
+    swingLimbs(mom, dt);
+    updateArrow();
+    updateDayNight(dt);
+    updateEscape(dt);
+    updateHunger(dt);
+    if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); }
+    updateMoles(dt);                       // topos: activos de día y de noche
+    updatePolice(dt);                      // policía persigue si estás buscado
+    if (state.phase === 'NIGHT') updateNight(dt);
+    updateEnemyFX(dt);
+    hurtFeedback();
+    if (state.hp <= 0) goToJail();         // monstruos te matan -> cárcel (día o noche)
+    else if (state.dadHp <= 0 && dad.visible) gameOver();
+    updateTimers(dt);
+  }
+  for (const e of enemies) swingLimbs(e, dt);
+  updateBillboards(dt);
+  updateSky(dt);
+  renderHUD();
+  drawMinimap();
+  renderer.render(scene, camera);
+}
+
+// Hambre baja con el tiempo; en 0 pierdes vida y puedes desmayarte
+function updateHunger(dt) {
+  state.hunger = Math.max(0, state.hunger - 0.22 * dt);   // baja lento (~7-8 min en vaciarse)
+  if (state.hunger <= 0) {
+    state.hp -= 2 * dt;
+    if (state.hp <= 0) faintFromHunger();
+  }
+}
+// Morir de hambre: te desmayas y revives en casa (no es la cárcel; es por no comer)
+function faintFromHunger() {
+  state.hp = 60; state.hunger = 45; lastHp = 60;
+  if (state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = 0; }
+  player.position.set(0, PLAYER_EYE, 14);
+  toast('😵 ¡Te desmayaste de hambre! Come algo en el súper 🍖');
+  beep(90, 0.25, 0.06);
+}
+// Cuando te hacen daño: parpadeo rojo + sonido
+function hurtFeedback() {
+  if (state.hp < lastHp - 0.5) {
+    const h = ui('hurt'); h.style.opacity = '1'; setTimeout(() => h.style.opacity = '0', 120);
+    beep(110, 0.12, 0.06);
+  }
+  lastHp = state.hp;
+}
+// Mini-mapa: tu casa, los súper y la ciudad
+function drawMinimap() {
+  const c = ui('minimap'); if (!c) return; const g = c.getContext('2d');
+  g.clearRect(0, 0, 150, 150);
+  const sc = 0.6, cx = 75 - player.position.x * sc, cz = 75 - player.position.z * sc;
+  const dot = (x, z, col, r) => { g.fillStyle = col; g.beginPath(); g.arc(cx + x * sc, cz + z * sc, r, 0, 7); g.fill(); };
+  dot(HOUSE.x, HOUSE.z, '#4ade80', 4);                 // casa
+  dot(40, -22, '#facc15', 4); dot(-2, -40, '#a78bfa', 4); // súper / armería
+  // la casa del tesoro NO se muestra en el mapa: es un secreto que hay que encontrar
+  for (const n of npcs) dot(n.position.x, n.position.z, '#94a3b8', 1.5);
+  for (const s of stadiums) dot(s.x, s.z, '#22c55e', 3);        // estadios
+  for (const p of police) dot(p.position.x, p.position.z, '#3b82f6', 2.5); // policía
+  if (state.phase === 'NIGHT') for (const e of enemies) dot(e.position.x, e.position.z, '#ef4444', 2);
+  if (dad.visible) dot(dad.position.x, dad.position.z, '#38bdf8', 3);
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(75, 75, 3, 0, 7); g.fill();   // tú (centro)
+}
+
+function updateMovement(dt) {
+  const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
+  const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
+  const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const rightV = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const crouch = keys['ControlLeft'] || keys['ControlRight'];   // agacharse con Ctrl
+  const running = (keys['ShiftLeft'] || keys['ShiftRight']) && state.hunger > 5 && !crouch;
+  let spd = running ? 14 : (crouch ? 4 : 9);
+  if (state.hunger <= 0) spd = 6;     // muerto de hambre: caminas lento
+  if (running) state.hunger = Math.max(0, state.hunger - 0.8 * dt);
+  const step = spd * dt;
+  if (fwd) player.position.addScaledVector(forward, step);
+  if (back) player.position.addScaledVector(forward, -step);
+  if (right) player.position.addScaledVector(rightV, step);
+  if (left) player.position.addScaledVector(rightV, -step);
+  // salto (espacio) y gravedad; agacharse baja la altura
+  const standY = crouch ? CROUCH_EYE : PLAYER_EYE;
+  if (keys['Space'] && grounded) { vy = 8; grounded = false; }
+  vy -= 25 * dt; player.position.y += vy * dt;
+  if (player.position.y <= standY) { player.position.y = standY; vy = 0; grounded = true; }
+  player.position.x = THREE.MathUtils.clamp(player.position.x, -110, 110);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, -110, 110);
+  resolveCollisions();
+  camera.rotation.y = yaw; camera.rotation.x = pitch;
+}
+
+function updateArrow() {
+  let target = HOUSE;
+  if (state.meteorTriggered && state.rocket) target = state.rocket.position;
+  else if (state.phase === 'NIGHT') target = HOUSE;
+  else if (!houseStats().ready) target = SUPER_POS;
+  arrow.position.copy(player.position);
+  arrow.position.y = PLAYER_EYE + 2.2 + Math.sin(performance.now() / 300) * 0.15;
+  arrow.rotation.y = Math.atan2(target.x - player.position.x, target.z - player.position.z);
+  arrowCone.rotation.set(Math.PI / 2, 0, 0);
+}
+
+function updateDayNight(dt) {
+  if (state.phase === 'DAY') {
+    state.dayTime += dt;
+    if (state.dayTime >= DAY_LENGTH) startNight();   // al acabarse el día SIEMPRE viene la noche
+  }
+}
+
+function swingLimbs(o, dt) {
+  const l = o.userData.limbs; if (!l || !o.visible) return;
+  if (!o.userData.prevPos) o.userData.prevPos = o.position.clone();
+  const moved = o.position.distanceTo(o.userData.prevPos); o.userData.prevPos.copy(o.position);
+  const walking = moved > 0.003;
+  o.userData.walkPhase = (o.userData.walkPhase || 0) + (walking ? dt * 9 : 0);
+  const s = walking ? Math.sin(o.userData.walkPhase) * 0.6 : 0;
+  l.legL.rotation.x = s; l.legR.rotation.x = -s; l.armL.rotation.x = -s; l.armR.rotation.x = s;
+}
+// Balanceo del papá 3D al caminar (el modelo no trae animación de piernas)
+function dadWalkBob(dt) {
+  if (dadMixer) dadMixer.update(dt);                  // avanzar la animación
+  const m = dad.userData.model; if (!m) return;
+  if (!dad.userData.bobPrev) dad.userData.bobPrev = dad.position.clone();
+  const moved = dad.position.distanceTo(dad.userData.bobPrev); dad.userData.bobPrev.copy(dad.position);
+  const walking = moved > 0.003;
+  if (dadWalkAction) {                                // con animación: camina/se detiene
+    dadWalkAction.paused = !walking;
+  } else {                                            // sin animación: balanceo de respaldo
+    dad.userData.bobT = (dad.userData.bobT || 0) + (walking ? dt * 9 : 0);
+    m.position.y = (m.userData.footY || 0) + (walking ? Math.abs(Math.sin(dad.userData.bobT)) * 0.12 : 0);
+  }
+}
+function updateViewmodel(dt) {
+  const moving = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'];
+  vmBob += moving ? dt * 9 : 0; const bob = moving ? Math.sin(vmBob) * 0.02 : 0;
+  if (vmSwing > 0) vmSwing -= dt * 5; const sw = Math.max(0, vmSwing);
+  viewmodel.position.set(0.45, -0.55 + bob, -0.9); viewmodel.rotation.set(-sw * 1.8, 0, 0);  // golpe = balanceo del brazo
+}
+function resolveCollisions() {
+  const r = 0.45, p = player.position;
+  for (const o of obstacles) {
+    if (p.x > o.minX - r && p.x < o.maxX + r && p.z > o.minZ - r && p.z < o.maxZ + r) {
+      const left = (o.minX - r) - p.x, right = (o.maxX + r) - p.x, up = (o.minZ - r) - p.z, down = (o.maxZ + r) - p.z;
+      const px = Math.abs(left) < Math.abs(right) ? left : right;
+      const pz = Math.abs(up) < Math.abs(down) ? up : down;
+      if (Math.abs(px) < Math.abs(pz)) p.x += px; else p.z += pz;
+    }
+  }
+}
+function updateBillboards(dt) {
+  scene.traverse(o => {
+    if (!o.userData) return;
+    if (o.userData.billboard) { o.quaternion.copy(camera.quaternion); return; }      // carteles/barras: miran de frente
+    if (!o.userData.spriteBillboard) return;
+    o.rotation.y = Math.atan2(camera.position.x - o.position.x, camera.position.z - o.position.z);  // figuras: giran hacia ti
+    // balanceo al caminar (rebote + inclinación) para que NO parezca que flota
+    const px = o.userData.spx == null ? o.position.x : o.userData.spx;
+    const pz = o.userData.spz == null ? o.position.z : o.userData.spz;
+    const moved = Math.hypot(o.position.x - px, o.position.z - pz);
+    o.userData.spx = o.position.x; o.userData.spz = o.position.z;
+    const walking = moved > 0.002;
+    o.userData.walkT = (o.userData.walkT || 0) + (walking ? (dt || 0.016) * 12 : 0);
+    const pl = o.userData.plane;
+    if (pl) {
+      pl.position.y = o.userData.baseY + (walking ? Math.abs(Math.sin(o.userData.walkT)) * 0.14 : 0);
+      pl.rotation.z = walking ? Math.sin(o.userData.walkT) * 0.07 : 0;
+      // animación de cuadros: parado=0, caminando alterna 1 y 2
+      const fr = o.userData.frames;
+      if (fr && fr.length > 1) {
+        let idx = 0;
+        if (walking) idx = fr.length > 2 ? (Math.floor(o.userData.walkT / Math.PI) % 2 === 0 ? 1 : 2) : 1;
+        const mat = o.userData.frameMat;
+        if (mat.map !== fr[idx]) { mat.map = fr[idx]; mat.needsUpdate = true; }
+      }
+    }
+
+  });
+}
+function updateSky(dt) {
+  const night = state.phase === 'NIGHT';
+  const base = state.planet === 'marte' ? new THREE.Color(0xd98c5f) : SKY_DAY;
+  const target = night ? SKY_NIGHT : base;
+  scene.background.lerp(target, 0.04); scene.fog.color.copy(scene.background);
+  ambient.intensity += ((night ? 0.25 : 1.0) - ambient.intensity) * 0.04;
+  sun.intensity += ((night ? 0.15 : 1.0) - sun.intensity) * 0.04;
+  for (const o of placed) if (o.light) o.light.intensity += (((night ? 1.6 : 0)) - o.light.intensity) * 0.05;
+}
+function updateTimers(dt) {
+  if (state.superCd > 0) state.superCd -= dt;
+  if (state.digCd > 0) state.digCd -= dt;
+  if (toastTimer > 0) { toastTimer -= dt; if (toastTimer <= 0) ui('toast').style.opacity = 0; }
+}
+
+function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+function renderHUD() {
+  ui('ui-money').textContent = '$' + state.money;
+  ui('ui-stage').textContent = state.stage;
+  ui('ui-planet').textContent = state.planet === 'marte' ? 'Marte' : 'Tierra';
+  ui('ui-hp').style.width = Math.max(0, state.hp) + '%';
+  ui('ui-food').style.width = Math.max(0, state.hunger) + '%';
+  ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
+  ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(NIGHT_LENGTH - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(DAY_LENGTH - state.dayTime) : '--');
+
+  // barra de construcción
+  const bb = ui('buildbar');
+  if (state.phase === 'DAY' || state.phase === 'NIGHT') {
+    bb.style.display = 'flex';
+    const isPala = state.weaponName.toLowerCase().includes('pala');
+    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫' };
+    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta' };
+    let html = `<div class="slot ${!state.buildMode ? 'sel' : ''}"><div class="kk">1</div><div class="ic">${isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
+    BUILD_KEYS.forEach((k, i) => { html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`; });
+    bb.innerHTML = html;
+  } else bb.style.display = 'none';
+  const showBuildBtns = (state.buildMode && state.phase === 'DAY') ? 'block' : 'none';
+  ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;
+
+  // papá
+  const modeTxt = { follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando' }[dad.userData.mode] || '';
+  ui('dadhud').innerHTML = `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}<br><span style="opacity:.7;font-size:11px">C seguir · V quieto · O limpiar · G arma</span>`;
+  // equipo
+  let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
+  if (state.armorFactor < 1) gear.push('🛡️ ' + Math.round(state.armorFactor * 100) + '% daño');
+  if (state.dadGun) gear.push('🔫 papá');
+  if (state.momUnlocked) gear.push('👩 H');
+  gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
+  ui('gearhud').innerHTML = gear.join(' · ');
+
+  // objetivo
+  let obj = '';
+  if (state.phase === 'DAY') {
+    if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);
+    else if (!houseStats().ready) obj = '🛒 Compra en el súper (mantén E) y construye 4 paredes (B)';
+    else obj = '🌙 Pulsa N para la noche · 🏆 casa dorada en la ciudad (E cerca)';
+  } else if (state.phase === 'NIGHT') obj = '🗡️ ¡Defiende! Quedan ' + fmt(NIGHT_LENGTH - state.nightTime);
+  if (state.wanted > 0) obj = '🚨 ¡BUSCADO! Huye de la policía (corre con Shift) — ' + Math.ceil(state.wanted) + 's';
+  ui('objective').textContent = obj;
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+});
+
+loop();
+</script>
+</body>
+</html>

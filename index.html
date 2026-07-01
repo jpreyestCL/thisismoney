@@ -492,7 +492,8 @@ const SUPER_POS = new THREE.Vector3(40, 0, -18);
 const obstacles = [];   // cajas que bloquean al jugador
 
 function addObstacle(cx, cz, w, d) {
-  obstacles.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
+  const o = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 };
+  obstacles.push(o); return o;
 }
 function addWallMesh(cx, cz, w, d, h, color, addColl) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
@@ -915,7 +916,7 @@ function updatePolice(dt) {
     const driving = state.driving;              // si conduces, la policía te persigue EN AUTO
     for (const p of police) {
       setPoliceCar(p, driving);
-      const speed = driving ? 32 : 7;           // auto policial: rápido, pero tu TURBO (46) le gana
+      const speed = driving ? 34 : 7;           // auto policial: rápido, pero tu TURBO (52) le gana
       const catchD = driving ? 3.4 : 1.9;
       const d = dist2D(p.position, player.position);
       if (d <= catchD) { policeCatch(); return; }
@@ -985,10 +986,12 @@ function spawnCars() {
       car.userData.moving = true; car.userData.speed = 6 + Math.random() * 5;
       scene.add(car); traffic.push(car);
     }
-    for (let i = 0; i < 2; i++) {   // autos ESTACIONADOS al borde
+    for (let i = 0; i < 2; i++) {   // autos ESTACIONADOS al borde (sólidos: tienen colisión)
       const car = makeCar(CAR_COLORS[(Math.random() * CAR_COLORS.length) | 0]);
       placeOnRoad(car, r, 0.25 + i * 0.5, 4.4, 1);
       car.userData.moving = false; car.userData.speed = 0;
+      const longZ = car.userData.heading === 0;   // rumbo 0 => el auto es largo en Z
+      car.userData.obstacle = addObstacle(car.position.x, car.position.z, longZ ? 2.2 : 4.6, longZ ? 4.6 : 2.2);
       scene.add(car); parkedCars.push(car);
     }
   });
@@ -1018,6 +1021,7 @@ function nearestCar(maxD) {
 }
 function enterCar(car) {
   state.driving = true; state.car = car; car.userData.moving = false; car.userData.speed = 0;
+  if (car.userData.obstacle) { const i = obstacles.indexOf(car.userData.obstacle); if (i >= 0) obstacles.splice(i, 1); car.userData.obstacle = null; }   // ya no choca contigo mismo
   if (car.userData.heading == null) car.userData.heading = car.rotation.y;
   viewmodel.visible = false; yaw = car.userData.heading; pitch = 0;
   if (car === state.ownCar) toast('🚗 Tu auto — acelera con W (Shift = TURBO). E para bajar');
@@ -1026,7 +1030,7 @@ function enterCar(car) {
 function dropOutOfCar() {
   if (!state.driving) return;
   const car = state.car; state.driving = false; state.car = null; viewmodel.visible = true;
-  if (car) { car.userData.moving = false;
+  if (car) { car.userData.moving = false; car.userData.steerRate = 0; car.rotation.z = 0;
     const side = new THREE.Vector3(Math.cos(car.userData.heading), 0, -Math.sin(car.userData.heading));
     player.position.set(car.position.x + side.x * 2.4, PLAYER_EYE, car.position.z + side.z * 2.4);
   }
@@ -1044,17 +1048,20 @@ function carBlocked(x, z) {
 }
 function updateDriving(dt) {
   const car = state.car; if (!car) { state.driving = false; return; }
-  const accel = 26, reverseMax = 12, fric = 16;
+  const accel = 32, reverseMax = 14, fric = 18;
   const turbo = keys['ShiftLeft'] || keys['ShiftRight'];
-  const top = turbo ? 46 : 26;
+  const top = turbo ? 52 : 30;
   let s = car.userData.speed || 0;
   if (keys['KeyW']) s += accel * dt;
   else if (keys['KeyS']) s -= accel * dt;
   else s = s > 0 ? Math.max(0, s - fric * dt) : Math.min(0, s + fric * dt);
   s = Math.max(-reverseMax, Math.min(top, s));
-  const steer = 1.7 * dt * Math.min(1, Math.abs(s) / 5);
-  if (keys['KeyA']) car.userData.heading += steer * (s >= 0 ? 1 : -1);
-  if (keys['KeyD']) car.userData.heading -= steer * (s >= 0 ? 1 : -1);
+  // dirección SUAVE: la velocidad de giro tiende poco a poco al objetivo (nada brusco)
+  const steerInput = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
+  const speedFactor = Math.min(1, Math.abs(s) / 6);              // parado casi no gira
+  const targetRate = steerInput * 1.5 * speedFactor * (s >= 0 ? 1 : -1);
+  car.userData.steerRate = (car.userData.steerRate || 0) + (targetRate - (car.userData.steerRate || 0)) * Math.min(1, dt * 7);
+  car.userData.heading += car.userData.steerRate * dt;
   const h = car.userData.heading;
   const fwd = new THREE.Vector3(Math.sin(h), 0, Math.cos(h));
   const nx = car.position.x + fwd.x * s * dt, nz = car.position.z + fwd.z * s * dt;
@@ -1063,6 +1070,7 @@ function updateDriving(dt) {
   car.position.x = THREE.MathUtils.clamp(car.position.x, -112, 112);
   car.position.z = THREE.MathUtils.clamp(car.position.z, -112, 112);
   car.rotation.y = h;
+  car.rotation.z = -car.userData.steerRate * 0.12;               // inclinación al doblar (se siente mejor)
   // cámara del conductor (mira al frente; se conduce con A/D o el joystick)
   yaw = h; pitch = THREE.MathUtils.clamp(pitch, -0.4, 0.4);
   player.position.set(car.position.x - fwd.x * 0.1, 2.3, car.position.z - fwd.z * 0.1);
@@ -1623,6 +1631,44 @@ function beep(freq, dur, vol) {
     g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur || 0.1));
     o.stop(audioCtx.currentTime + (dur || 0.1));
   } catch (e) {}
+}
+
+// ---- Sonido continuo de MOTOR y SIRENA (la sirena suena más fuerte cuanto más cerca) ----
+let carAudio = null;
+function ensureCarAudio() {
+  if (carAudio) return carAudio;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const engOsc = audioCtx.createOscillator(); engOsc.type = 'sawtooth'; engOsc.frequency.value = 55;
+    const engGain = audioCtx.createGain(); engGain.gain.value = 0;
+    engOsc.connect(engGain); engGain.connect(audioCtx.destination); engOsc.start();
+    const sirOsc = audioCtx.createOscillator(); sirOsc.type = 'sine'; sirOsc.frequency.value = 700;
+    const sirGain = audioCtx.createGain(); sirGain.gain.value = 0;
+    sirOsc.connect(sirGain); sirGain.connect(audioCtx.destination); sirOsc.start();
+    carAudio = { engOsc, engGain, sirOsc, sirGain, t: 0 };
+  } catch (e) { carAudio = null; }
+  return carAudio;
+}
+function updateCarAudio(dt) {
+  if (!carAudio && !state.driving) return;      // no crear audio hasta que subas a un auto
+  const a = state.driving ? ensureCarAudio() : carAudio;
+  if (!a || !audioCtx) return;
+  if (audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+  a.t += dt; const now = audioCtx.currentTime;
+  // MOTOR: más agudo y fuerte según la velocidad
+  if (state.driving && state.car) {
+    const spd = Math.abs(state.car.userData.speed || 0);
+    a.engOsc.frequency.setTargetAtTime(48 + spd * 6, now, 0.05);
+    a.engGain.gain.setTargetAtTime(0.018 + Math.min(0.05, spd * 0.0016), now, 0.05);
+  } else a.engGain.gain.setTargetAtTime(0, now, 0.12);
+  // SIRENA: volumen según la cercanía del auto policial más cercano (más cerca = más fuerte)
+  let near = Infinity;
+  for (const p of police) if (p.userData.car) { const d = dist2D(p.position, player.position); if (d < near) near = d; }
+  if (near < 70) {
+    const vol = Math.max(0, 1 - near / 70) * 0.10;              // 0 lejos → 0.10 pegado
+    a.sirGain.gain.setTargetAtTime(vol, now, 0.08);
+    a.sirOsc.frequency.setTargetAtTime(Math.sin(a.t * 6) > 0 ? 850 : 600, now, 0.03);   // ulular (dos tonos)
+  } else a.sirGain.gain.setTargetAtTime(0, now, 0.15);
 }
 
 // ===================================================================
@@ -2208,6 +2254,7 @@ function loop() {
     updateMeteorVisual(dt);                // el meteorito que se ve caer del cielo
     if (state.cinematic) updateCinematic(dt);
     updatePolice(dt);                      // policía persigue si estás buscado
+    updateCarAudio(dt);                    // motor + sirena (según cercanía)
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
     hurtFeedback();

@@ -32,7 +32,7 @@
   #gearhud { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; text-align: right; }
 
   /* inventario estilo Minecraft (hotbar) */
-  #buildbar { position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%); display: none; gap: 5px; }
+  #buildbar { position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%); display: none; gap: 5px; flex-wrap: wrap; justify-content: center; max-width: 94vw; }
   .slot { position: relative; width: 56px; height: 56px; background: rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.22);
     border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .slot.sel { border-color: #fff; background: rgba(255,255,255,.18); box-shadow: 0 0 10px rgba(255,255,255,.4); }
@@ -132,7 +132,8 @@
   </div>
   <div id="shopbox" style="position:absolute; bottom:200px; left:50%; transform:translateX(-50%); display:none; pointer-events:all; background:rgba(0,0,0,.8); padding:14px 18px; border-radius:14px; text-align:center;">
     <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#34d399">VENDEDOR — escribe qué comprar y pulsa Enter (Esc cierra)</div>
-    <input id="shopInput" type="text" placeholder="ej: espada metal, madera, comida…" autocomplete="off"
+    <div style="font-size:11px; opacity:.75; margin-bottom:8px; max-width:340px">Hay de todo: auto ($2000), cuadro ($300), mesa, silla, cama, sofá, tele, planta, ventana ($50), pintura roja/azul/verde… ($400 pinta la casa), armas, comida y construcción.</div>
+    <input id="shopInput" type="text" placeholder="ej: auto, cuadro, ventana, pintura roja, sofá…" autocomplete="off"
       style="width:320px; max-width:80vw; padding:10px 12px; font-size:15px; border-radius:8px; border:2px solid #34d399; background:#0b1220; color:#fff; outline:none;">
     <div style="margin-top:8px; display:flex; gap:8px; justify-content:center;">
       <button id="shopBuyBtn" style="pointer-events:all; cursor:pointer; background:#22c55e; color:#042; border:none; padding:8px 18px; font-size:14px; font-weight:800; border-radius:8px;">Comprar</button>
@@ -219,9 +220,11 @@
       <span><b>W A S D</b></span><span>Caminar</span>
       <span><b>Flechas</b></span><span>Mirar / mover la cámara (también sirve el mouse)</span>
       <span><b>Shift</b></span><span>Correr &nbsp;·&nbsp; <b>Espacio</b> Saltar &nbsp;·&nbsp; <b>Ctrl</b> Agacharse</span>
-      <span><b>E</b></span><span>Interactuar: comprar / cobrar casa secreta / robar en estadio / <b>vender tu casa a un aldeano</b></span>
-      <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
-      <span><b>1 - 9</b></span><span><b>1</b> herramienta (pala/espada) · <b>2-9</b> elegir qué construir</span>
+      <span><b>E</b></span><span>Interactuar: <b>subir/bajar del auto</b> / cobrar casa secreta / robar en estadio / vender tu casa</span>
+      <span><b>Y</b></span><span>Vendedor: comprar escribiendo. Vende de <b>todo</b>: auto ($2000), muebles, ventana ($50), pintura ($400), cuadro ($300)…</span>
+      <span><b>Auto</b></span><span>Cómpralo (2000), súbete con <b>E</b> y conduce con <b>W/S</b> (avanzar) y <b>A/D</b> (girar). Tiene 100 de vida</span>
+      <span><b>Pintura</b></span><span>Compra "pintura roja/azul/verde…" y te pinta la casa entera de ese color</span>
+      <span><b>1 - 9</b></span><span><b>1</b> herramienta (pala/espada) · <b>2-9…</b> elegir qué construir/colocar (muebles, ventana…)</span>
       <span><b>Q</b></span><span>Comer (te quita el hambre)</span>
       <span><b>K</b></span><span>Plantar una semilla de manzana (crece de a poco y da manzanas)</span>
       <span><b>B</b></span><span>Modo construir ON/OFF</span>
@@ -491,7 +494,28 @@ const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
   { key: 'ballesta', name: 'Ballesta', price: 500,  value: 40, color: 0x8b5a2b, build: true, defense: true },
   { key: 'torreta',  name: 'Torreta',  price: 1000, value: 80, color: 0x334155, build: true, defense: true },
 ];
-const SHOP = [...STORE_A, ...STORE_B];
+// Muebles / decoración / auto / ventana: se COMPRAN escribiéndole al vendedor (Y).
+// Los muebles y la ventana son colocables (build); el auto se conduce; la ventana es transparente.
+const DECOR_ITEMS = [
+  { key: 'window', name: 'Ventana',   price: 50,   value: 15,  color: 0xbfe3ff, build: true, deco: true, glass: true },
+  { key: 'cuadro', name: 'Cuadro',    price: 300,  value: 120, color: 0x6b4423, build: true, deco: true },
+  { key: 'mesa',   name: 'Mesa',      price: 150,  value: 60,  color: 0x8b5a2b, build: true, deco: true },
+  { key: 'silla',  name: 'Silla',     price: 80,   value: 30,  color: 0x8b5a2b, build: true, deco: true },
+  { key: 'cama',   name: 'Cama',      price: 250,  value: 100, color: 0x3b82f6, build: true, deco: true },
+  { key: 'sofa',   name: 'Sofá',      price: 300,  value: 120, color: 0x10b981, build: true, deco: true },
+  { key: 'tele',   name: 'Televisor', price: 400,  value: 150, color: 0x1f2937, build: true, deco: true },
+  { key: 'planta', name: 'Planta',    price: 120,  value: 45,  color: 0x22c55e, build: true, deco: true },
+  { key: 'auto',   name: 'Auto',      price: 2000, color: 0xdc2626, car: true },
+];
+// Pintura: un tarro pinta la casa entera del color elegido. Todos los colores, $400 c/u.
+const PAINT_COLORS = [
+  ['roja', 0xef4444], ['azul', 0x3b82f6], ['verde', 0x22c55e], ['amarilla', 0xfacc15],
+  ['naranja', 0xf97316], ['morada', 0xa855f7], ['rosada', 0xec4899], ['celeste', 0x38bdf8],
+  ['blanca', 0xf8fafc], ['negra', 0x1f2937], ['cafe', 0x92400e], ['gris', 0x9ca3af],
+];
+const PAINTS = PAINT_COLORS.map(([n, c]) => ({ key: 'paint_' + n, name: 'Pintura ' + n, price: 400, color: c, paint: c }));
+// Catálogo completo del vendedor (todo lo comprable escribiendo con Y)
+const SHOP = [...STORE_A, ...STORE_B, ...DECOR_ITEMS, ...PAINTS];
 
 // Dibuja un producto que se parece a lo que es
 function makeProductMesh(key, color) {
@@ -938,7 +962,11 @@ arrow.add(arrowCone); scene.add(arrow);
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
 // ===================================================================
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
-const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta'];
+let car = null;             // el auto (feature): { group, wheels, hp, maxHp, heading, dmgCd, bar }
+const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
+  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta'];
+// Inventario inicial: 0 de cada cosa colocable + comida/semillas
+function freshInv() { const inv = { food: 0, semillas: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
 let buildSel = 0, buildRot = 0;
 const ghost = new THREE.Group(); scene.add(ghost); ghost.visible = false;
 let ghostMesh = null;
@@ -954,10 +982,26 @@ function objGeometry(key) {
   if (key === 'lamp') return new THREE.CylinderGeometry(0.12, 0.12, 2.4);
   if (key === 'oven') return new THREE.BoxGeometry(1.2, 1.4, 1);
   if (key === 'ballesta' || key === 'torreta') return new THREE.BoxGeometry(0.8, 0.9, 1.2);
+  if (key === 'window') return new THREE.BoxGeometry(2.6, 2, 0.12);   // ventana: grande pero no tanto, transparente
+  if (key === 'cuadro') return new THREE.BoxGeometry(1.4, 1, 0.1);
+  if (key === 'mesa') return new THREE.BoxGeometry(1.6, 0.16, 1);
+  if (key === 'silla') return new THREE.BoxGeometry(0.6, 0.12, 0.6);
+  if (key === 'cama') return new THREE.BoxGeometry(2, 0.4, 1.4);
+  if (key === 'sofa') return new THREE.BoxGeometry(2, 0.55, 0.9);
+  if (key === 'tele') return new THREE.BoxGeometry(1.6, 0.9, 0.12);
+  if (key === 'planta') return new THREE.CylinderGeometry(0.32, 0.42, 0.6);
   return new THREE.BoxGeometry(1, 1, 1);
 }
 function objColor(key) { return SHOP.find(s => s.key === key).color; }
-function objY(key) { return key === 'roof' ? 3.2 : key === 'lamp' ? 1.2 : key === 'door' ? 1.3 : (key === 'ballesta' || key === 'torreta') ? 0.6 : 1.5; }
+const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6,
+  window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4 };
+function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
+// Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
+function objMaterial(key) {
+  if (key === 'window') return new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.28, roughness: 0.05, metalness: 0.1 });
+  if (key === 'planta') return mat(0x8b5e34);
+  return mat(objColor(key));
+}
 
 function refreshGhost() {
   if (ghostMesh) ghost.remove(ghostMesh);
@@ -983,10 +1027,27 @@ function placeObject() {
   const key = BUILD_KEYS[buildSel];
   if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
   state.inv[key]--;
-  const m = new THREE.Mesh(objGeometry(key), mat(objColor(key)));
+  const m = new THREE.Mesh(objGeometry(key), objMaterial(key));
   m.position.set(ghost.position.x, objY(key), ghost.position.z); m.rotation.y = buildRot;
   m.castShadow = true; m.receiveShadow = true; scene.add(m);
   const obj = { mesh: m, key, hp: key === 'wallRock' ? 200 : 100 };
+  // ----- Muebles y decoración -----
+  const legMat = mat(0x3f2a17);
+  const legs = (hw, hd, len) => { for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len), legMat); l.position.set(sx * hw, -len / 2, sz * hd); m.add(l); } };
+  if (key === 'window') {   // marco + cruz (transparente, se ve a través)
+    const fr = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
+    const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), fr); b.position.set(x, y, 0); m.add(b); };
+    bar(2.6, 0.16, 0, 1); bar(2.6, 0.16, 0, -1); bar(0.16, 2, -1.3, 0); bar(0.16, 2, 1.3, 0); bar(0.12, 2, 0, 0); bar(2.6, 0.12, 0, 0);
+  }
+  if (key === 'cuadro') {
+    const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), new THREE.MeshStandardMaterial({ color: 0x60a5fa })); pic.position.z = 0.06; m.add(pic);
+  }
+  if (key === 'mesa') legs(0.7, 0.4, 0.7);
+  if (key === 'silla') { legs(0.24, 0.24, 0.45); const back = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.1), mat(objColor(key))); back.position.set(0, 0.3, -0.25); m.add(back); }
+  if (key === 'cama') { legs(0.9, 0.6, 0.35); const pil = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.16, 0.4), mat(0xf8fafc)); pil.position.set(0, 0.25, -0.45); m.add(pil); }
+  if (key === 'sofa') { const back = new THREE.Mesh(new THREE.BoxGeometry(2, 0.55, 0.2), mat(objColor(key))); back.position.set(0, 0.5, -0.35); m.add(back); for (const sx of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.9), mat(objColor(key))); arm.position.set(sx * 0.9, 0.2, 0); m.add(arm); } }
+  if (key === 'tele') { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.75), new THREE.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x0ea5e9, emissiveIntensity: 0.4 })); scr.position.z = 0.07; m.add(scr); const st = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.3), legMat); st.position.y = -0.55; m.add(st); }
+  if (key === 'planta') { const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10), mat(0x22c55e)); leaf.position.y = 0.55; leaf.scale.set(1, 1.3, 1); leaf.castShadow = true; m.add(leaf); }
   if (key === 'door') {
     const fr = new THREE.MeshStandardMaterial({ color: 0x4a2f15, roughness: 0.9 });
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.22), fr); b.position.set(x, y, 0); m.add(b); };
@@ -1382,7 +1443,7 @@ const MOM_AT = 20000;
 const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
   hp: 100, dadHp: 100,
-  inv: { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 },
+  inv: freshInv(), driving: false,
   weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadGun: false, hasRocket: false,
   hunger: 100, night: 0,
   momUnlocked: false, momEventPending: false,
@@ -1445,7 +1506,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { tryCollectGolden(); tryRob(); sellHouse(); }   // interactuar: cobrar oro / robar / vender casa a un aldeano
+  if (e.code === 'KeyE') { if (!toggleCar()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: subir/bajar auto · cobrar oro / robar / vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -1455,7 +1516,7 @@ addEventListener('keydown', e => {
 // Inventario tipo Minecraft: elegir un espacio (slot)
 function selectSlot(n) {
   if (n === 1) state.buildMode = false;                       // 1 = herramienta en mano (pala/espada)
-  else if (n >= 2 && n <= 9) { buildSel = n - 2; state.buildMode = true; refreshGhost(); }  // construir (incluye ballesta/torreta)
+  else if (n >= 2 && n <= BUILD_KEYS.length + 1) { buildSel = n - 2; state.buildMode = true; refreshGhost(); }  // construir (incluye muebles/ventana)
 }
 function eatFood() {
   if ((state.inv.food || 0) <= 0) { toast('No tienes comida (cómprala en el SÚPER)'); return; }
@@ -1596,7 +1657,7 @@ if (IS_TOUCH) {
     if (typing && act !== 'shop') return;   // con el vendedor abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': tryCollectGolden(); tryRob(); sellHouse(); break;
+      case 'interact': if (!toggleCar()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -1638,7 +1699,7 @@ function startGame() {
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; setWeaponColor(0x94a3b8);
-  state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 };
+  state.inv = freshInv();
   state.wanted = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   houseTier = 0;
   player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
@@ -1649,7 +1710,7 @@ function startGame() {
 function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1;
-  state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 };
+  state.inv = freshInv();
   state.dadGun = state.hasRocket = false;
   state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
   if (ui('escape')) ui('escape').style.display = 'none';
@@ -1657,7 +1718,7 @@ function resetAll() {
   dad.position.set(2, 0, 11); dad.visible = true; dad.userData.armed = false; if (dad.userData.weapon) dad.userData.weapon.visible = false;
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
-  placed.slice().forEach(removePlaced);
+  placed.slice().forEach(removePlaced); removeCar();
   clearWaves(); clearDirt(); clearPolice(); clearPlants(); state.wanted = 0; state.policeDelay = 0;
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
@@ -1683,10 +1744,123 @@ function updateBuying(dt) {
   ui('ring-fg').setAttribute('stroke-dashoffset', String(239 * (1 - frac)));
   if (buyHold >= 0.8) { buyItem(near); buyHold = -0.4; }
 }
+
+// ===================================================================
+//  AUTO: cuerpo rectangular, ruedas redondas, manubrio; se sube y se conduce; tiene vida
+// ===================================================================
+function spawnCar() {
+  const g = new THREE.Group();
+  const bodyMat = mat(0xdc2626);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.4, roughness: 0.1 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.7, 4), bodyMat); body.position.y = 0.95; body.castShadow = true; g.add(body);      // cuerpo rectangular
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 2), glass); cabin.position.set(0, 1.55, -0.2); g.add(cabin);                    // cabina con vidrios
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.7), mat(0x374151)); seat.position.set(0.4, 1.25, 0.35); g.add(seat);          // asiento
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.06, 8, 20), mat(0x111827)); wheel.position.set(0.4, 1.45, 0.75); wheel.rotation.x = 1.1; g.add(wheel);  // manubrio (volante)
+  const wheels = [];
+  const wgeo = new THREE.CylinderGeometry(0.55, 0.55, 0.4, 20); wgeo.rotateZ(Math.PI / 2);   // ruedas redondas
+  const wm = mat(0x111827);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const w = new THREE.Mesh(wgeo, wm); w.position.set(sx * 1.15, 0.55, sz * 1.35); w.castShadow = true; g.add(w); wheels.push(w);
+  }
+  for (const sx of [-1, 1]) { const f = new THREE.Mesh(new THREE.CircleGeometry(0.18, 12), new THREE.MeshStandardMaterial({ color: 0xfff7c2, emissive: 0xfff7c2, emissiveIntensity: 0.6 })); f.position.set(sx * 0.7, 0.95, 2.01); g.add(f); }  // faros
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const p = player.position.clone().addScaledVector(fwd, 6); p.y = 0;
+  g.position.set(p.x, 0, p.z); g.rotation.y = yaw; scene.add(g);
+  // barra de vida flotante
+  const barG = new THREE.Group(); barG.userData.billboard = true;
+  const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+  const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
+  barG.add(bbg); barG.add(bfg); scene.add(barG);
+  car = { group: g, wheels, hp: 100, maxHp: 100, heading: yaw, dmgCd: 0, bar: { g: barG, fg: bfg } };
+  toast('🚗 ¡Auto comprado! Acércate y pulsa E para subir y conducir');
+}
+// Subir / bajar del auto (tecla E)
+function toggleCar() {
+  if (!car) return false;
+  if (state.driving) {
+    state.driving = false;
+    const side = new THREE.Vector3(Math.cos(car.heading), 0, -Math.sin(car.heading));
+    const p = car.group.position.clone().addScaledVector(side, 2.4);
+    player.position.set(p.x, PLAYER_EYE, p.z);
+    toast('🚶 Bajaste del auto'); return true;
+  }
+  if (dist2D(player.position, car.group.position) < 4.5) {
+    state.driving = true; yaw = car.heading; state.buildMode = false;
+    toast('🚗 Conduces: W/S avanzar y retroceder · A/D girar · E para bajar'); return true;
+  }
+  return false;
+}
+// Conducir: reemplaza el caminar mientras state.driving
+function updateDriving(dt) {
+  const throttle = Math.max(-1, Math.min(1, (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0) + touch.moveY));
+  const steer = Math.max(-1, Math.min(1, (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0) - touch.moveX));
+  // mirar arriba/abajo con las flechas o el arrastre (pitch); el yaw sigue al auto
+  if (keys['ArrowUp']) pitch += 1.8 * dt; if (keys['ArrowDown']) pitch -= 1.8 * dt;
+  pitch = Math.max(-1.2, Math.min(1.2, pitch));
+  car.heading += steer * 1.9 * dt * (Math.abs(throttle) > 0.05 ? 1 : 0.55);
+  const fwd = new THREE.Vector3(-Math.sin(car.heading), 0, -Math.cos(car.heading));
+  const move = throttle * 24 * dt;
+  car.group.position.addScaledVector(fwd, move);
+  car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -110, 110);
+  car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, -110, 110);
+  car.group.rotation.y = car.heading;
+  for (const w of car.wheels) w.rotation.x += move * 2.2;
+  yaw = car.heading;
+  player.position.set(car.group.position.x, 2.1, car.group.position.z);
+  camera.rotation.y = yaw; camera.rotation.x = pitch;
+}
+// Vida del auto: los monstruos cercanos lo dañan; si llega a 0 se destruye
+function updateCar(dt) {
+  if (!car) return;
+  car.bar.g.position.set(car.group.position.x, 3.3, car.group.position.z);
+  const f = Math.max(0, car.hp / car.maxHp); car.bar.fg.scale.x = f || 0.001;
+  car.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : f > 0.25 ? 0xf59e0b : 0xef4444);
+  car.bar.g.visible = car.hp < car.maxHp || state.driving;
+  car.dmgCd -= dt;
+  let near = false;
+  for (const e of enemies) { if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 3) { near = true; break; } }
+  if (near && car.dmgCd <= 0) { car.hp -= 8; car.dmgCd = 0.8; car.bar.g.visible = true; }
+  if (car.hp <= 0) destroyCar();
+}
+function destroyCar() {
+  if (!car) return;
+  if (state.driving) { state.driving = false; player.position.set(car.group.position.x + 2, PLAYER_EYE, car.group.position.z); }
+  scene.remove(car.group); scene.remove(car.bar.g); car = null;
+  toast('💥 ¡Los monstruos destruyeron tu auto!'); beep(80, 0.3, 0.07);
+}
+function removeCar() {   // al reiniciar
+  if (!car) return;
+  scene.remove(car.group); scene.remove(car.bar.g); car = null; state.driving = false;
+}
+
+// ===================================================================
+//  PINTAR LA CASA: un tarro pinta toda la casa del color elegido
+// ===================================================================
+function hasHouseToPaint() {
+  return placed.some(o => ['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, HOUSE) < 20);
+}
+function paintHouse(color, label) {
+  let n = 0;
+  for (const o of placed) {
+    if (['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, HOUSE) < 20) {
+      o.mesh.material = mat(color); n++;
+    }
+  }
+  toast('🎨 Pintaste tu casa (' + n + ' piezas) de ' + label.replace('Pintura ', '')); beep(520, 0.1, 0.04);
+}
 function buyItem(item) {
   if (state.money < item.price) { toast('💸 Te falta plata'); return; }
+  // casos que pueden fallar (no cobrar si no se puede)
+  if (item.paint) {
+    if (!hasHouseToPaint()) { toast('🎨 Construye tu casa primero para poder pintarla'); return; }
+    state.money -= item.price; paintHouse(item.paint, item.name); return;
+  }
+  if (item.car) {
+    if (car) { toast('🚗 Ya tienes un auto'); return; }
+    state.money -= item.price; spawnCar(); return;
+  }
   state.money -= item.price;
-  if (item.build) { state.inv[item.key]++; toast('🛒 Compraste ' + item.name + ' (constrúyela con B/F)'); }
+  if (item.build) { state.inv[item.key] = (state.inv[item.key] || 0) + 1; toast('🛒 Compraste ' + item.name + (item.deco ? ' (colócala: B y luego F)' : ' (constrúyela con B/F)')); }
   else if (item.eat) { state.inv.food++; toast('🍖 ' + item.name + ' guardada en el inventario (pulsa 7 para comer)'); }
   else if (item.dmg) {   // arma (espada o pala): equipa la más fuerte
     if (item.dmg > state.weaponDmg) { state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color); toast('⚔️ ' + item.name + ' equipada: hace ' + item.dmg + ' de daño'); }
@@ -1891,8 +2065,8 @@ function goToPlanet() {
   state.planet = 'marte'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); dad.visible = true;
-  state.money = 200; state.hunger = 100; state.night = 0; state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 };
-  placed.slice().forEach(removePlaced); clearDirt(); clearWaves();
+  state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
+  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
   groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Marte: rojo y sin árboles
   if (state.rocket) { scene.remove(state.rocket); state.rocket = null; } state.hasRocket = false;
   player.position.set(0, PLAYER_EYE, 14); dad.position.set(2, 0, 11);
@@ -2053,6 +2227,7 @@ function surviveNight() {
 }
 function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
+  state.driving = false;
   clearWaves(); state.money = 0; state.hp = 100; state.phase = 'JAIL';
   ui('hud').style.display = 'none'; ui('jail').classList.remove('hidden');
   setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(0, PLAYER_EYE, 14); }, 0);
@@ -2095,6 +2270,7 @@ function loop() {
     updateHunger(dt);
     if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); }
     updateMoles(dt);                       // topos: activos de día y de noche
+    updateCar(dt);                         // vida del auto (los monstruos lo dañan)
     updatePlants(dt);                      // huerto: árboles crecen y dan manzanas
     updateMeteorVisual(dt);                // el meteorito que se ve caer del cielo
     if (state.cinematic) updateCinematic(dt);
@@ -2124,7 +2300,7 @@ function updateHunger(dt) {
 }
 // Morir de hambre: te desmayas y revives en casa (no es la cárcel; es por no comer)
 function faintFromHunger() {
-  state.hp = 60; state.hunger = 45; lastHp = 60;
+  state.hp = 60; state.hunger = 45; lastHp = 60; state.driving = false;
   if (state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = 0; }
   player.position.set(0, PLAYER_EYE, 14);
   toast('😵 ¡Te desmayaste de hambre! Come algo en el súper 🍖');
@@ -2157,6 +2333,7 @@ function drawMinimap() {
 
 function updateMovement(dt) {
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
+  if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
   const fwd = keys['KeyW'], back = keys['KeyS'];
   const left = keys['KeyA'], right = keys['KeyD'];
   // Flechas = mirar (mover la cámara), WASD = caminar
@@ -2311,8 +2488,8 @@ function renderHUD() {
   if (state.phase === 'DAY' || state.phase === 'NIGHT') {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
-    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫' };
-    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta' };
+    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴' };
+    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta' };
     let html = `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
     BUILD_KEYS.forEach((k, i) => { html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}" data-slot="${i + 2}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`; });
     bb.innerHTML = html;
@@ -2329,6 +2506,7 @@ function renderHUD() {
   if (state.dadGun) gear.push('🔫 papá');
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
+  if (car) gear.push('🚗 ' + Math.max(0, Math.round(car.hp)) + (state.driving ? ' (conduciendo)' : ''));
   ui('gearhud').innerHTML = gear.join(' · ');
 
   // objetivo

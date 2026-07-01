@@ -54,6 +54,33 @@ Entrada en `index.html:1353-1490`. Estado global del juego en `const state` (`in
   - `C`/`V`/`O` modos del papá (seguir/quedarse/limpiar) · `G` armar al papá · `H` invocar ayudante
   - `I` menú de ayuda
 
+## Features nuevas (auto, catálogo, pintura, ventanas)
+
+Agregadas sobre la rama de móvil. Todo sigue en `index.html`.
+
+1. **Auto** (`let car`): se compra al vendedor escribiendo "auto" ($2000). `spawnCar()` arma un
+   grupo con cuerpo rectangular, 4 ruedas redondas (cilindros con `geometry.rotateZ`), manubrio
+   (torus), faros y asiento. Tiene vida (100). Subes/bajas con **E** (`toggleCar()`); conduces con
+   **W/S** (avanzar/retroceder) y **A/D** (girar) — `updateDriving()` reemplaza el caminar cuando
+   `state.driving`. `updateCar()` (en el loop) le baja vida si hay monstruos cerca y lo destruye a 0.
+   Barra de vida flotante (`car.bar`, billboard). Se limpia con `removeCar()` en los reinicios.
+2. **Catálogo del vendedor ampliado** (feature "todos los objetos"): `SHOP = STORE_A + STORE_B +
+   DECOR_ITEMS + PAINTS`. Se compra escribiéndole al vendedor (tecla **Y** → `processShopBuy` busca
+   por nombre). Precios de referencia: auto 2000, cuadro 300, ventana 50, pintura 400.
+3. **Muebles/decoración** (`DECOR_ITEMS`, colocables): cuadro, mesa, silla, cama, sofá, tele, planta,
+   ventana. Se añaden a `BUILD_KEYS` (hotbar ahora tiene 16 slots colocables + herramienta; `#buildbar`
+   usa `flex-wrap`). Geometría/altura/material por clave en `objGeometry/objY/objMaterial`; detalles
+   (patas, respaldo, pantalla…) en `placeObject`.
+4. **Ventanas transparentes**: clave `window`, material `MeshStandardMaterial` transparente
+   (`opacity 0.28`) con marco y cruz. No bloquea (decorativa).
+5. **Pintura** (`PAINTS`, un color por tarro, $400): comprar "pintura roja/azul/…" llama a
+   `paintHouse(color)` que recolorea todas las piezas de la casa (paredes/techo/puerta) a < 20 de
+   `HOUSE`. Si no hay casa, no cobra.
+
+`freshInv()` construye el inventario inicial desde `BUILD_KEYS` (usado en el `state` y los reinicios).
+Verificado con Playwright: comprar auto (vida 100, 4 ruedas), conducir (avanza con W), colocar ventana
+transparente, pintar la pared de café→rojo, y **cero errores**.
+
 ## Convenciones del código
 
 - Idioma: **español** en comentarios, textos de UI y nombres de funciones/variables de dominio

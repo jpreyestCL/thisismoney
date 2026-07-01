@@ -157,6 +157,7 @@
   <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
   <div id="objective">Objetivo</div>
   <div id="crosshair"></div>
+  <div id="speedo" style="position:absolute; top:62%; left:50%; transform:translateX(-50%); display:none; background:rgba(0,0,0,.55); padding:6px 18px; border-radius:14px; font-size:22px; font-weight:800; letter-spacing:1px; text-shadow:0 2px 6px #000; white-space:nowrap;"></div>
   <div id="toast"></div>
   <div id="dadhud"></div>
   <div id="gearhud"></div>
@@ -736,7 +737,19 @@ loadBuilding('assets/tienda.glb', -30, 58, 6);
 loadBuilding('assets/tienda.glb', -52, 16, 6);
 function updateNPCs(dt) {
   if (state.phase === 'NIGHT') return;   // de noche los habitantes duermen
+  const car = state.driving ? state.car : null;
   for (const n of npcs) {
+    // PEATÓN se aparta corriendo si el auto que conduces se le acerca
+    if (car) {
+      const dx = n.position.x - car.position.x, dz = n.position.z - car.position.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 6.5) {
+        const len = d || 1;
+        n.position.x += (dx / len) * 9 * dt; n.position.z += (dz / len) * 9 * dt;
+        n.rotation.y = Math.atan2(dx, dz); swingLimbs(n, dt);
+        continue;
+      }
+    }
     n.userData.wanderT -= dt;
     if (n.userData.wanderT <= 0) { n.userData.dir = Math.random() * Math.PI * 2; n.userData.wanderT = 2 + Math.random() * 3; }
     n.position.x += Math.sin(n.userData.dir) * 0.6 * dt;
@@ -997,9 +1010,28 @@ function spawnCars() {
   });
 }
 spawnCars();
+// ¿Hay algo (tú, un peatón u otro auto) justo ADELANTE de este auto en su carril?
+function carAhead(car) {
+  const r = car.userData.road, dir = car.userData.dir, brake = 10;
+  const blocks = (px, pz) => {
+    if (r.horizontal) {
+      const gap = dir > 0 ? px - car.position.x : car.position.x - px;
+      return gap > 0 && gap < brake && Math.abs(pz - car.position.z) < 3.2;
+    } else {
+      const gap = dir > 0 ? pz - car.position.z : car.position.z - pz;
+      return gap > 0 && gap < brake && Math.abs(px - car.position.x) < 3.2;
+    }
+  };
+  const pp = (state.driving && state.car) ? state.car.position : player.position;   // tú (a pie o en auto)
+  if (blocks(pp.x, pp.z)) return true;
+  for (const n of npcs) if (blocks(n.position.x, n.position.z)) return true;         // peatones
+  for (const o of traffic) if (o !== car && o.userData.road === r && blocks(o.position.x, o.position.z)) return true;   // otro auto adelante
+  return false;
+}
 function updateTraffic(dt) {
   for (const car of traffic) {
     if (car === state.car || !car.userData.moving) continue;
+    if (carAhead(car)) continue;   // FRENA: hay alguien cruzando o un auto adelante
     const r = car.userData.road, dir = car.userData.dir, spd = car.userData.speed;
     if (r.horizontal) {
       car.position.x += dir * spd * dt;
@@ -1012,6 +1044,17 @@ function updateTraffic(dt) {
     }
   }
 }
+// Peatones que caminan cerca de las avenidas centrales (para verlos al conducir)
+function spawnPedestrians() {
+  const spots = [[6, 0], [-6, 20], [10, -18], [0, 10], [-6, -12], [8, 30], [-10, 8], [4, -30], [12, 12], [-4, 34]];
+  for (const [x, z] of spots) {
+    const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][(Math.random() * 5) | 0], 0xf1c27d);
+    n.position.set(x + (Math.random() * 4 - 2), 0, z + (Math.random() * 4 - 2));
+    n.userData.wanderT = 0; n.userData.dir = Math.random() * Math.PI * 2;
+    scene.add(n); npcs.push(n);
+  }
+}
+spawnPedestrians();
 // ---- Subir / bajar / conducir ----
 function allCars() { const l = traffic.concat(parkedCars); if (state.ownCar) l.push(state.ownCar); return l; }
 function nearestCar(maxD) {
@@ -2451,6 +2494,14 @@ function updateTimers(dt) {
 function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
 function renderHUD() {
   document.body.classList.toggle('playing', !!state.running);   // controles móviles visibles solo jugando
+  const sp = ui('speedo');   // velocímetro (solo al conducir)
+  if (state.driving && state.car) {
+    const kmh = Math.round(Math.abs(state.car.userData.speed || 0) * 3.6);
+    const turbo = keys['ShiftLeft'] || keys['ShiftRight'];
+    sp.style.display = 'block';
+    sp.style.color = turbo ? '#f97316' : '#fff';
+    sp.textContent = '🏎️ ' + kmh + ' km/h' + (turbo ? '  🔥TURBO' : '');
+  } else sp.style.display = 'none';
   ui('ui-money').textContent = '$' + state.money;
   ui('ui-stage').textContent = state.stage;
   ui('ui-planet').textContent = state.planet === 'marte' ? 'Marte' : 'Tierra';

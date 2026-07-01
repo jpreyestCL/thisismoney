@@ -231,7 +231,7 @@
       <span><b>Flechas</b></span><span>Mirar / mover la cámara (también sirve el mouse)</span>
       <span><b>Shift</b></span><span>Correr &nbsp;·&nbsp; <b>Espacio</b> Saltar &nbsp;·&nbsp; <b>Ctrl</b> Agacharse</span>
       <span><b>E</b></span><span>Interactuar: <b>subir/bajar del auto</b> / comprar / cobrar casa secreta / robar / vender tu casa</span>
-      <span><b>🚗 Autos</b></span><span>Compra un <b>Auto</b> en el súper, o roba uno de la calle (E cerca). Conduce con <b>WASD</b> y usa <b>Shift = TURBO</b>. Si robas, la policía te persigue en auto: ¡escapa en turbo!</span>
+      <span><b>🚗 Autos</b></span><span>Compra un <b>Auto</b> en el súper, o roba uno de la calle (E cerca). Conduce con <b>WASD</b>, <b>Shift = TURBO</b> y <b>Espacio/Z = bocina</b> (el botón GOLPE en móvil). Chocas con otros autos y edificios. ¡Cuidado! si <b>robas</b> o <b>atropellas a un peatón</b> la policía te persigue en auto: escapa en turbo.</span>
       <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
       <span><b>1 - 9</b></span><span><b>1</b> herramienta (pala/espada) · <b>2-9</b> elegir qué construir</span>
       <span><b>Q</b></span><span>Comer (te quita el hambre)</span>
@@ -739,10 +739,22 @@ function updateNPCs(dt) {
   if (state.phase === 'NIGHT') return;   // de noche los habitantes duermen
   const car = state.driving ? state.car : null;
   for (const n of npcs) {
+    if (n.userData.hitCd > 0) n.userData.hitCd -= dt;
     // PEATÓN se aparta corriendo si el auto que conduces se le acerca
     if (car) {
       const dx = n.position.x - car.position.x, dz = n.position.z - car.position.z;
       const d = Math.hypot(dx, dz);
+      // ATROPELLO: si lo alcanzas yendo con algo de velocidad → te vuelves BUSCADO
+      if (d < 1.9 && Math.abs(car.userData.speed || 0) > 6) {
+        if (!(n.userData.hitCd > 0)) {
+          n.userData.hitCd = 4; becomeWanted(15);
+          toast('🚗💥 ¡Atropellaste a un peatón! Ahora te BUSCAN'); beep(110, 0.3, 0.07);
+        }
+        const len = d || 1;                        // el peatón sale despedido
+        n.position.x += (dx / len) * 40 * dt; n.position.z += (dz / len) * 40 * dt;
+        n.rotation.y = Math.atan2(dx, dz);
+        continue;
+      }
       if (d < 6.5) {
         const len = d || 1;
         n.position.x += (dx / len) * 9 * dt; n.position.z += (dz / len) * 9 * dt;
@@ -1089,6 +1101,21 @@ function carBlocked(x, z) {
   for (const o of obstacles) { if (x > o.minX - 1.1 && x < o.maxX + 1.1 && z > o.minZ - 1.1 && z < o.maxZ + 1.1) return true; }
   return false;
 }
+// Choque con OTROS autos (tráfico, estacionados, tu auto, policía): te frena
+function carHitsCar(x, z) {
+  const p = { x, z };
+  for (const o of traffic) { if (o !== state.car && dist2D(p, o.position) < 3.4) return true; }
+  for (const o of parkedCars) { if (o !== state.car && dist2D(p, o.position) < 3.4) return true; }
+  if (state.ownCar && state.ownCar !== state.car && dist2D(p, state.ownCar.position) < 3.4) return true;
+  for (const pol of police) { if (pol.userData.car && dist2D(p, pol.userData.car.position) < 3.4) return true; }
+  return false;
+}
+// Bocina (con pequeño cooldown para que no se repita al mantener)
+let hornCd = 0;
+function honk() {
+  if (hornCd > 0) return;
+  hornCd = 0.4; beep(330, 0.2, 0.06); setTimeout(() => beep(300, 0.16, 0.05), 100);
+}
 function updateDriving(dt) {
   const car = state.car; if (!car) { state.driving = false; return; }
   const accel = 32, reverseMax = 14, fric = 18;
@@ -1108,8 +1135,9 @@ function updateDriving(dt) {
   const h = car.userData.heading;
   const fwd = new THREE.Vector3(Math.sin(h), 0, Math.cos(h));
   const nx = car.position.x + fwd.x * s * dt, nz = car.position.z + fwd.z * s * dt;
-  if (carBlocked(nx, nz)) s = 0; else { car.position.x = nx; car.position.z = nz; }
+  if (carBlocked(nx, nz) || carHitsCar(nx, nz)) s = 0; else { car.position.x = nx; car.position.z = nz; }   // choca con edificios y con otros autos
   car.userData.speed = s;
+  if (hornCd > 0) hornCd = Math.max(0, hornCd - dt);
   car.position.x = THREE.MathUtils.clamp(car.position.x, -112, 112);
   car.position.z = THREE.MathUtils.clamp(car.position.z, -112, 112);
   car.rotation.y = h;
@@ -1724,6 +1752,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
   if (!state.running) return;
+  if (state.driving && (e.code === 'Space' || e.code === 'KeyZ')) { honk(); return; }   // bocina al conducir (Espacio o Z)
   if (e.code === 'KeyY') { openShopInput(); return; }   // abrir vendedor (comprar escribiendo)
   if (e.code === 'KeyN') tryStartNight();
   if (e.code === 'KeyB') { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (1-5 elegir, F colocar, X borrar)' : 'Modo construir OFF'); }
@@ -2621,8 +2650,8 @@ if (isTouch) {
   // Botón GOLPE: pega al mantener (con cadencia), como hacer clic repetido
   (() => {
     const b = ui('mAttack'); let atkTimer = null;
-    const hit = () => { if (!state.running) return; if (state.phase === 'NIGHT') attack(); else attackNPC(); };
-    const start = e => { e.preventDefault(); b.classList.add('press'); hit(); atkTimer = setInterval(hit, 320); };
+    const hit = () => { if (!state.running) return; if (state.driving) { honk(); return; } if (state.phase === 'NIGHT') attack(); else attackNPC(); };
+    const start = e => { e.preventDefault(); b.classList.add('press'); hit(); if (!state.driving) atkTimer = setInterval(hit, 320); };   // conduciendo: GOLPE = bocina (una vez)
     const stop = () => { b.classList.remove('press'); if (atkTimer) { clearInterval(atkTimer); atkTimer = null; } };
     b.addEventListener('pointerdown', start);
     b.addEventListener('pointerup', stop); b.addEventListener('pointercancel', stop); b.addEventListener('pointerleave', stop);

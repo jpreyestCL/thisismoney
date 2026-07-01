@@ -260,6 +260,9 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
+// Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
+const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 
 // ===================================================================
 //  THIS IS MONEY  —  prototipo grande (un solo archivo)
@@ -414,7 +417,7 @@ const dadTag = makeSign('PAPÁ', 0x38bdf8);
 dadTag.scale.set(.5, .5, .5); dadTag.position.set(0, 3, 0); dad.add(dadTag);
 // Cargar el modelo 3D ANIMADO del papá (con caminata de verdad)
 let dadMixer = null, dadWalkAction = null;
-new GLTFLoader().load('assets/papa_anim.glb', (gltf) => {
+gltfLoader.load('assets/papa_anim.glb', (gltf) => {
   const model = gltf.scene;
   model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   model.updateMatrixWorld(true);
@@ -670,7 +673,7 @@ buildNeighborhood(18, -92, 9, 5);     // 10 sur
 
 // Edificios 3D reales de la ciudad (tienda y edificio que mandó el usuario)
 function loadBuilding(path, x, z, targetH) {
-  new GLTFLoader().load(path, (gltf) => {
+  gltfLoader.load(path, (gltf) => {
     const m = gltf.scene;
     m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     m.updateMatrixWorld(true);

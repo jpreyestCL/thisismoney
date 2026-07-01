@@ -17,16 +17,20 @@ ni framework, ni backend. Se abre el HTML y listo.
 
 ```
 index.html          Todo el juego (HTML + CSS + JS module en un archivo)
-assets/             Modelos y texturas (~32 MB en total)
-  edificio.glb      (~11.5 MB)
-  tienda.glb        (~10.5 MB)
-  papa_anim.glb     (~8 MB, papá animado)
-  img_58.png        (~2 MB)
+assets/             Modelos y texturas (~2.9 MB en total, comprimidos)
+  edificio.glb      (~1.06 MB)
+  tienda.glb        (~0.95 MB)
+  papa_anim.glb     (~0.48 MB, papá animado)
+  img_58.png        (~0.47 MB, fondo del título)
 .gitignore          Ignora assets/* salvo los 4 archivos de arriba (whitelist)
 ```
 
 - **Three.js** se carga por CDN vía `<script type="importmap">` desde
-  `unpkg.com/three@0.160.0` (ver `index.html:188-197`). Se usa `GLTFLoader` para los `.glb`.
+  `unpkg.com/three@0.160.0` (ver `index.html:188-197`). Se usa un `GLTFLoader` **compartido**
+  (`const gltfLoader`) con `MeshoptDecoder` para los `.glb` comprimidos.
+- **Assets comprimidos** (ver más abajo): los `.glb` usan texturas **WebP 1024²** (nativo en
+  GLTFLoader) + geometría **meshopt** (`EXT_meshopt_compression`, por eso el `MeshoptDecoder`).
+  Pasaron de ~32 MB a ~2.9 MB (~91% menos). Reencodeados con `@gltf-transform/cli`.
 - Renderer: `WebGLRenderer` con `setPixelRatio(Math.min(devicePixelRatio, 2))` (`index.html:204-208`).
 - No hay dependencias npm, ni `package.json`, ni tests. Para probar basta con abrir
   `index.html` en un navegador (por ejemplo `python3 -m http.server` y visitar la página,
@@ -94,10 +98,24 @@ por el egress del sandbox): `body.touch`, joystick visible, HUD, botones (ayuda/
 **desplazamiento real del jugador** al empujar el joystick, layout sin botones fuera de pantalla
 y **cero errores** de consola.
 
+### Peso de assets — REDUCIDO (~32 MB → ~2.9 MB)
+Los `.glb` se comprimieron con `@gltf-transform/cli`: `resize` a 1024² + `webp` (q85) + `meshopt`.
+`img_58.png` se reencodeó (PNG paletizado, sharp). El `GLTFLoader` compartido lleva
+`setMeshoptDecoder(MeshoptDecoder)` (import de `three/addons/libs/meshopt_decoder.module.js`).
+WebP no requiere decoder extra (nativo en GLTFLoader r160). Verificado con Playwright: los 3
+modelos cargan, el papá conserva su animación (`dadMixer`) y **cero errores**.
+
+Para recomprimir en el futuro (ejemplo por modelo):
+```
+gltf-transform resize  in.glb a.glb --width 1024 --height 1024 --filter lanczos3
+gltf-transform webp    a.glb  b.glb --quality 85
+gltf-transform meshopt b.glb  out.glb
+```
+
 ### Pendiente / mejoras posibles
-- **Reducir peso de assets** (~32 MB de `.glb`): comprimir con Draco/meshopt para carga rápida con datos móviles.
 - Ajuste fino de sensibilidad de mirar / tamaño de botones según feedback en dispositivos reales.
 - Pantalla completa automática (`requestFullscreen`) al empezar — no implementado (puede ser intrusivo).
+- Texturas normales a 1024²/WebP q85: si se ven artefactos, subir calidad o resolución de ese slot.
 
 ### Cómo probar en local (el juego necesita HTTP + el CDN de three)
 El CDN `unpkg.com` está fuera del allowlist de egress del sandbox, así que para probar con

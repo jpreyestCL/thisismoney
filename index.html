@@ -11,7 +11,8 @@
   #game { width: 100%; height: 100%; display: block; }
 
   #hud { position: fixed; inset: 0; pointer-events: none; }
-  .topbar { position: absolute; top: 12px; left: 12px; right: 12px;
+  .topbar { position: absolute; z-index: 6;
+    top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
     display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 6px; }
   .stat { background: rgba(0,0,0,.45); padding: 6px 12px; border-radius: 10px; backdrop-filter: blur(4px); }
   .stat b { font-size: 11px; opacity: .7; display: block; letter-spacing: 1px; }
@@ -101,7 +102,7 @@
   body.touch #crosshair { opacity: .5; }
 
   /* ---- HUD compacto en móvil: más espacio de pantalla ---- */
-  body.touch .topbar { top: 5px; left: 6px; right: 6px; gap: 3px; }
+  body.touch .topbar { top: max(5px, env(safe-area-inset-top)); left: max(6px, env(safe-area-inset-left)); right: max(6px, env(safe-area-inset-right)); gap: 3px; }
   body.touch .topbar > div { gap: 3px !important; }
   body.touch .stat { padding: 2px 7px; border-radius: 7px; backdrop-filter: none; }
   body.touch .stat b { font-size: 7px; letter-spacing: .5px; }
@@ -323,7 +324,7 @@ const scene = new THREE.Scene();
 const SKY_DAY = new THREE.Color(0x87ceeb);
 const SKY_NIGHT = new THREE.Color(0x0a1026);
 scene.background = SKY_DAY.clone();
-scene.fog = new THREE.Fog(SKY_DAY.getHex(), 40, 160);
+scene.fog = new THREE.Fog(SKY_DAY.getHex(), 60, 300);
 
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 600);
 
@@ -344,7 +345,7 @@ const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el 
 
 // Suelo (cambia de color al viajar de planeta)
 const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a7c3a });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1100, 1100), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground);
 
@@ -941,7 +942,7 @@ function updatePolice(dt) {
     const driving = state.driving;              // si conduces, la policía te persigue EN AUTO
     for (const p of police) {
       setPoliceCar(p, driving);
-      const speed = driving ? 34 : 7;           // auto policial: rápido, pero tu TURBO (52) le gana
+      const speed = driving ? 22 : 7;           // auto policial: más lento que tu auto (30) para que puedas huir; con TURBO (52) le sacas ventaja fácil
       const catchD = driving ? 3.4 : 1.9;
       const d = dist2D(p.position, player.position);
       if (d <= catchD) { policeCatch(); return; }
@@ -1127,9 +1128,9 @@ function updateDriving(dt) {
   else s = s > 0 ? Math.max(0, s - fric * dt) : Math.min(0, s + fric * dt);
   s = Math.max(-reverseMax, Math.min(top, s));
   // dirección SUAVE: la velocidad de giro tiende poco a poco al objetivo (nada brusco)
-  const steerInput = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);
-  const speedFactor = Math.min(1, Math.abs(s) / 6);              // parado casi no gira
-  const targetRate = steerInput * 1.5 * speedFactor * (s >= 0 ? 1 : -1);
+  const steerInput = (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0);   // A = izquierda, D = derecha (igual que al caminar)
+  const speedFactor = Math.min(1, Math.abs(s) / 3);             // responde apenas te mueves (ágil, como el personaje)
+  const targetRate = steerInput * 1.6 * speedFactor * (s >= 0 ? 1 : -1);
   car.userData.steerRate = (car.userData.steerRate || 0) + (targetRate - (car.userData.steerRate || 0)) * Math.min(1, dt * 7);
   car.userData.heading += car.userData.steerRate * dt;
   const h = car.userData.heading;
@@ -1138,8 +1139,8 @@ function updateDriving(dt) {
   if (carBlocked(nx, nz) || carHitsCar(nx, nz)) s = 0; else { car.position.x = nx; car.position.z = nz; }   // choca con edificios y con otros autos
   car.userData.speed = s;
   if (hornCd > 0) hornCd = Math.max(0, hornCd - dt);
-  car.position.x = THREE.MathUtils.clamp(car.position.x, -112, 112);
-  car.position.z = THREE.MathUtils.clamp(car.position.z, -112, 112);
+  car.position.x = THREE.MathUtils.clamp(car.position.x, -480, 480);
+  car.position.z = THREE.MathUtils.clamp(car.position.z, -480, 480);
   car.rotation.y = h;
   car.rotation.z = -car.userData.steerRate * 0.12;               // inclinación al doblar (se siente mejor)
   // cámara del conductor (mira al frente; se conduce con A/D o el joystick)
@@ -1157,9 +1158,22 @@ function setPoliceCar(p, on) {
     scene.remove(p.userData.car); p.userData.car = null; p.userData.light = null; p.visible = true;
   }
 }
+// Busca un lugar despejado (sin edificios ni otros autos) para dejar el auto estacionado
+function findParkingSpot() {
+  // Candidatos justo AFUERA del SÚPER (entrada en z≈-11), sobre la calle/plaza despejada
+  const cands = [
+    [40, -6], [34, -6], [46, -6], [40, -2], [30, -4], [50, -4],
+    [24, -8], [56, -8], [40, 3], [20, -2], [60, -2],
+  ];
+  for (const [x, z] of cands) {
+    if (!carBlocked(x, z) && !carHitsCar(x, z)) return { x, z };
+  }
+  return { x: 40, z: 2 };   // último recurso: frente al súper hacia la avenida
+}
 function giveOwnCar() {
   const c = makeCar(0x0f172a);
-  c.position.set(player.position.x + 3, 0, player.position.z + 3);
+  const spot = findParkingSpot();
+  c.position.set(spot.x, 0, spot.z);
   c.userData.heading = 0; c.rotation.y = 0; c.userData.speed = 0; c.userData.moving = false; c.userData.own = true;
   scene.add(c); state.ownCar = c;
 }
@@ -1922,7 +1936,7 @@ function buyItem(item) {
   else if (item.key === 'semillas') { state.inv.semillas = (state.inv.semillas || 0) + 10; toast('🌱 Compraste 10 semillas de manzana (pulsa K para plantar)'); }
   else if (item.key === 'auto') {
     if (state.ownCar) { state.money += item.price; toast('🚗 Ya tienes un auto (búscalo cerca)'); }
-    else { giveOwnCar(); toast('🚗 ¡Compraste un AUTO! Está al lado tuyo. Súbete con E (Shift = turbo)'); }
+    else { giveOwnCar(); toast('🚗 ¡Compraste un AUTO! Está estacionado afuera del súper. Súbete con E (Shift = turbo)'); }
   }
   else if (item.key === 'rocket') { giveRocket(); }
 }
@@ -2412,8 +2426,8 @@ function updateMovement(dt) {
   if (keys['Space'] && grounded) { vy = 8; grounded = false; }
   vy -= 25 * dt; player.position.y += vy * dt;
   if (player.position.y <= standY) { player.position.y = standY; vy = 0; grounded = true; }
-  player.position.x = THREE.MathUtils.clamp(player.position.x, -110, 110);
-  player.position.z = THREE.MathUtils.clamp(player.position.z, -110, 110);
+  player.position.x = THREE.MathUtils.clamp(player.position.x, -480, 480);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, -480, 480);
   resolveCollisions();
   camera.rotation.y = yaw; camera.rotation.x = pitch;
 }

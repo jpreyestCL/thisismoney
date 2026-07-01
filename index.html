@@ -1401,6 +1401,16 @@ function houseStats() {
   const mansion = full;
   return { walls, roofs, lamps, doors, ovens, ready, simple, full, mansion };
 }
+// Lista de piezas que faltan para que la casa cuente como COMPLETA (para vender / bono)
+function houseMissing(hs) {
+  const m = [];
+  if (hs.walls < 4) m.push('paredes (' + hs.walls + '/4)');
+  if (hs.doors < 1) m.push('puerta');
+  if (hs.roofs < 1) m.push('techo');
+  if (hs.lamps < 1) m.push('lámpara');
+  if (hs.ovens < 1) m.push('horno');
+  return m;
+}
 // Bono por construir: casa simple (4 paredes + techo) = $300 ; casa completa (4 paredes + puerta + techo + lámpara + horno) = $1000
 let houseTier = 0;   // 0 = nada cobrado, 1 = simple cobrada, 2 = completa cobrada
 function checkConstructionBonus() {
@@ -2009,9 +2019,15 @@ function tryCollectGolden() {
 // Vender tu casa a un aldeano: debe estar COMPLETA y tú cerca de un aldeano (tecla V)
 function sellHouse() {
   let nearNpc = false;
-  for (const n of npcs) { if (dist2D(player.position, n.position) < 6) { nearNpc = true; break; } }
+  for (const n of npcs) { if (dist2D(player.position, n.position) < 8) { nearNpc = true; break; } }
   if (!nearNpc) return;   // silencioso: E tambien sirve para cobrar oro / robar en otros lugares
-  if (!houseStats().full) { toast('🏠 Tu casa debe estar COMPLETA para venderla (paredes + puerta + techo + lámpara + horno)'); return; }
+  const hs = houseStats();
+  if (!hs.full) {
+    const wallsPlaced = placed.some(o => o.key === 'wallWood' || o.key === 'wallRock');
+    if (hs.walls === 0 && wallsPlaced) toast('🏠 Tu casa está demasiado lejos: constrúyela junto al punto verde del mapa (tu casa) para poder venderla');
+    else toast('🏠 Para vender, aún falta: ' + houseMissing(hs).join(', '));
+    return;
+  }
   const price = 1500;
   addMoney(price); beep(720, 0.18, 0.05);
   for (let i = placed.length - 1; i >= 0; i--) {   // el aldeano se queda la casa: quitamos las piezas
@@ -2636,7 +2652,11 @@ function renderHUD() {
   if (state.phase === 'DAY') {
     if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);
     else if (!houseStats().ready) obj = '🛒 Compra en el súper (mantén E) y construye 4 paredes (B)';
-    else obj = '🌙 Pulsa N para la noche · 🏆 casa dorada en la ciudad (E cerca)';
+    else {
+      const hs = houseStats();
+      if (hs.full) obj = '🤝 Acércate a un ALDEANO (peatón) y pulsa E para vender tu casa ($1500)';
+      else obj = '🏠 Para vender tu casa, ponle: ' + houseMissing(hs).join(', ') + ' · 🌙 N = noche';
+    }
   } else if (state.phase === 'NIGHT') obj = '🗡️ ¡Defiende! Quedan ' + fmt(NIGHT_LENGTH - state.nightTime);
   if (state.wanted > 0) obj = '🚨 ¡BUSCADO! Huye de la policía (corre con Shift) — ' + Math.ceil(state.wanted) + 's';
   ui('objective').textContent = obj;

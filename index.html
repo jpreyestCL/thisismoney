@@ -169,9 +169,14 @@
     <div class="label" id="ring-label"></div>
   </div>
   <div id="shopbox" style="position:absolute; bottom:200px; left:50%; transform:translateX(-50%); display:none; pointer-events:all; background:rgba(0,0,0,.8); padding:14px 18px; border-radius:14px; text-align:center;">
-    <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#34d399">VENDEDOR — escribe qué comprar y pulsa Enter (Esc cierra)</div>
-    <input id="shopInput" type="text" placeholder="ej: espada metal, madera, comida…" autocomplete="off"
+    <button id="shopClose" style="position:absolute; top:-12px; right:-12px; width:34px; height:34px; border-radius:50%; border:2px solid #fff; background:#ef4444; color:#fff; font-size:18px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.5); line-height:1;">✕</button>
+    <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#34d399">VENDEDOR — escribe qué comprar y pulsa Enter</div>
+    <input id="shopInput" type="text" placeholder="ej: auto, espada metal, comida…" autocomplete="off"
       style="width:320px; max-width:80vw; padding:10px 12px; font-size:15px; border-radius:8px; border:2px solid #34d399; background:#0b1220; color:#fff; outline:none;">
+    <div style="margin-top:10px; display:flex; gap:8px; justify-content:center;">
+      <button id="shopBuy" style="pointer-events:all; cursor:pointer; background:#22c55e; color:#042; border:none; padding:9px 20px; font-size:14px; font-weight:800; border-radius:9px;">COMPRAR</button>
+      <button id="shopCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:2px solid rgba(255,255,255,.3); padding:9px 20px; font-size:14px; font-weight:700; border-radius:9px;">SALIR</button>
+    </div>
   </div>
 </div>
 
@@ -224,7 +229,8 @@
       <span><b>W A S D</b></span><span>Caminar</span>
       <span><b>Flechas</b></span><span>Mirar / mover la cámara (también sirve el mouse)</span>
       <span><b>Shift</b></span><span>Correr &nbsp;·&nbsp; <b>Espacio</b> Saltar &nbsp;·&nbsp; <b>Ctrl</b> Agacharse</span>
-      <span><b>E</b></span><span>Interactuar: comprar / cobrar casa secreta / robar en estadio / <b>vender tu casa a un aldeano</b></span>
+      <span><b>E</b></span><span>Interactuar: <b>subir/bajar del auto</b> / comprar / cobrar casa secreta / robar / vender tu casa</span>
+      <span><b>🚗 Autos</b></span><span>Compra un <b>Auto</b> en el súper, o roba uno de la calle (E cerca). Conduce con <b>WASD</b> y usa <b>Shift = TURBO</b>. Si robas, la policía te persigue en auto: ¡escapa en turbo!</span>
       <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
       <span><b>1 - 9</b></span><span><b>1</b> herramienta (pala/espada) · <b>2-9</b> elegir qué construir</span>
       <span><b>Q</b></span><span>Comer (te quita el hambre)</span>
@@ -285,6 +291,7 @@
     <button class="mbtn" data-act="dadArm">🔫<span class="lb">ARMA·G</span></button>
     <button class="mbtn" data-act="helper">🙋<span class="lb">AYUDA·H</span></button>
     <button class="mbtn" data-act="rocket">🚀<span class="lb">COHETE·R</span></button>
+    <button class="mbtn" data-act="car">🚗<span class="lb">AUTO·E</span></button>
     <button class="mbtn" data-act="help">❓<span class="lb">AYUDA·I</span></button>
   </div>
 </div>
@@ -512,6 +519,7 @@ const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'coca',     name: 'Coca-Cola',    price: 80,  color: 0xdc2626, eat: 20 },
   { key: 'semillas', name: 'Semillas manzana (x10)', price: 60, color: 0x7c9a3b },
   { key: 'dadgun',   name: 'Arma papa',    price: 400, color: 0xf59e0b },
+  { key: 'auto',     name: 'Auto',         price: 1500, color: 0x0f172a },
   { key: 'rocket',   name: 'Cohete',       price: 1000000, color: 0xf97316 },
 ];
 const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
@@ -893,7 +901,7 @@ function spawnPolice(n) {
     scene.add(p); police.push(p);
   }
 }
-function clearPolice() { police.forEach(p => scene.remove(p)); police.length = 0; }
+function clearPolice() { police.forEach(p => { if (p.userData.car) scene.remove(p.userData.car); scene.remove(p); }); police.length = 0; }
 // Te vuelves BUSCADO (solo al pegar o robar a alguien). La policía tarda unos segundos en llegar.
 function becomeWanted(sec) {
   state.wanted = Math.max(state.wanted, sec);
@@ -904,16 +912,178 @@ function updatePolice(dt) {
     state.wanted -= dt;
     if (state.policeDelay > 0) { state.policeDelay -= dt; return; }   // aún no llegan: aprovecha para huir
     if (police.length === 0) spawnPolice(2);
+    const driving = state.driving;              // si conduces, la policía te persigue EN AUTO
     for (const p of police) {
+      setPoliceCar(p, driving);
+      const speed = driving ? 32 : 7;           // auto policial: rápido, pero tu TURBO (46) le gana
+      const catchD = driving ? 3.4 : 1.9;
       const d = dist2D(p.position, player.position);
-      if (d <= 1.9) { policeCatch(); return; }
-      moveToward(p, player.position, 7 * dt);   // más lenta que antes: puedes escapar corriendo (Shift)
-      p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
-      swingLimbs(p, dt);
+      if (d <= catchD) { policeCatch(); return; }
+      moveToward(p, player.position, speed * dt);
+      const face = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
+      if (p.userData.car) {
+        p.userData.car.position.set(p.position.x, 0, p.position.z);
+        p.userData.car.rotation.y = face;
+        if (p.userData.light) p.userData.light.material.color.setHex((Math.floor(performance.now() / 250) % 2) ? 0xef4444 : 0x3b82f6);   // sirena
+      } else { p.rotation.y = face; swingLimbs(p, dt); }
     }
   } else if (police.length) clearPolice();
 }
-function policeCatch() { state.wanted = 0; clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
+function policeCatch() { state.wanted = 0; dropOutOfCar(); clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
+
+// ===================================================================
+//  AUTOS: calles, tráfico, autos estacionados, conducir, robar y turbo
+// ===================================================================
+const CAR_COLORS = [0xef4444, 0x3b82f6, 0x22c55e, 0xf59e0b, 0x8b5cf6, 0xffffff, 0x0ea5e9, 0x111827];
+function makeCar(color) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 4.2), mat(color)); body.position.y = 0.85; body.castShadow = true; g.add(body);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 2.1), mat(0x0b1220)); cabin.position.set(0, 1.45, -0.1); cabin.castShadow = true; g.add(cabin);
+  const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.35, 12), wheelMat = mat(0x111827);
+  [[-1.0, -1.4], [1.0, -1.4], [-1.0, 1.4], [1.0, 1.4]].forEach(([wx, wz]) => {
+    const w = new THREE.Mesh(wheelGeo, wheelMat); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.45, wz); g.add(w);
+  });
+  [-0.6, 0.6].forEach(hx => { const h = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.1), mat(0xfef08a)); h.position.set(hx, 0.85, 2.12); g.add(h); });   // faros (frente = +z)
+  g.userData.isCar = true;
+  return g;
+}
+// ---- Calles ----
+const roadMat = new THREE.MeshStandardMaterial({ color: 0x34383f, roughness: 1 });
+const lineMat = new THREE.MeshStandardMaterial({ color: 0xd9dee6, roughness: 1 });
+function makeRoad(cx, cz, len, horizontal) {
+  const w = 9;
+  const r = new THREE.Mesh(horizontal ? new THREE.PlaneGeometry(len, w) : new THREE.PlaneGeometry(w, len), roadMat);
+  r.rotation.x = -Math.PI / 2; r.position.set(cx, 0.02, cz); r.receiveShadow = true; scene.add(r);
+  const dashN = Math.floor(len / 6);
+  for (let i = 0; i < dashN; i++) {
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(horizontal ? 2 : 0.28, horizontal ? 0.28 : 2), lineMat);
+    d.rotation.x = -Math.PI / 2; const off = (i - dashN / 2) * 6 + 3;
+    d.position.set(cx + (horizontal ? off : 0), 0.03, cz + (horizontal ? 0 : off)); scene.add(d);
+  }
+}
+const roads = [
+  { cx: 0, cz: 0, len: 224, horizontal: true },     // avenida central este-oeste
+  { cx: 0, cz: 0, len: 224, horizontal: false },    // avenida central norte-sur
+  { cx: -55, cz: 50, len: 120, horizontal: true },  // ciudad
+  { cx: -30, cz: 50, len: 116, horizontal: false }, // ciudad
+  { cx: 40, cz: -18, len: 130, horizontal: true },  // hacia el súper
+];
+roads.forEach(r => makeRoad(r.cx, r.cz, r.len, r.horizontal));
+
+const traffic = [], parkedCars = [];
+function placeOnRoad(car, r, t, laneOff, dir) {
+  if (r.horizontal) { car.position.set(r.cx - r.len / 2 + t * r.len, 0, r.cz + laneOff); car.userData.heading = dir > 0 ? Math.PI / 2 : -Math.PI / 2; }
+  else { car.position.set(r.cx + laneOff, 0, r.cz - r.len / 2 + t * r.len); car.userData.heading = dir > 0 ? 0 : Math.PI; }
+  car.rotation.y = car.userData.heading; car.userData.road = r; car.userData.dir = dir;
+}
+function spawnCars() {
+  roads.forEach(r => {
+    for (let i = 0; i < 3; i++) {   // autos ANDANDO
+      const car = makeCar(CAR_COLORS[(Math.random() * CAR_COLORS.length) | 0]);
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      placeOnRoad(car, r, Math.random(), dir > 0 ? 2.2 : -2.2, dir);
+      car.userData.moving = true; car.userData.speed = 6 + Math.random() * 5;
+      scene.add(car); traffic.push(car);
+    }
+    for (let i = 0; i < 2; i++) {   // autos ESTACIONADOS al borde
+      const car = makeCar(CAR_COLORS[(Math.random() * CAR_COLORS.length) | 0]);
+      placeOnRoad(car, r, 0.25 + i * 0.5, 4.4, 1);
+      car.userData.moving = false; car.userData.speed = 0;
+      scene.add(car); parkedCars.push(car);
+    }
+  });
+}
+spawnCars();
+function updateTraffic(dt) {
+  for (const car of traffic) {
+    if (car === state.car || !car.userData.moving) continue;
+    const r = car.userData.road, dir = car.userData.dir, spd = car.userData.speed;
+    if (r.horizontal) {
+      car.position.x += dir * spd * dt;
+      if (car.position.x > r.cx + r.len / 2) car.position.x = r.cx - r.len / 2;
+      else if (car.position.x < r.cx - r.len / 2) car.position.x = r.cx + r.len / 2;
+    } else {
+      car.position.z += dir * spd * dt;
+      if (car.position.z > r.cz + r.len / 2) car.position.z = r.cz - r.len / 2;
+      else if (car.position.z < r.cz - r.len / 2) car.position.z = r.cz + r.len / 2;
+    }
+  }
+}
+// ---- Subir / bajar / conducir ----
+function allCars() { const l = traffic.concat(parkedCars); if (state.ownCar) l.push(state.ownCar); return l; }
+function nearestCar(maxD) {
+  let best = null, bd = maxD;
+  for (const c of allCars()) { const d = dist2D(player.position, c.position); if (d < bd) { bd = d; best = c; } }
+  return best;
+}
+function enterCar(car) {
+  state.driving = true; state.car = car; car.userData.moving = false; car.userData.speed = 0;
+  if (car.userData.heading == null) car.userData.heading = car.rotation.y;
+  viewmodel.visible = false; yaw = car.userData.heading; pitch = 0;
+  if (car === state.ownCar) toast('🚗 Tu auto — acelera con W (Shift = TURBO). E para bajar');
+  else { toast('🚗 ¡Auto robado! La policía viene… ¡huye en TURBO (Shift)! E para bajar'); becomeWanted(18); }
+}
+function dropOutOfCar() {
+  if (!state.driving) return;
+  const car = state.car; state.driving = false; state.car = null; viewmodel.visible = true;
+  if (car) { car.userData.moving = false;
+    const side = new THREE.Vector3(Math.cos(car.userData.heading), 0, -Math.sin(car.userData.heading));
+    player.position.set(car.position.x + side.x * 2.4, PLAYER_EYE, car.position.z + side.z * 2.4);
+  }
+}
+function exitCar() { dropOutOfCar(); toast('🚶 Bajaste del auto'); }
+function tryToggleCar() {
+  if (state.driving) { exitCar(); return true; }
+  const c = nearestCar(4.0);
+  if (c) { enterCar(c); return true; }
+  return false;
+}
+function carBlocked(x, z) {
+  for (const o of obstacles) { if (x > o.minX - 1.1 && x < o.maxX + 1.1 && z > o.minZ - 1.1 && z < o.maxZ + 1.1) return true; }
+  return false;
+}
+function updateDriving(dt) {
+  const car = state.car; if (!car) { state.driving = false; return; }
+  const accel = 26, reverseMax = 12, fric = 16;
+  const turbo = keys['ShiftLeft'] || keys['ShiftRight'];
+  const top = turbo ? 46 : 26;
+  let s = car.userData.speed || 0;
+  if (keys['KeyW']) s += accel * dt;
+  else if (keys['KeyS']) s -= accel * dt;
+  else s = s > 0 ? Math.max(0, s - fric * dt) : Math.min(0, s + fric * dt);
+  s = Math.max(-reverseMax, Math.min(top, s));
+  const steer = 1.7 * dt * Math.min(1, Math.abs(s) / 5);
+  if (keys['KeyA']) car.userData.heading += steer * (s >= 0 ? 1 : -1);
+  if (keys['KeyD']) car.userData.heading -= steer * (s >= 0 ? 1 : -1);
+  const h = car.userData.heading;
+  const fwd = new THREE.Vector3(Math.sin(h), 0, Math.cos(h));
+  const nx = car.position.x + fwd.x * s * dt, nz = car.position.z + fwd.z * s * dt;
+  if (carBlocked(nx, nz)) s = 0; else { car.position.x = nx; car.position.z = nz; }
+  car.userData.speed = s;
+  car.position.x = THREE.MathUtils.clamp(car.position.x, -112, 112);
+  car.position.z = THREE.MathUtils.clamp(car.position.z, -112, 112);
+  car.rotation.y = h;
+  // cámara del conductor (mira al frente; se conduce con A/D o el joystick)
+  yaw = h; pitch = THREE.MathUtils.clamp(pitch, -0.4, 0.4);
+  player.position.set(car.position.x - fwd.x * 0.1, 2.3, car.position.z - fwd.z * 0.1);
+  camera.rotation.y = yaw; camera.rotation.x = pitch;
+}
+// Autos de la policía (solo aparecen cuando vas conduciendo)
+function setPoliceCar(p, on) {
+  if (on && !p.userData.car) {
+    const c = makeCar(0x1d4ed8);
+    const light = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.22, 0.55), mat(0xef4444)); light.position.y = 1.95; c.add(light);
+    p.userData.car = c; p.userData.light = light; p.visible = false; scene.add(c);
+  } else if (!on && p.userData.car) {
+    scene.remove(p.userData.car); p.userData.car = null; p.userData.light = null; p.visible = true;
+  }
+}
+function giveOwnCar() {
+  const c = makeCar(0x0f172a);
+  c.position.set(player.position.x + 3, 0, player.position.z + 3);
+  c.userData.heading = 0; c.rotation.y = 0; c.userData.speed = 0; c.userData.moving = false; c.userData.own = true;
+  scene.add(c); state.ownCar = c;
+}
 
 // Robar a la gente del estadio (con E cerca). Riesgo: que te persiga la policía
 function tryRob() {
@@ -1425,6 +1595,7 @@ const state = {
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
   buildMode: false,
   dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, policeDelay: 0, running: false,
+  driving: false, car: null, ownCar: null,   // autos
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -1479,7 +1650,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { tryCollectGolden(); tryRob(); sellHouse(); }   // interactuar: cobrar oro / robar / vender casa a un aldeano
+  if (e.code === 'KeyE') { if (!tryToggleCar()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // subir/bajar auto · cobrar oro · robar · vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -1556,6 +1727,10 @@ ui('shopInput').addEventListener('keydown', e => {
   if (e.code === 'Enter') processShopBuy();
   else if (e.code === 'Escape') closeShopInput();
 });
+// Botones del vendedor (imprescindibles en móvil, que no tiene tecla Esc)
+ui('shopClose').onclick = closeShopInput;
+ui('shopCloseBtn').onclick = closeShopInput;
+ui('shopBuy').onclick = processShopBuy;
 
 function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; }
 
@@ -1591,6 +1766,8 @@ function resetAll() {
   victims.forEach(v => v.userData.robbed = false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   if (state.rocket) { scene.remove(state.rocket); state.rocket = null; }
+  state.driving = false; state.car = null; viewmodel.visible = true;
+  if (state.ownCar) { scene.remove(state.ownCar); state.ownCar = null; }
 }
 
 // ===================================================================
@@ -1625,6 +1802,10 @@ function buyItem(item) {
   }
   else if (item.key === 'dadgun') { state.dadGun = true; toast('🔫 Arma para papá comprada (G para armarlo)'); }
   else if (item.key === 'semillas') { state.inv.semillas = (state.inv.semillas || 0) + 10; toast('🌱 Compraste 10 semillas de manzana (pulsa K para plantar)'); }
+  else if (item.key === 'auto') {
+    if (state.ownCar) { state.money += item.price; toast('🚗 Ya tienes un auto (búscalo cerca)'); }
+    else { giveOwnCar(); toast('🚗 ¡Compraste un AUTO! Está al lado tuyo. Súbete con E (Shift = turbo)'); }
+  }
   else if (item.key === 'rocket') { giveRocket(); }
 }
 function setWeaponColor(c) {   // pinta la hoja del pico/arma en primera persona
@@ -2014,6 +2195,7 @@ function loop() {
     dadWalkBob(dt);
     updateHelpers(dt);
     updateNPCs(dt);
+    updateTraffic(dt);                     // autos andando por las calles
     updateSoccer(dt);
     swingLimbs(mom, dt);
     updateArrow();
@@ -2084,6 +2266,7 @@ function drawMinimap() {
 
 function updateMovement(dt) {
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
+  if (state.driving) { updateDriving(dt); return; }   // vas en auto: se conduce distinto
   const fwd = keys['KeyW'], back = keys['KeyS'];
   const left = keys['KeyA'], right = keys['KeyD'];
   // Flechas = mirar (mover la cámara), WASD = caminar
@@ -2364,7 +2547,7 @@ if (isTouch) {
     const b = ui('mInteract');
     b.addEventListener('pointerdown', e => {
       e.preventDefault(); b.classList.add('press'); keys['KeyE'] = true;
-      if (state.running) { tryCollectGolden(); tryRob(); sellHouse(); }
+      if (state.running && !tryToggleCar()) { tryCollectGolden(); tryRob(); sellHouse(); }
     });
     const up = () => { keys['KeyE'] = false; b.classList.remove('press'); };
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
@@ -2390,6 +2573,7 @@ if (isTouch) {
     dadArm: () => toggleDadArm(),
     helper: () => spawnHelper(),
     rocket: () => tryLaunchRocket(),
+    car: () => tryToggleCar(),
     help: () => toggleHelp(),
   };
   ui('mPanel').querySelectorAll('.mbtn').forEach(b => {

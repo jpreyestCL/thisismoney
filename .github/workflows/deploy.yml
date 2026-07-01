@@ -1,0 +1,44 @@
+name: Deploy to VPS
+
+# Cada push a main despliega el sitio estatico en el servidor
+# (178.62.201.63) via el self-hosted runner "devbox-thisismoney",
+# que corre como el usuario dev y sincroniza los archivos al webroot
+# de nginx en /var/www/tim.strivexlatam.com -> https://tim.strivexlatam.com
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-tim
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync a webroot de nginx
+        run: |
+          set -euo pipefail
+          WEBROOT=/var/www/tim.strivexlatam.com
+          echo "→ desplegando $(git rev-parse --short HEAD) en $WEBROOT"
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.claude-flow' \
+            --exclude '.gitignore' \
+            ./ "$WEBROOT/"
+          echo "✅ desplegado. contenido:"
+          ls -la "$WEBROOT"
+
+      - name: Verificar sitio en vivo
+        run: |
+          set -euo pipefail
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: tim.strivexlatam.com' http://127.0.0.1/index.html)
+          echo "index.html -> HTTP $code"
+          test "$code" = "200"

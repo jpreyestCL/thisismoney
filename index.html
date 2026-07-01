@@ -159,6 +159,7 @@
       <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
       <span><b>1 - 9</b></span><span><b>1</b> herramienta (pala/espada) · <b>2-9</b> elegir qué construir</span>
       <span><b>Q</b></span><span>Comer (te quita el hambre)</span>
+      <span><b>K</b></span><span>Plantar una semilla de manzana (crece de a poco y da manzanas)</span>
       <span><b>B</b></span><span>Modo construir ON/OFF</span>
       <span><b>F</b> / <b>X</b></span><span>Colocar / Borrar objeto</span>
       <span><b>P</b> / <b>L</b></span><span>Girar la pieza (vertical / horizontal)</span>
@@ -181,6 +182,8 @@
     <button class="btn" id="helpClose" style="margin-top:18px;">CERRAR (I)</button>
   </div>
 </div>
+
+<div id="fade" style="position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:20;"></div>
 
 <script type="importmap">
 { "imports": {
@@ -403,6 +406,7 @@ const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'pollo',    name: 'Pollo',        price: 110, color: 0xe8c170, eat: 45 },
   { key: 'manzana',  name: 'Manzana',      price: 60,  color: 0xef4444, eat: 25 },
   { key: 'coca',     name: 'Coca-Cola',    price: 80,  color: 0xdc2626, eat: 20 },
+  { key: 'semillas', name: 'Semillas manzana (x10)', price: 60, color: 0x7c9a3b },
   { key: 'dadgun',   name: 'Arma papa',    price: 400, color: 0xf59e0b },
   { key: 'rocket',   name: 'Cohete',       price: 1000000, color: 0xf97316 },
 ];
@@ -410,7 +414,7 @@ const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
   { key: 'pala_madera',    name: 'Pala madera',    price: 200, color: 0x8b5a2b, dmg: 1 },
   { key: 'pala_metal',     name: 'Pala metal',     price: 400, color: 0x9ca3af, dmg: 4 },
   { key: 'pala_obsidiana', name: 'Pala obsidiana', price: 700, color: 0x6d28d9, dmg: 8 },
-  { key: 'espada_madera',    name: 'Espada madera',    price: 300,  color: 0x8b5a2b, dmg: 2 },
+  { key: 'espada_madera',    name: 'Espada madera',    price: 300,  color: 0x8b5a2b, dmg: 4 },
   { key: 'espada_metal',     name: 'Espada metal',     price: 500,  color: 0xcbd5e1, dmg: 7 },
   { key: 'espada_obsidiana', name: 'Espada obsidiana', price: 1000, color: 0x6d28d9, dmg: 13 },
   { key: 'armadura_cuero',     name: 'Armadura cuero',     price: 300,  color: 0x92400e, factor: 0.8 },
@@ -588,8 +592,16 @@ function buildNeighborhood(cx, cz, houses, npcCount) {
     scene.add(n); npcs.push(n);
   }
 }
-buildNeighborhood(90, 90, 16, 8);     // ciudad noreste
-buildNeighborhood(-95, -90, 16, 8);   // ciudad suroeste
+// 10 pueblos en total: la ciudad grande (buildCity) + estos 9 barrios repartidos por el mapa
+buildNeighborhood(90, 90, 12, 6);     // 2 noreste
+buildNeighborhood(-95, -90, 12, 6);   // 3 suroeste
+buildNeighborhood(95, -45, 9, 5);     // 4 este-sur
+buildNeighborhood(-95, 45, 9, 5);     // 5 oeste-norte
+buildNeighborhood(45, 95, 9, 5);      // 6 norte
+buildNeighborhood(-55, 92, 9, 5);     // 7 norte-oeste
+buildNeighborhood(95, 40, 9, 5);      // 8 este
+buildNeighborhood(-100, -25, 9, 5);   // 9 oeste-sur
+buildNeighborhood(18, -92, 9, 5);     // 10 sur
 
 // Edificios 3D reales de la ciudad (tienda y edificio que mandó el usuario)
 function loadBuilding(path, x, z, targetH) {
@@ -626,7 +638,19 @@ function updateNPCs(dt) {
 // ===================================================================
 const victims = [];     // gente sentada en los estadios (les puedes robar)
 const stadiums = [];    // centros (para el mini-mapa)
-const soccer = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0 };   // partido de fútbol decorativo
+const soccer = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0, scoreRed: 0, scoreBlue: 0 };   // partido de fútbol
+// Marcador gigante: dibuja "ROJO x - y AZUL" en un canvas y lo pone en una pantalla sobre la cancha
+function updateScoreboard() {
+  if (!soccer.scoreCtx) return;
+  const ctx = soccer.scoreCtx;
+  ctx.fillStyle = '#0b1220'; ctx.fillRect(0, 0, 512, 200);
+  ctx.font = 'bold 44px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f87171'; ctx.fillText('ROJOS', 120, 55);
+  ctx.fillStyle = '#60a5fa'; ctx.fillText('AZULES', 392, 55);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 96px sans-serif';
+  ctx.fillText(soccer.scoreRed + '  -  ' + soccer.scoreBlue, 256, 135);
+  soccer.scoreTex.needsUpdate = true;
+}
 function makeStadium(cx, cz, fieldColor, name) {
   const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), mat(fieldColor));
   field.rotation.x = -Math.PI / 2; field.position.set(cx, 0.05, cz); field.receiveShadow = true; scene.add(field);
@@ -652,6 +676,14 @@ function makeStadium(cx, cz, fieldColor, name) {
 // Partido de fútbol decorativo: 2 arcos, una pelota y jugadores que la persiguen
 function setupSoccer(cx, cz) {
   soccer.cx = cx; soccer.cz = cz;
+  // pantalla gigante del marcador, arriba de una gradería
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 200;
+  soccer.scoreCanvas = cv; soccer.scoreCtx = cv.getContext('2d');
+  soccer.scoreTex = new THREE.CanvasTexture(cv);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(10, 4), new THREE.MeshBasicMaterial({ map: soccer.scoreTex }));
+  board.position.set(cx, 6.5, cz - 9); scene.add(board);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(10.6, 4.6, 0.2), mat(0x111827)); frame.position.set(cx, 6.5, cz - 9.15); scene.add(frame);
+  updateScoreboard();
   const postMat = mat(0xffffff);
   // dos arcos (porterías) en los extremos del campo (eje x)
   [-9, 9].forEach(gx => {
@@ -721,8 +753,10 @@ function updateSoccer(dt) {
     soccer.vel.set(Math.cos(ang) * power, 0, Math.sin(ang) * power);
     nearest.userData.kickCd = 0.6;
   }
-  // ¿gol? si la pelota entra a un arco, vuelve al centro
+  // ¿gol? si la pelota entra a un arco: suma al marcador y vuelve al centro
   if (Math.abs(b.z - soccer.cz) < 2 && (b.x <= soccer.cx - 9 + 0.3 || b.x >= soccer.cx + 9 - 0.3)) {
+    if (b.x >= soccer.cx + 9 - 0.3) soccer.scoreRed++; else soccer.scoreBlue++;   // arco derecho = gol rojo; izquierdo = gol azul
+    updateScoreboard();
     b.set(soccer.cx, 0.35, soccer.cz); soccer.vel.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
   }
 }
@@ -750,20 +784,26 @@ function spawnPolice(n) {
     const p = makePerson(0x1e3a8a, 0xf1c27d);
     const helm = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.22, 0.52), mat(0x1e40af)); helm.position.y = 2.35; p.add(helm);
     const tag = makeSign('POLICIA', 0x60a5fa); tag.scale.set(.5, .5, .5); tag.position.set(0, 3, 0); p.add(tag);
-    const a = Math.random() * Math.PI * 2, r = 28;
+    const a = Math.random() * Math.PI * 2, r = 45;   // aparecen LEJOS para que te dé tiempo de escapar
     p.position.set(player.position.x + Math.cos(a) * r, 0, player.position.z + Math.sin(a) * r);
     scene.add(p); police.push(p);
   }
 }
 function clearPolice() { police.forEach(p => scene.remove(p)); police.length = 0; }
+// Te vuelves BUSCADO (solo al pegar o robar a alguien). La policía tarda unos segundos en llegar.
+function becomeWanted(sec) {
+  state.wanted = Math.max(state.wanted, sec);
+  if (police.length === 0 && state.policeDelay <= 0) state.policeDelay = 8;   // 8 s antes de que aparezcan
+}
 function updatePolice(dt) {
   if (state.wanted > 0) {
     state.wanted -= dt;
+    if (state.policeDelay > 0) { state.policeDelay -= dt; return; }   // aún no llegan: aprovecha para huir
     if (police.length === 0) spawnPolice(2);
     for (const p of police) {
       const d = dist2D(p.position, player.position);
       if (d <= 1.9) { policeCatch(); return; }
-      moveToward(p, player.position, 10 * dt);   // más rápido que caminar, más lento que correr
+      moveToward(p, player.position, 7 * dt);   // más lenta que antes: puedes escapar corriendo (Shift)
       p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
       swingLimbs(p, dt);
     }
@@ -774,10 +814,10 @@ function policeCatch() { state.wanted = 0; clearPolice(); toast('🚔 ¡Te atrap
 // Robar a la gente del estadio (con E cerca). Riesgo: que te persiga la policía
 function tryRob() {
   for (const v of victims) {
-    if (!v.userData.robbed && dist2D(player.position, v.position) < 3) {
+    if (!v.userData.robbed && dist2D(player.position, v.position) < 6) {
       v.userData.robbed = true;
       const loot = 100 + Math.floor(Math.random() * 300); addMoney(loot);
-      if (Math.random() < 0.6) { state.wanted = 15; if (police.length === 0) spawnPolice(2); toast('🚨 ¡Robaste $' + loot + ' pero te vieron! ¡Corre (Shift)!'); }
+      if (Math.random() < 0.6) { becomeWanted(18); toast('🚨 ¡Robaste $' + loot + ' pero te vieron! ¡Corre (Shift)! La policía viene…'); }
       else toast('🤑 Robaste $' + loot + ' sin que te vieran');
       return;
     }
@@ -1247,10 +1287,20 @@ function updateDad(dt) {
     if (spot) {
       const d = dist2D(dad.position, spot.pos);
       if (d > 1) { moveToward(dad, spot.pos, 2.6 * dt); dad.rotation.y = Math.atan2(spot.pos.x - dad.position.x, spot.pos.z - dad.position.z); }
-      else { removeDirt(spot); toast('🧹 Papá limpió la suciedad'); }
-    }
+      else { dadWipe(dt); if (Math.random() < dt * 0.8) { removeDirt(spot); toast('🧹 Papá limpió la suciedad'); } }
+    } else { dadWipe(dt); }   // sin suciedad cerca: igual va limpiando el suelo
   } // stay: no hace nada
+  if (dad.userData.rag) dad.userData.rag.visible = (m === 'clean');   // el trapo solo se ve al limpiar
   swingLimbs(dad, dt);
+}
+// Animación de limpiar: un trapo en la mano que frota el suelo de lado a lado
+function dadWipe(dt) {
+  if (!dad.userData.rag) {
+    const rag = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.08, 0.3), mat(0xfef3c7));
+    dad.add(rag); dad.userData.rag = rag;
+  }
+  const t = performance.now() * 0.012;
+  dad.userData.rag.position.set(Math.sin(t) * 0.45, 0.3, 0.8 + Math.cos(t) * 0.12);
 }
 
 // ===================================================================
@@ -1264,13 +1314,13 @@ const MOM_AT = 20000;
 const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
   hp: 100, dadHp: 100,
-  inv: { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 },
+  inv: { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 },
   weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadGun: false, hasRocket: false,
   hunger: 100, night: 0,
   momUnlocked: false, momEventPending: false,
-  planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0,
+  planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
   buildMode: false,
-  dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, running: false,
+  dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, policeDelay: 0, running: false,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -1330,6 +1380,7 @@ addEventListener('keydown', e => {
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
   if (e.code === 'KeyI') toggleHelp();   // abrir/cerrar el menú de ayuda
+  if (e.code === 'KeyK') plantSeed();    // plantar una semilla de manzana (crece de a poco)
 });
 // Inventario tipo Minecraft: elegir un espacio (slot)
 function selectSlot(n) {
@@ -1378,7 +1429,7 @@ addEventListener('mousemove', e => {
   yaw -= e.movementX * LOOK_SENS; pitch -= e.movementY * LOOK_SENS;
   pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
 });
-canvas.addEventListener('mousedown', () => { if (state.phase === 'NIGHT') attack(); });  // clic = atacar de noche
+canvas.addEventListener('mousedown', () => { if (state.phase === 'NIGHT') attack(); else attackNPC(); });  // noche: pegar monstruos · día: pegar personas (te vuelve buscado)
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 const ui = id => document.getElementById(id);
@@ -1410,7 +1461,7 @@ function startGame() {
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; setWeaponColor(0x94a3b8);
-  state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 };
+  state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 };
   state.wanted = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   houseTier = 0;
   player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
@@ -1421,7 +1472,7 @@ function startGame() {
 function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1;
-  state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 };
+  state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 };
   state.dadGun = state.hasRocket = false;
   state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
   if (ui('escape')) ui('escape').style.display = 'none';
@@ -1430,7 +1481,9 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced);
-  clearWaves(); clearDirt(); clearPolice(); state.wanted = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); state.wanted = 0; state.policeDelay = 0;
+  state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
+  ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   if (state.rocket) { scene.remove(state.rocket); state.rocket = null; }
@@ -1467,6 +1520,7 @@ function buyItem(item) {
     else toast('Ya tienes una armadura mejor');
   }
   else if (item.key === 'dadgun') { state.dadGun = true; toast('🔫 Arma para papá comprada (G para armarlo)'); }
+  else if (item.key === 'semillas') { state.inv.semillas = (state.inv.semillas || 0) + 10; toast('🌱 Compraste 10 semillas de manzana (pulsa K para plantar)'); }
   else if (item.key === 'rocket') { giveRocket(); }
 }
 function setWeaponColor(c) {   // pinta la hoja del pico/arma en primera persona
@@ -1500,6 +1554,43 @@ function sellHouse() {
 }
 
 // ===================================================================
+//  HUERTO: plantar semillas de manzana (tecla K) y cosechar manzanas
+// ===================================================================
+const plants = [];
+function plantSeed() {
+  if ((state.inv.semillas || 0) <= 0) { toast('🌱 No tienes semillas (cómpralas en el SÚPER)'); return; }
+  state.inv.semillas--;
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const pos = player.position.clone().addScaledVector(fwd, 2.5); pos.y = 0;
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1, 6), mat(0x7c4a1e)); trunk.position.y = 0.5; g.add(trunk);
+  const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), mat(0x2f9e44)); leaves.position.y = 1.4; g.add(leaves);
+  g.position.copy(pos); g.scale.setScalar(0.25); scene.add(g);   // empieza chiquita (brote)
+  plants.push({ mesh: g, grow: 0, apples: 0, appleMeshes: [] });
+  toast('🌱 Plantaste una semilla. Crecerá y dará manzanas (acércate para cosechar)');
+}
+function updatePlants(dt) {
+  for (const pl of plants) {
+    if (pl.grow < 1) {   // crece durante ~15 s
+      pl.grow = Math.min(1, pl.grow + dt / 15);
+      pl.mesh.scale.setScalar(0.25 + pl.grow * 0.75);
+    } else if (pl.apples < 3 && Math.random() < dt / 8) {   // ya adulta: da manzanas de a poco
+      const a = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), mat(0xef4444));
+      a.position.set((Math.random() - 0.5) * 1, 1.4 + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 1);
+      pl.mesh.add(a); pl.appleMeshes.push(a); pl.apples++;
+    }
+    // cosechar al acercarse: cada manzana llena la comida
+    if (pl.apples > 0 && dist2D(player.position, pl.mesh.position) < 2) {
+      pl.appleMeshes.forEach(a => pl.mesh.remove(a));
+      state.inv.food += pl.apples;
+      toast('🍎 Cosechaste ' + pl.apples + ' manzana(s) (comida) — pulsa Q para comer');
+      pl.apples = 0; pl.appleMeshes = [];
+    }
+  }
+}
+function clearPlants() { plants.forEach(p => scene.remove(p.mesh)); plants.length = 0; }
+
+// ===================================================================
 //  MAMÁ
 // ===================================================================
 function dadGoesToParty() {
@@ -1518,8 +1609,23 @@ function dadReturnsWithMom() {
 function triggerMeteor() {
   state.meteorTriggered = true;
   state.escapeTimer = 600;   // 10 minutos para comprar el cohete y escapar con el papá
-  toast('☄️ ¡UN METEORITO VA A DESTRUIR LA TIERRA! Tienes 10 min: compra un COHETE y escapa con tu papá.');
+  // crear el meteorito: una bola café-roja allá arriba en el cielo
+  if (!state.meteor) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 20),
+      new THREE.MeshStandardMaterial({ color: 0x7c2d12, emissive: 0xdc2626, emissiveIntensity: 0.7, roughness: 1 }));
+    m.position.set(90, 320, 90); scene.add(m); state.meteor = m;
+  }
+  toast('☄️ ¡UN METEORITO VA A DESTRUIR LA TIERRA! Mira el cielo: crece cada minuto. Tienes 10 min: compra un COHETE y escapa con tu papá.');
   phaseText('☄️ FIN DEL MUNDO');
+}
+// El meteorito se ve caer del cielo: crece y baja poco a poco durante los 10 min
+function updateMeteorVisual(dt) {
+  if (!state.meteor) return;
+  const prog = 1 - Math.max(0, state.escapeTimer) / 600;   // 0 al inicio → 1 al final
+  state.meteor.scale.setScalar(3 + prog * prog * 55);       // crece (más rápido al final)
+  const far = 90 * (1 - prog);
+  state.meteor.position.set(far, Math.max(320 - prog * 305, 14), far);   // baja desde muy alto hasta cerca del suelo
+  state.meteor.rotation.x += dt * 0.6; state.meteor.rotation.y += dt * 0.4;
 }
 // Cuenta regresiva del meteorito: si llega a 0 sin escapar -> game over
 function updateEscape(dt) {
@@ -1535,8 +1641,11 @@ function updateEscape(dt) {
 }
 function meteorImpact() {
   state.meteorTriggered = false;
+  if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   toast('💥 ¡El meteorito cayó! No alcanzaste a escapar…');
   phaseText('💥 IMPACTO');
+  const f = ui('fade'); f.style.transition = 'opacity .4s'; f.style.background = '#dc2626'; f.style.opacity = '1';
+  setTimeout(() => { f.style.opacity = '0'; f.style.background = '#000'; }, 700);
   gameOver();
 }
 function giveRocket() {
@@ -1549,14 +1658,63 @@ function giveRocket() {
   toast('🚀 ¡Cohete listo en (10,10)! Ve con tu PAPÁ y pulsa R');
 }
 function tryLaunchRocket() {
-  if (!state.hasRocket || !state.rocket) { toast('Primero compra un Cohete ($2000) en el súper'); return; }
+  if (!state.hasRocket || !state.rocket) { toast('Primero compra un Cohete ($1.000.000) en el súper'); return; }
   if (dist2D(player.position, state.rocket.position) > 6) { toast('Acércate al cohete'); return; }
   if (dist2D(dad.position, state.rocket.position) > 8) { toast('¡Tienes que ir con tu PAPÁ al cohete!'); return; }
-  goToPlanet();
+  startEscapeCinematic();
+}
+// CINEMÁTICA: subes al espacio solo (sin controlar), miras por la ventana y ves la Tierra partirse en 3
+function startEscapeCinematic() {
+  if (state.cinematic) return;
+  state.cinematic = true; state.cine = { t: 0, split: false, done: false, chunks: [] };
+  state.meteorTriggered = false; ui('escape').style.display = 'none';
+  if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
+  const earth = new THREE.Group();
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(6, 24, 24),
+    new THREE.MeshStandardMaterial({ color: 0x2563eb, emissive: 0x14304f, emissiveIntensity: 0.35, roughness: 1 }));
+  earth.add(ball);
+  for (let i = 0; i < 6; i++) {
+    const c = new THREE.Mesh(new THREE.SphereGeometry(1.6 + Math.random(), 8, 8), mat(0x2f9e44));
+    const a = Math.random() * 6.28, b = Math.random() * 3.14;
+    c.position.set(6 * Math.sin(b) * Math.cos(a), 6 * Math.cos(b), 6 * Math.sin(b) * Math.sin(a)); c.scale.set(1, 0.5, 1); earth.add(c);
+  }
+  earth.position.set(player.position.x, player.position.y - 30, player.position.z - 6);
+  scene.add(earth); state.cine.earth = earth; state.cine.ball = ball;
+  toast('🚀 ¡Despegando! Mira por la ventana…');
+}
+function updateCinematic(dt) {
+  const c = state.cine; c.t += dt;
+  player.position.y += 18 * dt;
+  if (state.rocket) state.rocket.position.y = player.position.y - 2;
+  dad.visible = false;
+  pitch = Math.max(-0.7, pitch - 0.3 * dt);
+  camera.rotation.set(pitch, yaw, 0);
+  if (c.earth) c.earth.position.y = player.position.y - 30 - c.t * 6;
+  if (c.t > 3.5 && !c.split) {
+    c.split = true; if (c.ball) c.ball.visible = false;
+    for (let i = 0; i < 3; i++) {
+      const chunk = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12, i * 2.09, 2.10),
+        new THREE.MeshStandardMaterial({ color: 0x2563eb, emissive: 0xdc2626, emissiveIntensity: 0.4, roughness: 1 }));
+      chunk.userData.v = new THREE.Vector3(Math.cos(i * 2.09), (i - 1) * 0.5, Math.sin(i * 2.09)).multiplyScalar(4);
+      c.earth.add(chunk); c.chunks.push(chunk);
+    }
+    toast('💥 ¡La Tierra se partió en 3 pedazos!');
+  }
+  for (const ch of c.chunks) { ch.position.addScaledVector(ch.userData.v, dt); ch.rotation.x += dt; ch.rotation.y += dt; }
+  if (c.t > 6.5) { const f = ui('fade'); f.style.transition = 'none'; f.style.background = '#000'; f.style.opacity = String(Math.min(1, (c.t - 6.5) / 1.5)); }
+  if (c.t > 8.5 && !c.done) {
+    c.done = true;
+    if (c.earth) scene.remove(c.earth);
+    state.cinematic = false;
+    goToPlanet();
+    const f = ui('fade'); f.style.transition = 'opacity .9s'; f.style.opacity = '0';
+  }
 }
 function goToPlanet() {
   state.planet = 'marte'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
-  state.money = 200; state.hunger = 100; state.night = 0; state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 };
+  if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
+  clearPlants(); dad.visible = true;
+  state.money = 200; state.hunger = 100; state.night = 0; state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 };
   placed.slice().forEach(removePlaced); clearDirt(); clearWaves();
   groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Marte: rojo y sin árboles
   if (state.rocket) { scene.remove(state.rocket); state.rocket = null; } state.hasRocket = false;
@@ -1596,6 +1754,24 @@ function attack() {
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
   if (best && hitEnemy(best, dmg, p)) toast('💥 Enemigo eliminado +$15');
+}
+
+// Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
+function attackNPC() {
+  if (state.buildMode) return;
+  const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const range = 4;
+  let best = null, bestD = range;
+  for (const person of npcs.concat(victims)) {
+    const d = dist2D(p, person.position);
+    if (d < bestD) { const to = new THREE.Vector3().subVectors(person.position, p).normalize(); if (to.dot(dir) > 0.2) { best = person; bestD = d; } }
+  }
+  if (!best) return;
+  vmSwing = 1; beep(300, 0.05, 0.03);
+  const push = new THREE.Vector3().subVectors(best.position, p).setY(0).normalize().multiplyScalar(1.2);
+  best.position.add(push);   // empujón
+  becomeWanted(18);
+  toast('👊 ¡Le pegaste a alguien! Te volviste BUSCADO… ¡corre (Shift)!');
 }
 
 // Cavar un hoyo con la PALA: a veces salen topos (que viven bajo tierra)
@@ -1742,6 +1918,9 @@ function loop() {
     updateHunger(dt);
     if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); }
     updateMoles(dt);                       // topos: activos de día y de noche
+    updatePlants(dt);                      // huerto: árboles crecen y dan manzanas
+    updateMeteorVisual(dt);                // el meteorito que se ve caer del cielo
+    if (state.cinematic) updateCinematic(dt);
     updatePolice(dt);                      // policía persigue si estás buscado
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
@@ -1760,7 +1939,7 @@ function loop() {
 
 // Hambre baja con el tiempo; en 0 pierdes vida y puedes desmayarte
 function updateHunger(dt) {
-  state.hunger = Math.max(0, state.hunger - 0.22 * dt);   // baja lento (~7-8 min en vaciarse)
+  state.hunger = Math.max(0, state.hunger - 0.238 * dt);   // 100/0.238 ≈ 420s = 7 minutos exactos
   if (state.hunger <= 0) {
     state.hp -= 2 * dt;
     if (state.hp <= 0) faintFromHunger();
@@ -1800,6 +1979,7 @@ function drawMinimap() {
 }
 
 function updateMovement(dt) {
+  if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
   const fwd = keys['KeyW'], back = keys['KeyS'];
   const left = keys['KeyA'], right = keys['KeyD'];
   // Flechas = mirar (mover la cámara), WASD = caminar

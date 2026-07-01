@@ -39,6 +39,10 @@ jobs:
       - name: Verificar sitio en vivo
         run: |
           set -euo pipefail
-          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: tim.strivexlatam.com' http://127.0.0.1/index.html)
+          # nginx redirige 80 -> 443, asi que verificamos sobre HTTPS
+          # resolviendo el dominio al loopback (SNI correcto, sin salir a Cloudflare).
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            --resolve tim.strivexlatam.com:443:127.0.0.1 \
+            https://tim.strivexlatam.com/index.html)
           echo "index.html -> HTTP $code"
           test "$code" = "200"

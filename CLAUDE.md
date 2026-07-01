@@ -64,31 +64,47 @@ Entrada en `index.html:1353-1490`. Estado global del juego en `const state` (`in
   `deleteObject()`, `eatFood()`, `plantSeed()`, `digHole()`, `tryLaunchRocket()`,
   `tryCollectGolden()`, `tryRob()`, `sellHouse()`, `selectSlot(n)`, `setDadMode(mode)`.
 
-## Tarea en curso: jugabilidad en celular (rama `claude/money-mobile-gameplay-n1ho6s`)
+## Jugabilidad en celular — IMPLEMENTADO (rama `claude/money-mobile-gameplay-n1ho6s`)
 
-**Objetivo:** que el juego sea jugable en teléfono. Hoy NO lo es porque todo el control es
-teclado + mouse, que no existen en un móvil (la página carga, pero no puedes moverte ni mirar).
+El juego ya es **jugable de forma completa en celular**, sin romper el modo teclado/mouse de PC.
+Se detecta pantalla táctil con `matchMedia('(pointer: coarse)')` / `ontouchstart` /
+`navigator.maxTouchPoints` y se añade la clase `body.touch`, que muestra los controles táctiles.
 
-Plan acordado con el usuario (aún no implementado):
+Todo el código táctil vive en `index.html`, sección **"CONTROLES TÁCTILES"** (buscar ese
+comentario). Estado en el objeto `const touch = { moveX, moveY, run, crouch, jump }` (junto a `keys`).
 
-1. **Joystick virtual** (dedo izq.) para reemplazar `WASD` → escribir en `keys['KeyW/A/S/D']`
-   o mover un vector de input equivalente.
-2. **Arrastrar en pantalla** (dedo der.) para mirar, replicando la lógica de `mousemove`
-   (`yaw`/`pitch`) de `index.html:1427-1431`.
-3. **Botones táctiles** en un HUD que llamen a las funciones de acción ya existentes
-   (👊 `attack`/`attackNPC`, 🛒 `openShopInput`, 🌙 `tryStartNight`, 🔨 construir, ✋ `placeObject`,
-   🍖 `eatFood`, 🌱 `plantSeed`, etc.).
-4. **Ajustes móviles:** `touch-action: none` en el canvas, pantalla completa, orientación
-   horizontal, y considerar bajar `pixelRatio`/resolución para rendimiento.
-5. **(Opcional) reducir peso de assets** — comprimir los `.glb` (Draco) porque ~32 MB es
-   mucho para datos/RAM de un móvil.
+Qué se implementó:
+1. **Joystick virtual** (`#joystick` + `#joyKnob`, abajo-izq.): setea `touch.moveX/moveY` analógico.
+   Se integra en `updateMovement()` como ejes `ax/az` combinados con `WASD` (con normalización
+   en diagonal). También alimenta `updateViewmodel()` (`moving`).
+2. **Capa de mirar** (`#lookLayer`, pantalla completa detrás de los botones): arrastrar ajusta
+   `yaw`/`pitch` (como `mousemove`). Un **toque rápido de noche** = golpear (`attack()`); un toque
+   con el vendedor abierto lo cierra.
+3. **Botones táctiles** (`#touchBtns` abajo-der. + panel `#moreBtns` con "⋯ más"; `#moveBtns`
+   sobre el joystick para correr/saltar/agachar). Cada botón (`.tbtn[data-act]`) llama a las
+   funciones existentes vía `press(act)` en un handler `pointerdown` delegado. `run`/`crouch` son
+   toggles (clase `.on`); `jump` es de un toque (se consume en `updateMovement`).
+4. **Slots del hotbar** (`#buildbar .slot[data-slot]`) tocables → `selectSlot(n)` (sirve en PC también).
+5. **Recuadro del vendedor**: botones **Comprar** (`#shopBuyBtn`) y **Cerrar** (`#shopCloseBtn`),
+   necesarios en móvil (no hay tecla Esc).
+6. **Aviso de rotación** (`#rotateHint`): en orientación vertical pide girar el teléfono.
 
-Detectar móvil automáticamente y **no romper** el modo teclado/mouse de PC. La lógica del
-juego ya está completa; se trata de "enchufar" controles táctiles a las funciones existentes.
+Verificado con Playwright (Chromium) sirviendo `three` desde npm (el CDN unpkg está bloqueado
+por el egress del sandbox): `body.touch`, joystick visible, HUD, botones (ayuda/más/correr),
+**desplazamiento real del jugador** al empujar el joystick, layout sin botones fuera de pantalla
+y **cero errores** de consola.
 
-Niveles ofrecidos al usuario:
-- **Mínimo jugable:** mover + mirar + pegar.
-- **Completo:** además todos los botones de acción.
+### Pendiente / mejoras posibles
+- **Reducir peso de assets** (~32 MB de `.glb`): comprimir con Draco/meshopt para carga rápida con datos móviles.
+- Ajuste fino de sensibilidad de mirar / tamaño de botones según feedback en dispositivos reales.
+- Pantalla completa automática (`requestFullscreen`) al empezar — no implementado (puede ser intrusivo).
+
+### Cómo probar en local (el juego necesita HTTP + el CDN de three)
+El CDN `unpkg.com` está fuera del allowlist de egress del sandbox, así que para probar con
+Playwright hay que instalar `three@0.160.0` desde npm e interceptar las peticiones a
+`**/unpkg.com/three@0.160.0/**` sirviendo los archivos locales de `node_modules/three/`
+(mismo path relativo). Emular un dispositivo táctil en **horizontal** (p.ej. viewport
+851×393, `hasTouch:true`) para no toparse con el aviso de rotación.
 
 ## Git / flujo de trabajo
 

@@ -64,12 +64,42 @@
   .btn:hover { transform: scale(1.04); }
   .big { font-size: 34px; margin: 8px 0; }
   #help { position: fixed; inset: 0; background: rgba(2,6,23,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 26px; z-index: 5; }
+
+  /* ===== CONTROLES TÁCTILES (solo en celular/tablet) ===== */
+  #buildbar { z-index: 4; pointer-events: all; }
+  #lookLayer, #joystick, #touchBtns, #moveBtns { display: none; }
+  body.touch #lookLayer { display: block; position: absolute; inset: 0; z-index: 1; pointer-events: all; touch-action: none; }
+  body.touch #joystick { display: block; position: absolute; left: 24px; bottom: 26px; width: 130px; height: 130px; z-index: 4;
+    border-radius: 50%; background: rgba(255,255,255,.10); border: 2px solid rgba(255,255,255,.28); pointer-events: all; touch-action: none; }
+  body.touch #joyKnob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px;
+    border-radius: 50%; background: rgba(255,255,255,.55); border: 2px solid rgba(255,255,255,.8); }
+  /* botones de acción (abajo a la derecha) y de movimiento (sobre el joystick) */
+  body.touch #touchBtns { display: flex; position: absolute; right: 12px; bottom: 14px; z-index: 4;
+    flex-wrap: wrap-reverse; flex-direction: row-reverse; align-content: flex-end; justify-content: flex-start;
+    gap: 6px; width: 164px; pointer-events: none; }
+  body.touch #moveBtns { display: flex; position: absolute; left: 168px; bottom: 24px; z-index: 4; flex-direction: column; gap: 8px; pointer-events: none; }
+  .tbtn { pointer-events: all; touch-action: manipulation; -webkit-user-select: none; user-select: none; cursor: pointer;
+    width: 50px; height: 50px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); background: rgba(0,0,0,.5);
+    color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(3px);
+    line-height: 1; text-align: center; flex: 0 0 auto; }
+  .tbtn small { position: absolute; font-size: 9px; opacity: .8; margin-top: 30px; font-weight: 700; }
+  .tbtn:active { background: rgba(255,255,255,.28); transform: scale(.94); }
+  .tbtn.on { background: rgba(34,197,94,.7); border-color: #4ade80; }
+  .tbtn.big { font-size: 24px; background: rgba(239,68,68,.6); border-color: rgba(255,120,120,.7); }
+  #moreBtns { display: none; }
+  #moreBtns.open { display: contents; }
+  #rotateHint { display: none; }
+  @media (orientation: portrait) {
+    body.touch #rotateHint { display: flex; position: fixed; inset: 0; z-index: 30; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center; background: rgba(2,6,23,.96); }
+  }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
 <div id="hud" style="display:none">
+  <div id="lookLayer"></div>
   <div class="topbar">
     <div style="display:flex; gap:6px; flex-wrap:wrap">
       <div class="stat"><b>DINERO</b><span class="money" id="ui-money">$0</span></div>
@@ -104,6 +134,39 @@
     <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#34d399">VENDEDOR — escribe qué comprar y pulsa Enter (Esc cierra)</div>
     <input id="shopInput" type="text" placeholder="ej: espada metal, madera, comida…" autocomplete="off"
       style="width:320px; max-width:80vw; padding:10px 12px; font-size:15px; border-radius:8px; border:2px solid #34d399; background:#0b1220; color:#fff; outline:none;">
+    <div style="margin-top:8px; display:flex; gap:8px; justify-content:center;">
+      <button id="shopBuyBtn" style="pointer-events:all; cursor:pointer; background:#22c55e; color:#042; border:none; padding:8px 18px; font-size:14px; font-weight:800; border-radius:8px;">Comprar</button>
+      <button id="shopCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 18px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar</button>
+    </div>
+  </div>
+  <!-- ===== Controles táctiles (celular) ===== -->
+  <div id="joystick"><div id="joyKnob"></div></div>
+  <div id="moveBtns">
+    <div class="tbtn" data-act="run">🏃<small>correr</small></div>
+    <div class="tbtn" data-act="jump">⬆️<small>saltar</small></div>
+    <div class="tbtn" data-act="crouch">🧎<small>agachar</small></div>
+  </div>
+  <div id="touchBtns">
+    <div class="tbtn big" data-act="hit">👊</div>
+    <div class="tbtn" data-act="interact">🤝<small>E</small></div>
+    <div class="tbtn" data-act="shop">🛒<small>Y</small></div>
+    <div class="tbtn" data-act="eat">🍖<small>Q</small></div>
+    <div class="tbtn" data-act="night">🌙<small>N</small></div>
+    <div class="tbtn" data-act="build">🔨<small>B</small></div>
+    <div class="tbtn" data-act="place">✋<small>F</small></div>
+    <div class="tbtn" data-act="dig">🪏<small>T</small></div>
+    <div class="tbtn" data-act="plant">🌱<small>K</small></div>
+    <div class="tbtn" data-act="more">⋯<small>más</small></div>
+    <span id="moreBtns">
+      <div class="tbtn" data-act="rotate">🔄<small>girar</small></div>
+      <div class="tbtn" data-act="dadFollow">🚶<small>papá</small></div>
+      <div class="tbtn" data-act="dadStay">🧍<small>quieto</small></div>
+      <div class="tbtn" data-act="dadClean">🧹<small>limpia</small></div>
+      <div class="tbtn" data-act="dadArm">🔫<small>arma</small></div>
+      <div class="tbtn" data-act="helper">🧒<small>hijo</small></div>
+      <div class="tbtn" data-act="rocket">🚀<small>cohete</small></div>
+      <div class="tbtn" data-act="help">❓<small>ayuda</small></div>
+    </span>
   </div>
 </div>
 
@@ -151,6 +214,7 @@
   <div style="max-width:640px; width:92vw; max-height:86vh; overflow:auto; background:rgba(2,6,23,.96); border:2px solid #34d399; border-radius:16px; padding:22px 26px;">
     <h2 style="margin:0 0 6px; color:#34d399;">📖 AYUDA — Todas las teclas</h2>
     <p style="margin:0 0 14px; opacity:.7; font-size:13px;">Abre o cierra este menú con la tecla <b>I</b> o el botón ❓</p>
+    <p style="margin:0 0 14px; font-size:13px; color:#38bdf8;">📱 <b>En celular:</b> joystick (izquierda) para caminar · arrastra la pantalla para mirar · botones de la derecha para las acciones (👊 pegar, 🤝 interactuar, 🛒 vendedor, 🍖 comer, 🌙 noche, 🔨 construir, ✋ colocar, ⋯ más).</p>
     <div class="keys">
       <span><b>W A S D</b></span><span>Caminar</span>
       <span><b>Flechas</b></span><span>Mirar / mover la cámara (también sirve el mouse)</span>
@@ -184,6 +248,7 @@
 </div>
 
 <div id="fade" style="position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:20;"></div>
+<div id="rotateHint"><div style="font-size:44px">📱↻</div><div style="margin-top:10px;font-weight:800;font-size:18px">Gira el teléfono</div><div style="opacity:.75;font-size:13px;margin-top:4px">Se juega mejor en horizontal</div></div>
 
 <script type="importmap">
 { "imports": {
@@ -1355,6 +1420,8 @@ function beep(freq, dur, vol) {
 // ===================================================================
 const keys = {};
 let typing = false;   // true mientras el input del vendedor está abierto (bloquea controles del juego)
+// Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
+const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false };
 addEventListener('keydown', e => {
   if (typing) return;   // si está escribiendo en el vendedor, el juego ignora el teclado
   keys[e.code] = true;
@@ -1452,6 +1519,113 @@ ui('shopInput').addEventListener('keydown', e => {
   if (e.code === 'Enter') processShopBuy();
   else if (e.code === 'Escape') closeShopInput();
 });
+ui('shopBuyBtn').onclick = processShopBuy;      // botón (útil en celular)
+ui('shopCloseBtn').onclick = closeShopInput;
+
+// ===================================================================
+//  CONTROLES TÁCTILES (celular / tablet)
+// ===================================================================
+// Tocar un slot del hotbar lo selecciona (sirve también con mouse en PC)
+ui('buildbar').addEventListener('pointerdown', e => {
+  const slot = e.target.closest('.slot'); if (!slot) return;
+  const n = +slot.dataset.slot; if (n) { selectSlot(n); e.preventDefault(); }
+});
+
+const IS_TOUCH = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if (IS_TOUCH) {
+  document.body.classList.add('touch');
+  const TOUCH_LOOK_SENS = 0.005;
+  const canLook = () => state.running && !typing && (state.phase === 'DAY' || state.phase === 'NIGHT');
+
+  // ---------- Joystick (moverse) ----------
+  const joy = ui('joystick'), knob = ui('joyKnob'), JR = 46;   // JR = radio máximo del knob
+  let joyId = null;
+  function joyUpdate(e) {
+    for (const t of e.changedTouches) if (t.identifier === joyId) {
+      const r = joy.getBoundingClientRect();
+      let dx = t.clientX - (r.left + r.width / 2);
+      let dy = t.clientY - (r.top + r.height / 2);
+      const d = Math.hypot(dx, dy); if (d > JR) { dx *= JR / d; dy *= JR / d; }
+      knob.style.transform = `translate(${dx}px,${dy}px)`;
+      touch.moveX = dx / JR;    // derecha = +
+      touch.moveY = -dy / JR;   // arriba (adelante) = +
+      e.preventDefault();
+    }
+  }
+  joy.addEventListener('touchstart', e => { if (joyId === null) { joyId = e.changedTouches[0].identifier; joyUpdate(e); } }, { passive: false });
+  joy.addEventListener('touchmove', joyUpdate, { passive: false });
+  function joyEnd(e) { for (const t of e.changedTouches) if (t.identifier === joyId) { joyId = null; touch.moveX = touch.moveY = 0; knob.style.transform = ''; } }
+  joy.addEventListener('touchend', joyEnd);
+  joy.addEventListener('touchcancel', joyEnd);
+
+  // ---------- Capa de mirar (arrastrar) + toque para golpear ----------
+  const look = ui('lookLayer');
+  let lookId = null, lx = 0, ly = 0, lStartT = 0, lMoved = 0;
+  look.addEventListener('touchstart', e => {
+    if (lookId !== null) return;
+    const t = e.changedTouches[0]; lookId = t.identifier;
+    lx = t.clientX; ly = t.clientY; lStartT = performance.now(); lMoved = 0;
+  }, { passive: false });
+  look.addEventListener('touchmove', e => {
+    for (const t of e.changedTouches) if (t.identifier === lookId) {
+      if (canLook()) {
+        yaw -= (t.clientX - lx) * TOUCH_LOOK_SENS;
+        pitch -= (t.clientY - ly) * TOUCH_LOOK_SENS;
+        pitch = Math.max(-1.3, Math.min(1.3, pitch));
+      }
+      lMoved += Math.abs(t.clientX - lx) + Math.abs(t.clientY - ly);
+      lx = t.clientX; ly = t.clientY; e.preventDefault();
+    }
+  }, { passive: false });
+  look.addEventListener('touchend', e => {
+    for (const t of e.changedTouches) if (t.identifier === lookId) {
+      const quickTap = (performance.now() - lStartT) < 250 && lMoved < 14;
+      lookId = null;
+      if (!quickTap) return;
+      if (typing) { closeShopInput(); return; }         // tocar fuera del recuadro cierra el vendedor
+      if (state.running && state.phase === 'NIGHT') attack();   // toque rápido de noche = golpear monstruo
+    }
+  });
+  look.addEventListener('touchcancel', () => { lookId = null; });
+
+  // ---------- Botones de acción ----------
+  function press(act) {
+    if (typing && act !== 'shop') return;   // con el vendedor abierto, ciérralo antes
+    switch (act) {
+      case 'hit': if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
+      case 'interact': tryCollectGolden(); tryRob(); sellHouse(); break;
+      case 'shop': openShopInput(); break;
+      case 'eat': eatFood(); break;
+      case 'night': tryStartNight(); break;
+      case 'build': state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (elige un slot y ✋ coloca)' : 'Modo construir OFF'); break;
+      case 'place': placeObject(); break;
+      case 'dig': digHole(); break;
+      case 'plant': plantSeed(); break;
+      case 'rotate': rotateBuild(); break;
+      case 'dadFollow': setDadMode('follow'); break;
+      case 'dadStay': setDadMode('stay'); break;
+      case 'dadClean': setDadMode('clean'); break;
+      case 'dadArm': toggleDadArm(); break;
+      case 'helper': spawnHelper(); break;
+      case 'rocket': tryLaunchRocket(); break;
+      case 'help': toggleHelp(); break;
+      case 'jump': touch.jump = true; break;
+    }
+  }
+  function bindButtons(container) {
+    container.addEventListener('pointerdown', e => {
+      const el = e.target.closest('.tbtn'); if (!el) return;
+      e.preventDefault();
+      const act = el.dataset.act;
+      if (act === 'run') { touch.run = !touch.run; el.classList.toggle('on', touch.run); return; }
+      if (act === 'crouch') { touch.crouch = !touch.crouch; el.classList.toggle('on', touch.crouch); return; }
+      if (act === 'more') { ui('moreBtns').classList.toggle('open'); el.classList.toggle('on'); return; }
+      press(act);
+    }, { passive: false });
+  }
+  bindButtons(ui('touchBtns'));
+  bindButtons(ui('moveBtns'));
+}
 
 function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; }
 
@@ -1991,19 +2165,24 @@ function updateMovement(dt) {
   pitch = Math.max(-1.4, Math.min(1.4, pitch));
   const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const rightV = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-  const crouch = keys['ControlLeft'] || keys['ControlRight'];   // agacharse con Ctrl
-  const running = (keys['ShiftLeft'] || keys['ShiftRight']) && state.hunger > 5 && !crouch;
+  const crouch = keys['ControlLeft'] || keys['ControlRight'] || touch.crouch;   // agacharse con Ctrl / botón
+  const running = (keys['ShiftLeft'] || keys['ShiftRight'] || touch.run) && state.hunger > 5 && !crouch;
   let spd = running ? 14 : (crouch ? 4 : 9);
   if (state.hunger <= 0) spd = 6;     // muerto de hambre: caminas lento
   if (running) state.hunger = Math.max(0, state.hunger - 0.8 * dt);
   const step = spd * dt;
-  if (fwd) player.position.addScaledVector(forward, step);
-  if (back) player.position.addScaledVector(forward, -step);
-  if (right) player.position.addScaledVector(rightV, step);
-  if (left) player.position.addScaledVector(rightV, -step);
-  // salto (espacio) y gravedad; agacharse baja la altura
+  // ejes de movimiento: teclado (WASD, discreto) + joystick táctil (analógico)
+  let ax = 0, az = 0;
+  if (fwd) az += 1; if (back) az -= 1;
+  if (right) ax += 1; if (left) ax -= 1;
+  az += touch.moveY; ax += touch.moveX;
+  const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }   // no ir más rápido en diagonal
+  player.position.addScaledVector(forward, az * step);
+  player.position.addScaledVector(rightV, ax * step);
+  // salto (espacio / botón) y gravedad; agacharse baja la altura
   const standY = crouch ? CROUCH_EYE : PLAYER_EYE;
-  if (keys['Space'] && grounded) { vy = 8; grounded = false; }
+  if ((keys['Space'] || touch.jump) && grounded) { vy = 8; grounded = false; }
+  touch.jump = false;   // el salto es de un solo toque
   vy -= 25 * dt; player.position.y += vy * dt;
   if (player.position.y <= standY) { player.position.y = standY; vy = 0; grounded = true; }
   player.position.x = THREE.MathUtils.clamp(player.position.x, -110, 110);
@@ -2054,7 +2233,7 @@ function dadWalkBob(dt) {
   }
 }
 function updateViewmodel(dt) {
-  const moving = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'];
+  const moving = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'] || touch.moveX || touch.moveY;
   vmBob += moving ? dt * 9 : 0; const bob = moving ? Math.sin(vmBob) * 0.02 : 0;
   if (vmSwing > 0) vmSwing -= dt * 5; const sw = Math.max(0, vmSwing);
   viewmodel.position.set(0.45, -0.55 + bob, -0.9); viewmodel.rotation.set(-sw * 1.8, 0, 0);  // golpe = balanceo del brazo
@@ -2131,8 +2310,8 @@ function renderHUD() {
     const isPala = state.weaponName.toLowerCase().includes('pala');
     const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫' };
     const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta' };
-    let html = `<div class="slot ${!state.buildMode ? 'sel' : ''}"><div class="kk">1</div><div class="ic">${isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
-    BUILD_KEYS.forEach((k, i) => { html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`; });
+    let html = `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
+    BUILD_KEYS.forEach((k, i) => { html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}" data-slot="${i + 2}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`; });
     bb.innerHTML = html;
   } else bb.style.display = 'none';
   const showBuildBtns = (state.buildMode && state.phase === 'DAY') ? 'block' : 'none';

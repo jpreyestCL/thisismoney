@@ -114,9 +114,10 @@
      Mientras mejor sea (¡una mansión!), más dinero. Sobrevive la <b style="color:#ef4444">noche</b> contra monstruos.</p>
   <p style="font-size:13px;opacity:.7">En la ciudad hay una <b>casa secreta</b> con un tesoro (¡es la única en la que puedes entrar!). En los <b style="color:#22c55e">estadios</b> puedes robarle a la gente con <b>E</b>… pero cuidado con la <b style="color:#60a5fa">policía</b> (¡corre!). Cada 1000 monedas sube la <b>etapa</b>. A las 20.000 conoces a la <b style="color:#f9a8d4">mamá</b>. Al final cae un meteorito… ¡compra un cohete y escapa a otro planeta!</p>
   <div class="keys">
-    <span><b>WASD / Flechas</b></span><span>Caminar · <b>Shift</b> Correr · <b>Espacio</b> Saltar · <b>Ctrl</b> Agacharse</span>
-    <span><b>Mouse</b></span><span>Mirar (solo mueve el mouse, sin clic)</span>
-    <span><b>E</b> (mantener)</span><span>Comprar / Cobrar casa dorada</span>
+    <span><b>WASD</b></span><span>Caminar · <b>Shift</b> Correr · <b>Espacio</b> Saltar · <b>Ctrl</b> Agacharse</span>
+    <span><b>Flechas / Mouse</b></span><span>Mirar (mover la cámara)</span>
+    <span><b>E</b></span><span>Comprar / cobrar casa secreta / robar / <b>vender casa</b></span>
+    <span><b>I</b></span><span>📖 Abrir el menú de AYUDA (todas las teclas)</span>
     <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
     <span><b>1-9</b></span><span>Inventario: <b>1</b> herramienta · <b>2-9</b> construir · <b>Q</b> comer</span>
     <span><b>B</b></span><span>Modo construir &nbsp; · &nbsp; <b>T</b> cavar (con pala)</span>
@@ -142,6 +143,43 @@
   <p>Lo perdiste todo. Empiezas desde cero.</p>
   <p class="big" id="over-score"></p>
   <button class="btn" id="overBtn">EMPEZAR DE NUEVO</button>
+</div>
+
+<!-- Botón ❓ y menú de AYUDA con todas las teclas (se abre con I o con el botón) -->
+<button id="helpBtn" style="position:fixed; top:58px; left:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">❓</button>
+<div id="help">
+  <div style="max-width:640px; width:92vw; max-height:86vh; overflow:auto; background:rgba(2,6,23,.96); border:2px solid #34d399; border-radius:16px; padding:22px 26px;">
+    <h2 style="margin:0 0 6px; color:#34d399;">📖 AYUDA — Todas las teclas</h2>
+    <p style="margin:0 0 14px; opacity:.7; font-size:13px;">Abre o cierra este menú con la tecla <b>I</b> o el botón ❓</p>
+    <div class="keys">
+      <span><b>W A S D</b></span><span>Caminar</span>
+      <span><b>Flechas</b></span><span>Mirar / mover la cámara (también sirve el mouse)</span>
+      <span><b>Shift</b></span><span>Correr &nbsp;·&nbsp; <b>Espacio</b> Saltar &nbsp;·&nbsp; <b>Ctrl</b> Agacharse</span>
+      <span><b>E</b></span><span>Interactuar: comprar / cobrar casa secreta / robar en estadio / <b>vender tu casa a un aldeano</b></span>
+      <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
+      <span><b>1 - 9</b></span><span><b>1</b> herramienta (pala/espada) · <b>2-9</b> elegir qué construir</span>
+      <span><b>Q</b></span><span>Comer (te quita el hambre)</span>
+      <span><b>B</b></span><span>Modo construir ON/OFF</span>
+      <span><b>F</b> / <b>X</b></span><span>Colocar / Borrar objeto</span>
+      <span><b>P</b> / <b>L</b></span><span>Girar la pieza (vertical / horizontal)</span>
+      <span><b>T</b></span><span>Cavar un hoyo (con la pala)</span>
+      <span><b>Clic</b></span><span>Atacar de noche (puños o espada)</span>
+      <span><b>N</b></span><span>Empezar la noche antes de tiempo</span>
+      <span><b>C</b> / <b>V</b> / <b>O</b></span><span>Papá: seguir / quedarse quieto / limpiar</span>
+      <span><b>G</b></span><span>Darle o quitarle un arma al papá</span>
+      <span><b>H</b></span><span>Llamar a un ayudante (después de conocer a la mamá)</span>
+      <span><b>R</b></span><span>Lanzar el cohete (con el papá, después del meteorito)</span>
+    </div>
+    <h3 style="margin:16px 0 4px; color:#fbbf24;">💰 Cómo ganar dinero</h3>
+    <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.5; opacity:.92;">
+      <li>Construye una <b>casa simple</b> (4 paredes + techo) = <b>$300</b></li>
+      <li>Construye una <b>casa completa</b> (paredes + puerta + techo + lámpara + horno) = <b>$1000</b></li>
+      <li><b>Vende</b> tu casa completa a un aldeano (tecla E cerca de él) = <b>$1500</b></li>
+      <li>Encuentra la <b>casa secreta</b> y agarra el oro (tecla E) = <b>$1000</b></li>
+      <li>Roba en los <b>estadios</b> (tecla E)… ¡pero cuidado con la policía!</li>
+    </ul>
+    <button class="btn" id="helpClose" style="margin-top:18px;">CERRAR (I)</button>
+  </div>
 </div>
 
 <script type="importmap">
@@ -481,6 +519,21 @@ function makeCityHouse(x, z, golden) {
   const col = [0xcba37a, 0xb0c4de, 0xd8a7b1, 0xa7c4bc, 0xe0c097, 0xc4b5a0][Math.floor(Math.random() * 6)];
   const w = 4 + Math.random() * 3;
   const h1 = 3.5 + Math.random() * 1.5;
+  if (golden) {
+    // CASA SECRETA: hueca, con puerta abierta para ENTRAR y un cofre de oro adentro
+    const gw = 6, gh = 4, t = 0.25, wm = mat(col);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(gw, 0.2, gw), mat(0x6b4423)); floor.position.y = 0.1; floor.receiveShadow = true; g.add(floor);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, t), wm); back.position.set(0, gh / 2, -gw / 2); g.add(back);
+    [-gw / 2, gw / 2].forEach(sx => { const s = new THREE.Mesh(new THREE.BoxGeometry(t, gh, gw), wm); s.position.set(sx, gh / 2, 0); g.add(s); });
+    [-1, 1].forEach(sgn => { const fseg = new THREE.Mesh(new THREE.BoxGeometry(gw / 2 - 0.7, gh, t), wm); fseg.position.set(sgn * (gw / 4 + 0.35), gh / 2, gw / 2); g.add(fseg); });   // pared frontal con hueco-puerta
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, t), wm); lintel.position.set(0, gh - 0.6, gw / 2); g.add(lintel);
+    const roofG = new THREE.Mesh(new THREE.ConeGeometry(gw * 0.8, 2.2, 4), mat(0x713f12)); roofG.position.y = gh + 1.1; roofG.rotation.y = Math.PI / 4; roofG.castShadow = true; g.add(roofG);
+    // TESORO adentro: cofre + monedas de oro brillantes
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 0.9), mat(0x7c4a1e)); chest.position.set(0, 0.55, -1.3); chest.castShadow = true; g.add(chest);
+    for (let i = 0; i < 8; i++) { const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.25 })); coin.position.set((Math.random() - 0.5) * 1.4, 0.18 + Math.random() * 0.4, -0.3 + (Math.random() - 0.5) * 1.2); coin.rotation.set(Math.random(), Math.random(), Math.random()); g.add(coin); }
+    g.position.set(x, 0, z); scene.add(g);
+    return g;   // sin obstáculo: entras caminando por la puerta y cobras el oro con E
+  }
   const body = new THREE.Mesh(new THREE.BoxGeometry(w, h1, w), mat(col)); body.position.y = h1 / 2; body.castShadow = true; body.receiveShadow = true; g.add(body);
   const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.8, 0.1), mat(0x5b3a1a)); door.position.set(0, 0.9, w / 2 + 0.05); g.add(door);
   [-w / 4, w / 4].forEach(wx => { const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.1), mat(0x93c5fd)); win.position.set(wx, h1 * 0.6, w / 2 + 0.05); g.add(win); });
@@ -578,7 +631,8 @@ function makeStadium(cx, cz, fieldColor, name) {
   const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), mat(fieldColor));
   field.rotation.x = -Math.PI / 2; field.position.set(cx, 0.05, cz); field.receiveShadow = true; scene.add(field);
   // graderías en los 4 lados (bloquean al jugador)
-  [[0, -9, 20, 2], [0, 9, 20, 2], [-11, 0, 2, 16], [11, 0, 2, 16]].forEach(([dx, dz, w, d]) => {
+  // graderias: la de adelante (dz=+9) va partida en dos para dejar una ENTRADA en el medio
+  [[0, -9, 20, 2], [-6, 9, 8, 2], [6, 9, 8, 2], [-11, 0, 2, 16], [11, 0, 2, 16]].forEach(([dx, dz, w, d]) => {
     const s = new THREE.Mesh(new THREE.BoxGeometry(w, 2, d), mat(0x9ca3af));
     s.position.set(cx + dx, 1, cz + dz); s.castShadow = true; s.receiveShadow = true; scene.add(s);
     addObstacle(cx + dx, cz + dz, w, d);
@@ -610,12 +664,17 @@ function setupSoccer(cx, cz) {
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
   ball.position.set(cx, 0.35, cz); ball.castShadow = true; scene.add(ball);
   soccer.ball = ball; soccer.vel.set((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4);
-  // jugadores de dos equipos (rojo y azul)
-  for (let i = 0; i < 6; i++) {
-    const team = i < 3 ? 0xdc2626 : 0x2563eb;
-    const p = makePerson(team, 0xf1c27d); p.scale.set(0.9, 0.9, 0.9);
-    p.position.set(cx + (Math.random() * 12 - 6), 0, cz + (Math.random() * 8 - 4));
-    p.userData.kickCd = 0;
+  // 2 vs 2: cada equipo tiene un DEFENSA (se queda cerca del arco y da pases) y un DELANTERO (mete goles)
+  const roster = [
+    { team: 0xdc2626, dir:  1, role: 'def', home: new THREE.Vector3(cx - 6, 0, cz) },       // rojo defiende arco izquierdo, ataca a la derecha
+    { team: 0xdc2626, dir:  1, role: 'atk', home: new THREE.Vector3(cx - 1, 0, cz + 2) },
+    { team: 0x2563eb, dir: -1, role: 'def', home: new THREE.Vector3(cx + 6, 0, cz) },       // azul defiende arco derecho, ataca a la izquierda
+    { team: 0x2563eb, dir: -1, role: 'atk', home: new THREE.Vector3(cx + 1, 0, cz - 2) },
+  ];
+  for (const r of roster) {
+    const p = makePerson(r.team, 0xf1c27d); p.scale.set(0.9, 0.9, 0.9);
+    p.position.copy(r.home);
+    p.userData.kickCd = 0; p.userData.dir = r.dir; p.userData.role = r.role; p.userData.home = r.home; p.userData.team = r.team;
     scene.add(p); soccer.players.push(p);
   }
 }
@@ -636,14 +695,35 @@ function updateSoccer(dt) {
   for (const p of soccer.players) {
     const d = dist2D(p.position, b);
     if (d < nd) { nd = d; nearest = p; }
-    if (d > 1.1) { moveToward(p, b, 4.5 * dt); p.rotation.y = Math.atan2(b.x - p.position.x, b.z - p.position.z); }
     if (p.userData.kickCd > 0) p.userData.kickCd -= dt;
+    // ¿a dónde va? El delantero siempre persigue la pelota; el defensa se queda en su arco salvo que la pelota entre a su zona
+    let target;
+    if (p.userData.role === 'atk') {
+      target = b;
+    } else {
+      const ballInOwnZone = p.userData.dir > 0 ? (b.x < p.userData.home.x + 3) : (b.x > p.userData.home.x - 3);
+      target = ballInOwnZone ? b : p.userData.home;
+    }
+    if (dist2D(p.position, target) > 0.6) { moveToward(p, target, 4.5 * dt); p.rotation.y = Math.atan2(target.x - p.position.x, target.z - p.position.z); }
     swingLimbs(p, dt);
   }
+  // el más cercano patea la pelota
   if (nearest && nd <= 1.3 && nearest.userData.kickCd <= 0) {
-    const ang = Math.random() * Math.PI * 2;
-    soccer.vel.set(Math.cos(ang) * (8 + Math.random() * 4), 0, Math.sin(ang) * (8 + Math.random() * 4));
+    const dir = nearest.userData.dir;
+    let tx, tz, power;
+    if (nearest.userData.role === 'atk') {
+      tx = soccer.cx + dir * 9; tz = soccer.cz + (Math.random() - 0.5) * 2; power = 9 + Math.random() * 3;   // tira al arco contrario
+    } else {
+      const mate = soccer.players.find(q => q.userData.team === nearest.userData.team && q.userData.role === 'atk');
+      tx = mate ? mate.position.x : soccer.cx + dir * 4; tz = mate ? mate.position.z : soccer.cz; power = 6 + Math.random() * 2;   // PASE al delantero
+    }
+    const ang = Math.atan2(tz - b.z, tx - b.x);
+    soccer.vel.set(Math.cos(ang) * power, 0, Math.sin(ang) * power);
     nearest.userData.kickCd = 0.6;
+  }
+  // ¿gol? si la pelota entra a un arco, vuelve al centro
+  if (Math.abs(b.z - soccer.cz) < 2 && (b.x <= soccer.cx - 9 + 0.3 || b.x >= soccer.cx + 9 - 0.3)) {
+    b.set(soccer.cx, 0.35, soccer.cz); soccer.vel.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
   }
 }
 function buildStadiums() {
@@ -843,31 +923,37 @@ function removePlaced(o) {
   scene.remove(o.mesh); if (o.light) scene.remove(o.light); if (o.bulb) scene.remove(o.bulb);
   if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
   const i = placed.indexOf(o); if (i >= 0) placed.splice(i, 1);
-  if (['wallWood', 'wallRock', 'door', 'roof'].includes(o.key)) houseRewarded = false;  // se rompió: puedes volver a ganar el bono
+  if (['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'].includes(o.key)) houseTier = 0;  // se rompió: puedes volver a ganar el bono
 }
 
 // ¿Cómo es la casa? (para pagar más por mansiones y permitir la noche)
 function houseStats() {
-  let walls = 0, roofs = 0, lamps = 0;
+  let walls = 0, roofs = 0, lamps = 0, doors = 0, ovens = 0;
   for (const o of placed) {
-    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'door') && dist2D(o.mesh.position, HOUSE) < 18) walls++;
+    if ((o.key === 'wallWood' || o.key === 'wallRock') && dist2D(o.mesh.position, HOUSE) < 18) walls++;
+    else if (o.key === 'door' && dist2D(o.mesh.position, HOUSE) < 18) doors++;
     else if (o.key === 'roof') roofs++;
     else if (o.key === 'lamp') lamps++;
+    else if (o.key === 'oven') ovens++;
   }
   const ready = walls >= 4;
-  const mansion = walls >= 7 && roofs >= 1 && lamps >= 2;
-  return { walls, roofs, lamps, ready, mansion };
+  const simple = walls >= 4 && roofs >= 1;                              // casa simple
+  const full = walls >= 4 && doors >= 1 && roofs >= 1 && lamps >= 1 && ovens >= 1;  // casa completa
+  const mansion = full;
+  return { walls, roofs, lamps, doors, ovens, ready, simple, full, mansion };
 }
-// Bono al terminar una construcción completa (4 paredes + techo): ganas MÁS de lo que gastaste
-let houseRewarded = false;
+// Bono por construir: casa simple (4 paredes + techo) = $300 ; casa completa (4 paredes + puerta + techo + lámpara + horno) = $1000
+let houseTier = 0;   // 0 = nada cobrado, 1 = simple cobrada, 2 = completa cobrada
 function checkConstructionBonus() {
-  if (houseRewarded) return;
+  if (houseTier >= 2) return;
   const hs = houseStats();
-  if (hs.walls >= 4 && hs.roofs >= 1) {
-    houseRewarded = true;
-    const bonus = hs.mansion ? 1500 : 600;
-    addMoney(bonus);
-    toast('🏠 ¡Construcción completa! Bono +$' + bonus + ' (ganaste más de lo que gastaste 🤑)');
+  if (hs.full) {
+    const bonus = houseTier === 1 ? 700 : 1000;   // si ya cobró la simple, paga la diferencia hasta 1000
+    houseTier = 2; addMoney(bonus);
+    toast('🏠 ¡Casa COMPLETA! (paredes + puerta + techo + lámpara + horno) Bono +$' + bonus + ' 🤑');
+  } else if (houseTier < 1 && hs.simple) {
+    houseTier = 1; addMoney(300);
+    toast('🏠 ¡Casa simple lista! (4 paredes + techo) Bono +$300');
   }
 }
 
@@ -1239,10 +1325,11 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { tryCollectGolden(); tryRob(); }   // casa dorada o robar en el estadio
+  if (e.code === 'KeyE') { tryCollectGolden(); tryRob(); sellHouse(); }   // interactuar: cobrar oro / robar / vender casa a un aldeano
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
+  if (e.code === 'KeyI') toggleHelp();   // abrir/cerrar el menú de ayuda
 });
 // Inventario tipo Minecraft: elegir un espacio (slot)
 function selectSlot(n) {
@@ -1301,13 +1388,21 @@ ui('deleteBtn').onclick = deleteObject;
 ui('startBtn').onclick = startGame;
 ui('jailBtn').onclick = () => hideScreens();
 ui('overBtn').onclick = () => { resetAll(); startGame(); };
+// Menú de ayuda: botón ❓ y tecla I
+function toggleHelp(force) {
+  const h = ui('help');
+  const show = force !== undefined ? force : (h.style.display !== 'flex');
+  h.style.display = show ? 'flex' : 'none';
+}
+ui('helpBtn').onclick = () => toggleHelp();
+ui('helpClose').onclick = () => toggleHelp(false);
 ui('shopInput').addEventListener('keydown', e => {
   e.stopPropagation();   // que el teclado del juego no lo vea
   if (e.code === 'Enter') processShopBuy();
   else if (e.code === 'Escape') closeShopInput();
 });
 
-function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; }
+function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; }
 
 function startGame() {
   hideScreens();
@@ -1317,7 +1412,7 @@ function startGame() {
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; setWeaponColor(0x94a3b8);
   state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0 };
   state.wanted = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
-  houseRewarded = false;
+  houseTier = 0;
   player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
   dad.position.set(2, 0, 11); dad.userData.mode = 'follow'; dad.visible = true;
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
@@ -1386,6 +1481,22 @@ function tryCollectGolden() {
   if (dist2D(player.position, goldenHouse.position) < 5) {
     goldenCollectedToday = true; addMoney(1000); toast('🪙 ¡Casa secreta! Encontraste 1000 de oro (vuelve mañana)'); beep(660, 0.18, 0.05);
   }
+}
+
+// Vender tu casa a un aldeano: debe estar COMPLETA y tú cerca de un aldeano (tecla V)
+function sellHouse() {
+  let nearNpc = false;
+  for (const n of npcs) { if (dist2D(player.position, n.position) < 6) { nearNpc = true; break; } }
+  if (!nearNpc) return;   // silencioso: E tambien sirve para cobrar oro / robar en otros lugares
+  if (!houseStats().full) { toast('🏠 Tu casa debe estar COMPLETA para venderla (paredes + puerta + techo + lámpara + horno)'); return; }
+  const price = 1500;
+  addMoney(price); beep(720, 0.18, 0.05);
+  for (let i = placed.length - 1; i >= 0; i--) {   // el aldeano se queda la casa: quitamos las piezas
+    const o = placed[i];
+    if (['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'].includes(o.key) && dist2D(o.mesh.position, HOUSE) < 18) removePlaced(o);
+  }
+  houseTier = 0;
+  toast('🤝 ¡Le vendiste tu casa a un aldeano por $' + price + '! Construye otra y véndela de nuevo 🤑');
 }
 
 // ===================================================================
@@ -1689,8 +1800,15 @@ function drawMinimap() {
 }
 
 function updateMovement(dt) {
-  const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
-  const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
+  const fwd = keys['KeyW'], back = keys['KeyS'];
+  const left = keys['KeyA'], right = keys['KeyD'];
+  // Flechas = mirar (mover la cámara), WASD = caminar
+  const lookSpeed = 1.8 * dt;
+  if (keys['ArrowLeft'])  yaw  += lookSpeed;
+  if (keys['ArrowRight']) yaw  -= lookSpeed;
+  if (keys['ArrowUp'])    pitch += lookSpeed;
+  if (keys['ArrowDown'])  pitch -= lookSpeed;
+  pitch = Math.max(-1.4, Math.min(1.4, pitch));
   const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const rightV = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
   const crouch = keys['ControlLeft'] || keys['ControlRight'];   // agacharse con Ctrl

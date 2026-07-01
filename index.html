@@ -1023,6 +1023,58 @@ function spawnCars() {
   });
 }
 spawnCars();
+
+// ===== SEMÁFOROS en el cruce central (avenidas 0,0) =====
+const trafficLights = [];   // { lamps:[rojo,amarillo,verde], axis:'h'|'v' }
+function makeTrafficLight(x, z, faceY, axis) {
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 3.4, 8), mat(0x374151));
+  pole.position.y = 1.7; pole.castShadow = true; g.add(pole);
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.35, 0.35), mat(0x111827));
+  box.position.y = 3.6; box.castShadow = true; g.add(box);
+  const lamps = [];
+  [0xef4444, 0xf59e0b, 0x22c55e].forEach((c, i) => {   // rojo (arriba), amarillo, verde (abajo)
+    const m = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.12 });
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), m);
+    bulb.position.set(0, 4.0 - i * 0.4, 0.2); g.add(bulb); lamps.push(m);
+  });
+  g.position.set(x, 0, z); g.rotation.y = faceY; scene.add(g);
+  trafficLights.push({ lamps, axis });
+}
+// Cuatro esquinas: las opuestas comparten el mismo color (como un cruce real)
+makeTrafficLight(-6, -6, 0,             'h');
+makeTrafficLight( 6,  6, Math.PI,       'h');
+makeTrafficLight( 6, -6, -Math.PI / 2,  'v');
+makeTrafficLight(-6,  6, Math.PI / 2,   'v');
+
+let lightT = 0;   // reloj del semáforo (ciclo de 20s)
+// Estado por eje: 2 = verde, 1 = amarillo, 0 = rojo
+function lightState() {
+  const t = lightT % 20;
+  if (t < 8)  return { h: 2, v: 0 };   // avenida este-oeste con verde
+  if (t < 10) return { h: 1, v: 0 };   // amarillo
+  if (t < 18) return { h: 0, v: 2 };   // avenida norte-sur con verde
+  return { h: 0, v: 1 };               // amarillo
+}
+function updateTrafficLights(dt) {
+  lightT += dt;
+  const st = lightState();
+  for (const tl of trafficLights) {
+    const on = st[tl.axis];   // 0 rojo, 1 amarillo, 2 verde  (= índice de la lámpara encendida)
+    tl.lamps.forEach((m, i) => m.emissiveIntensity = (i === on) ? 1.2 : 0.12);
+  }
+}
+// ¿El semáforo del cruce central obliga a este auto a frenar antes de la línea?
+function stoppedByLight(car) {
+  const r = car.userData.road;
+  if (r.cx !== 0 || r.cz !== 0) return false;         // sólo el cruce central tiene semáforo
+  const val = r.horizontal ? lightState().h : lightState().v;
+  if (val === 2) return false;                        // verde: pasa
+  const dir = car.userData.dir, STOP = 6.5, ZONE = 11;
+  const pos = r.horizontal ? car.position.x : car.position.z;
+  const gap = dir > 0 ? (-STOP - pos) : (pos - STOP); // distancia a la línea de pare por donde se acerca
+  return gap > 0 && gap < ZONE;
+}
 // ¿Hay algo (tú, un peatón u otro auto) justo ADELANTE de este auto en su carril?
 function carAhead(car) {
   const r = car.userData.road, dir = car.userData.dir, brake = 10;
@@ -1044,7 +1096,7 @@ function carAhead(car) {
 function updateTraffic(dt) {
   for (const car of traffic) {
     if (car === state.car || !car.userData.moving) continue;
-    if (carAhead(car)) continue;   // FRENA: hay alguien cruzando o un auto adelante
+    if (carAhead(car) || stoppedByLight(car)) continue;   // FRENA: semáforo en rojo, alguien cruzando o un auto adelante
     const r = car.userData.road, dir = car.userData.dir, spd = car.userData.speed;
     if (r.horizontal) {
       car.position.x += dir * spd * dt;
@@ -2327,6 +2379,7 @@ function loop() {
     dadWalkBob(dt);
     updateHelpers(dt);
     updateNPCs(dt);
+    updateTrafficLights(dt);               // semáforos del cruce central
     updateTraffic(dt);                     // autos andando por las calles
     updateSoccer(dt);
     swingLimbs(mom, dt);

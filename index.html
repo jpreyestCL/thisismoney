@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>This is Money</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -64,6 +64,49 @@
   .btn:hover { transform: scale(1.04); }
   .big { font-size: 34px; margin: 8px 0; }
   #help { position: fixed; inset: 0; background: rgba(2,6,23,.92); display: none; flex-direction: column; align-items: center; justify-content: center; padding: 26px; z-index: 5; }
+
+  /* ===================== CONTROLES MÓVILES (táctiles) ===================== */
+  html, body { touch-action: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  #mobile { position: fixed; inset: 0; z-index: 4; pointer-events: none; display: none; }
+  body.touch.playing #mobile { display: block; }
+  /* joystick de movimiento (abajo izquierda) */
+  #joy { position: absolute; left: max(18px, env(safe-area-inset-left)); bottom: 24px; width: 132px; height: 132px;
+    border-radius: 50%; background: rgba(255,255,255,.07); border: 2px solid rgba(255,255,255,.18);
+    pointer-events: all; touch-action: none; }
+  #joyNub { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; border-radius: 50%;
+    background: rgba(255,255,255,.32); border: 2px solid rgba(255,255,255,.5); transform: translate(-50%,-50%); }
+  /* botones de acción */
+  .mbtn { pointer-events: all; touch-action: none; -webkit-user-select: none; user-select: none;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; text-align: center;
+    background: rgba(0,0,0,.5); color: #fff; border: 2px solid rgba(255,255,255,.25); border-radius: 50%;
+    font-size: 24px; font-weight: 700; box-shadow: 0 3px 10px rgba(0,0,0,.45); line-height: 1; }
+  .mbtn.on, .mbtn.press { background: rgba(34,197,94,.65); border-color: #fff; }
+  .mbtn .lb { font-size: 8px; opacity: .85; margin-top: 2px; letter-spacing: .3px; }
+  #mAttack { position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: 34px; width: 88px; height: 88px; font-size: 32px;
+    background: rgba(239,68,68,.5); }
+  #mAttack.press { background: rgba(239,68,68,.8); }
+  #mJump     { position: absolute; right: 122px; bottom: 46px;  width: 66px; height: 66px; }
+  #mInteract { position: absolute; right: 120px; bottom: 124px; width: 68px; height: 68px; }
+  #mRun      { position: absolute; right: 30px;  bottom: 134px; width: 66px; height: 66px; }
+  #mMore     { position: absolute; right: max(22px, env(safe-area-inset-right)); top: 150px; width: 52px; height: 52px; font-size: 22px; }
+  /* panel de acciones extra (se abre con ≡) */
+  #mPanel { position: absolute; right: max(12px, env(safe-area-inset-right)); top: 208px; width: 234px; max-height: 62vh; overflow-y: auto;
+    display: none; grid-template-columns: repeat(3, 1fr); gap: 8px; pointer-events: all; touch-action: pan-y;
+    background: rgba(2,6,23,.92); border: 2px solid rgba(52,211,153,.5); border-radius: 14px; padding: 10px; }
+  #mPanel.open { display: grid; }
+  #mPanel .mbtn { width: 100%; height: 54px; border-radius: 10px; font-size: 19px; }
+  body.touch #buildbar .slot { cursor: pointer; }
+  body.touch #crosshair { opacity: .5; }
+
+  /* Forzar horizontal en móvil: tapa la pantalla mientras el teléfono esté vertical */
+  #rotate-msg { position: fixed; inset: 0; z-index: 40; display: none; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 34px;
+    background: radial-gradient(circle at 50% 40%, #0b1220, #020617); color: #fff; }
+  #rotate-msg .ico { font-size: 78px; margin-bottom: 18px; animation: rotatehint 2s ease-in-out infinite; }
+  #rotate-msg h2 { font-size: 24px; margin-bottom: 8px; color: #34d399; }
+  #rotate-msg p { max-width: 340px; opacity: .85; line-height: 1.5; }
+  @keyframes rotatehint { 0%, 35% { transform: rotate(0); } 65%, 100% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) { body.touch #rotate-msg { display: flex; } }
 </style>
 </head>
 <body>
@@ -151,6 +194,7 @@
   <div style="max-width:640px; width:92vw; max-height:86vh; overflow:auto; background:rgba(2,6,23,.96); border:2px solid #34d399; border-radius:16px; padding:22px 26px;">
     <h2 style="margin:0 0 6px; color:#34d399;">📖 AYUDA — Todas las teclas</h2>
     <p style="margin:0 0 14px; opacity:.7; font-size:13px;">Abre o cierra este menú con la tecla <b>I</b> o el botón ❓</p>
+    <p style="margin:0 0 14px; padding:8px 10px; background:rgba(52,211,153,.12); border-radius:8px; font-size:13px;">📱 <b>En el celular:</b> usa el <b>joystick</b> (abajo izq.) para caminar y arrastra el dedo por la pantalla para mirar. Botones: <b>👊 golpe</b>, <b>⤴ saltar</b>, <b>✋ usar (E)</b>, <b>🏃 correr</b>. El botón <b>≡ MÁS</b> abre construir, comer, plantar, vendedor, papá, cohete y todo lo demás. Toca los espacios del inventario para elegir herramienta o pieza.</p>
     <div class="keys">
       <span><b>W A S D</b></span><span>Caminar</span>
       <span><b>Flechas</b></span><span>Mirar / mover la cámara (también sirve el mouse)</span>
@@ -184,6 +228,41 @@
 </div>
 
 <div id="fade" style="position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:20;"></div>
+
+<!-- ===== Aviso para girar el teléfono a horizontal (solo móvil en vertical) ===== -->
+<div id="rotate-msg">
+  <div class="ico">📱</div>
+  <h2>Gira tu teléfono</h2>
+  <p>Este juego se disfruta mejor en <b>horizontal</b>. Pon tu teléfono de lado para jugar con todos los controles.</p>
+</div>
+
+<!-- ===== Controles táctiles para móvil (se muestran solo en pantallas táctiles) ===== -->
+<div id="mobile">
+  <div id="joy"><div id="joyNub"></div></div>
+  <button id="mAttack" class="mbtn">👊<span class="lb">GOLPE</span></button>
+  <button id="mJump" class="mbtn">⤴<span class="lb">SALTA</span></button>
+  <button id="mInteract" class="mbtn">✋<span class="lb">USAR·E</span></button>
+  <button id="mRun" class="mbtn">🏃<span class="lb">CORRER</span></button>
+  <button id="mMore" class="mbtn">≡<span class="lb">MÁS</span></button>
+  <div id="mPanel">
+    <button class="mbtn" data-act="build">🔨<span class="lb">CONSTR·B</span></button>
+    <button class="mbtn" data-act="place">📦<span class="lb">PONER·F</span></button>
+    <button class="mbtn" data-act="rotate">🔄<span class="lb">GIRAR·P</span></button>
+    <button class="mbtn" data-act="delete">🗑️<span class="lb">BORRAR·X</span></button>
+    <button class="mbtn" data-act="dig">⛏️<span class="lb">CAVAR·T</span></button>
+    <button class="mbtn" data-act="plant">🌱<span class="lb">PLANTA·K</span></button>
+    <button class="mbtn" data-act="eat">🍖<span class="lb">COMER·Q</span></button>
+    <button class="mbtn" data-act="shop">🛒<span class="lb">VEND·Y</span></button>
+    <button class="mbtn" data-act="night">🌙<span class="lb">NOCHE·N</span></button>
+    <button class="mbtn" data-act="dadFollow">🚶<span class="lb">PAPÁ IR·C</span></button>
+    <button class="mbtn" data-act="dadStay">🧍<span class="lb">PAPÁ ESP·V</span></button>
+    <button class="mbtn" data-act="dadClean">🧹<span class="lb">LIMPIA·O</span></button>
+    <button class="mbtn" data-act="dadArm">🔫<span class="lb">ARMA·G</span></button>
+    <button class="mbtn" data-act="helper">🙋<span class="lb">AYUDA·H</span></button>
+    <button class="mbtn" data-act="rocket">🚀<span class="lb">COHETE·R</span></button>
+    <button class="mbtn" data-act="help">❓<span class="lb">AYUDA·I</span></button>
+  </div>
+</div>
 
 <script type="importmap">
 { "imports": {
@@ -1429,7 +1508,7 @@ addEventListener('mousemove', e => {
   yaw -= e.movementX * LOOK_SENS; pitch -= e.movementY * LOOK_SENS;
   pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
 });
-canvas.addEventListener('mousedown', () => { if (state.phase === 'NIGHT') attack(); else attackNPC(); });  // noche: pegar monstruos · día: pegar personas (te vuelve buscado)
+canvas.addEventListener('mousedown', e => { if (isTouch) return; if (state.phase === 'NIGHT') attack(); else attackNPC(); });  // noche: pegar monstruos · día: pegar personas (te vuelve buscado). En móvil se usa el botón GOLPE.
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 const ui = id => document.getElementById(id);
@@ -2116,6 +2195,7 @@ function updateTimers(dt) {
 
 function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
 function renderHUD() {
+  document.body.classList.toggle('playing', !!state.running);   // controles móviles visibles solo jugando
   ui('ui-money').textContent = '$' + state.money;
   ui('ui-stage').textContent = state.stage;
   ui('ui-planet').textContent = state.planet === 'marte' ? 'Marte' : 'Tierra';
@@ -2163,6 +2243,156 @@ function renderHUD() {
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
 });
+
+// ===================================================================
+//  CONTROLES TÁCTILES (MÓVIL) — mismas funciones que en el teclado
+// ===================================================================
+const isTouch = (('ontouchstart' in window) || navigator.maxTouchPoints > 0) && !window.matchMedia('(pointer: fine)').matches
+  || navigator.maxTouchPoints > 1 && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+if (isTouch) {
+  document.body.classList.add('touch');
+  const TOUCH_LOOK = 0.0045;   // sensibilidad al arrastrar para mirar
+
+  // ---- Joystick de movimiento: mueve keys W/A/S/D como si fuera el teclado ----
+  const joy = ui('joy'), nub = ui('joyNub');
+  let joyId = null, joyCx = 0, joyCy = 0;
+  const JMAX = 50, DEAD = 0.30;
+  function clearMove() { keys['KeyW'] = keys['KeyS'] = keys['KeyA'] = keys['KeyD'] = false; }
+  function joyStart(e) {
+    joyId = e.pointerId; joy.setPointerCapture(e.pointerId);
+    const r = joy.getBoundingClientRect(); joyCx = r.left + r.width / 2; joyCy = r.top + r.height / 2;
+    joyMove(e);
+  }
+  function joyMove(e) {
+    if (e.pointerId !== joyId) return;
+    let dx = e.clientX - joyCx, dy = e.clientY - joyCy;
+    const d = Math.hypot(dx, dy); if (d > JMAX) { dx *= JMAX / d; dy *= JMAX / d; }
+    nub.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    const nx = dx / JMAX, ny = dy / JMAX;
+    keys['KeyW'] = ny < -DEAD; keys['KeyS'] = ny > DEAD;
+    keys['KeyA'] = nx < -DEAD; keys['KeyD'] = nx > DEAD;
+  }
+  function joyEnd(e) {
+    if (e.pointerId !== joyId) return;
+    joyId = null; nub.style.transform = 'translate(-50%,-50%)'; clearMove();
+  }
+  joy.addEventListener('pointerdown', joyStart);
+  joy.addEventListener('pointermove', joyMove);
+  joy.addEventListener('pointerup', joyEnd);
+  joy.addEventListener('pointercancel', joyEnd);
+
+  // ---- Mirar: arrastrar un dedo sobre el escenario gira la cámara ----
+  let lookId = null, lookX = 0, lookY = 0;
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' || lookId !== null) return;
+    if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
+    lookId = e.pointerId; lookX = e.clientX; lookY = e.clientY;
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerId !== lookId) return;
+    const dx = e.clientX - lookX, dy = e.clientY - lookY; lookX = e.clientX; lookY = e.clientY;
+    yaw -= dx * TOUCH_LOOK; pitch -= dy * TOUCH_LOOK;
+    pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
+  });
+  const endLook = e => { if (e.pointerId === lookId) lookId = null; };
+  canvas.addEventListener('pointerup', endLook);
+  canvas.addEventListener('pointercancel', endLook);
+
+  // ---- Utilidades para botones ----
+  function tapBtn(id, fn) {   // pulsación simple (una acción por toque)
+    const b = ui(id);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('press'); if (state.running) fn(); });
+    const up = () => b.classList.remove('press');
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+  }
+  function holdKey(id, code) {   // mantener apretado = tecla presionada (saltar, correr, etc.)
+    const b = ui(id);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); keys[code] = true; b.classList.add('press'); });
+    const up = e => { keys[code] = false; b.classList.remove('press'); };
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+  }
+
+  // Botón GOLPE: pega al mantener (con cadencia), como hacer clic repetido
+  (() => {
+    const b = ui('mAttack'); let atkTimer = null;
+    const hit = () => { if (!state.running) return; if (state.phase === 'NIGHT') attack(); else attackNPC(); };
+    const start = e => { e.preventDefault(); b.classList.add('press'); hit(); atkTimer = setInterval(hit, 320); };
+    const stop = () => { b.classList.remove('press'); if (atkTimer) { clearInterval(atkTimer); atkTimer = null; } };
+    b.addEventListener('pointerdown', start);
+    b.addEventListener('pointerup', stop); b.addEventListener('pointercancel', stop); b.addEventListener('pointerleave', stop);
+  })();
+
+  holdKey('mJump', 'Space');
+
+  // Correr: botón que alterna (mantiene Shift mientras esté activo)
+  (() => {
+    const b = ui('mRun');
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const on = !b.classList.contains('on');
+      b.classList.toggle('on', on); keys['ShiftLeft'] = on;
+    });
+  })();
+
+  // Interactuar (E): mantener para comprar; al tocar hace cobrar/robar/vender como la tecla E
+  (() => {
+    const b = ui('mInteract');
+    b.addEventListener('pointerdown', e => {
+      e.preventDefault(); b.classList.add('press'); keys['KeyE'] = true;
+      if (state.running) { tryCollectGolden(); tryRob(); sellHouse(); }
+    });
+    const up = () => { keys['KeyE'] = false; b.classList.remove('press'); };
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+  })();
+
+  // Botón ≡ MÁS: abre/cierra el panel de acciones extra
+  ui('mMore').addEventListener('pointerdown', e => { e.preventDefault(); ui('mPanel').classList.toggle('open'); });
+
+  // Panel extra: cada botón dispara la misma acción que su tecla
+  const ACTIONS = {
+    build: () => { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON' : 'Modo construir OFF'); },
+    place: () => placeObject(),
+    rotate: () => rotateBuild(),
+    delete: () => deleteObject(),
+    dig: () => digHole(),
+    plant: () => plantSeed(),
+    eat: () => eatFood(),
+    shop: () => openShopInput(),
+    night: () => tryStartNight(),
+    dadFollow: () => setDadMode('follow'),
+    dadStay: () => setDadMode('stay'),
+    dadClean: () => setDadMode('clean'),
+    dadArm: () => toggleDadArm(),
+    helper: () => spawnHelper(),
+    rocket: () => tryLaunchRocket(),
+    help: () => toggleHelp(),
+  };
+  ui('mPanel').querySelectorAll('.mbtn').forEach(b => {
+    const act = ACTIONS[b.dataset.act]; if (!act) return;
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.classList.add('press'); if (state.running) act(); });
+    const up = () => b.classList.remove('press');
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+  });
+
+  // Hotbar (inventario): tocar un espacio lo selecciona (1 = herramienta, 2-9 = construir)
+  ui('buildbar').addEventListener('pointerdown', e => {
+    const slot = e.target.closest('.slot'); if (!slot) return;
+    e.preventDefault();
+    const idx = Array.prototype.indexOf.call(slot.parentNode.children, slot);
+    if (idx >= 0) selectSlot(idx + 1);
+  });
+
+  // Al empezar (o reiniciar) en móvil: pantalla completa + bloquear en horizontal (si el navegador lo permite)
+  function goLandscape() {
+    const el = document.documentElement;
+    const fs = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (fs) { try { const p = fs.call(el); if (p && p.then) p.catch(() => {}); } catch (e) {} }
+    if (screen.orientation && screen.orientation.lock) {
+      try { const p = screen.orientation.lock('landscape'); if (p && p.then) p.catch(() => {}); } catch (e) {}
+    }
+  }
+  ['startBtn', 'overBtn', 'jailBtn'].forEach(id => ui(id).addEventListener('click', goLandscape));
+}
 
 loop();
 </script>

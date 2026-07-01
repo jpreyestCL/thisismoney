@@ -82,21 +82,46 @@
     font-size: 24px; font-weight: 700; box-shadow: 0 3px 10px rgba(0,0,0,.45); line-height: 1; }
   .mbtn.on, .mbtn.press { background: rgba(34,197,94,.65); border-color: #fff; }
   .mbtn .lb { font-size: 8px; opacity: .85; margin-top: 2px; letter-spacing: .3px; }
-  #mAttack { position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: 34px; width: 88px; height: 88px; font-size: 32px;
+  #mAttack { position: absolute; right: max(18px, env(safe-area-inset-right)); bottom: 22px; width: 84px; height: 84px; font-size: 30px;
     background: rgba(239,68,68,.5); }
   #mAttack.press { background: rgba(239,68,68,.8); }
-  #mJump     { position: absolute; right: 122px; bottom: 46px;  width: 66px; height: 66px; }
-  #mInteract { position: absolute; right: 120px; bottom: 124px; width: 68px; height: 68px; }
-  #mRun      { position: absolute; right: 30px;  bottom: 134px; width: 66px; height: 66px; }
-  #mMore     { position: absolute; right: max(22px, env(safe-area-inset-right)); top: 150px; width: 52px; height: 52px; font-size: 22px; }
-  /* panel de acciones extra (se abre con ≡) */
-  #mPanel { position: absolute; right: max(12px, env(safe-area-inset-right)); top: 208px; width: 234px; max-height: 62vh; overflow-y: auto;
-    display: none; grid-template-columns: repeat(3, 1fr); gap: 8px; pointer-events: all; touch-action: pan-y;
-    background: rgba(2,6,23,.92); border: 2px solid rgba(52,211,153,.5); border-radius: 14px; padding: 10px; }
+  #mJump     { position: absolute; right: 112px; bottom: 26px;  width: 60px; height: 60px; }
+  #mInteract { position: absolute; right: 104px; bottom: 104px; width: 62px; height: 62px; }
+  #mRun      { position: absolute; right: 22px;  bottom: 112px; width: 60px; height: 60px; }
+  #mMore     { position: absolute; right: 178px; bottom: 34px;  width: 54px; height: 54px; font-size: 22px; }
+  /* panel de acciones extra (se abre con ≡) — sube desde el botón MÁS */
+  #mPanel { position: absolute; right: max(10px, env(safe-area-inset-right)); bottom: 100px; width: 232px; max-height: 60vh; overflow-y: auto;
+    display: none; grid-template-columns: repeat(3, 1fr); gap: 7px; pointer-events: all; touch-action: pan-y;
+    background: rgba(2,6,23,.94); border: 2px solid rgba(52,211,153,.5); border-radius: 14px; padding: 9px; }
   #mPanel.open { display: grid; }
-  #mPanel .mbtn { width: 100%; height: 54px; border-radius: 10px; font-size: 19px; }
+  #mPanel .mbtn { width: 100%; height: 50px; border-radius: 10px; font-size: 18px; }
+  /* el hotbar debe recibir toques (el #hud tiene pointer-events:none) */
+  body.touch #buildbar { pointer-events: auto; }
   body.touch #buildbar .slot { cursor: pointer; }
   body.touch #crosshair { opacity: .5; }
+
+  /* ---- HUD compacto en móvil: más espacio de pantalla ---- */
+  body.touch .topbar { top: 5px; left: 6px; right: 6px; gap: 3px; }
+  body.touch .topbar > div { gap: 3px !important; }
+  body.touch .stat { padding: 2px 7px; border-radius: 7px; backdrop-filter: none; }
+  body.touch .stat b { font-size: 7px; letter-spacing: .5px; }
+  body.touch .stat span { font-size: 12px; }
+  body.touch .bar { width: 68px; height: 6px; margin-top: 2px; }
+  body.touch #minimap { width: 88px !important; height: 88px !important; top: 52px; right: 8px; }
+  body.touch #objective { top: 50px; font-size: 11px; padding: 4px 12px; }
+  body.touch #phase { top: 84px; font-size: 15px; }
+  body.touch #escape { top: 44px; font-size: 14px; padding: 5px 12px; }
+  body.touch #dadhud { bottom: 6px; left: 6px; padding: 4px 8px; font-size: 10px; max-width: 40vw; }
+  body.touch #gearhud { display: none; }
+  body.touch #helpBtn { top: 48px; left: 8px; width: 34px; height: 34px; font-size: 15px; }
+  body.touch #toast { bottom: 96px; font-size: 13px; padding: 7px 16px; }
+  /* hotbar más compacto y por encima de los controles */
+  body.touch #buildbar { bottom: 6px; gap: 3px; z-index: 5; }
+  body.touch .slot { width: 44px; height: 44px; border-radius: 7px; }
+  body.touch .slot .ic { font-size: 18px; }
+  body.touch .slot .nm { font-size: 7px; }
+  body.touch .slot .ct { font-size: 10px; }
+  body.touch .slot .kk { font-size: 8px; }
 
   /* Forzar horizontal en móvil: tapa la pantalla mientras el teléfono esté vertical */
   #rotate-msg { position: fixed; inset: 0; z-index: 40; display: none; flex-direction: column;

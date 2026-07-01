@@ -1,0 +1,66 @@
+name: Deploy a servidor
+
+# Se ejecuta manualmente desde la pestaña Actions (botón "Run workflow").
+# El deploy corre desde los runners de GitHub (que tienen red al servidor),
+# NO desde el sandbox de Claude Code (cuyo egress bloquea SSH).
+#
+# Requiere estos Secrets del repo (Settings -> Secrets and variables -> Actions):
+#   SSH_HOST  -> 178.62.201.63
+#   SSH_USER  -> root   (necesario para crear el usuario dev y el servicio systemd)
+#   SSH_KEY   -> la clave PRIVADA SSH con acceso a ese servidor
+#   SSH_PORT  -> 22   (opcional; por defecto 22)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repo
+        uses: actions/checkout@v4
+
+      - name: Copiar los archivos al servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: "index.html,assets/*"
+          target: "/home/dev/thisismoney"
+
+      - name: Instalar y dejar corriendo (usuario dev + systemd)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            # usuario dev
+            id dev >/dev/null 2>&1 || adduser --disabled-password --gecos "" dev
+            # python3 para servir estático
+            command -v python3 >/dev/null 2>&1 || { apt-get update && apt-get install -y python3; }
+            # los archivos quedan bajo el usuario dev
+            chown -R dev:dev /home/dev/thisismoney
+            # servicio que lo deja corriendo siempre (puerto 80), como dev
+            cat >/etc/systemd/system/thisismoney.service <<'UNIT'
+            [Unit]
+            Description=This is Money (juego web)
+            After=network.target
+
+            [Service]
+            User=dev
+            WorkingDirectory=/home/dev/thisismoney
+            ExecStart=/usr/bin/python3 -m http.server 80
+            Restart=always
+
+            [Install]
+            WantedBy=multi-user.target
+            UNIT
+            systemctl daemon-reload
+            systemctl enable --now thisismoney
+            systemctl restart thisismoney
+            systemctl --no-pager status thisismoney | head -n 5

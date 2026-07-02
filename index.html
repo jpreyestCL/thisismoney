@@ -115,6 +115,7 @@
   </div>
   <canvas id="minimap" width="150" height="150" style="position:absolute;top:96px;right:12px;background:rgba(0,0,0,.4);border-radius:10px"></canvas>
   <div id="hurt" style="position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(239,68,68,.9);opacity:0;transition:opacity .15s"></div>
+  <div id="poisonfx" style="position:absolute;inset:0;box-shadow:inset 0 0 130px 40px rgba(34,197,94,.8);opacity:0;transition:opacity .3s;pointer-events:none"></div>
   <div id="phase"></div>
   <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
   <div id="objective">Objetivo</div>
@@ -193,7 +194,10 @@
     <span><b>Clic</b></span><span>Atacar de noche &nbsp; · &nbsp; <b>N</b> empezar noche</span>
     <span><b>R</b></span><span>Lanzar cohete (con papá, tras meteorito)</span>
   </div>
-  <button class="btn" id="startBtn">JUGAR</button>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+    <button class="btn" id="continueBtn" style="display:none; background:linear-gradient(90deg,#38bdf8,#0284c7);">CONTINUAR</button>
+    <button class="btn" id="startBtn">JUGAR DE NUEVO</button>
+  </div>
 </div>
 
 <div class="screen hidden" id="jail">
@@ -211,6 +215,7 @@
 
 <!-- Botón ❓ y menú de AYUDA con todas las teclas (se abre con I o con el botón) -->
 <button id="helpBtn" style="position:fixed; top:58px; left:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">❓</button>
+<button id="soundBtn" style="position:fixed; top:58px; left:58px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">🔊</button>
 <div id="help">
   <div style="max-width:640px; width:92vw; max-height:86vh; overflow:auto; background:rgba(2,6,23,.96); border:2px solid #34d399; border-radius:16px; padding:22px 26px;">
     <h2 style="margin:0 0 6px; color:#34d399;">📖 AYUDA — Todas las teclas</h2>
@@ -1044,15 +1049,12 @@ function updateBuild() {
   ghostLine.material.color.set(have ? 0x4ade80 : 0xef4444);
 }
 
-function placeObject() {
-  if (!state.buildMode || state.phase !== 'DAY') return;
-  const key = BUILD_KEYS[buildSel];
-  if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
-  state.inv[key]--;
+// Crea y coloca un objeto en (x,z) con rotación rot (reutilizado por placeObject y al cargar la partida)
+function spawnPlaced(key, x, z, rot, hp) {
   const m = new THREE.Mesh(objGeometry(key), objMaterial(key));
-  m.position.set(ghost.position.x, objY(key), ghost.position.z); m.rotation.y = buildRot;
+  m.position.set(x, objY(key), z); m.rotation.y = rot;
   m.castShadow = true; m.receiveShadow = true; scene.add(m);
-  const obj = { mesh: m, key, hp: key === 'wallRock' ? 200 : 100 };
+  const obj = { mesh: m, key, hp: (hp != null ? hp : (key === 'wallRock' ? 200 : 100)) };
   // ----- Muebles y decoración -----
   const legMat = mat(0x3f2a17);
   const legs = (hw, hd, len) => { for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len), legMat); l.position.set(sx * hw, -len / 2, sz * hd); m.add(l); } };
@@ -1088,12 +1090,20 @@ function placeObject() {
   }
   if (key === 'wallWood' || key === 'wallRock') {
     // bloquea al jugador y a los enemigos
-    const w = Math.abs(Math.cos(buildRot)) > 0.5 ? 4 : 0.4;
-    const d = Math.abs(Math.cos(buildRot)) > 0.5 ? 0.4 : 4;
+    const w = Math.abs(Math.cos(rot)) > 0.5 ? 4 : 0.4;
+    const d = Math.abs(Math.cos(rot)) > 0.5 ? 0.4 : 4;
     obj.aabb = { minX: m.position.x - w / 2, maxX: m.position.x + w / 2, minZ: m.position.z - d / 2, maxZ: m.position.z + d / 2 };
     obstacles.push(obj.aabb);
   }
   placed.push(obj);
+  return obj;
+}
+function placeObject() {
+  if (!state.buildMode || state.phase !== 'DAY') return;
+  const key = BUILD_KEYS[buildSel];
+  if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
+  state.inv[key]--;
+  spawnPlaced(key, ghost.position.x, ghost.position.z, buildRot);
   const val = SHOP.find(s => s.key === key).value;
   addMoney(val);
   toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + ' +$' + val);
@@ -1250,6 +1260,12 @@ function makeAnt() {
   const sting = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 8), new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x16a34a, emissiveIntensity: 0.6 })); sting.position.set(0, 0.7, -1.25); sting.rotation.x = -Math.PI / 2; g.add(sting);
   return g;
 }
+// Alien grande (solo en Marte): más fuerte que el alien normal
+function makeAlienBig() {
+  const g = makeAlien(); g.scale.multiplyScalar(1.5);
+  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.6, 8), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0891b2, emissiveIntensity: 0.5 })); spike.position.set(0, 2.6, 0); g.add(spike);
+  return g;
+}
 // Monstruo volador (etapa 20): pájaro-monstruo con dos alas; destruye construcciones aéreas
 function makeFlyer() {
   const g = new THREE.Group();
@@ -1280,6 +1296,7 @@ const ENEMY_DEFS = {
   ant:           { make: makeAnt,           hp: 30,  spd: () => 2.6,           dmg: 17, barY: 2.2, poison: true },
   flyer:         { make: makeFlyer,         hp: 60,  spd: () => 3.2,           dmg: 20, barY: 4.6, fly: true, breaksAir: true },
   alien:         { make: makeAlien,         hp: 90,  spd: () => 2.4,           dmg: 18, barY: 3.2 },
+  alienBig:      { make: makeAlienBig,      hp: 140, spd: () => 2.2,           dmg: 24, barY: 4.0 },
   // legado: se conservan por compatibilidad pero no salen en la rotación normal
   ogre:          { make: makeOgre,          hp: 220, spd: () => 1.1,           dmg: 26, barY: 4.5 },
   ghost:         { make: makeGhost,         hp: 30,  spd: s => 3.2 + s * 0.1,  dmg: 12, barY: 3.2, fly: true },
@@ -1296,13 +1313,16 @@ function unlockedTypes() {
   if (S >= 6)  pool.push('toroArmored');     // etapa 6-9: toros con armadura
   if (S >= 10) pool.push('mole');            // etapa 10: topos (ahora también de noche)
   if (S >= 11) pool.push('moleBoss');        // etapa 11: topo jefe
+  if (S >= 12) pool.push('ghost');           // etapa 12+: fantasmas (legado, vuelan)
   if (S >= 15) pool.push('ant');             // etapa 15: hormiga (veneno)
+  if (S >= 16) pool.push('ogre');            // etapa 16+: ogros (legado, muy fuertes)
+  if (S >= 18) pool.push('dragon');          // etapa 18+: dragones (legado, vuelan)
   if (S >= 20) pool.push('flyer');           // etapa 20: monstruo volador
   return pool;
 }
-const ENEMY_WEIGHT = { zombie: 5, zombieArmored: 4, smart: 4, smartArmored: 3, toro: 2, toroArmored: 2, mole: 3, moleBoss: 1, ant: 3, flyer: 2 };
+const ENEMY_WEIGHT = { zombie: 5, zombieArmored: 4, smart: 4, smartArmored: 3, toro: 2, toroArmored: 2, mole: 3, moleBoss: 1, ant: 3, flyer: 2, ghost: 2, ogre: 1, dragon: 1 };
 function pickEnemyType() {
-  if (state.planet === 'marte' && Math.random() < 0.4) return 'alien';
+  if (state.planet === 'marte') { const r = Math.random(); if (r < 0.3) return 'alienBig'; if (r < 0.65) return 'alien'; }   // Marte: aliens (y siguen saliendo los de la Tierra)
   const pool = unlockedTypes();
   let total = 0; for (const t of pool) total += ENEMY_WEIGHT[t] || 1;
   let r = Math.random() * total, pick = pool[0];
@@ -1568,15 +1588,52 @@ function damagePlayer(amount) { state.hp -= amount * state.armorFactor; }
 
 // Sonido corto (bip) con WebAudio
 let audioCtx = null;
-function beep(freq, dur, vol) {
+let soundOn = true;   // se puede silenciar con el botón 🔊 (se guarda)
+function ensureAudio() { if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx; }
+function tone(freq, dur, vol, type) {
+  if (!soundOn || !ensureAudio()) return;
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    o.frequency.value = freq; o.type = 'square'; g.gain.value = vol || 0.05;
+    o.frequency.value = freq; o.type = type || 'square'; g.gain.value = vol || 0.05;
     o.connect(g); g.connect(audioCtx.destination); o.start();
     g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur || 0.1));
     o.stop(audioCtx.currentTime + (dur || 0.1));
   } catch (e) {}
+}
+function beep(freq, dur, vol) { tone(freq, dur, vol, 'square'); }
+
+// --- Motor del auto (oscilador continuo, ganancia según acelerador) ---
+let engineOsc = null, engineGain = null;
+function ensureEngine() {
+  if (engineOsc || !ensureAudio()) return;
+  try {
+    engineOsc = audioCtx.createOscillator(); engineGain = audioCtx.createGain();
+    engineOsc.type = 'sawtooth'; engineOsc.frequency.value = 55; engineGain.gain.value = 0;
+    engineOsc.connect(engineGain); engineGain.connect(audioCtx.destination); engineOsc.start();
+  } catch (e) {}
+}
+
+// --- Música ambiental (día tranquila, noche tensa); se puede silenciar ---
+let musicTimer = null, musicStep = 0;
+const MUSIC = { day: [0, 4, 7, 12, 7, 4, 0, -5], night: [0, 3, 7, 3, -2, 1, 8, 3] };
+function startMusic() {
+  if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+  if (!soundOn) return;
+  musicTimer = setInterval(() => {
+    if (!soundOn || !state.running || document.hidden) return;
+    const night = state.phase === 'NIGHT';
+    const scale = night ? MUSIC.night : MUSIC.day;
+    const semi = scale[musicStep % scale.length]; musicStep++;
+    const base = night ? 130.81 : 174.61;
+    tone(base * Math.pow(2, semi / 12), 0.32, 0.022, night ? 'triangle' : 'sine');
+  }, 400);
+}
+function toggleSound() {
+  soundOn = !soundOn;
+  if (!soundOn) { if (engineGain) engineGain.gain.value = 0; if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } }
+  else startMusic();
+  const b = ui('soundBtn'); if (b) b.textContent = soundOn ? '🔊' : '🔇';
+  try { localStorage.setItem('tim_sound', soundOn ? '1' : '0'); } catch (e) {}
 }
 
 // ===================================================================
@@ -1668,8 +1725,14 @@ function rotateBuild() { buildRot = (buildRot + Math.PI / 2) % (Math.PI * 2); st
 ui('rotateBtn').onclick = rotateBuild;
 ui('deleteBtn').onclick = deleteObject;
 ui('startBtn').onclick = startGame;
+ui('continueBtn').onclick = () => continueGame();
+if (hasSave()) ui('continueBtn').style.display = '';   // mostrar "Continuar" si hay partida guardada
 ui('jailBtn').onclick = () => hideScreens();
 ui('overBtn').onclick = () => { resetAll(); startGame(); };
+// Autoguardado: al ocultar la pestaña, al cerrar y cada 15 s
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+addEventListener('pagehide', saveGame);
+setInterval(() => { if (state.running && state.phase !== 'OVER') saveGame(); }, 15000);
 // Menú de ayuda: botón ❓ y tecla I
 function toggleHelp(force) {
   const h = ui('help');
@@ -1677,6 +1740,9 @@ function toggleHelp(force) {
   h.style.display = show ? 'flex' : 'none';
 }
 ui('helpBtn').onclick = () => toggleHelp();
+ui('soundBtn').onclick = () => toggleSound();
+try { if (localStorage.getItem('tim_sound') === '0') soundOn = false; } catch (e) {}
+ui('soundBtn').textContent = soundOn ? '🔊' : '🔇';
 ui('helpClose').onclick = () => toggleHelp(false);
 ui('shopInput').addEventListener('keydown', e => {
   e.stopPropagation();   // que el teclado del juego no lo vea
@@ -1698,7 +1764,7 @@ ui('buildbar').addEventListener('pointerdown', e => {
 const IS_TOUCH = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 if (IS_TOUCH) {
   document.body.classList.add('touch');
-  const TOUCH_LOOK_SENS = 0.005;
+  const TOUCH_LOOK_SENS = 0.0042;   // sensibilidad de mirar en celular (más bajo = más preciso)
   const canLook = () => state.running && !typing && (state.phase === 'DAY' || state.phase === 'NIGHT');
 
   // ---------- Joystick (moverse) ----------
@@ -1791,10 +1857,13 @@ if (IS_TOUCH) {
   bindButtons(ui('moveBtns'));
 }
 
-function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; }
+function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; startMusic(); }
 
 function startGame() {
   hideScreens();
+  clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt();
+  state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   state.phase = 'DAY'; state.running = true;
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
@@ -1805,6 +1874,54 @@ function startGame() {
   player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
   dad.position.set(2, 0, 11); dad.userData.mode = 'follow'; dad.visible = true;
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
+}
+// Guardado / carga de la partida (localStorage)
+function saveGame() {
+  if (!state.running || state.phase === 'OVER') return;
+  try {
+    const wc = (viewmodel.children[2] && viewmodel.children[2].material) ? viewmodel.children[2].material.color.getHex() : 0x94a3b8;
+    const data = {
+      money: state.money, totalEarned: state.totalEarned, stage: state.stage,
+      hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
+      weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc,
+      dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet,
+      houseTier: houseTier, inv: state.inv, px: player.position.x, pz: player.position.z,
+      placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
+      car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp } : null,
+    };
+    localStorage.setItem('tim_save', JSON.stringify(data));
+  } catch (e) {}
+}
+function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+function clearSave() { try { localStorage.removeItem('tim_save'); } catch (e) {} }
+function loadGame() {
+  let d; try { d = JSON.parse(localStorage.getItem('tim_save')); } catch (e) { return false; }
+  if (!d) return false;
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPolice();
+  Object.assign(state, {
+    money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
+    hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, night: d.night || 0,
+    weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1,
+    dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: d.planet || 'tierra',
+    wanted: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
+  });
+  lastHp = state.hp;
+  state.inv = Object.assign(freshInv(), d.inv || {});
+  houseTier = d.houseTier || 0;
+  setWeaponColor(d.weaponColor || 0x94a3b8);
+  (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
+  if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp });
+  if (state.planet === 'marte') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); }
+  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); }
+  player.position.set(d.px || 0, PLAYER_EYE, d.pz || 14); yaw = 0; pitch = 0;
+  dad.visible = true; dad.position.set(2, 0, 11); dad.userData.mode = 'follow';
+  return true;
+}
+function continueGame() {
+  hideScreens();
+  state.running = true;
+  if (!loadGame()) { startGame(); return; }
+  toast('▶️ Partida cargada — ¡sigue donde ibas!');
 }
 
 function resetAll() {
@@ -1848,7 +1965,7 @@ function updateBuying(dt) {
 // ===================================================================
 //  AUTO: cuerpo rectangular, ruedas redondas, manubrio; se sube y se conduce; tiene vida
 // ===================================================================
-function spawnCar() {
+function spawnCar(opts) {
   const g = new THREE.Group();
   const bodyMat = mat(0xdc2626);
   const glass = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.4, roughness: 0.1 });
@@ -1863,16 +1980,17 @@ function spawnCar() {
     const w = new THREE.Mesh(wgeo, wm); w.position.set(sx * 1.15, 0.55, sz * 1.35); w.castShadow = true; g.add(w); wheels.push(w);
   }
   for (const sx of [-1, 1]) { const f = new THREE.Mesh(new THREE.CircleGeometry(0.18, 12), new THREE.MeshStandardMaterial({ color: 0xfff7c2, emissive: 0xfff7c2, emissiveIntensity: 0.6 })); f.position.set(sx * 0.7, 0.95, 2.01); g.add(f); }  // faros
-  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-  const p = player.position.clone().addScaledVector(fwd, 6); p.y = 0;
-  g.position.set(p.x, 0, p.z); g.rotation.y = yaw; scene.add(g);
+  let hx, hz, heading;
+  if (opts) { hx = opts.x; hz = opts.z; heading = opts.heading || 0; }
+  else { const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); const p = player.position.clone().addScaledVector(fwd, 6); hx = p.x; hz = p.z; heading = yaw; }
+  g.position.set(hx, 0, hz); g.rotation.y = heading; scene.add(g);
   // barra de vida flotante
   const barG = new THREE.Group(); barG.userData.billboard = true;
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
-  car = { group: g, wheels, hp: 100, maxHp: 100, heading: yaw, dmgCd: 0, bar: { g: barG, fg: bfg } };
-  toast('🚗 ¡Auto comprado! Acércate y pulsa E para subir y conducir');
+  car = { group: g, wheels, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
+  if (!opts) toast('🚗 ¡Auto comprado! Acércate y pulsa E para subir y conducir');
 }
 // Subir / bajar del auto (tecla E)
 function toggleCar() {
@@ -1900,11 +2018,26 @@ function updateDriving(dt) {
   car.heading += steer * 1.9 * dt * (Math.abs(throttle) > 0.05 ? 1 : 0.55);
   const fwd = new THREE.Vector3(-Math.sin(car.heading), 0, -Math.cos(car.heading));
   const move = throttle * 24 * dt;
+  const prevX = car.group.position.x, prevZ = car.group.position.z;
   car.group.position.addScaledVector(fwd, move);
   car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -110, 110);
   car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, -110, 110);
+  // chocar con paredes / edificios (no atraviesa)
+  const R = 1.5;
+  for (const o of obstacles) {
+    if (car.group.position.x > o.minX - R && car.group.position.x < o.maxX + R && car.group.position.z > o.minZ - R && car.group.position.z < o.maxZ + R) {
+      car.group.position.x = prevX; car.group.position.z = prevZ; break;
+    }
+  }
   car.group.rotation.y = car.heading;
   for (const w of car.wheels) w.rotation.x += move * 2.2;
+  // atropellar monstruos si vas con algo de velocidad
+  if (Math.abs(move) > 0.06) {
+    for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 2.3) hitEnemy(e, 40, car.group.position); }
+  }
+  // sonido de motor (frecuencia según acelerador)
+  car.enginePow = Math.abs(throttle);
+  ensureEngine(); if (engineGain) { engineGain.gain.value = 0.03 + 0.05 * car.enginePow; engineOsc.frequency.value = 55 + car.enginePow * 150; }
   yaw = car.heading;
   player.position.set(car.group.position.x, 2.1, car.group.position.z);
   camera.rotation.y = yaw; camera.rotation.x = pitch;
@@ -1916,6 +2049,7 @@ function updateCar(dt) {
   const f = Math.max(0, car.hp / car.maxHp); car.bar.fg.scale.x = f || 0.001;
   car.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : f > 0.25 ? 0xf59e0b : 0xef4444);
   car.bar.g.visible = car.hp < car.maxHp || state.driving;
+  if (!state.driving && engineGain) engineGain.gain.value = 0;   // apagar motor al bajarse
   car.dmgCd -= dt;
   let near = false;
   for (const e of enemies) { if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 3) { near = true; break; } }
@@ -1960,6 +2094,7 @@ function buyItem(item) {
     state.money -= item.price; spawnCar(); return;
   }
   state.money -= item.price;
+  tone(880, 0.06, 0.045, 'triangle'); setTimeout(() => tone(1175, 0.08, 0.045, 'triangle'), 70);   // sonido de compra
   if (item.build) { state.inv[item.key] = (state.inv[item.key] || 0) + 1; toast('🛒 Compraste ' + item.name + (item.deco ? ' (colócala: B y luego F)' : ' (constrúyela con B/F)')); }
   else if (item.eat) { state.inv.food++; toast('🍖 ' + item.name + ' guardada en el inventario (pulsa 7 para comer)'); }
   else if (item.dmg) {   // arma (espada o pala): equipa la más fuerte
@@ -2190,6 +2325,7 @@ function startNight() {
   const n = enemiesForNight(state.night);
   toast(n === 0 ? '🌙 Noche tranquila: ¡aprovecha para construir!' : '🌙 ¡Noche ' + state.night + '! Vienen ' + n + ' monstruos');
   phaseText('NOCHE ' + state.night);
+  tone(330, 0.18, 0.05, 'sawtooth'); setTimeout(() => tone(220, 0.3, 0.05, 'sawtooth'), 160);   // aullido de noche
 }
 // Cuántos monstruos por noche (noche 1 libre; luego 3,5,7,9...)
 function enemiesForNight(n) { return n <= 1 ? 3 : Math.min(40, 2 * n - 1); }   // noche 1 ya trae 3 monstruos
@@ -2330,14 +2466,18 @@ function surviveNight() {
   clearWaves();
   const hs = houseStats();
   let reward = 100 * state.stage + (hs.mansion ? 800 : (hs.ready ? 200 : 0));
+  if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
+  if (state.planet === 'marte') reward = Math.round(reward * 1.5);   // Marte paga más (es más difícil)
   addMoney(reward);
   state.hp = Math.min(100, state.hp + 40); state.dadHp = Math.min(100, state.dadHp + 30);
   state.poison = 0; state.dadPoison = 0;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
   if (state.momUnlocked && !mom.visible) dadReturnsWithMom();
-  toast('🌅 ¡Sobreviviste! +$' + reward + (hs.mansion ? ' (¡bono mansión!)' : ''));
+  const extra = state.stage >= 15 ? ' 🏆 ¡Etapa alta!' : (state.planet === 'marte' ? ' 🪐' : (hs.mansion ? ' (¡bono mansión!)' : ''));
+  toast('🌅 ¡Sobreviviste la noche ' + state.night + '! +$' + reward + extra);
   phaseText('DÍA');
+  saveGame();   // autoguardado cada noche superada
 }
 function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
@@ -2437,6 +2577,8 @@ function hurtFeedback() {
     beep(110, 0.12, 0.06);
   }
   lastHp = state.hp;
+  // veneno: tinte verde pulsante mientras estás envenenado
+  const pf = ui('poisonfx'); if (pf) pf.style.opacity = state.poison > 0 ? String(0.35 + 0.35 * Math.abs(Math.sin(performance.now() / 250))) : '0';
 }
 // Mini-mapa: tu casa, los súper y la ciudad
 function drawMinimap() {
@@ -2444,15 +2586,25 @@ function drawMinimap() {
   g.clearRect(0, 0, 150, 150);
   const sc = 0.6, cx = 75 - player.position.x * sc, cz = 75 - player.position.z * sc;
   const dot = (x, z, col, r) => { g.fillStyle = col; g.beginPath(); g.arc(cx + x * sc, cz + z * sc, r, 0, 7); g.fill(); };
-  dot(HOUSE.x, HOUSE.z, '#4ade80', 4);                 // casa
-  dot(40, -22, '#facc15', 4); dot(-2, -40, '#a78bfa', 4); // súper / armería
-  // la casa del tesoro NO se muestra en el mapa: es un secreto que hay que encontrar
+  const icon = (x, z, em, size) => { g.font = (size || 13) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(em, cx + x * sc, cz + z * sc); };
+  // gente y estadios
   for (const n of npcs) dot(n.position.x, n.position.z, '#94a3b8', 1.5);
-  for (const s of stadiums) dot(s.x, s.z, '#22c55e', 3);        // estadios
-  for (const p of police) dot(p.position.x, p.position.z, '#3b82f6', 2.5); // policía
+  for (const s of stadiums) icon(s.x, s.z, '🏟️', 12);
+  // lugares con icono (la casa del tesoro NO se muestra: es secreta)
+  if (state.planet !== 'marte') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); }   // súper / armería
+  icon(HOUSE.x, HOUSE.z, '🏠', 15);
+  if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
+  if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
   if (state.phase === 'NIGHT') for (const e of enemies) dot(e.position.x, e.position.z, '#ef4444', 2);
-  if (dad.visible) dot(dad.position.x, dad.position.z, '#38bdf8', 3);
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(75, 75, 3, 0, 7); g.fill();   // tú (centro)
+  // policía: solo aparece cuando estás BUSCADO; se resalta con un aro rojo
+  if (police.length) {
+    for (const p of police) {
+      g.strokeStyle = '#ef4444'; g.lineWidth = 2; g.beginPath(); g.arc(cx + p.position.x * sc, cz + p.position.z * sc, 8, 0, 7); g.stroke();
+      icon(p.position.x, p.position.z, '🚔', 14);
+    }
+  }
+  g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 1.5;   // tú (centro)
+  g.beginPath(); g.arc(75, 75, 3.5, 0, 7); g.fill(); g.stroke();
 }
 
 function updateMovement(dt) {

@@ -81,6 +81,24 @@ Agregadas sobre la rama de móvil. Todo sigue en `index.html`.
 Verificado con Playwright: comprar auto (vida 100, 4 ruedas), conducir (avanza con W), colocar ventana
 transparente, pintar la pared de café→rojo, y **cero errores**.
 
+## Guardado, audio, minimapa, auto y Marte (mejoras)
+
+- **Guardado (localStorage, clave `tim_save`)**: `saveGame()` serializa stats + inventario + casa
+  (`placed`) + auto + planeta; `loadGame()` reconstruye todo con `spawnPlaced()`/`spawnCar(opts)`.
+  Autosave al superar la noche, al ocultar/cerrar la pestaña y cada 15 s. Botón **CONTINUAR** en el
+  inicio si hay partida (`hasSave()`); **JUGAR DE NUEVO** borra el save (`clearSave()`).
+- **Audio**: `tone()`/`beep()` (SFX), `ensureEngine()` (motor del auto, oscilador continuo),
+  `startMusic()` (música ambiental día/noche vía `setInterval`). Botón **🔊/🔇** (`toggleSound`,
+  se guarda en `tim_sound`). Todo pasa por `ensureAudio()` (resume en gesto).
+- **Minimapa** (`drawMinimap`): iconos 🏠 casa · 🛒 súper · 🔫 armería · 🚗 auto · 👴 papá ·
+  🚔 policía (con aro rojo, solo cuando estás buscado) · 🏟️ estadios; enemigos como puntos rojos.
+- **Auto** (`updateDriving`): atropella monstruos (`hitEnemy` 40), choca con `obstacles` (no atraviesa),
+  sonido de motor. `spawnCar(opts)` acepta pos/heading/hp para cargar.
+- **Marte**: en `state.planet==='marte'` salen `alien`/`alienBig` (`makeAlienBig`, 140 vida/24 daño) y
+  las recompensas de la noche se multiplican ×1.5. Etapas altas (≥10) pagan mucho más.
+- **Indicadores**: overlay `#poisonfx` (tinte verde pulsante al estar envenenado).
+- Enemigos legado reintroducidos en la rotación: `ghost` (12+), `ogre` (16+), `dragon` (18+).
+
 ## Sistema de enemigos por etapa (acumulativo)
 
 Los monstruos dependen de `state.stage` (sube cada 1000 ganados) y **se acumulan**: los de etapas

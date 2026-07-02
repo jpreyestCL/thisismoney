@@ -81,6 +81,24 @@ Agregadas sobre la rama de móvil. Todo sigue en `index.html`.
 Verificado con Playwright: comprar auto (vida 100, 4 ruedas), conducir (avanza con W), colocar ventana
 transparente, pintar la pared de café→rojo, y **cero errores**.
 
+## Sistema de enemigos por etapa (acumulativo)
+
+Los monstruos dependen de `state.stage` (sube cada 1000 ganados) y **se acumulan**: los de etapas
+anteriores siguen apareciendo. Definiciones en `ENEMY_DEFS` (modelo, `hp`, `spd(s)`, `dmg`, flags).
+`unlockedTypes()` arma el pool de la etapa; `pickEnemyType()` elige ponderado (`ENEMY_WEIGHT`).
+
+- **1** zombie (10 vida, 10 daño) · **2** zombieArmored (30) · **3** smart (10, abre puertas) ·
+  **4** smartArmored (30, abre puertas) · **5** toro (`makeKnight`, 50 vida, embestidas de 17 daño) ·
+  **6-9** toroArmored (80) · **10** mole (topo, 20 vida/20 daño, ahora también de noche) ·
+  **11** moleBoss (`makeMoleBoss`, 160 vida, invoca topitos vía `updateMoles`) ·
+  **15** ant (hormiga, 30 vida/17 daño, **envenena** 2/seg por 10s → `applyPoison`/`updatePoison`,
+  `state.poison`/`dadPoison`) · **20** flyer (60 vida/20 daño, vuela y rompe techos, flag `breaksAir`).
+- Flags de comportamiento en `userData`: `opensDoors`, `commander` (manda embestidas con `launchBull`,
+  el daño de la embestida = `dmg` del comandante), `mole` (lo maneja `updateMoles`), `boss`, `poison`,
+  `fly`, `breaksAir`. El bucle de combate está en `updateNight`.
+- Tipos legado (`ogre`, `ghost`, `dragon`) siguen en `ENEMY_DEFS` pero no salen en la rotación normal;
+  `alien` sale solo en Marte.
+
 ## Convenciones del código
 
 - Idioma: **español** en comentarios, textos de UI y nombres de funciones/variables de dominio

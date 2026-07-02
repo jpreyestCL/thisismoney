@@ -246,6 +246,14 @@
       <li>Encuentra la <b>casa secreta</b> y agarra el oro (tecla E) = <b>$1000</b></li>
       <li>Roba en los <b>estadios</b> (tecla E)… ¡pero cuidado con la policía!</li>
     </ul>
+    <h3 style="margin:16px 0 4px; color:#f87171;">👾 Monstruos por etapa (se acumulan)</h3>
+    <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.5; opacity:.92;">
+      <li><b>Etapa 1:</b> zombis · <b>2:</b> zombis con armadura · <b>3:</b> zombis inteligentes (abren puertas) · <b>4:</b> inteligentes con armadura</li>
+      <li><b>Etapa 5:</b> toros (comandante que manda embestidas) · <b>6-9:</b> toros con armadura</li>
+      <li><b>Etapa 10:</b> topos (también de noche) · <b>11:</b> topo jefe (llama a sus topitos)</li>
+      <li><b>Etapa 15:</b> hormiga (te <b>envenena</b>) · <b>Etapa 20:</b> monstruo volador (destruye techos)</li>
+      <li>Los monstruos de etapas anteriores <b>siguen apareciendo</b>: se van acumulando.</li>
+    </ul>
     <button class="btn" id="helpClose" style="margin-top:18px;">CERRAR (I)</button>
   </div>
 </div>
@@ -1211,32 +1219,110 @@ function makeDragon() {   // dragón volador de bloques
   [-1, 1].forEach(s => { const wing = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 1.2), mat(0xb91c1c)); wing.position.set(s * 1.4, 3.3, 0); g.add(wing); });
   return g;
 }
+// Zombi inteligente CON armadura (etapa 4): abre puertas y aguanta más
+function makeSmartArmored() {
+  const g = makePerson(0xe5e7eb, 0x84cc16);
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.7, 0.5), mat(0x6b7280)); chest.position.y = 1.35; chest.castShadow = true; g.add(chest);
+  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.3, 0.55), mat(0x4b5563)); helm.position.y = 2.3; g.add(helm);
+  return g;
+}
+// Comandante de toros CON armadura (etapa 6): igual que el toro pero con placa dorada
+function makeKnightArmored() {
+  const g = makeKnight();
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.55), mat(0xca8a04)); plate.position.y = 1.35; plate.castShadow = true; g.add(plate);
+  return g;
+}
+// Topo JEFE (etapa 11): topo gigante que llama a sus topitos a atacarte
+function makeMoleBoss() {
+  const g = makeMole(); g.scale.set(2.2, 2.2, 2.2);
+  [-0.22, 0.22].forEach(x => { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.8 })); eye.position.set(x, 0.5, 0.62); g.add(eye); });
+  return g;
+}
+// Hormiga (etapa 15): envenena a sus víctimas
+function makeAnt() {
+  const g = new THREE.Group();
+  const col = mat(0x7f1d1d);
+  const abdomen = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 12), col); abdomen.position.set(0, 0.7, -0.6); abdomen.scale.set(1, 0.9, 1.3); abdomen.castShadow = true; g.add(abdomen);
+  const thorax = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 12), col); thorax.position.set(0, 0.62, 0.15); g.add(thorax);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 12), mat(0x991b1b)); head.position.set(0, 0.7, 0.75); g.add(head);
+  [-1, 1].forEach(s => { const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5), mat(0x111827)); antenna.position.set(s * 0.15, 1.05, 1.0); antenna.rotation.set(0.6, 0, s * 0.4); g.add(antenna); });
+  for (const s of [-1, 1]) for (const zz of [-0.15, 0.2, 0.55]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7), mat(0x111827)); leg.position.set(s * 0.42, 0.32, zz); leg.rotation.z = s * 0.95; g.add(leg); }
+  const sting = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 8), new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x16a34a, emissiveIntensity: 0.6 })); sting.position.set(0, 0.7, -1.25); sting.rotation.x = -Math.PI / 2; g.add(sting);
+  return g;
+}
+// Monstruo volador (etapa 20): pájaro-monstruo con dos alas; destruye construcciones aéreas
+function makeFlyer() {
+  const g = new THREE.Group();
+  const col = mat(0x4c1d95);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.6, 14, 14), col); body.position.y = 3; body.scale.set(1, 0.9, 1.4); body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 12), col); head.position.set(0, 3.25, 0.7); g.add(head);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.5, 8), mat(0xf59e0b)); beak.position.set(0, 3.2, 1.15); beak.rotation.x = Math.PI / 2; g.add(beak);
+  const wings = [];
+  [-1, 1].forEach(s => { const wing = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.9), mat(0x6d28d9)); wing.position.set(s * 1.4, 3.1, -0.1); g.add(wing); wings.push(wing); });
+  [-0.15, 0.15].forEach(x => { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 })); eye.position.set(x, 3.32, 1.0); g.add(eye); });
+  g.userData.wings = wings;
+  return g;
+}
 
+// Definición de cada monstruo: modelo, vida, velocidad, daño y comportamiento.
+// spd(s) recibe la etapa actual. Flags: opensDoors (abre puertas), commander (manda toros),
+// mole (topo, lo maneja updateMoles), boss (topo jefe), poison (envenena), fly (vuela),
+// breaksAir (destruye construcciones aéreas / techos).
+const ENEMY_DEFS = {
+  zombie:        { make: makeZombie,        hp: 10,  spd: s => 1.8 + s * 0.15, dmg: 10, barY: 3.3 },
+  zombieArmored: { make: makeZombieArmored, hp: 30,  spd: s => 1.6 + s * 0.10, dmg: 10, barY: 3.8 },
+  smart:         { make: makeSmart,         hp: 10,  spd: s => 1.9 + s * 0.12, dmg: 10, barY: 3.3, opensDoors: true },
+  smartArmored:  { make: makeSmartArmored,  hp: 30,  spd: s => 1.7 + s * 0.10, dmg: 10, barY: 3.8, opensDoors: true },
+  toro:          { make: makeKnight,        hp: 50,  spd: () => 1.6,           dmg: 17, barY: 3.7, commander: true },
+  toroArmored:   { make: makeKnightArmored, hp: 80,  spd: () => 1.5,           dmg: 17, barY: 3.9, commander: true },
+  mole:          { make: makeMole,          hp: 20,  spd: () => 2.8,           dmg: 20, barY: 1.9, mole: true },
+  moleBoss:      { make: makeMoleBoss,      hp: 160, spd: () => 2.2,           dmg: 20, barY: 3.4, mole: true, boss: true },
+  ant:           { make: makeAnt,           hp: 30,  spd: () => 2.6,           dmg: 17, barY: 2.2, poison: true },
+  flyer:         { make: makeFlyer,         hp: 60,  spd: () => 3.2,           dmg: 20, barY: 4.6, fly: true, breaksAir: true },
+  alien:         { make: makeAlien,         hp: 90,  spd: () => 2.4,           dmg: 18, barY: 3.2 },
+  // legado: se conservan por compatibilidad pero no salen en la rotación normal
+  ogre:          { make: makeOgre,          hp: 220, spd: () => 1.1,           dmg: 26, barY: 4.5 },
+  ghost:         { make: makeGhost,         hp: 30,  spd: s => 3.2 + s * 0.1,  dmg: 12, barY: 3.2, fly: true },
+  dragon:        { make: makeDragon,        hp: 150, spd: () => 3.5,           dmg: 20, barY: 6.2, fly: true },
+};
+
+// Monstruos desbloqueados a la etapa actual (SE ACUMULAN: los viejos siguen apareciendo)
+function unlockedTypes() {
+  const S = state.stage, pool = ['zombie'];
+  if (S >= 2)  pool.push('zombieArmored');   // etapa 2: zombi con armadura
+  if (S >= 3)  pool.push('smart');           // etapa 3: zombi inteligente (abre puertas)
+  if (S >= 4)  pool.push('smartArmored');    // etapa 4: zombi inteligente con armadura
+  if (S >= 5)  pool.push('toro');            // etapa 5: toros (comandante + embestidas)
+  if (S >= 6)  pool.push('toroArmored');     // etapa 6-9: toros con armadura
+  if (S >= 10) pool.push('mole');            // etapa 10: topos (ahora también de noche)
+  if (S >= 11) pool.push('moleBoss');        // etapa 11: topo jefe
+  if (S >= 15) pool.push('ant');             // etapa 15: hormiga (veneno)
+  if (S >= 20) pool.push('flyer');           // etapa 20: monstruo volador
+  return pool;
+}
+const ENEMY_WEIGHT = { zombie: 5, zombieArmored: 4, smart: 4, smartArmored: 3, toro: 2, toroArmored: 2, mole: 3, moleBoss: 1, ant: 3, flyer: 2 };
 function pickEnemyType() {
-  const S = state.stage, r = Math.random();
-  if (state.planet === 'marte' && r < 0.4) return 'alien';
-  if (S >= 10 && r < 0.12) return 'dragon';
-  if (S >= 6 && r < 0.13) return 'ogre';
-  if (S >= 4 && r < 0.22) return 'ghost';   // el topo NO sale de noche: solo cavando con la pala
-  if (S >= 3 && r < 0.40) return 'knight';
-  if (S >= 2 && r < 0.40) return 'smart';
-  if (S >= 2 && r < 0.60) return 'zombieArmored';
-  return 'zombie';
+  if (state.planet === 'marte' && Math.random() < 0.4) return 'alien';
+  const pool = unlockedTypes();
+  let total = 0; for (const t of pool) total += ENEMY_WEIGHT[t] || 1;
+  let r = Math.random() * total, pick = pool[0];
+  for (const t of pool) { r -= ENEMY_WEIGHT[t] || 1; if (r <= 0) { pick = t; break; } }
+  if (pick === 'moleBoss' && enemies.some(e => e.userData.type === 'moleBoss')) pick = 'mole';   // un solo jefe a la vez
+  return pick;
 }
 function spawnEnemy(type, atPos) {
-  let e, data, barY = 3.3;
-  if (type === 'knight') { e = makeKnight(); data = { type, hp: 80, maxhp: 80, speed: 1.6, attackCd: 0, shootCd: 2, bullCd: 4 }; barY = 3.7; }
-  else if (type === 'ghost') { e = makeGhost(); data = { type, hp: 30, maxhp: 30, speed: 3.2 + state.stage * 0.1, attackCd: 0 }; barY = 3.2; }
-  else if (type === 'ogre') { e = makeOgre(); data = { type, hp: 220, maxhp: 220, speed: 1.1, attackCd: 0 }; barY = 4.5; }
-  else if (type === 'alien') { e = makeAlien(); data = { type, hp: 90, maxhp: 90, speed: 2.4, attackCd: 0 }; barY = 3.2; }
-  else if (type === 'zombieArmored') { e = makeZombieArmored(); data = { type, hp: 30, maxhp: 30, speed: 1.6 + state.stage * 0.1, attackCd: 0 }; barY = 3.8; }
-  else if (type === 'smart') { e = makeSmart(); data = { type, hp: 20, maxhp: 20, speed: 1.9 + state.stage * 0.12, attackCd: 0 }; barY = 3.3; }
-  else if (type === 'mole') { e = makeMole(); data = { type, hp: 20, maxhp: 20, speed: 2.8, attackCd: 0 }; barY = 1.9; }
-  else if (type === 'dragon') { e = makeDragon(); data = { type, hp: 150, maxhp: 150, speed: 3.5, attackCd: 0, fly: true }; barY = 6.2; }
-  else { e = makeZombie(); data = { type: 'zombie', hp: 10, maxhp: 10, speed: 1.8 + state.stage * 0.15, attackCd: 0 }; barY = 3.3; }
+  const def = ENEMY_DEFS[type] || ENEMY_DEFS.zombie;
+  const e = def.make();
+  const data = { type, hp: def.hp, maxhp: def.hp, speed: def.spd(state.stage), attackCd: 0, dmg: def.dmg, barY: def.barY };
+  if (def.opensDoors) data.opensDoors = true;
+  if (def.commander) { data.commander = true; data.shootCd = 2; data.bullCd = 4; }
+  if (def.mole) data.mole = true;
+  if (def.boss) { data.boss = true; data.summonCd = 4; }
+  if (def.poison) data.poison = true;
+  if (def.fly) data.fly = true;
+  if (def.breaksAir) data.breaksAir = true;
   if (atPos) e.position.copy(atPos);
   else { const a = Math.random() * Math.PI * 2, r = 32; e.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); }
-  data.barY = barY;
   Object.assign(e.userData, data);
   addHealthBar(e);
   scene.add(e); enemies.push(e);
@@ -1283,7 +1369,7 @@ function shootSword(k) {
 function launchBull(k) {
   const t = pickTarget(k.position); const dx = t.x - k.position.x, dz = t.z - k.position.z; const len = Math.hypot(dx, dz) || 1;
   const e = makeBull(); e.position.copy(k.position); e.rotation.y = Math.atan2(dx, dz);
-  e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
+  e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, dmg: (k.userData.dmg || 17), vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
 }
 function pickTarget(from) {
   const cands = [player.position];
@@ -1457,7 +1543,7 @@ const MOM_AT = 20000;
 const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
   hp: 100, dadHp: 100,
-  inv: freshInv(), driving: false,
+  inv: freshInv(), driving: false, poison: 0, dadPoison: 0,
   weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadGun: false, hasRocket: false,
   hunger: 100, night: 0,
   momUnlocked: false, momEventPending: false,
@@ -1713,7 +1799,7 @@ function startGame() {
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; setWeaponColor(0x94a3b8);
-  state.inv = freshInv();
+  state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   houseTier = 0;
   player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
@@ -1724,7 +1810,7 @@ function startGame() {
 function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1;
-  state.inv = freshInv();
+  state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.dadGun = state.hasRocket = false;
   state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
   if (ui('escape')) ui('escape').style.display = 'none';
@@ -2162,13 +2248,21 @@ function digHole() {
 function updateMoles(dt) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
-    if (ud.type !== 'mole') continue;
+    if (!ud.mole) continue;   // topo normal o topo jefe
     ud.attackCd -= dt;
+    if (ud.boss) {   // el topo jefe te huele y manda a sus topitos a atacarte
+      ud.summonCd -= dt;
+      if (ud.summonCd <= 0 && enemies.filter(x => x.userData.type === 'mole').length < 12) {
+        const t = pickTarget(e.position), n = 1 + Math.floor(Math.random() * 2);
+        for (let k = 0; k < n; k++) spawnEnemy('mole', new THREE.Vector3(t.x + (Math.random() * 4 - 2), 0, t.z + (Math.random() * 4 - 2)));
+        ud.summonCd = 5; toast('🕳️ ¡El TOPO JEFE mandó a sus topitos a atacarte!');
+      }
+    }
     const tgt = pickTarget(e.position);
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
     if (d > 1.4) { moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
-    else if (ud.attackCd <= 0) { ud.attackCd = 1; if (isPlayer) damagePlayer(10); else state.dadHp -= 7; }
+    else if (ud.attackCd <= 0) { ud.attackCd = 1; if (isPlayer) damagePlayer(ud.dmg); else state.dadHp -= ud.dmg * 0.7; }
   }
 }
 
@@ -2178,23 +2272,22 @@ function updateNight(dt) {
   const aliveCount = enemies.filter(e => e.userData.type !== 'bull').length;
   const maxEnemies = enemiesForNight(state.night);
   if (state.spawnTimer <= 0 && aliveCount < maxEnemies && state.nightTime < NIGHT_LENGTH - 8) {
-    const t = state.night <= 3 ? 'zombie' : pickEnemyType();   // primeras noches solo zombis
-    spawnEnemy(t); state.spawnTimer = Math.max(1.0, 3.5 - state.stage * 0.15);
+    spawnEnemy(pickEnemyType()); state.spawnTimer = Math.max(1.0, 3.5 - state.stage * 0.15);   // los monstruos dependen de la ETAPA
   }
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
     if (ud.type === 'bull') {
       e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
-      if (dist2D(e.position, player.position) < 1.5) { damagePlayer(25); removeEnemy(i); continue; }
-      if (dad.visible && dist2D(e.position, dad.position) < 1.6) { state.dadHp -= 20; removeEnemy(i); continue; }
+      if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17); removeEnemy(i); continue; }
+      if (dad.visible && dist2D(e.position, dad.position) < 1.6) { state.dadHp -= (ud.dmg || 17) * 0.8; removeEnemy(i); continue; }
       if (ud.life <= 0) removeEnemy(i); continue;
     }
-    if (ud.type === 'mole') continue;   // los topos los maneja updateMoles (día y noche)
+    if (ud.mole) continue;   // topos / topo jefe: los maneja updateMoles (día y noche)
     ud.attackCd -= dt;
     const tgt = pickTarget(e.position);
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
-    if (ud.type === 'knight') {
+    if (ud.commander) {   // toro / toro con armadura: comandante que manda embestidas
       const ideal = 12;
       if (d > ideal + 3) moveToward(e, tgt, ud.speed * dt); else if (d < ideal - 3) moveToward(e, tgt, -ud.speed * dt);
       e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
@@ -2203,23 +2296,29 @@ function updateNight(dt) {
       if (ud.bullCd <= 0) { launchBull(e); ud.bullCd = 4.5; }
       continue;
     }
-    // zombi / zombi con armadura / ogro / fantasma / alien / dragón
-    const flies = ud.type === 'ghost' || ud.fly;
+    // zombi / zombi con armadura / inteligente / hormiga / volador / (legado)
+    const flies = ud.fly;
     let blocked = null;
     if (!flies) { for (const o of placed) {
-      const isBarrier = o.key === 'wallWood' || o.key === 'wallRock' || (o.key === 'door' && ud.type !== 'smart'); // el zombi inteligente abre puertas
+      const isBarrier = o.key === 'wallWood' || o.key === 'wallRock' || (o.key === 'door' && !ud.opensDoors); // los inteligentes abren puertas
       if (isBarrier && o.hp > 0 && dist2D(e.position, o.mesh.position) < 2.2) blocked = o;
     } }
-    if (flies) e.position.y = (ud.fly ? 3 : 0.3) + Math.sin(state.nightTime * 4 + i) * 0.2;   // flotar
+    if (flies) e.position.y = 3 + Math.sin(state.nightTime * 4 + i) * 0.3;   // flotar
+    // monstruo volador: destruye las construcciones aéreas (techos) que encuentra
+    if (ud.breaksAir && ud.attackCd <= 0) {
+      let roof = null, rd = 4;
+      for (const o of placed) { if (o.key === 'roof' && o.hp > 0) { const dd = dist2D(e.position, o.mesh.position); if (dd < rd) { rd = dd; roof = o; } } }
+      if (roof) { roof.hp -= ud.dmg; ud.attackCd = 1; if (roof.hp <= 0) removePlaced(roof); }
+    }
     if (blocked) {
-      // el zombi inteligente rompe las paredes mucho más rápido
-      if (ud.attackCd <= 0) { blocked.hp -= ud.type === 'smart' ? 30 : 10; ud.attackCd = 1; if (blocked.hp <= 0) removePlaced(blocked); }
+      if (ud.attackCd <= 0) { blocked.hp -= ud.opensDoors ? 30 : (ud.dmg || 10); ud.attackCd = 1; if (blocked.hp <= 0) removePlaced(blocked); }
     } else if (d > 1.4) {
       moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
     } else if (ud.attackCd <= 0) {
       ud.attackCd = 1;
-      const dmg = ud.type === 'ogre' ? 26 : ud.type === 'alien' ? 18 : ud.type === 'dragon' ? 20 : 10;
-      if (isPlayer) damagePlayer(dmg); else state.dadHp -= dmg * 0.7;
+      const dmg = ud.dmg || 10;
+      if (isPlayer) { damagePlayer(dmg); if (ud.poison) applyPoison('player'); }
+      else { state.dadHp -= dmg * 0.7; if (ud.poison) applyPoison('dad'); }
     }
   }
   updateDefenses(dt);
@@ -2233,6 +2332,7 @@ function surviveNight() {
   let reward = 100 * state.stage + (hs.mansion ? 800 : (hs.ready ? 200 : 0));
   addMoney(reward);
   state.hp = Math.min(100, state.hp + 40); state.dadHp = Math.min(100, state.dadHp + 30);
+  state.poison = 0; state.dadPoison = 0;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
   if (state.momUnlocked && !mom.visible) dadReturnsWithMom();
@@ -2284,6 +2384,7 @@ function loop() {
     updateHunger(dt);
     if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); }
     updateMoles(dt);                       // topos: activos de día y de noche
+    updatePoison(dt);                      // veneno de la hormiga (día y noche)
     updateCar(dt);                         // vida del auto (los monstruos lo dañan)
     updatePlants(dt);                      // huerto: árboles crecen y dan manzanas
     updateMeteorVisual(dt);                // el meteorito que se ve caer del cielo
@@ -2304,6 +2405,15 @@ function loop() {
   renderer.render(scene, camera);
 }
 
+// Veneno de la hormiga: envenena al jugador o al papá; hace 2 de daño por segundo durante 10s
+function applyPoison(who) {
+  if (who === 'dad') { if (!(state.dadPoison > 0)) toast('🟢 ¡El papá está envenenado!'); state.dadPoison = 10; }
+  else { if (!(state.poison > 0)) toast('🟢 ¡Te envenenó la hormiga! (-2/seg)'); state.poison = 10; }
+}
+function updatePoison(dt) {
+  if (state.poison > 0) { state.poison = Math.max(0, state.poison - dt); state.hp -= 2 * dt; }   // la muerte la maneja el loop (hp<=0)
+  if (state.dadPoison > 0 && dad.visible) { state.dadPoison = Math.max(0, state.dadPoison - dt); state.dadHp -= 2 * dt; }
+}
 // Hambre baja con el tiempo; en 0 pierdes vida y puedes desmayarte
 function updateHunger(dt) {
   state.hunger = Math.max(0, state.hunger - 0.238 * dt);   // 100/0.238 ≈ 420s = 7 minutos exactos
@@ -2521,6 +2631,7 @@ function renderHUD() {
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
   if (car) gear.push('🚗 ' + Math.max(0, Math.round(car.hp)) + (state.driving ? ' (conduciendo)' : ''));
+  if (state.poison > 0) gear.push('🟢 veneno ' + Math.ceil(state.poison) + 's');
   ui('gearhud').innerHTML = gear.join(' · ');
 
   // objetivo

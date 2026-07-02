@@ -260,7 +260,9 @@
       <li><b>Etapa 15:</b> hormiga (te <b>envenena</b>) · <b>Etapa 20:</b> monstruo volador (destruye techos)</li>
       <li>Los monstruos de etapas anteriores <b>siguen apareciendo</b>: se van acumulando.</li>
     </ul>
-    <button class="btn" id="helpClose" style="margin-top:18px;">CERRAR (I)</button>
+    <p style="margin:14px 0 0; font-size:12px; opacity:.7;">¿No ves el joystick ni los botones en el celular? Actívalos aquí:</p>
+    <button class="btn" id="touchToggle" style="margin-top:8px; background:linear-gradient(90deg,#38bdf8,#0284c7);">📱 Controles táctiles</button>
+    <button class="btn" id="helpClose" style="margin-top:12px;">CERRAR (I)</button>
   </div>
 </div>
 
@@ -1754,6 +1756,7 @@ function toggleHelp(force) {
   h.style.display = show ? 'flex' : 'none';
 }
 ui('helpBtn').onclick = () => toggleHelp();
+ui('touchToggle').onclick = () => setTouchMode(!document.body.classList.contains('touch'));
 ui('soundBtn').onclick = () => toggleSound();
 ui('exitBtn').onclick = () => saveAndExit();
 try { if (localStorage.getItem('tim_sound') === '0') soundOn = false; } catch (e) {}
@@ -1776,9 +1779,14 @@ ui('buildbar').addEventListener('pointerdown', e => {
   const n = +slot.dataset.slot; if (n) { selectSlot(n); e.preventDefault(); }
 });
 
-const IS_TOUCH = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-if (IS_TOUCH) {
-  document.body.classList.add('touch');
+// Detección de celular. Se puede FORZAR con el interruptor del menú de ayuda (se guarda).
+const AUTO_TOUCH = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+let touchForced = null; try { const v = localStorage.getItem('tim_touch'); if (v === '1') touchForced = true; else if (v === '0') touchForced = false; } catch (e) {}
+function applyTouchMode(on) { document.body.classList.toggle('touch', on); const b = ui('touchToggle'); if (b) b.textContent = on ? '📱 Controles táctiles: SÍ' : '📱 Controles táctiles: NO'; }
+function setTouchMode(on) { touchForced = on; try { localStorage.setItem('tim_touch', on ? '1' : '0'); } catch (e) {} applyTouchMode(on); }
+applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
+// Los controles táctiles SIEMPRE se enganchan (en PC no molestan: quedan ocultos sin la clase 'touch').
+{
   const TOUCH_LOOK_SENS = 0.0042;   // sensibilidad de mirar en celular (más bajo = más preciso)
   const canLook = () => state.running && !typing && (state.phase === 'DAY' || state.phase === 'NIGHT');
 

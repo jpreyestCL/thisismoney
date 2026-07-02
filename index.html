@@ -216,6 +216,7 @@
 <!-- Botón ❓ y menú de AYUDA con todas las teclas (se abre con I o con el botón) -->
 <button id="helpBtn" style="position:fixed; top:58px; left:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">❓</button>
 <button id="soundBtn" style="position:fixed; top:58px; left:58px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">🔊</button>
+<button id="exitBtn" style="position:fixed; top:58px; left:104px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:12px; font-weight:700; height:40px; padding:0 10px; display:none;">💾 Salir</button>
 <div id="help">
   <div style="max-width:640px; width:92vw; max-height:86vh; overflow:auto; background:rgba(2,6,23,.96); border:2px solid #34d399; border-radius:16px; padding:22px 26px;">
     <h2 style="margin:0 0 6px; color:#34d399;">📖 AYUDA — Todas las teclas</h2>
@@ -438,7 +439,7 @@ function makeSprite(frames, w, h) {
 }
 
 // El papá (usa tu imagen del señor mayor)
-const HOUSE = new THREE.Vector3(0, 0, 0);
+const HOUSE = new THREE.Vector3(0, 0, 24);   // zona de la casa: pasto abierto al lado opuesto de las tiendas (que están en -z)
 const dad = new THREE.Group();
 dad.position.set(2, 0, 9);
 dad.userData = { mode: 'follow', armed: false, atkCd: 0 };
@@ -984,6 +985,19 @@ buildDesert(120, -60);
 const arrow = new THREE.Group();
 const arrowCone = new THREE.Mesh(new THREE.ConeGeometry(.6, 1.4, 4), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
 arrow.add(arrowCone); scene.add(arrow);
+
+// Marcador "construye tu casa aquí": círculo verde + línea verde al cielo, en PASTO abierto
+// (lejos de tiendas, edificios y de la vista del súper). Se ve solo de día, en la Tierra,
+// y hasta que construyes tu casa (≥4 paredes).
+const homePlot = new THREE.Group();
+const plotPad = new THREE.Mesh(new THREE.CircleGeometry(4.2, 40), new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.18, side: THREE.DoubleSide }));
+plotPad.rotation.x = -Math.PI / 2; plotPad.position.y = 0.05; homePlot.add(plotPad);
+const plotRing = new THREE.Mesh(new THREE.RingGeometry(3.8, 4.4, 44), new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+plotRing.rotation.x = -Math.PI / 2; plotRing.position.y = 0.06; homePlot.add(plotRing);
+const plotBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 60, 10), new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.35 }));
+plotBeam.position.y = 30; homePlot.add(plotBeam);   // línea verde que apunta al cielo
+const plotSign = makeSign('CONSTRUYE TU CASA AQUI', 0x4ade80); plotSign.scale.set(.55, .55, .55); plotSign.position.y = 3.4; plotSign.userData.billboard = true; homePlot.add(plotSign);
+homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 
 // ===================================================================
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
@@ -1741,6 +1755,7 @@ function toggleHelp(force) {
 }
 ui('helpBtn').onclick = () => toggleHelp();
 ui('soundBtn').onclick = () => toggleSound();
+ui('exitBtn').onclick = () => saveAndExit();
 try { if (localStorage.getItem('tim_sound') === '0') soundOn = false; } catch (e) {}
 ui('soundBtn').textContent = soundOn ? '🔊' : '🔇';
 ui('helpClose').onclick = () => toggleHelp(false);
@@ -1857,7 +1872,18 @@ if (IS_TOUCH) {
   bindButtons(ui('moveBtns'));
 }
 
-function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; startMusic(); }
+function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; startMusic(); }
+// Guardar y salir al menú (botón 💾 Salir)
+function saveAndExit() {
+  saveGame();
+  state.running = false; state.driving = false;
+  if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+  if (engineGain) engineGain.gain.value = 0;
+  ui('hud').style.display = 'none'; ui('helpBtn').style.display = 'none'; ui('soundBtn').style.display = 'none'; ui('exitBtn').style.display = 'none';
+  ['jail', 'over'].forEach(s => ui(s).classList.add('hidden'));
+  ui('start').classList.remove('hidden');
+  ui('continueBtn').style.display = '';   // ya hay partida guardada para continuar
+}
 
 function startGame() {
   hideScreens();
@@ -2648,14 +2674,17 @@ function updateMovement(dt) {
 }
 
 function updateArrow() {
+  const ready = houseStats().ready;
   let target = HOUSE;
   if (state.meteorTriggered && state.rocket) target = state.rocket.position;
   else if (state.phase === 'NIGHT') target = HOUSE;
-  else if (!houseStats().ready) target = SUPER_POS;
+  else if (!ready) target = SUPER_POS;
   arrow.position.copy(player.position);
   arrow.position.y = PLAYER_EYE + 2.2 + Math.sin(performance.now() / 300) * 0.15;
   arrow.rotation.y = Math.atan2(target.x - player.position.x, target.z - player.position.z);
   arrowCone.rotation.set(Math.PI / 2, 0, 0);
+  // marcador "construye tu casa aquí": solo de día, en la Tierra, hasta que ya construiste
+  homePlot.visible = !ready && state.phase === 'DAY' && state.planet !== 'marte';
 }
 
 function updateDayNight(dt) {

@@ -748,7 +748,7 @@ function updateNPCs(dt) {
       // ATROPELLO: si lo alcanzas yendo con algo de velocidad → te vuelves BUSCADO
       if (d < 1.9 && Math.abs(car.userData.speed || 0) > 6) {
         if (!(n.userData.hitCd > 0)) {
-          n.userData.hitCd = 4; becomeWanted(15);
+          n.userData.hitCd = 4; becomeWanted(15, 2);
           toast('🚗💥 ¡Atropellaste a un peatón! Ahora te BUSCAN'); beep(110, 0.3, 0.07);
         }
         const len = d || 1;                        // el peatón sale despedido
@@ -929,20 +929,25 @@ function spawnPolice(n) {
   }
 }
 function clearPolice() { police.forEach(p => { if (p.userData.car) scene.remove(p.userData.car); scene.remove(p); }); police.length = 0; }
-// Te vuelves BUSCADO (solo al pegar o robar a alguien). La policía tarda unos segundos en llegar.
-function becomeWanted(sec) {
-  state.wanted = Math.max(state.wanted, sec);
-  if (police.length === 0 && state.policeDelay <= 0) state.policeDelay = 8;   // 8 s antes de que aparezcan
+// Te vuelves BUSCADO. Cada delito SUMA estrellas (nivel de búsqueda 1-5):
+// más estrellas = más policías, más rápidos y por más tiempo.
+function becomeWanted(sec, stars) {
+  stars = stars || 1;
+  state.wantedLevel = Math.min(5, state.wantedLevel + stars);
+  state.wanted = Math.max(state.wanted, sec + state.wantedLevel * 5);        // a más estrellas, dura más
+  if (police.length === 0 && state.policeDelay <= 0) state.policeDelay = Math.max(2, 8 - state.wantedLevel);   // a más estrellas, llegan antes
 }
 function updatePolice(dt) {
   if (state.wanted > 0) {
     state.wanted -= dt;
     if (state.policeDelay > 0) { state.policeDelay -= dt; return; }   // aún no llegan: aprovecha para huir
-    if (police.length === 0) spawnPolice(2);
     const driving = state.driving;              // si conduces, la policía te persigue EN AUTO
+    const desired = Math.min(6, Math.max(1, state.wantedLevel) + (driving ? 1 : 0));   // más estrellas → más patrullas
+    while (police.length < desired) spawnPolice(1);
+    const lvl = state.wantedLevel;
     for (const p of police) {
       setPoliceCar(p, driving);
-      const speed = driving ? 22 : 7;           // auto policial: más lento que tu auto (30) para que puedas huir; con TURBO (52) le sacas ventaja fácil
+      const speed = (driving ? 22 : 7) + lvl * (driving ? 1.2 : 0.4);   // base lenta (puedes huir); sube un poco por estrella pero sigue < tu auto (30) y muy por debajo del turbo (52)
       const catchD = driving ? 3.4 : 1.9;
       const d = dist2D(p.position, player.position);
       if (d <= catchD) { policeCatch(); return; }
@@ -954,9 +959,9 @@ function updatePolice(dt) {
         if (p.userData.light) p.userData.light.material.color.setHex((Math.floor(performance.now() / 250) % 2) ? 0xef4444 : 0x3b82f6);   // sirena
       } else { p.rotation.y = face; swingLimbs(p, dt); }
     }
-  } else if (police.length) clearPolice();
+  } else if (police.length || state.wantedLevel) { clearPolice(); state.wantedLevel = 0; }   // se acabó la búsqueda
 }
-function policeCatch() { state.wanted = 0; dropOutOfCar(); clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
+function policeCatch() { state.wanted = 0; state.wantedLevel = 0; dropOutOfCar(); clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
 
 // ===================================================================
 //  AUTOS: calles, tráfico, autos estacionados, conducir, robar y turbo
@@ -1133,7 +1138,7 @@ function enterCar(car) {
   if (car.userData.heading == null) car.userData.heading = car.rotation.y;
   viewmodel.visible = false; yaw = car.userData.heading; pitch = 0;
   if (car === state.ownCar) toast('🚗 Tu auto — acelera con W (Shift = TURBO). E para bajar');
-  else { toast('🚗 ¡Auto robado! La policía viene… ¡huye en TURBO (Shift)! E para bajar'); becomeWanted(18); }
+  else { toast('🚗 ¡Auto robado! La policía viene… ¡huye en TURBO (Shift)! E para bajar'); becomeWanted(18, 2); }
 }
 function dropOutOfCar() {
   if (!state.driving) return;
@@ -1764,7 +1769,7 @@ const state = {
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
   buildMode: false,
-  dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, policeDelay: 0, running: false,
+  dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
   driving: false, car: null, ownCar: null,   // autos
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
@@ -1950,7 +1955,7 @@ function startGame() {
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; setWeaponColor(0x94a3b8);
   state.inv = { wallWood: 0, wallRock: 0, door: 0, roof: 0, lamp: 0, oven: 0, ballesta: 0, torreta: 0, food: 0, semillas: 0 };
-  state.wanted = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
+  state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   houseTier = 0;
   player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
   dad.position.set(2, 0, 11); dad.userData.mode = 'follow'; dad.visible = true;
@@ -1969,7 +1974,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced);
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); state.wanted = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -2677,7 +2682,7 @@ function renderHUD() {
       else obj = '🏠 Para vender tu casa, ponle: ' + houseMissing(hs).join(', ') + ' · 🌙 N = noche';
     }
   } else if (state.phase === 'NIGHT') obj = '🗡️ ¡Defiende! Quedan ' + fmt(NIGHT_LENGTH - state.nightTime);
-  if (state.wanted > 0) obj = '🚨 ¡BUSCADO! Huye de la policía (corre con Shift) — ' + Math.ceil(state.wanted) + 's';
+  if (state.wanted > 0) obj = '🚨 ¡BUSCADO! ' + '⭐'.repeat(state.wantedLevel) + ' — Huye de la policía (Shift) — ' + Math.ceil(state.wanted) + 's';
   ui('objective').textContent = obj;
 }
 

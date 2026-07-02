@@ -1285,6 +1285,21 @@ const arrow = new THREE.Group();
 const arrowCone = new THREE.Mesh(new THREE.ConeGeometry(.6, 1.4, 4), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
 arrow.add(arrowCone); scene.add(arrow);
 
+// Baliza VERDE: marca el sitio de TU CASA (el "punto verde" del minimapa) para verlo de lejos y saber dónde construir.
+const homeBeacon = new THREE.Group();
+const beaconBeam = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.7, 0.7, 60, 12, 1, true),
+  new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false })
+);
+beaconBeam.position.y = 30; homeBeacon.add(beaconBeam);
+const beaconRing = new THREE.Mesh(
+  new THREE.RingGeometry(3.0, 3.9, 40),
+  new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false })
+);
+beaconRing.rotation.x = -Math.PI / 2; beaconRing.position.y = 0.06; homeBeacon.add(beaconRing);
+const homeSign = makeSign('TU CASA', 0x4ade80); homeSign.position.y = 6.5; homeBeacon.add(homeSign);
+homeBeacon.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homeBeacon);
+
 // ===================================================================
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
 // ===================================================================
@@ -2502,14 +2517,18 @@ function updateMovement(dt) {
 }
 
 function updateArrow() {
+  const ready = houseStats().ready;
   let target = HOUSE;
   if (state.meteorTriggered && state.rocket) target = state.rocket.position;
   else if (state.phase === 'NIGHT') target = HOUSE;
-  else if (!houseStats().ready) target = SUPER_POS;
+  else if (!ready) target = SUPER_POS;
   arrow.position.copy(player.position);
   arrow.position.y = PLAYER_EYE + 2.2 + Math.sin(performance.now() / 300) * 0.15;
   arrow.rotation.y = Math.atan2(target.x - player.position.x, target.z - player.position.z);
   arrowCone.rotation.set(Math.PI / 2, 0, 0);
+  // La baliza verde se muestra mientras no tengas la casa (te dice dónde construir) y reaparece si la vendes/derribas.
+  homeBeacon.visible = !ready && !state.meteorTriggered;
+  beaconRing.material.opacity = 0.3 + (0.5 + Math.sin(performance.now() / 500) * 0.5) * 0.4;
 }
 
 function updateDayNight(dt) {

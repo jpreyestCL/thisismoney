@@ -1703,14 +1703,18 @@ function updateDefenses(dt) {
 //  AYUDANTES (hijos) — se desbloquean con la mamá
 // ===================================================================
 const helpers = [];
+function makeHelperAt(x, z) {   // crea un ayudante en (x,z) sin cobrar (usado por spawnHelper y loadGame)
+  const h = makePerson(0xf472b6, 0xf1c27d); h.scale.set(0.7, 0.7, 0.7);
+  h.position.set(x, 0, z); h.userData.atkCd = 0; scene.add(h); helpers.push(h);
+  return h;
+}
+function clearHelpers() { helpers.forEach(h => scene.remove(h)); helpers.length = 0; }
 function spawnHelper() {
   if (state.phase !== 'DAY') { toast('Solo puedes llamar ayudantes de día'); return; }
   if (!state.momUnlocked) { toast('Necesitas conocer a la mamá (a las $20.000)'); return; }
   if (state.money < 300) { toast('Un ayudante cuesta $300'); return; }
   state.money -= 300;
-  const h = makePerson(0xf472b6, 0xf1c27d); h.scale.set(0.7, 0.7, 0.7);
-  h.position.set(HOUSE.x + (Math.random() * 4 - 2), 0, HOUSE.z + 6);
-  h.userData.atkCd = 0; scene.add(h); helpers.push(h);
+  makeHelperAt(HOUSE.x + (Math.random() * 4 - 2), HOUSE.z + 6);
   toast('👧 ¡Nuevo ayudante! (' + helpers.length + ')');
 }
 function updateHelpers(dt) {
@@ -1756,13 +1760,20 @@ function updateDirt(dt) {
 //  PAPÁ — obedece teclas y pelea si está armado
 // ===================================================================
 function setDadMode(m) { dad.userData.mode = m; toast('👨 Papá: ' + ({ follow: 'te sigue', stay: 'se queda quieto', clean: 'a limpiar' })[m]); }
-function toggleDadArm() {
-  if (!state.dadGun) { toast('Compra un "Arma papá" en el súper'); return; }
-  dad.userData.armed = !dad.userData.armed;
-  if (dad.userData.armed && !dad.userData.weapon) {
+function ensureDadWeapon() {   // crea el arma del papá una sola vez
+  if (!dad.userData.weapon) {
     const w = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.16), mat(0xf59e0b)); w.position.set(0.6, 1.3, 0.3); dad.add(w); dad.userData.weapon = w;
   }
-  if (dad.userData.weapon) dad.userData.weapon.visible = dad.userData.armed;
+  return dad.userData.weapon;
+}
+function applyDadArmed(v) {   // pone/quita el arma (compartido por G y por loadGame)
+  dad.userData.armed = v;
+  if (v) ensureDadWeapon();
+  if (dad.userData.weapon) dad.userData.weapon.visible = v;
+}
+function toggleDadArm() {
+  if (!state.dadGun) { toast('Compra un "Arma papá" en el súper'); return; }
+  applyDadArmed(!dad.userData.armed);
   toast(dad.userData.armed ? '🔫 Papá armado: peleará de noche' : 'Papá desarmado');
 }
 function updateDad(dt) {
@@ -2164,7 +2175,7 @@ function saveAndExit() {
 function startGame() {
   hideScreens();
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
-  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt();
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPlants(); clearHelpers();
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setCityVisible(true);
   state.phase = 'DAY'; state.running = true;
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
@@ -2190,6 +2201,9 @@ function saveGame() {
       houseTier: houseTier, inv: state.inv, px: player.position.x, pz: player.position.z,
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
       car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp } : null,
+      plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
+      helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
+      dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z,   // papá: modo, arma y posición
     };
     localStorage.setItem('tim_save', JSON.stringify(data));
   } catch (e) {}
@@ -2199,7 +2213,7 @@ function clearSave() { try { localStorage.removeItem('tim_save'); } catch (e) {}
 function loadGame() {
   let d; try { d = JSON.parse(localStorage.getItem('tim_save')); } catch (e) { return false; }
   if (!d) return false;
-  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPolice();
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPolice(); clearPlants(); clearHelpers();
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, night: d.night || 0,
@@ -2215,8 +2229,12 @@ function loadGame() {
   if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp });
   if (state.planet === 'marte') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setCityVisible(false); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setCityVisible(true); }
+  (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
+  (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
-  dad.visible = true; dad.position.set(12, 0, 13); dad.userData.mode = 'follow';
+  dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
+  dad.userData.mode = d.dadMode || 'follow';
+  applyDadArmed(!!d.dadArmed && state.dadGun);   // repone el arma del papá si estaba armado
   return true;
 }
 function continueGame() {
@@ -2484,16 +2502,27 @@ function sellHouse() {
 //  HUERTO: plantar semillas de manzana (tecla K) y cosechar manzanas
 // ===================================================================
 const plants = [];
+function spawnPlant(x, z, grow, apples) {   // crea/recrea un árbol con su crecimiento y manzanas (usado por plantSeed y loadGame)
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1, 6), mat(0x7c4a1e)); trunk.position.y = 0.5; g.add(trunk);
+  const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), mat(0x2f9e44)); leaves.position.y = 1.4; g.add(leaves);
+  g.position.set(x, 0, z);
+  const pl = { mesh: g, grow: Math.min(1, grow || 0), apples: 0, appleMeshes: [] };
+  g.scale.setScalar(0.25 + pl.grow * 0.75); scene.add(g);
+  plants.push(pl);
+  for (let i = 0; i < (apples || 0); i++) {   // repone las manzanas ya crecidas
+    const a = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), mat(0xef4444));
+    a.position.set((Math.random() - 0.5) * 1, 1.4 + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 1);
+    g.add(a); pl.appleMeshes.push(a); pl.apples++;
+  }
+  return pl;
+}
 function plantSeed() {
   if ((state.inv.semillas || 0) <= 0) { toast('🌱 No tienes semillas (cómpralas en el SÚPER)'); return; }
   state.inv.semillas--;
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const pos = player.position.clone().addScaledVector(fwd, 2.5); pos.y = 0;
-  const g = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1, 6), mat(0x7c4a1e)); trunk.position.y = 0.5; g.add(trunk);
-  const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), mat(0x2f9e44)); leaves.position.y = 1.4; g.add(leaves);
-  g.position.copy(pos); g.scale.setScalar(0.25); scene.add(g);   // empieza chiquita (brote)
-  plants.push({ mesh: g, grow: 0, apples: 0, appleMeshes: [] });
+  spawnPlant(pos.x, pos.z, 0, 0);   // empieza chiquita (brote)
   toast('🌱 Plantaste una semilla. Crecerá y dará manzanas (acércate para cosechar)');
 }
 function updatePlants(dt) {
@@ -2640,7 +2669,7 @@ function updateCinematic(dt) {
 function goToPlanet() {
   state.planet = 'marte'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
-  clearPlants(); dad.visible = true;
+  clearPlants(); clearHelpers(); dad.visible = true;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Marte no te persigue la policía terrestre

@@ -84,9 +84,15 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
 ## Guardado, audio, minimapa, auto y Marte (mejoras)
 
 - **Guardado (localStorage, clave `tim_save`)**: `saveGame()` serializa stats + inventario + casa
-  (`placed`) + auto + planeta; `loadGame()` reconstruye todo con `spawnPlaced()`/`spawnCar(opts)`.
-  Autosave al superar la noche, al ocultar/cerrar la pestaña y cada 15 s. Botón **CONTINUAR** en el
-  inicio si hay partida (`hasSave()`); **JUGAR DE NUEVO** borra el save (`clearSave()`).
+  (`placed`) + auto + planeta + **huerto (`plants`: x/z/grow/apples) + ayudantes (`helpers`: x/z) +
+  papá (modo, armado, posición)**; `loadGame()` reconstruye todo con `spawnPlaced()`/`spawnCar(opts)`/
+  `spawnPlant(x,z,grow,apples)`/`makeHelperAt(x,z)`/`applyDadArmed(v)`. Autosave al superar la noche,
+  al ocultar/cerrar la pestaña y cada 15 s. Botón **CONTINUAR** en el inicio si hay partida
+  (`hasSave()`); **JUGAR DE NUEVO** borra el save (`clearSave()`).
+  - Helpers reutilizables para evitar duplicar geometría/estado: `spawnPlant` (usado por `plantSeed` y
+    `loadGame`), `makeHelperAt`/`clearHelpers` (usado por `spawnHelper` y `loadGame`),
+    `ensureDadWeapon`/`applyDadArmed` (usado por `toggleDadArm` y `loadGame`). `startGame` y
+    `goToPlanet` limpian `plants`+`helpers` (empezar de cero / viajar a Marte).
 - **Audio**: `tone()`/`beep()` (SFX), `ensureEngine()` (motor del auto, oscilador continuo),
   `startMusic()` (música ambiental día/noche vía `setInterval`). Botón **🔊/🔇** (`toggleSound`,
   se guarda en `tim_sound`). Todo pasa por `ensureAudio()` (resume en gesto).

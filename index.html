@@ -937,27 +937,50 @@ function spawnPolice(n) {
     scene.add(p); police.push(p);
   }
 }
-function clearPolice() { police.forEach(p => scene.remove(p)); police.length = 0; }
-// Te vuelves BUSCADO (solo al pegar o robar a alguien). La policía tarda unos segundos en llegar.
-function becomeWanted(sec) {
-  state.wanted = Math.max(state.wanted, sec);
-  if (police.length === 0 && state.policeDelay <= 0) state.policeDelay = 8;   // 8 s antes de que aparezcan
+function clearPolice() { police.forEach(p => { if (p.userData.car) scene.remove(p.userData.car); scene.remove(p); }); police.length = 0; }
+// Le engancha (o le quita) un auto patrulla con sirena al policía según si vas conduciendo
+function setPoliceCar(p, driving) {
+  if (driving && !p.userData.car) {
+    const c = makeCar(0x1e3a8a);
+    const light = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.5), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 1 }));
+    light.position.set(0, 1.95, 0); c.add(light);
+    p.userData.car = c; p.userData.light = light; scene.add(c); p.visible = false;
+  } else if (!driving && p.userData.car) {
+    scene.remove(p.userData.car); p.userData.car = null; p.userData.light = null; p.visible = true;
+  }
+}
+// Te vuelves BUSCADO. Cada delito SUMA estrellas (1-5): más estrellas = más policías, más rápidos y por más tiempo.
+function becomeWanted(sec, stars) {
+  stars = stars || 1;
+  state.wantedLevel = Math.min(5, (state.wantedLevel || 0) + stars);
+  state.wanted = Math.max(state.wanted, sec + state.wantedLevel * 5);
+  if (police.length === 0 && state.policeDelay <= 0) state.policeDelay = Math.max(2, 8 - state.wantedLevel);
 }
 function updatePolice(dt) {
   if (state.wanted > 0) {
     state.wanted -= dt;
     if (state.policeDelay > 0) { state.policeDelay -= dt; return; }   // aún no llegan: aprovecha para huir
-    if (police.length === 0) spawnPolice(2);
+    const driving = state.driving;              // si conduces, la policía te persigue EN AUTO
+    const lvl = Math.max(1, state.wantedLevel || 1);
+    const desired = Math.min(6, lvl + (driving ? 1 : 0));
+    while (police.length < desired) spawnPolice(1);
     for (const p of police) {
+      setPoliceCar(p, driving);
+      const speed = (driving ? 22 : 7) + lvl * (driving ? 1.2 : 0.4);
+      const catchD = driving ? 3.4 : 1.9;
       const d = dist2D(p.position, player.position);
-      if (d <= 1.9) { policeCatch(); return; }
-      moveToward(p, player.position, 7 * dt);   // más lenta que antes: puedes escapar corriendo (Shift)
-      p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
-      swingLimbs(p, dt);
+      if (d <= catchD) { policeCatch(); return; }
+      moveToward(p, player.position, speed * dt);
+      const face = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
+      if (p.userData.car) {
+        p.userData.car.position.set(p.position.x, 0, p.position.z);
+        p.userData.car.rotation.y = face;
+        if (p.userData.light) p.userData.light.material.color.setHex((Math.floor(performance.now() / 250) % 2) ? 0xef4444 : 0x3b82f6);   // sirena
+      } else { p.rotation.y = face; swingLimbs(p, dt); }
     }
-  } else if (police.length) clearPolice();
+  } else if (police.length || state.wantedLevel) { clearPolice(); state.wantedLevel = 0; }   // se acabó la búsqueda
 }
-function policeCatch() { state.wanted = 0; clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
+function policeCatch() { state.wanted = 0; state.wantedLevel = 0; state.driving = false; clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
 
 // Robar a la gente del estadio (con E cerca). Riesgo: que te persiga la policía
 function tryRob() {
@@ -965,7 +988,7 @@ function tryRob() {
     if (!v.userData.robbed && dist2D(player.position, v.position) < 6) {
       v.userData.robbed = true;
       const loot = 100 + Math.floor(Math.random() * 300); addMoney(loot);
-      if (Math.random() < 0.6) { becomeWanted(18); toast('🚨 ¡Robaste $' + loot + ' pero te vieron! ¡Corre (Shift)! La policía viene…'); }
+      if (Math.random() < 0.6) { becomeWanted(18, 2); toast('🚨 ¡Robaste $' + loot + ' pero te vieron! ¡Corre! La policía viene…'); }
       else toast('🤑 Robaste $' + loot + ' sin que te vieran');
       return;
     }
@@ -1769,7 +1792,7 @@ const state = {
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
   buildMode: false,
-  dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, policeDelay: 0, running: false,
+  dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -2119,7 +2142,7 @@ function startGame() {
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; setWeaponColor(0x94a3b8);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
-  state.wanted = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
+  state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   houseTier = 0;
   player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
   dad.position.set(2, 0, 11); dad.userData.mode = 'follow'; dad.visible = true;
@@ -2153,7 +2176,7 @@ function loadGame() {
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, night: d.night || 0,
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: d.planet || 'tierra',
-    wanted: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
+    wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
   });
   lastHp = state.hp;
   state.inv = Object.assign(freshInv(), d.inv || {});
@@ -2186,7 +2209,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); state.wanted = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -2242,20 +2265,41 @@ function spawnCar(opts) {
   car = { group: g, wheels, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
   if (!opts) toast('🚗 ¡Auto comprado! Acércate y pulsa E para subir y conducir');
 }
-// Subir / bajar del auto (tecla E)
+// Auto más cercano de la CALLE (tráfico o estacionado) para robar
+function nearestStreetCar(maxD) {
+  let best = null, bd = maxD;
+  for (const c of traffic.concat(parkedCars)) { const d = dist2D(player.position, c.position); if (d < bd) { bd = d; best = c; } }
+  return best;
+}
+// Convierte un auto de la calle en TU auto y te subes (delito: la policía viene)
+function stealCar(g) {
+  let i = traffic.indexOf(g); if (i >= 0) traffic.splice(i, 1);
+  i = parkedCars.indexOf(g); if (i >= 0) parkedCars.splice(i, 1);
+  if (g.userData.obstacle) { const j = obstacles.indexOf(g.userData.obstacle); if (j >= 0) obstacles.splice(j, 1); g.userData.obstacle = null; }
+  g.userData.moving = false;
+  const barG = new THREE.Group(); barG.userData.billboard = true;
+  const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+  const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
+  barG.add(bbg); barG.add(bfg); scene.add(barG);
+  car = { group: g, wheels: [], hp: 100, maxHp: 100, heading: (g.userData.heading != null ? g.userData.heading : g.rotation.y), dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
+  state.driving = true; yaw = car.heading; state.buildMode = false;
+  becomeWanted(18, 2);
+  toast('🚗 ¡Auto robado! La policía viene… ¡huye en TURBO (correr)! E para bajar');
+}
+// Subir / bajar del auto (tecla E). Si no tienes auto cerca, puedes ROBAR uno de la calle.
 function toggleCar() {
-  if (!car) return false;
-  if (state.driving) {
+  if (state.driving && car) {
     state.driving = false;
     const side = new THREE.Vector3(Math.cos(car.heading), 0, -Math.sin(car.heading));
     const p = car.group.position.clone().addScaledVector(side, 2.4);
     player.position.set(p.x, PLAYER_EYE, p.z);
     toast('🚶 Bajaste del auto'); return true;
   }
-  if (dist2D(player.position, car.group.position) < 4.5) {
+  if (car && dist2D(player.position, car.group.position) < 4.5) {
     state.driving = true; yaw = car.heading; state.buildMode = false;
-    toast('🚗 Conduces: W/S avanzar y retroceder · A/D girar · E para bajar'); return true;
+    toast('🚗 Conduces: W/S avanzar · A/D girar · Shift/correr TURBO · 👊/Espacio bocina · E bajar'); return true;
   }
+  if (!car) { const street = nearestStreetCar(4.2); if (street) { stealCar(street); return true; } }   // robar un auto de la calle (si no tienes uno)
   return false;
 }
 // Conducir: reemplaza el caminar mientras state.driving
@@ -2287,6 +2331,15 @@ function updateDriving(dt) {
   // atropellar monstruos si vas con algo de velocidad
   if (Math.abs(move) > 0.06) {
     for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 2.3) hitEnemy(e, 40, car.group.position); }
+    // atropellar a un PEATÓN te vuelve buscado (empújalo)
+    for (const n of npcs) {
+      if (dist2D(n.position, car.group.position) < 2.3) {
+        const dx = n.position.x - car.group.position.x, dz = n.position.z - car.group.position.z, len = Math.hypot(dx, dz) || 1;
+        n.position.x += dx / len * 1.5; n.position.z += dz / len * 1.5;
+        if (state.wanted <= 0) toast('🚨 ¡Atropellaste a alguien! BUSCADO');
+        becomeWanted(15, 2);
+      }
+    }
   }
   // sonido de motor (frecuencia según acelerador)
   car.enginePow = Math.abs(throttle);
@@ -2610,7 +2663,7 @@ function attackNPC() {
   vmSwing = 1; beep(300, 0.05, 0.03);
   const push = new THREE.Vector3().subVectors(best.position, p).setY(0).normalize().multiplyScalar(1.2);
   best.position.add(push);   // empujón
-  becomeWanted(18);
+  becomeWanted(18, 1);
   toast('👊 ¡Le pegaste a alguien! Te volviste BUSCADO… ¡corre (Shift)!');
 }
 
@@ -3052,7 +3105,7 @@ function renderHUD() {
     else if (!houseStats().ready) obj = '🛒 Compra en el súper (mantén E) y construye 4 paredes (B)';
     else obj = '🌙 Pulsa N para la noche · 🏆 casa dorada en la ciudad (E cerca)';
   } else if (state.phase === 'NIGHT') obj = '🗡️ ¡Defiende! Quedan ' + fmt(NIGHT_LENGTH - state.nightTime);
-  if (state.wanted > 0) obj = '🚨 ¡BUSCADO! Huye de la policía (corre con Shift) — ' + Math.ceil(state.wanted) + 's';
+  if (state.wanted > 0) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';
   ui('objective').textContent = obj;
 }
 

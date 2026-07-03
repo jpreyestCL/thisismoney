@@ -1801,6 +1801,8 @@ function tone(freq, dur, vol, type) {
   } catch (e) {}
 }
 function beep(freq, dur, vol) { tone(freq, dur, vol, 'square'); }
+let lastHonk = 0;
+function honk() { const t = performance.now(); if (t - lastHonk < 300) return; lastHonk = t; tone(420, 0.18, 0.06, 'square'); setTimeout(() => tone(360, 0.16, 0.06, 'square'), 90); }
 
 // --- Motor del auto (oscilador continuo, ganancia según acelerador) ---
 let engineOsc = null, engineGain = null;
@@ -2058,7 +2060,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
   function press(act) {
     if (typing && act !== 'shop') return;   // con el vendedor abierto, ciérralo antes
     switch (act) {
-      case 'hit': if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
+      case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
       case 'interact': if (!toggleCar()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
@@ -2263,10 +2265,12 @@ function updateDriving(dt) {
   // mirar arriba/abajo con las flechas o el arrastre (pitch); el yaw sigue al auto
   if (keys['ArrowUp']) pitch += 1.8 * dt; if (keys['ArrowDown']) pitch -= 1.8 * dt;
   pitch = Math.max(-1.2, Math.min(1.2, pitch));
+  if (keys['Space']) honk();   // bocina (también el botón 👊 en móvil)
   car.heading += steer * 1.9 * dt * (Math.abs(throttle) > 0.05 ? 1 : 0.55);
   const fwd = new THREE.Vector3(-Math.sin(car.heading), 0, -Math.cos(car.heading));
   const turbo = keys['ShiftLeft'] || keys['ShiftRight'] || touch.run;   // TURBO al conducir
   const move = throttle * (turbo ? 44 : 24) * dt;
+  car.speed = Math.abs(throttle) * (turbo ? 44 : 24);   // para el velocímetro
   const prevX = car.group.position.x, prevZ = car.group.position.z;
   car.group.position.addScaledVector(fwd, move);
   car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -110, 110);
@@ -3037,7 +3041,7 @@ function renderHUD() {
   if (state.dadGun) gear.push('🔫 papá');
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
-  if (car) gear.push('🚗 ' + Math.max(0, Math.round(car.hp)) + (state.driving ? ' (conduciendo)' : ''));
+  if (car) gear.push('🚗 ' + Math.max(0, Math.round(car.hp)) + (state.driving ? ' · 🏎️ ' + Math.round((car.speed || 0) * 3.6) + ' km/h' : ''));
   if (state.poison > 0) gear.push('🟢 veneno ' + Math.ceil(state.poison) + 's');
   ui('gearhud').innerHTML = gear.join(' · ');
 

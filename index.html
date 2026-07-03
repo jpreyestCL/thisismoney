@@ -158,15 +158,13 @@
       <circle id="ring-fg" cx="45" cy="45" r="38" stroke="#4ade80" stroke-width="7" fill="none" stroke-dasharray="239" stroke-dashoffset="239" stroke-linecap="round"/></svg>
     <div class="label" id="ring-label"></div>
   </div>
-  <div id="shopbox" style="position:absolute; bottom:200px; left:50%; transform:translateX(-50%); display:none; pointer-events:all; background:rgba(0,0,0,.8); padding:14px 18px; border-radius:14px; text-align:center;">
-    <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:#34d399">VENDEDOR — escribe qué comprar y pulsa Enter (Esc cierra)</div>
-    <div style="font-size:11px; opacity:.75; margin-bottom:8px; max-width:340px">Hay de todo: auto ($2000), cuadro ($300), mesa, silla, cama, sofá, tele, planta, ventana ($50), pintura roja/azul/verde… ($400 pinta la casa), armas, comida y construcción.</div>
-    <input id="shopInput" type="text" placeholder="ej: auto, cuadro, ventana, pintura roja, sofá…" autocomplete="off"
-      style="width:320px; max-width:80vw; padding:10px 12px; font-size:15px; border-radius:8px; border:2px solid #34d399; background:#0b1220; color:#fff; outline:none;">
-    <div style="margin-top:8px; display:flex; gap:8px; justify-content:center;">
-      <button id="shopBuyBtn" style="pointer-events:all; cursor:pointer; background:#22c55e; color:#042; border:none; padding:8px 18px; font-size:14px; font-weight:800; border-radius:8px;">Comprar</button>
-      <button id="shopCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 18px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar</button>
-    </div>
+  <div id="shopbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.95); border:2px solid #34d399; padding:12px 12px 10px; border-radius:14px; text-align:center; width:min(94vw,440px); max-height:82vh; flex-direction:column;">
+    <div style="font-size:14px; font-weight:800; color:#34d399">🛒 VENDEDOR — toca lo que quieras comprar</div>
+    <div style="font-size:11px; opacity:.6; margin:2px 0 6px">Dinero: <b id="shopMoney" style="color:#4ade80">$0</b></div>
+    <input id="shopInput" type="text" placeholder="🔎 filtrar (ej: espada, pintura, comida)…" autocomplete="off"
+      style="width:100%; padding:8px 10px; font-size:14px; border-radius:8px; border:1px solid #34d399; background:#0b1220; color:#fff; outline:none;">
+    <div id="shopList" style="overflow-y:auto; margin-top:8px; display:flex; flex-direction:column; gap:5px; -webkit-overflow-scrolling:touch; text-align:left;"></div>
+    <button id="shopCloseBtn" style="margin-top:8px; pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:9px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
   </div>
   <!-- ===== Controles táctiles (celular) ===== -->
   <div id="joystick"><div id="joyKnob"></div></div>
@@ -1896,21 +1894,49 @@ function openShopInput() {
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
   const box = ui('shopbox'), inp = ui('shopInput');
-  box.style.display = 'block'; inp.value = ''; inp.focus();
+  box.style.display = 'flex'; inp.value = '';
+  renderShopList('');
+  if (!document.body.classList.contains('touch')) inp.focus();   // en PC enfoca; en celular NO (para no abrir el teclado y tapar la lista)
 }
 function closeShopInput() {
   typing = false;
   ui('shopbox').style.display = 'none';
   ui('shopInput').blur();
 }
-function processShopBuy() {
-  const text = ui('shopInput').value.trim().toLowerCase();
-  if (!text) { closeShopInput(); return; }
-  const item = SHOP.find(s => s.name.toLowerCase().includes(text));
-  if (!item) { toast('🤔 No existe "' + text + '" (prueba: espada metal, madera, comida…)'); ui('shopInput').value = ''; return; }
-  if (state.money < item.price) { toast('💸 Te falta plata para ' + item.name + ' ($' + item.price + ')'); ui('shopInput').value = ''; return; }
+function shopIcon(item) {
+  if (item.car) return '🚗'; if (item.paint) return '🎨';
+  if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
+  if (item.factor) return '🛡️'; if (item.key === 'semillas') return '🌱';
+  if (item.key === 'dadgun') return '🔫'; if (item.key === 'rocket') return '🚀';
+  if (item.build) return '🧱'; return '🛒';
+}
+// Menú de tienda: una fila por producto; tocar = comprar (sin teclado)
+function renderShopList(filter) {
+  const list = ui('shopList'); if (!list) return;
+  ui('shopMoney').textContent = '$' + state.money;
+  const f = (filter || '').trim().toLowerCase();
+  list.innerHTML = '';
+  SHOP.filter(it => !f || it.name.toLowerCase().includes(f)).forEach(it => {
+    const can = state.money >= it.price;
+    const row = document.createElement('button');
+    row.className = 'shopRow';
+    row.style.cssText = 'display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:8px; padding:8px 10px; font-size:14px; font-weight:700; color:#fff; background:' + (can ? 'rgba(34,197,94,.18)' : 'rgba(255,255,255,.06)') + '; opacity:' + (can ? '1' : '.5') + ';';
+    row.innerHTML = '<span style="font-size:18px">' + shopIcon(it) + '</span><span style="flex:1">' + it.name + '</span><span style="color:' + (can ? '#4ade80' : '#f87171') + '">$' + it.price + '</span>';
+    row.onclick = () => buyShopItem(it);
+    list.appendChild(row);
+  });
+}
+function buyShopItem(item) {
+  if (state.money < item.price) { toast('💸 Te falta plata para ' + item.name + ' ($' + item.price + ')'); return; }
   buyItem(item);
-  ui('shopInput').value = '';   // queda abierto para seguir comprando
+  renderShopList(ui('shopInput').value);   // refresca precios/dinero y el estado de cada fila
+}
+function processShopBuy() {   // Enter en PC: compra el primero que coincide con el filtro
+  const text = ui('shopInput').value.trim().toLowerCase();
+  if (!text) return;
+  const item = SHOP.find(s => s.name.toLowerCase().includes(text));
+  if (!item) { toast('🤔 No existe "' + text + '"'); return; }
+  buyShopItem(item);
 }
 
 // Cámara libre: mueves el mouse (sin hacer clic) y la cámara mira hacia allá
@@ -1953,16 +1979,17 @@ ui('shopInput').addEventListener('keydown', e => {
   if (e.code === 'Enter') processShopBuy();
   else if (e.code === 'Escape') closeShopInput();
 });
-ui('shopBuyBtn').onclick = processShopBuy;      // botón (útil en celular)
+ui('shopInput').addEventListener('input', () => renderShopList(ui('shopInput').value));   // filtra la lista al escribir
 ui('shopCloseBtn').onclick = closeShopInput;
 
 // ===================================================================
 //  CONTROLES TÁCTILES (celular / tablet)
 // ===================================================================
-// Tocar un slot del hotbar lo selecciona (sirve también con mouse en PC)
-ui('buildbar').addEventListener('pointerdown', e => {
+// Tocar un slot del hotbar lo selecciona. Usamos 'click' (no 'pointerdown') para NO
+// bloquear el scroll horizontal de la barra en celular: swipe = scrollear, tap = elegir.
+ui('buildbar').addEventListener('click', e => {
   const slot = e.target.closest('.slot'); if (!slot) return;
-  const n = +slot.dataset.slot; if (n) { selectSlot(n); e.preventDefault(); }
+  const n = +slot.dataset.slot; if (n) selectSlot(n);
 });
 
 // Detección de celular. Se puede FORZAR con el interruptor del menú de ayuda (se guarda).

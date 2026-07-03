@@ -1162,17 +1162,35 @@ function carAhead(car) {
   for (const o of traffic) if (o !== car && o.userData.road === r && blocks(o.position.x, o.position.z)) return true;
   return false;
 }
+// ¿Hay un EDIFICIO (obstáculo grande, no un auto estacionado) en (x,z)?
+function insideBuilding(x, z) {
+  for (const o of obstacles) {
+    if ((o.maxX - o.minX) < 6 && (o.maxZ - o.minZ) < 6) continue;   // ignora obstáculos chicos (autos estacionados)
+    if (x > o.minX - 1 && x < o.maxX + 1 && z > o.minZ - 1 && z < o.maxZ + 1) return true;
+  }
+  return false;
+}
 function updateTraffic(dt) {
   for (const car of traffic) {
     if (!car.userData.moving) continue;
     if (carAhead(car) || stoppedByLight(car)) continue;
-    const r = car.userData.road, dir = car.userData.dir, spd = car.userData.speed;
+    const r = car.userData.road, spd = car.userData.speed; let dir = car.userData.dir;
+    let nx = car.position.x, nz = car.position.z;
+    if (r.horizontal) nx += dir * spd * dt; else nz += dir * spd * dt;
+    // si va a ENTRAR a un edificio (y está afuera), se da la vuelta para esquivarlo.
+    // si ya está adentro (p.ej. apareció ahí), sigue derecho hasta salir.
+    if (insideBuilding(nx, nz) && !insideBuilding(car.position.x, car.position.z)) {
+      dir = -dir; car.userData.dir = dir;
+      car.userData.heading = r.horizontal ? (dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir > 0 ? 0 : Math.PI);
+      car.rotation.y = car.userData.heading;
+      continue;
+    }
     if (r.horizontal) {
-      car.position.x += dir * spd * dt;
+      car.position.x = nx;
       if (car.position.x > r.cx + r.len / 2) car.position.x = r.cx - r.len / 2;
       else if (car.position.x < r.cx - r.len / 2) car.position.x = r.cx + r.len / 2;
     } else {
-      car.position.z += dir * spd * dt;
+      car.position.z = nz;
       if (car.position.z > r.cz + r.len / 2) car.position.z = r.cz - r.len / 2;
       else if (car.position.z < r.cz - r.len / 2) car.position.z = r.cz + r.len / 2;
     }

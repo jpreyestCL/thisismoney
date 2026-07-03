@@ -88,6 +88,33 @@
   .tbtn.big { font-size: 24px; background: rgba(239,68,68,.6); border-color: rgba(255,120,120,.7); }
   #moreBtns { display: none; }
   #moreBtns.open { display: contents; }
+
+  /* ===== UI COMPACTA PARA CELULAR (sin superposiciones, todo accesible) ===== */
+  body.touch .topbar { top: 6px; left: 6px; right: 6px; gap: 4px; }
+  body.touch .stat { padding: 3px 7px; border-radius: 8px; }
+  body.touch .stat b { font-size: 8px; letter-spacing: .3px; }
+  body.touch .stat span { font-size: 13px; }
+  body.touch .bar { width: 72px; height: 7px; margin-top: 2px; }
+  body.touch #helpBtn  { top: 46px; left: 6px;  width: 34px; height: 34px; font-size: 15px; }
+  body.touch #soundBtn { top: 46px; left: 44px; width: 34px; height: 34px; font-size: 15px; }
+  body.touch #exitBtn  { top: 46px; left: 82px; height: 34px; font-size: 10px; padding: 0 8px; }
+  body.touch #minimap  { top: 46px !important; right: 6px !important; width: 100px !important; height: 100px !important; }
+  body.touch #objective { top: 84px; font-size: 12px; padding: 4px 10px; max-width: 58%; }
+  body.touch #gearhud { top: 150px; right: 6px; left: auto; bottom: auto; font-size: 10px; padding: 3px 6px; max-width: 40vw; text-align: right; }
+  body.touch #dadhud { display: none; }
+  /* hotbar: fila compacta con scroll horizontal; solo aparece en modo construir (lo pone el JS) */
+  body.touch #buildbar { bottom: 16px; gap: 4px; padding: 3px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; max-width: 52vw; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
+  body.touch .slot { width: 46px; height: 46px; }
+  body.touch .slot .ic { font-size: 17px; }
+  body.touch .slot .nm { font-size: 7px; }
+  body.touch .slot .ct { font-size: 10px; }
+  body.touch #rotateBtn, body.touch #deleteBtn { display: none !important; }
+  /* botones táctiles un poco más chicos para que quepan todos (incluido el panel "más") */
+  body.touch .tbtn { width: 46px; height: 46px; font-size: 19px; }
+  body.touch #touchBtns { width: 150px; }
+  body.touch #moveBtns { left: 158px; }
+  body.touch .tbtn small { margin-top: 27px; font-size: 8px; }
+
   #rotateHint { display: none; }
   @media (orientation: portrait) {
     body.touch #rotateHint { display: flex; position: fixed; inset: 0; z-index: 30; flex-direction: column;
@@ -149,18 +176,19 @@
     <div class="tbtn" data-act="crouch">🧎<small>agachar</small></div>
   </div>
   <div id="touchBtns">
-    <div class="tbtn big" data-act="hit">👊</div>
-    <div class="tbtn" data-act="interact">🤝<small>E</small></div>
-    <div class="tbtn" data-act="shop">🛒<small>Y</small></div>
-    <div class="tbtn" data-act="eat">🍖<small>Q</small></div>
-    <div class="tbtn" data-act="night">🌙<small>N</small></div>
-    <div class="tbtn" data-act="build">🔨<small>B</small></div>
-    <div class="tbtn" data-act="place">✋<small>F</small></div>
-    <div class="tbtn" data-act="dig">🪏<small>T</small></div>
-    <div class="tbtn" data-act="plant">🌱<small>K</small></div>
+    <div class="tbtn big" data-act="hit">👊<small>pegar</small></div>
+    <div class="tbtn" data-act="interact">🤝<small>usar</small></div>
+    <div class="tbtn" data-act="shop">🛒<small>tienda</small></div>
+    <div class="tbtn" data-act="eat">🍖<small>comer</small></div>
+    <div class="tbtn" data-act="night">🌙<small>noche</small></div>
+    <div class="tbtn" data-act="build">🔨<small>construir</small></div>
+    <div class="tbtn" data-act="place">✋<small>poner</small></div>
+    <div class="tbtn" data-act="dig">🪏<small>cavar</small></div>
+    <div class="tbtn" data-act="plant">🌱<small>plantar</small></div>
     <div class="tbtn" data-act="more">⋯<small>más</small></div>
     <span id="moreBtns">
       <div class="tbtn" data-act="rotate">🔄<small>girar</small></div>
+      <div class="tbtn" data-act="delete">🗑️<small>borrar</small></div>
       <div class="tbtn" data-act="dadFollow">🚶<small>papá</small></div>
       <div class="tbtn" data-act="dadStay">🧍<small>quieto</small></div>
       <div class="tbtn" data-act="dadClean">🧹<small>limpia</small></div>
@@ -1855,6 +1883,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
       case 'dig': digHole(); break;
       case 'plant': plantSeed(); break;
       case 'rotate': rotateBuild(); break;
+      case 'delete': deleteObject(); break;
       case 'dadFollow': setDadMode('follow'); break;
       case 'dadStay': setDadMode('stay'); break;
       case 'dadClean': setDadMode('clean'); break;
@@ -2796,9 +2825,10 @@ function renderHUD() {
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
   ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(NIGHT_LENGTH - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(DAY_LENGTH - state.dayTime) : '--');
 
-  // barra de construcción
+  // barra de construcción. En celular solo aparece en modo construir (para no tapar la pantalla).
   const bb = ui('buildbar');
-  if (state.phase === 'DAY' || state.phase === 'NIGHT') {
+  const showBar = (state.phase === 'DAY' || state.phase === 'NIGHT') && (!document.body.classList.contains('touch') || state.buildMode);
+  if (showBar) {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
     const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴' };

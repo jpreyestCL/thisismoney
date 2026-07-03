@@ -508,7 +508,9 @@ const SUPER_POS = new THREE.Vector3(40, 0, -18);
 const obstacles = [];   // cajas que bloquean al jugador
 
 function addObstacle(cx, cz, w, d) {
-  obstacles.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
+  const o = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 };
+  obstacles.push(o);
+  return o;
 }
 function addWallMesh(cx, cz, w, d, h, color, addColl) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
@@ -964,6 +966,7 @@ function updatePolice(dt) {
     const lvl = Math.max(1, state.wantedLevel || 1);
     const desired = Math.min(6, lvl + (driving ? 1 : 0));
     while (police.length < desired) spawnPolice(1);
+    while (police.length > desired) { const p = police.pop(); if (p.userData.car) scene.remove(p.userData.car); scene.remove(p); }
     for (const p of police) {
       setPoliceCar(p, driving);
       const speed = (driving ? 22 : 7) + lvl * (driving ? 1.2 : 0.4);
@@ -1051,16 +1054,24 @@ function makeCar(color) {
 // ---- Calles ----
 const roadMat = new THREE.MeshStandardMaterial({ color: 0x34383f, roughness: 1 });
 const lineMat = new THREE.MeshStandardMaterial({ color: 0xd9dee6, roughness: 1 });
+const roadMeshes = [];
 function makeRoad(cx, cz, len, horizontal) {
   const w = 9;
   const r = new THREE.Mesh(horizontal ? new THREE.PlaneGeometry(len, w) : new THREE.PlaneGeometry(w, len), roadMat);
-  r.rotation.x = -Math.PI / 2; r.position.set(cx, 0.02, cz); r.receiveShadow = true; scene.add(r);
+  r.rotation.x = -Math.PI / 2; r.position.set(cx, 0.02, cz); r.receiveShadow = true; scene.add(r); roadMeshes.push(r);
   const dashN = Math.floor(len / 6);
   for (let i = 0; i < dashN; i++) {
     const d = new THREE.Mesh(new THREE.PlaneGeometry(horizontal ? 2 : 0.28, horizontal ? 0.28 : 2), lineMat);
     d.rotation.x = -Math.PI / 2; const off = (i - dashN / 2) * 6 + 3;
-    d.position.set(cx + (horizontal ? off : 0), 0.03, cz + (horizontal ? 0 : off)); scene.add(d);
+    d.position.set(cx + (horizontal ? off : 0), 0.03, cz + (horizontal ? 0 : off)); scene.add(d); roadMeshes.push(d);
   }
+}
+// Mostrar/ocultar toda la ciudad (calles, tráfico, autos estacionados, semáforos): en Marte no hay ciudad
+function setCityVisible(v) {
+  roadMeshes.forEach(m => m.visible = v);
+  traffic.forEach(c => c.visible = v);
+  parkedCars.forEach(c => c.visible = v);
+  trafficLights.forEach(t => t.visible = v);
 }
 const roads = [
   { cx: 0, cz: 0, len: 224, horizontal: true },     // avenida central este-oeste
@@ -1976,7 +1987,7 @@ function buyShopItem(item) {
 }
 function processShopBuy() {   // Enter en PC: compra el primero que coincide con el filtro
   const text = ui('shopInput').value.trim().toLowerCase();
-  if (!text) return;
+  if (!text) { closeShopInput(); return; }
   const item = SHOP.find(s => s.name.toLowerCase().includes(text));
   if (!item) { toast('🤔 No existe "' + text + '"'); return; }
   buyShopItem(item);
@@ -2154,7 +2165,7 @@ function startGame() {
   hideScreens();
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt();
-  state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
+  state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setCityVisible(true);
   state.phase = 'DAY'; state.running = true;
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
@@ -2162,8 +2173,8 @@ function startGame() {
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   houseTier = 0;
-  player.position.set(0, PLAYER_EYE, 14); yaw = 0; pitch = 0;
-  dad.position.set(2, 0, 11); dad.userData.mode = 'follow'; dad.visible = true;
+  player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
+  dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true;
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
 }
 // Guardado / carga de la partida (localStorage)
@@ -2202,10 +2213,10 @@ function loadGame() {
   setWeaponColor(d.weaponColor || 0x94a3b8);
   (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
   if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp });
-  if (state.planet === 'marte') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); }
-  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); }
-  player.position.set(d.px || 0, PLAYER_EYE, d.pz || 14); yaw = 0; pitch = 0;
-  dad.visible = true; dad.position.set(2, 0, 11); dad.userData.mode = 'follow';
+  if (state.planet === 'marte') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setCityVisible(false); }
+  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setCityVisible(true); }
+  player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
+  dad.visible = true; dad.position.set(12, 0, 13); dad.userData.mode = 'follow';
   return true;
 }
 function continueGame() {
@@ -2223,7 +2234,7 @@ function resetAll() {
   state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
   if (ui('escape')) ui('escape').style.display = 'none';
   state.buildMode = false;
-  dad.position.set(2, 0, 11); dad.visible = true; dad.userData.armed = false; if (dad.userData.weapon) dad.userData.weapon.visible = false;
+  dad.position.set(12, 0, 13); dad.visible = true; dad.userData.armed = false; if (dad.userData.weapon) dad.userData.weapon.visible = false;
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
@@ -2285,6 +2296,7 @@ function spawnCar(opts) {
 }
 // Auto más cercano de la CALLE (tráfico o estacionado) para robar
 function nearestStreetCar(maxD) {
+  if (state.planet === 'marte') return null;   // en Marte no hay autos de calle
   let best = null, bd = maxD;
   for (const c of traffic.concat(parkedCars)) { const d = dist2D(player.position, c.position); if (d < bd) { bd = d; best = c; } }
   return best;
@@ -2354,8 +2366,13 @@ function updateDriving(dt) {
       if (dist2D(n.position, car.group.position) < 2.3) {
         const dx = n.position.x - car.group.position.x, dz = n.position.z - car.group.position.z, len = Math.hypot(dx, dz) || 1;
         n.position.x += dx / len * 1.5; n.position.z += dz / len * 1.5;
-        if (state.wanted <= 0) toast('🚨 ¡Atropellaste a alguien! BUSCADO');
-        becomeWanted(15, 2);
+        if (!n.userData.hitByCar) {   // solo la 1ª vez de este atropello (no cada frame que lo arrastras)
+          n.userData.hitByCar = true;
+          if (state.wanted <= 0) toast('🚨 ¡Atropellaste a alguien! BUSCADO');
+          becomeWanted(15, 2);
+        }
+      } else if (n.userData.hitByCar) {
+        n.userData.hitByCar = false;   // se alejó: un próximo choque cuenta como nuevo atropello
       }
     }
   }
@@ -2626,9 +2643,11 @@ function goToPlanet() {
   clearPlants(); dad.visible = true;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
+  state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Marte no te persigue la policía terrestre
+  setCityVisible(false);                                                     // Marte: sin calles, tráfico ni semáforos
   groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Marte: rojo y sin árboles
   if (state.rocket) { scene.remove(state.rocket); state.rocket = null; } state.hasRocket = false;
-  player.position.set(0, PLAYER_EYE, 14); dad.position.set(2, 0, 11);
+  player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13);
   state.phase = 'DAY'; state.dayTime = 0;
   toast('🪐 Llegaste a otro planeta. Empiezas de cero: pocos recursos, sin árboles. ¡Sobrevive!');
   phaseText('PLANETA NUEVO');
@@ -2806,9 +2825,10 @@ function surviveNight() {
 function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
   state.driving = false;
+  state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
   clearWaves(); state.money = 0; state.hp = 100; state.phase = 'JAIL';
   ui('hud').style.display = 'none'; ui('jail').classList.remove('hidden');
-  setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(0, PLAYER_EYE, 14); }, 0);
+  setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(10, PLAYER_EYE, 16); }, 0);
 }
 function gameOver() {
   if (state.phase === 'OVER') return;
@@ -2891,8 +2911,9 @@ function updateHunger(dt) {
 // Morir de hambre: te desmayas y revives en casa (no es la cárcel; es por no comer)
 function faintFromHunger() {
   state.hp = 60; state.hunger = 45; lastHp = 60; state.driving = false;
+  state.wanted = 0; state.wantedLevel = 0; clearPolice();   // al desmayarte se pierde la búsqueda
   if (state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = 0; }
-  player.position.set(0, PLAYER_EYE, 14);
+  player.position.set(10, PLAYER_EYE, 16);
   toast('😵 ¡Te desmayaste de hambre! Come algo en el súper 🍖');
   beep(90, 0.25, 0.06);
 }

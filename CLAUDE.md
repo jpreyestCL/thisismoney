@@ -117,6 +117,31 @@ anteriores siguen apareciendo. Definiciones en `ENEMY_DEFS` (modelo, `hp`, `spd(
 - Tipos legado (`ogre`, `ghost`, `dragon`) siguen en `ENEMY_DEFS` pero no salen en la rotación normal;
   `alien` sale solo en Marte.
 
+## Arreglos tras code review (buscado/policía, ciudad en Marte, auto robado)
+
+Bugs detectados en un code review de la fusión (calles/tráfico + estrellas + robar auto) y corregidos:
+
+1. **`addObstacle` ahora retorna el obstáculo** (antes no retornaba nada). Así `car.userData.obstacle`
+   de los autos estacionados queda seteado y `stealCar` sí puede quitar la caja de colisión al robarlos
+   (antes dejaba un muro invisible permanente en cada plaza de estacionamiento).
+2. **Buscado/policía se limpia en todas las transiciones**: `state.wanted`/`state.wantedLevel = 0` +
+   `clearPolice()` ahora también en `goToPlanet()` (Marte), `goToJail()` (muerte) y `faintFromHunger()`
+   — antes solo `policeCatch`/`startGame`/`loadGame` lo hacían, así que reaparecías BUSCADO.
+3. **Marte sin ciudad terrestre**: helper `setCityVisible(v)` oculta/muestra `roadMeshes` (nuevo array
+   poblado en `makeRoad`) + `traffic` + `parkedCars` + `trafficLights`. Se llama `false` en `goToPlanet`
+   y `true` en `startGame`/`loadGame` (según `state.planet`). `nearestStreetCar` retorna `null` en Marte
+   (no se puede robar un auto invisible).
+4. **Atropellar peatón cuenta una vez por atropello** (flag `n.userData.hitByCar`) en vez de llamar
+   `becomeWanted(15,2)` cada frame mientras lo arrastras (antes inflaba a 5 estrellas y reiniciaba el timer).
+5. **La policía baja de número al bajarte del auto** (`updatePolice` ahora hace `while (police.length >
+   desired) pop()`), no deja el cop extra del modo conducción.
+6. **Enter con filtro vacío cierra la tienda** en PC (`processShopBuy` restauró `closeShopInput()`).
+7. **Spawns del jugador/papá fuera de la avenida central**: jugador `(10, ,16)`, papá `(12,0,13)`
+   (antes `(0, ,14)`/`(2,0,11)`, sobre la avenida vertical x∈[-4.5,4.5]).
+
+Verificado con Playwright (Chromium, viewport táctil 851×393): cargar + iniciar + conducir + abrir/cerrar
+tienda con Enter vacío → **cero errores** de consola y render correcto de la ciudad.
+
 ## Convenciones del código
 
 - Idioma: **español** en comentarios, textos de UI y nombres de funciones/variables de dominio

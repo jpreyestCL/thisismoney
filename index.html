@@ -2815,7 +2815,7 @@ function renderHUD() {
   ui('dadhud').innerHTML = `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}<br><span style="opacity:.7;font-size:11px">C seguir · V quieto · O limpiar · G arma</span>`;
   // equipo
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
-  if (state.armorFactor < 1) gear.push('🛡️ ' + Math.round(state.armorFactor * 100) + '% daño');
+  if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.dadGun) gear.push('🔫 papá');
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');

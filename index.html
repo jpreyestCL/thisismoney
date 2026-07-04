@@ -26,6 +26,7 @@
   #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; background: #fff; border-radius: 50%; opacity: .8; }
   #toast { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,.65); padding: 9px 20px; border-radius: 10px; font-size: 15px; font-weight: 600; opacity: 0; transition: opacity .3s; text-align: center; }
+  #toastStack { position: absolute; bottom: 162px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; pointer-events: none; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
   .bankBtn { pointer-events: all; cursor: pointer; background: rgba(250,204,21,.18); border: 1px solid #facc15; color: #fff; padding: 10px 6px; font-size: 13px; font-weight: 800; border-radius: 9px; }
   #dadhud { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; }
@@ -111,7 +112,7 @@
   body.touch .slot .ct { font-size: 10px; }
   body.touch #rotateBtn, body.touch #deleteBtn { display: none !important; }
   /* botones táctiles un poco más chicos para que quepan todos (incluido el panel "más") */
-  body.touch .tbtn { width: 46px; height: 46px; font-size: 19px; }
+  body.touch .tbtn { width: calc(46px * var(--btnscale, 1)); height: calc(46px * var(--btnscale, 1)); font-size: calc(19px * var(--btnscale, 1)); }
   body.touch #touchBtns { width: 150px; }
   body.touch #moveBtns { left: 158px; }
   body.touch .tbtn small { margin-top: 27px; font-size: 8px; }
@@ -151,6 +152,7 @@
   <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
   <div id="objective">Objetivo</div>
   <div id="crosshair"></div>
+  <div id="toastStack"></div>
   <div id="toast"></div>
   <div id="dadhud"></div>
   <div id="gearhud"></div>
@@ -171,6 +173,25 @@
     <div style="display:flex; gap:8px; justify-content:center; margin-top:8px;">
       <button id="shopSellBtn" style="pointer-events:all; cursor:pointer; background:rgba(250,204,21,.2); color:#facc15; border:1px solid #facc15; padding:9px 18px; font-size:14px; font-weight:700; border-radius:8px;">🔁 Vender</button>
       <button id="shopCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:9px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
+    </div>
+  </div>
+  <div id="pause" style="position:absolute; inset:0; display:none; z-index:12; background:rgba(2,6,23,.75); align-items:center; justify-content:center; pointer-events:all;">
+    <div style="width:min(92vw,380px); max-height:88vh; overflow-y:auto; background:rgba(6,10,20,.97); border:2px solid #64748b; border-radius:16px; padding:18px 20px; text-align:center;">
+      <h2 style="margin:0 0 12px; color:#e2e8f0;">⏸️ PAUSA</h2>
+      <button class="btn" id="pauseResume" style="width:100%;">▶️ Reanudar (Esc)</button>
+      <div style="text-align:left; font-size:13px; margin:14px 0 4px;">🖱️ Sensibilidad de mirar: <b id="sensVal">1.0×</b></div>
+      <input id="sensSlider" type="range" min="0.4" max="2.2" step="0.1" value="1" style="width:100%; pointer-events:all;">
+      <div style="text-align:left; font-size:13px; margin:10px 0 4px;">🔘 Tamaño de botones (celular): <b id="btnVal">1.0×</b></div>
+      <input id="btnSlider" type="range" min="0.8" max="1.5" step="0.1" value="1" style="width:100%; pointer-events:all;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+        <button class="bankBtn" id="pauseSound">🔊 Sonido</button>
+        <button class="bankBtn" id="pausePerf">⚡ Rendimiento</button>
+        <button class="bankBtn" id="pauseFoto">📷 Foto</button>
+        <button class="bankBtn" id="pauseHelp">📖 Ayuda</button>
+        <button class="bankBtn" id="pauseCode">💾 Copiar código</button>
+        <button class="bankBtn" id="pauseLoad">📥 Cargar código</button>
+      </div>
+      <button class="btn" id="pauseExit" style="width:100%; margin-top:12px; background:linear-gradient(90deg,#64748b,#475569);">💾 Guardar y salir</button>
     </div>
   </div>
   <div id="bankbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #facc15; padding:14px 16px 12px; border-radius:14px; text-align:center; width:min(94vw,420px); flex-direction:column; gap:8px;">
@@ -2182,7 +2203,7 @@ const state = {
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
   hasSuits: false, usedRocket: false, meteorAt: 1000000, coldWarned: false,
-  bank: 0, debt: 0, weather: 'clear', weatherLeft: 0, trips: 0, ngplus: false, nextDest: null,
+  bank: 0, debt: 0, weather: 'clear', weatherLeft: 0, trips: 0, ngplus: false, nextDest: null, paused: false,
   buildMode: false,
   dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
 };
@@ -2274,6 +2295,7 @@ const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false };
 addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
+  if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
   if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
@@ -2402,10 +2424,16 @@ function processShopBuy() {   // Enter en PC: compra el primero que coincide con
 // Cámara libre: mueves el mouse (sin hacer clic) y la cámara mira hacia allá
 addEventListener('mousemove', e => {
   if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
-  yaw -= e.movementX * LOOK_SENS; pitch -= e.movementY * LOOK_SENS;
+  yaw -= e.movementX * LOOK_SENS * lookMult; pitch -= e.movementY * LOOK_SENS * lookMult;
   pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
 });
 canvas.addEventListener('mousedown', () => { if (state.phase === 'NIGHT') attack(); else attackNPC(); });  // noche: pegar monstruos · día: pegar personas (te vuelve buscado)
+// En PC el clic captura el mouse (pointer lock): la cámara gira sin que el cursor se escape; Esc lo suelta
+canvas.addEventListener('click', () => {
+  if (document.body.classList.contains('touch')) return;
+  if (!state.running || state.paused || typing || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
+  try { if (document.pointerLockElement !== canvas) canvas.requestPointerLock(); } catch (e) {}
+});
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 const ui = id => document.getElementById(id);
@@ -2509,8 +2537,8 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
   look.addEventListener('touchmove', e => {
     for (const t of e.changedTouches) if (t.identifier === lookId) {
       if (canLook()) {
-        yaw -= (t.clientX - lx) * TOUCH_LOOK_SENS;
-        pitch -= (t.clientY - ly) * TOUCH_LOOK_SENS;
+        yaw -= (t.clientX - lx) * TOUCH_LOOK_SENS * lookMult;
+        pitch -= (t.clientY - ly) * TOUCH_LOOK_SENS * lookMult;
         pitch = Math.max(-1.3, Math.min(1.3, pitch));
       }
       lMoved += Math.abs(t.clientX - lx) + Math.abs(t.clientY - ly);
@@ -2591,7 +2619,7 @@ function startGame() {
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
-  state.phase = 'DAY'; state.running = true;
+  state.phase = 'DAY'; state.running = true; state.paused = false; ui('pause').style.display = 'none';
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; applyDadArmor(false); setWeaponColor(0x94a3b8);
@@ -2643,6 +2671,44 @@ function saveGame() {
   } catch (e) {}
 }
 function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+// ===================================================================
+//  PAUSA (Esc / botón ⏸️) con ajustes: sensibilidad, botones, rendimiento
+// ===================================================================
+let lookMult = 1, btnScale = 1, perfMode = false;
+try {
+  lookMult = parseFloat(localStorage.getItem('tim_sens')) || 1;
+  btnScale = parseFloat(localStorage.getItem('tim_btnsize')) || 1;
+  perfMode = localStorage.getItem('tim_perf') === '1';
+} catch (e) {}
+function applyBtnScale() { document.documentElement.style.setProperty('--btnscale', btnScale); }
+function applyPerfMode() {   // modo rendimiento: sin sombras y resolución nativa 1x (para teléfonos lentos)
+  sun.castShadow = !perfMode;
+  renderer.shadowMap.enabled = !perfMode;
+  renderer.setPixelRatio(perfMode ? 1 : Math.min(devicePixelRatio, 2));
+  scene.traverse(o => { if (o.isMesh && o.material) o.material.needsUpdate = true; });
+}
+applyBtnScale(); if (perfMode) applyPerfMode();
+function togglePause(force) {
+  const show = force !== undefined ? force : !state.paused;
+  state.paused = show;
+  ui('pause').style.display = show ? 'flex' : 'none';
+  if (show) {
+    ui('sensSlider').value = lookMult; ui('sensVal').textContent = lookMult.toFixed(1) + '×';
+    ui('btnSlider').value = btnScale; ui('btnVal').textContent = btnScale.toFixed(1) + '×';
+    ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO';
+    ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF';
+    saveGame();   // pausar también guarda (por si acaso)
+  }
+}
+ui('pauseResume').onclick = () => togglePause(false);
+ui('sensSlider').oninput = () => { lookMult = parseFloat(ui('sensSlider').value); ui('sensVal').textContent = lookMult.toFixed(1) + '×'; try { localStorage.setItem('tim_sens', String(lookMult)); } catch (e) {} };
+ui('btnSlider').oninput = () => { btnScale = parseFloat(ui('btnSlider').value); ui('btnVal').textContent = btnScale.toFixed(1) + '×'; applyBtnScale(); try { localStorage.setItem('tim_btnsize', String(btnScale)); } catch (e) {} };
+ui('pauseSound').onclick = () => { toggleSound(); ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO'; };
+ui('pausePerf').onclick = () => { perfMode = !perfMode; applyPerfMode(); try { localStorage.setItem('tim_perf', perfMode ? '1' : '0'); } catch (e) {} ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF'; };
+ui('pauseFoto').onclick = () => { togglePause(false); setTimeout(takePhoto, 100); };
+ui('pauseHelp').onclick = () => { togglePause(false); toggleHelp(true); };
+ui('pauseExit').onclick = () => { togglePause(false); saveAndExit(); };
+
 // ===================================================================
 //  BANCO: ahorrar con interés (educativo) y préstamos con deuda
 // ===================================================================
@@ -3797,7 +3863,19 @@ function gameOver() {
 //  AVISOS
 // ===================================================================
 let toastTimer = 0;
-function toast(msg) { const t = ui('toast'); t.textContent = msg; t.style.opacity = 1; toastTimer = 3; }
+function toast(msg) {   // cola de avisos: el anterior sube a una pila (hasta 2) en vez de perderse
+  const t = ui('toast');
+  if (t.textContent && Number(t.style.opacity) > 0 && t.textContent !== msg) {
+    const st = ui('toastStack');
+    const d = document.createElement('div');
+    d.textContent = t.textContent;
+    d.style.cssText = 'background:rgba(0,0,0,.5); padding:4px 12px; border-radius:9px; font-size:12px; opacity:.85; transition:opacity .6s; max-width:80vw;';
+    st.appendChild(d);
+    while (st.children.length > 2) st.removeChild(st.firstChild);
+    setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 650); }, 2600);
+  }
+  t.textContent = msg; t.style.opacity = 1; toastTimer = 3;
+}
 function phaseText(msg) { ui('phase').textContent = msg; setTimeout(() => { if (ui('phase').textContent === msg) ui('phase').textContent = ''; }, 2600); }
 
 // ===================================================================
@@ -3867,7 +3945,7 @@ const clock = new THREE.Clock();
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
-  if (state.running && (state.phase === 'DAY' || state.phase === 'NIGHT')) {
+  if (state.running && !state.paused && (state.phase === 'DAY' || state.phase === 'NIGHT')) {
     updateMovement(dt);
     updateViewmodel(dt);
     updateBuild();

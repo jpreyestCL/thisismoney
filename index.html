@@ -1076,8 +1076,9 @@ const BANK_POS = new THREE.Vector3(58, 0, -24);
 })();
 
 // La cárcel (edificio con rejas)
+const JAIL_POS = new THREE.Vector3(55, 0, -8);   // la cárcel: de aquí salen los policías
 function buildJail() {
-  const cx = 55, cz = -8;
+  const cx = JAIL_POS.x, cz = JAIL_POS.z;
   const body = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 8), mat(0x9ca3af)); body.position.set(cx, 2.5, cz); body.castShadow = true; body.receiveShadow = true; scene.add(body);
   for (let i = -2; i <= 2; i++) { const bar = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3, 0.15), mat(0x334155)); bar.position.set(cx + i * 0.8, 2.5, cz + 4.05); scene.add(bar); }
   const sign = makeSign('CARCEL', 0x94a3b8); sign.position.set(cx, 6.2, cz); scene.add(sign);
@@ -1092,8 +1093,8 @@ function spawnPolice(n) {
     const p = makePerson(0x1e3a8a, 0xf1c27d);
     const helm = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.22, 0.52), mat(0x1e40af)); helm.position.y = 2.35; p.add(helm);
     const tag = makeSign('POLICIA', 0x60a5fa); tag.scale.set(.5, .5, .5); tag.position.set(0, 3, 0); p.add(tag);
-    const a = Math.random() * Math.PI * 2, r = 45;   // aparecen LEJOS para que te dé tiempo de escapar
-    p.position.set(player.position.x + Math.cos(a) * r, 0, player.position.z + Math.sin(a) * r);
+    // salen desde la PUERTA DE LA CÁRCEL (no de cualquier parte), con un poco de dispersión
+    p.position.set(JAIL_POS.x + (Math.random() * 8 - 4), 0, JAIL_POS.z + 5 + Math.random() * 3);
     scene.add(p); police.push(p);
   }
 }

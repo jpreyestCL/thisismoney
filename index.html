@@ -193,6 +193,7 @@
       <div class="tbtn" data-act="dadStay">🧍<small>quieto</small></div>
       <div class="tbtn" data-act="dadClean">🧹<small>limpia</small></div>
       <div class="tbtn" data-act="dadArm">🔫<small>arma</small></div>
+      <div class="tbtn" data-act="dadRest">😴<small>dormir</small></div>
       <div class="tbtn" data-act="helper">🧒<small>hijo</small></div>
       <div class="tbtn" data-act="rocket">🚀<small>cohete</small></div>
       <div class="tbtn" data-act="help">❓<small>ayuda</small></div>
@@ -219,6 +220,7 @@
     <span><b>F</b> / <b>X</b></span><span>Colocar / Borrar objeto</span>
     <span><b>C / V / O</b></span><span>Papá: seguir / quieto / limpiar</span>
     <span><b>G</b></span><span>Dar/quitar arma al papá</span>
+    <span><b>Z</b></span><span>😴 Papá descansa en sofá/cama (los monstruos no lo ven)</span>
     <span><b>H</b></span><span>Spawnear ayudante (con mamá)</span>
     <span><b>Clic</b></span><span>Atacar de noche &nbsp; · &nbsp; <b>N</b> empezar noche</span>
     <span><b>R</b></span><span>Lanzar cohete (con papá, tras meteorito)</span>
@@ -226,6 +228,7 @@
   <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
     <button class="btn" id="continueBtn" style="display:none; background:linear-gradient(90deg,#38bdf8,#0284c7);">CONTINUAR</button>
     <button class="btn" id="startBtn">JUGAR DE NUEVO</button>
+    <button class="btn" id="creativeBtn" style="background:linear-gradient(90deg,#a855f7,#7c3aed);">🎨 MODO CREATIVO</button>
   </div>
 </div>
 
@@ -271,6 +274,7 @@
       <span><b>C</b> / <b>V</b> / <b>O</b></span><span>Papá: seguir / quedarse quieto / limpiar</span>
       <span><b>G</b></span><span>Darle o quitarle un arma al papá</span>
       <span><b>H</b></span><span>Llamar a un ayudante (después de conocer a la mamá)</span>
+      <span><b>Z</b></span><span>😴 Papá descansa en el sofá o la cama: los monstruos NO lo detectan (Z de nuevo para levantarlo)</span>
       <span><b>R</b></span><span>Lanzar el cohete (con el papá, después del meteorito)</span>
     </div>
     <h3 style="margin:16px 0 4px; color:#fbbf24;">💰 Cómo ganar dinero</h3>
@@ -1727,7 +1731,7 @@ function launchBull(k) {
 }
 function pickTarget(from) {
   const cands = [player.position];
-  if (dad.visible) cands.push(dad.position);
+  if (dad.visible && !dad.userData.resting) cands.push(dad.position);   // descansando: los monstruos no lo ven
   for (const h of helpers) cands.push(h.position);
   let best = cands[0], bd = dist2D(from, best);
   for (const c of cands) { const d = dist2D(from, c); if (d < bd) { bd = d; best = c; } }
@@ -1749,7 +1753,7 @@ function updateProjectiles(dt) {
       for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (e.userData.type === 'bull') continue; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
     } else {                                            // proyectil enemigo: te pega a ti o al papá
       if (dist2D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg); hit = true; }
-      else if (dad.visible && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg); hit = true; }
+      else if (dad.visible && !dad.userData.resting && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg); hit = true; }
     }
     if (hit || ud.life <= 0) { scene.remove(p); projectiles.splice(i, 1); }
   }
@@ -1894,7 +1898,34 @@ function updateDirt(dt) {
 // ===================================================================
 //  PAPÁ — obedece teclas y pelea si está armado
 // ===================================================================
-function setDadMode(m) { dad.userData.mode = m; toast('👨 Papá: ' + ({ follow: 'te sigue', stay: 'se queda quieto', clean: 'a limpiar' })[m]); }
+function setDadMode(m) {
+  if (dad.userData.resting) { dad.userData.resting = false; dad.rotation.x = 0; dad.position.y = 0; }   // se levanta si estaba descansando
+  dad.userData.mode = m; toast('👨 Papá: ' + ({ follow: 'te sigue', stay: 'se queda quieto', clean: 'a limpiar' })[m]);
+}
+// Papá descansa (Z / botón 😴): se sienta en el sofá o se acuesta en la cama y los monstruos NO lo detectan
+function toggleDadRest() {
+  if (!dad.visible) { toast('El papá no está (se fue a la fiesta)'); return; }
+  if (dad.userData.resting) {   // se levanta
+    dad.userData.resting = false;
+    dad.rotation.x = 0; dad.position.y = 0;
+    dad.userData.mode = 'follow';
+    toast('👨 El papá se levantó (te sigue)');
+    return;
+  }
+  let spot = null, sd = 30;   // el sofá o la cama más cercana al papá
+  for (const o of placed) {
+    if (o.key !== 'sofa' && o.key !== 'cama') continue;
+    const d = dist2D(dad.position, o.mesh.position);
+    if (d < sd) { sd = d; spot = o; }
+  }
+  if (!spot) { toast('🛋️ Necesitas un SOFÁ o una CAMA colocados (cómpralos al vendedor, B/F para colocar)'); return; }
+  dad.userData.resting = true; dad.userData.mode = 'rest';
+  dad.position.set(spot.mesh.position.x, spot.key === 'cama' ? 0.55 : 0.4, spot.mesh.position.z);
+  dad.rotation.y = spot.mesh.rotation.y;
+  dad.rotation.x = spot.key === 'cama' ? -Math.PI / 2 : 0;   // en la cama se acuesta
+  beep(400, 0.12, 0.04);
+  toast(spot.key === 'cama' ? '😴 El papá se acostó en la cama: los monstruos NO lo detectan' : '🛋️ El papá se sentó en el sofá: los monstruos NO lo detectan');
+}
 function ensureDadWeapon() {   // crea el arma del papá una sola vez
   if (!dad.userData.weapon) {
     const w = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.16), mat(0xf59e0b)); w.position.set(0.6, 1.3, 0.3); dad.add(w); dad.userData.weapon = w;
@@ -1926,6 +1957,7 @@ function toggleDadArm() {
 }
 function updateDad(dt) {
   if (!dad.visible) return;
+  if (dad.userData.resting) return;   // descansando en sofá/cama: no se mueve ni pelea
   // si está armado y es de noche, ataca al enemigo más cercano
   if (state.phase === 'NIGHT' && dad.userData.armed) {
     dad.userData.atkCd -= dt;
@@ -2093,6 +2125,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyQ') eatFood();   // comer
   if (e.code === 'KeyI') toggleHelp();   // abrir/cerrar el menú de ayuda
   if (e.code === 'KeyK') plantSeed();    // plantar una semilla de manzana (crece de a poco)
+  if (e.code === 'KeyZ') toggleDadRest();   // papá descansa en sofá/cama (los monstruos no lo ven)
 });
 // Inventario tipo Minecraft: elegir un espacio (slot)
 function selectSlot(n) {
@@ -2143,7 +2176,7 @@ function renderShopList(filter) {
   const f = (filter || '').trim().toLowerCase();
   list.innerHTML = '';
   SHOP.filter(it => !f || it.name.toLowerCase().includes(f)).forEach(it => {
-    const locked = it.unlockAt && state.totalEarned < it.unlockAt;
+    const locked = !state.creative && it.unlockAt && state.totalEarned < it.unlockAt;   // en creativo no hay candados
     const can = !locked && state.money >= it.price;
     const row = document.createElement('button');
     row.className = 'shopRow';
@@ -2180,6 +2213,11 @@ function rotateBuild() { buildRot = (buildRot + Math.PI / 2) % (Math.PI * 2); st
 ui('rotateBtn').onclick = rotateBuild;
 ui('deleteBtn').onclick = deleteObject;
 ui('startBtn').onclick = startGame;
+ui('creativeBtn').onclick = () => {   // mismo mundo, pero con plata infinita y todo desbloqueado
+  startGame();
+  state.creative = true; state.money = 999999999;
+  toast('🎨 MODO CREATIVO: plata infinita y todo desbloqueado. ¡Compra y construye lo que quieras!');
+};
 ui('continueBtn').onclick = () => continueGame();
 if (hasSave()) ui('continueBtn').style.display = '';   // mostrar "Continuar" si hay partida guardada
 showBestLine();   // récord personal en la pantalla de inicio
@@ -2302,6 +2340,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
       case 'dadStay': setDadMode('stay'); break;
       case 'dadClean': setDadMode('clean'); break;
       case 'dadArm': toggleDadArm(); break;
+      case 'dadRest': toggleDadRest(); break;
       case 'helper': spawnHelper(); break;
       case 'rocket': tryLaunchRocket(); break;
       case 'help': toggleHelp(); break;
@@ -2349,12 +2388,13 @@ function startGame() {
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
+  state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
   removePet(); removeFloor2();
   houseTier = 0;
   newMissions();
   checkDailyStreak();
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
-  dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true;
+  dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
 }
 // Guardado / carga de la partida (localStorage)
@@ -2371,9 +2411,11 @@ function saveGame() {
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
       car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto } : null,
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
+      creative: !!state.creative,
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
+      dadResting: !!dad.userData.resting,
       streak: state.streak || 0,   // racha de noches perfectas
       missions: state.missions || null,   // misiones del día con su progreso
       bestiary: state.bestiary || {},     // colección de monstruos
@@ -2402,6 +2444,7 @@ function renderBestiary() {
 }
 function getBest() { try { return JSON.parse(localStorage.getItem('tim_best')) || null; } catch (e) { return null; } }
 function updateBest() {   // guarda tu mejor partida y celebra cuando la superas en vivo
+  if (state.creative) return;   // en modo creativo no valen los récords
   try {
     const b = getBest();
     if (!b || state.totalEarned > b.total) {
@@ -2494,6 +2537,7 @@ function loadGame() {
   (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
   if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp, moto: d.car.moto });
   state.unlocked = d.unlocked || {};
+  state.creative = !!d.creative;
   removePet(); if (d.pet) spawnPet();
   removeFloor2(); if (d.hasFloor2) buildFloor2();
   if (state.planet === 'platus') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setCityVisible(false); }
@@ -2503,6 +2547,8 @@ function loadGame() {
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
   dad.userData.mode = d.dadMode || 'follow';
+  dad.userData.resting = false; dad.rotation.x = 0;
+  if (d.dadResting) toggleDadRest();   // vuelve a sentarse/acostarse si el sofá/cama sigue ahí
   applyDadArmed(!!d.dadArmed && state.dadGun);   // repone el arma del papá si estaba armado
   applyDadArmor(state.dadArmor < 1);             // repone la armadura del papá si la compraste
   if (d.missions && d.missions.length) { state.missions = d.missions; renderMissions(); } else newMissions();
@@ -2527,7 +2573,7 @@ function resetAll() {
   state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
   if (ui('escape')) ui('escape').style.display = 'none';
   state.buildMode = false;
-  dad.position.set(12, 0, 13); dad.visible = true; dad.userData.armed = false; if (dad.userData.weapon) dad.userData.weapon.visible = false;
+  dad.position.set(12, 0, 13); dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0; dad.userData.armed = false; if (dad.userData.weapon) dad.userData.weapon.visible = false;
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
@@ -2720,7 +2766,7 @@ function paintHouse(color, label) {
   toast('🎨 Pintaste tu casa (' + n + ' piezas) de ' + label.replace('Pintura ', '')); beep(520, 0.1, 0.04);
 }
 function buyItem(item) {
-  if (item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
+  if (!state.creative && item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
   if (state.money < item.price) { toast('💸 Te falta plata'); return; }
   // casos que pueden fallar (no cobrar si no se puede)
   if (item.paint) {
@@ -2974,7 +3020,7 @@ function goToPlanet() {
   setCityVisible(false);                                                     // Platus: sin calles, tráfico ni semáforos
   groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Platus: rojo y sin árboles
   if (state.rocket) { scene.remove(state.rocket); state.rocket = null; } state.hasRocket = false;
-  player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13);
+  player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
   state.phase = 'DAY'; state.dayTime = 0;
   newMissions();
   toast('🪐 Llegaste a PLATUS, un planeta de otra galaxia. Empiezas de cero: pocos recursos, sin árboles. ¡Sobrevive!');
@@ -3116,7 +3162,7 @@ function updateNight(dt) {
     if (ud.type === 'bull') {
       e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
       if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17); removeEnemy(i); continue; }
-      if (dad.visible && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8); removeEnemy(i); continue; }
+      if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8); removeEnemy(i); continue; }
       if (ud.life <= 0) removeEnemy(i); continue;
     }
     if (ud.mole) continue;   // topos / topo jefe: los maneja updateMoles (día y noche)
@@ -3531,9 +3577,10 @@ function updateTimers(dt) {
 function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
 let shownMoney = 0;   // el contador de dinero "rueda" hacia el valor real
 function renderHUD() {
+  if (state.creative && state.money < 999999999) state.money = 999999999;   // creativo: la plata nunca baja
   const mdiff = state.money - shownMoney;
   shownMoney = Math.abs(mdiff) < 1 ? state.money : shownMoney + mdiff * 0.15;
-  ui('ui-money').textContent = '$' + Math.round(shownMoney);
+  ui('ui-money').textContent = state.creative ? '$∞' : '$' + Math.round(shownMoney);
   ui('ui-stage').textContent = state.stage;
   ui('ui-planet').textContent = state.planet === 'platus' ? 'Platus' : 'Tierra';
   ui('ui-hp').style.width = Math.max(0, state.hp) + '%';
@@ -3557,11 +3604,12 @@ function renderHUD() {
   ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;
 
   // papá
-  const modeTxt = { follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando' }[dad.userData.mode] || '';
-  ui('dadhud').innerHTML = `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}<br><span style="opacity:.7;font-size:11px">C seguir · V quieto · O limpiar · G arma</span>`;
+  const modeTxt = { follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '';
+  ui('dadhud').innerHTML = `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}<br><span style="opacity:.7;font-size:11px">C seguir · V quieto · O limpiar · G arma · Z dormir</span>`;
   // equipo
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
+  if (state.creative) gear.unshift('🎨 CREATIVO');
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');
   if (state.dadArmor < 1) gear.push('🛡️ papá');

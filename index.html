@@ -2117,13 +2117,29 @@ let floor2Group = null;
 function buildFloor2() {
   state.hasFloor2 = true;
   if (floor2Group) scene.remove(floor2Group);
+  // Footprint REAL de tu casa: centroide y tamaño de las paredes/puertas que construiste (no el marcador verde)
+  let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9, sx = 0, sz = 0, n = 0;
+  for (const o of placed) {
+    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'door') && dist2D(o.mesh.position, HOUSE) < 20) {
+      const p = o.mesh.position; minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); sx += p.x; sz += p.z; n++;
+    }
+  }
+  let bx, bz, hw, hd;
+  if (n > 0) { bx = sx / n; bz = sz / n; hw = Math.max(2.2, (maxX - minX) / 2 + 1); hd = Math.max(2.2, (maxZ - minZ) / 2 + 1); }
+  else { bx = HOUSE.x; bz = HOUSE.z; hw = 2.8; hd = 2.8; }   // sin casa detectada: encima del marcador
   const g = new THREE.Group();
   const mk = (w, h, d, x, y, z, color) => { const m2 = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m2.position.set(x, y, z); m2.castShadow = true; g.add(m2); };
-  mk(5, 2.4, 0.3, 0, 4.6, -2.5, 0xd6a35c); mk(5, 2.4, 0.3, 0, 4.6, 2.5, 0xd6a35c);     // paredes piso 2
-  mk(0.3, 2.4, 5, -2.5, 4.6, 0, 0xd6a35c); mk(0.3, 2.4, 5, 2.5, 4.6, 0, 0xd6a35c);
-  mk(5.6, 0.35, 5.6, 0, 6.0, 0, 0x7c3f21);                                             // techo
-  mk(1.2, 1, 0.12, 0, 4.7, -2.62, 0x9fd0ff);                                           // ventanita
-  g.position.set(HOUSE.x, 0, HOUSE.z);
+  const baseY = 3;   // el primer piso mide ~3 de alto: el 2º va justo encima
+  mk(hw * 2, 2.4, 0.3, 0, baseY + 1.4, -hd, 0xd6a35c); mk(hw * 2, 2.4, 0.3, 0, baseY + 1.4, hd, 0xd6a35c);   // paredes del piso 2
+  mk(0.3, 2.4, hd * 2, -hw, baseY + 1.4, 0, 0xd6a35c);  mk(0.3, 2.4, hd * 2, hw, baseY + 1.4, 0, 0xd6a35c);
+  mk(hw * 2 + 0.6, 0.35, hd * 2 + 0.6, 0, baseY + 2.8, 0, 0x7c3f21);                   // techo del piso 2
+  mk(1.2, 1, 0.12, 0, baseY + 1.5, -hd - 0.12, 0x9fd0ff);                              // ventanita
+  mk(hw * 2, 0.25, hd * 2, 0, baseY, 0, 0xa87c4a);                                     // piso/loza del 2º nivel
+  // ESCALERAS: escalones que suben por el lado +x hasta el segundo piso
+  const steps = 8, sh = baseY / steps;
+  for (let i = 0; i < steps; i++) mk(1.4, sh, 0.55, hw + 0.7, (i + 0.5) * sh, -hd + 0.6 + i * ((hd * 2 - 1.2) / steps), 0x8b5a2b);
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, hd * 2), mat(0x5a3a1e)); rail.position.set(hw + 1.35, baseY - 0.4, 0); rail.rotation.x = -Math.atan2(baseY, hd * 2 - 1.2); g.add(rail);   // baranda
+  g.position.set(bx, 0, bz);
   scene.add(g); floor2Group = g;
 }
 function removeFloor2() { state.hasFloor2 = false; if (floor2Group) { scene.remove(floor2Group); floor2Group = null; } }

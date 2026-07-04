@@ -232,6 +232,11 @@ Implementados para mantener al jugador enganchado. Todo persiste en el save dond
    $100k torreta láser (clave `laser` en `updateDefenses`, dispara rápido), $150k segundo piso
    (`buildFloor2`, +$300/noche), $200k moto (`spawnCar({moto:true})`, ×1.45 velocidad), $250k heladera
    (colocable; el hambre baja a la mitad en `updateHunger`).
+   - **Segundo piso**: `buildFloor2` lo arma sobre el footprint REAL de tu casa (centroide + bounding
+     box de las `placed` wallWood/wallRock/door cerca de `HOUSE`, no el marcador fijo) e incluye
+     **escaleras** (8 escalones + baranda por el lado +x), loza y techo. Se recomputa al cargar.
+   - **Policía desde la cárcel**: `spawnPolice` los coloca en la puerta de `JAIL_POS` (55,-8), no
+     en un ángulo aleatorio alrededor del jugador.
 
 ## Sistema de enemigos por etapa (acumulativo)
 

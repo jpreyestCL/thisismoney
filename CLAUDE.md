@@ -107,6 +107,28 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
 - **Platus** (planeta inventado de otra galaxia, `state.planet==='platus'`; antes se llamaba "Marte").
   Salen `alien`/`alienBig` (`makeAlienBig`, 140 vida/24 daño) y las recompensas de la noche se
   multiplican ×1.5. Etapas altas (≥10) pagan mucho más. `loadGame` mapea saves viejos `'marte'`→`'platus'`.
+  - **Mundo propio (rediseño)**: en Platus NO existe NADA de la Tierra. `setEarthWorld(v)` oculta
+    súper/armería/ciudad/barrios/GLBs/estadios/cárcel/gente/calles/tráfico **con sus colisiones**
+    (`earthMeshes`/`earthObstacles`, snapshot por diff de `scene.children` entre dos marcadores;
+    los GLB async se auto-registran en `loadBuilding`). Gates por planeta: `openShopInput`,
+    `updateBuying`, `tryRob`, `tryCollectGolden`, `sellHouse`, minimapa.
+  - **Contenido de Platus** (`buildPlatus`/`setPlatusVisible`): 60 árboles MUERTOS + 26 rocas de
+    CARBÓN (`coalRocks`). Picar: golpear (👊/clic) cerca de una roca = +1 `state.inv.carbon`
+    (`tryMineCoal`, engancha en `attackNPC` de día y `attack` de noche).
+  - **Frío nocturno** (`updateCold` en el loop): de noche, a >7 de una fogata pierdes 2 hp/s
+    (papá 1.2/s), overlay `#coldfx` azul + aviso 🥶 (1 vez/noche, `state.coldWarned`).
+    **Fogata**: tecla `T` en Platus (= botón cavar móvil) gasta 3 carbón → `spawnCampfire(x,z)`
+    (troncos + fuego emisivo + PointLight). `campfires` se guardan en el save.
+  - **Trajes espaciales**: ítem `traje` ($2000, súper). Requisito para lanzar el cohete
+    (`state.hasSuits`). Visual: casco+mochila del papá (`applySpaceSuit`), badge 🧑‍🚀 en gearhud.
+  - **Cohete reutilizable**: tras el primer viaje (`state.usedRocket`), volver a lanzarlo cuesta
+    **10 de carbón** (combustible). El cohete queda estacionado en (10,10) en ambos planetas
+    (`spawnRocketMesh`/`removeRocket`). Desde Platus → `returnToEarth()` (mundo restaurado).
+    El meteorito siguiente llega al PRÓXIMO millón (`state.meteorAt = totalEarned + 1M`, usado
+    por `checkProgress`, que además solo dispara meteorito en la Tierra).
+  - **Cinemática**: el planeta del que escapas se ve por la ventana; si escapas de la TIERRA se
+    parte en 3 pedazos (ya existía); desde Platus el planeta es rojo y no se parte (`cine.fromEarth`).
+  - Al llegar a Platus: raciones del cohete (5 comida + 2 semillas), $200, trajes puestos.
 - **Indicadores**: overlay `#poisonfx` (tinte verde pulsante al estar envenenado).
 - **Mundo agrandado**: límites jugables ±230 (antes ±110), suelo 520², avenidas centrales de 460
   (llegan al borde), +70 árboles en las afueras y un 2º desierto en (-165,140).

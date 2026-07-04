@@ -143,6 +143,7 @@
   <canvas id="minimap" width="150" height="150" style="position:absolute;top:96px;right:12px;background:rgba(0,0,0,.4);border-radius:10px"></canvas>
   <div id="hurt" style="position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(239,68,68,.9);opacity:0;transition:opacity .15s"></div>
   <div id="poisonfx" style="position:absolute;inset:0;box-shadow:inset 0 0 130px 40px rgba(34,197,94,.8);opacity:0;transition:opacity .3s;pointer-events:none"></div>
+  <div id="coldfx" style="position:absolute;inset:0;box-shadow:inset 0 0 140px 50px rgba(59,130,246,.85);opacity:0;transition:opacity .4s;pointer-events:none"></div>
   <div id="missions" style="position:absolute; top:66px; left:12px; background:rgba(0,0,0,.42); padding:6px 10px; border-radius:10px; font-size:11px; line-height:1.7; pointer-events:none; max-width:46vw;"></div>
   <div id="phase"></div>
   <div id="combo" style="position:absolute; top:22%; left:50%; transform:translateX(-50%); font-size:24px; font-weight:900; color:#fbbf24; text-shadow:0 2px 8px #000; opacity:0; transition:opacity .25s; pointer-events:none; z-index:9;"></div>
@@ -215,7 +216,7 @@
   <p>Vives con tu <b style="color:#38bdf8">papá</b> y empiezas con <b style="color:#4ade80">$1000</b>. Entra al <b style="color:#facc15">SÚPER</b>,
      compra cosas (manteniendo apretado), <b style="color:#fb923c">construye</b> tu casa donde quieras y gana dinero.
      Mientras mejor sea (¡una mansión!), más dinero. Sobrevive la <b style="color:#ef4444">noche</b> contra monstruos.</p>
-  <p style="font-size:13px;opacity:.7">En la ciudad hay una <b>casa secreta</b> con un tesoro (¡es la única en la que puedes entrar!). En los <b style="color:#22c55e">estadios</b> puedes robarle a la gente con <b>E</b>… pero cuidado con la <b style="color:#60a5fa">policía</b> (¡corre!). Cada 1000 monedas sube la <b>etapa</b>. A las 20.000 conoces a la <b style="color:#f9a8d4">mamá</b>. Al final cae un meteorito… ¡compra un cohete y escapa a <b style="color:#f97316">Platus</b>, un planeta de otra galaxia!</p>
+  <p style="font-size:13px;opacity:.7">En la ciudad hay una <b>casa secreta</b> con un tesoro (¡es la única en la que puedes entrar!). En los <b style="color:#22c55e">estadios</b> puedes robarle a la gente con <b>E</b>… pero cuidado con la <b style="color:#60a5fa">policía</b> (¡corre!). Cada 1000 monedas sube la <b>etapa</b>. A las 20.000 conoces a la <b style="color:#f9a8d4">mamá</b>. Al final cae un meteorito… ¡compra un cohete y <b>trajes espaciales</b> y escapa a <b style="color:#f97316">Platus</b>! Allá solo hay <b>árboles muertos</b>, las noches son <b style="color:#60a5fa">heladas</b> 🥶 (haz fogatas con carbón ⚫) y con 10 de carbón puedes <b>reutilizar el cohete</b> para volver.</p>
   <p id="bestline" style="display:none; color:#fbbf24; font-weight:800; font-size:14px; margin:0;"></p>
   <div class="keys">
     <span><b>WASD</b></span><span>Caminar · <b>Shift</b> Correr · <b>Espacio</b> Saltar · <b>Ctrl</b> Agacharse</span>
@@ -286,7 +287,8 @@
       <span><b>H</b></span><span>Llamar a un ayudante (después de conocer a la mamá)</span>
       <span><b>Z</b></span><span>😴 Papá descansa en el sofá o la cama: los monstruos NO lo detectan (Z de nuevo para levantarlo)</span>
       <span><b>U</b></span><span>🧮 Desafío de mates (o botón 🧮 en celular): resuelve y gana $100-$400 (¡la racha paga hasta el doble!), 5 al día</span>
-      <span><b>R</b></span><span>Lanzar el cohete (con el papá, después del meteorito)</span>
+      <span><b>R</b></span><span>Lanzar el cohete (con el papá y TRAJES ESPACIALES 🧑‍🚀; reutilizarlo cuesta 10 de carbón ⚫)</span>
+      <span><b>🪐</b></span><span><b>En PLATUS:</b> pica CARBÓN golpeando las rocas negras (👊/clic) · <b>T</b> hace una FOGATA (3 carbón) · de noche hace MUCHO frío: quédate cerca del fuego o te congelas 🥶 · no hay súper ni estadios</span>
     </div>
     <h3 style="margin:16px 0 4px; color:#fbbf24;">💰 Cómo ganar dinero</h3>
     <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.5; opacity:.92;">
@@ -558,6 +560,7 @@ const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'semillas', name: 'Semillas manzana (x10)', price: 60, color: 0x7c9a3b },
   { key: 'dadgun',   name: 'Arma papa',    price: 400, color: 0xf59e0b },
   { key: 'dadarmor', name: 'Armadura papa', price: 800, color: 0x64748b },
+  { key: 'traje',    name: 'Trajes espaciales', price: 2000, color: 0xe5e7eb },
   { key: 'rocket',   name: 'Cohete',       price: 1000000, color: 0xf97316 },
 ];
 const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
@@ -644,6 +647,9 @@ function makeProductMesh(key, color) {
     const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.06), mat(color)); scoop.position.y = 0.95; scoop.castShadow = true; g.add(scoop);
   } else if (key.startsWith('armadura')) {
     const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.35), mat(color)); chest.position.y = 0.5; chest.castShadow = true; g.add(chest);
+  } else if (key === 'traje') {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.6, 0.3), mat(color)); body.position.y = 0.45; body.castShadow = true; g.add(body);
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 10), new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.5, roughness: .1 })); helmet.position.y = 0.95; g.add(helmet);
   } else if (key === 'dadarmor') {
     const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.35), mat(color)); chest.position.y = 0.5; chest.castShadow = true; g.add(chest);
     const strap = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.12, 0.4), mat(0x334155)); strap.position.y = 0.62; g.add(strap);
@@ -659,6 +665,11 @@ function makeProductMesh(key, color) {
   }
   return g;
 }
+
+// ---- Mundo de la TIERRA (súper, ciudad, estadios, gente…): se oculta entero al viajar a Platus ----
+const earthMeshes = [], earthObstacles = [];
+const _preEarthChildren = new Set(scene.children);
+const _preEarthObsN = obstacles.length;
 
 const shopStands = [];
 const keepers = [];   // posiciones de los vendedores (para comprar escribiendo con Y)
@@ -795,8 +806,9 @@ function loadBuilding(path, x, z, targetH) {
     m.scale.setScalar(targetH / (box.max.y - box.min.y)); m.updateMatrixWorld(true);
     box = new THREE.Box3().setFromObject(m); const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
     m.position.set(x - c.x, -box.min.y, z - c.z);
-    scene.add(m);
-    addObstacle(x, z, s.x * 0.9, s.z * 0.9);
+    m.visible = state.planet !== 'platus';   // si carga estando en Platus, nace oculto
+    scene.add(m); earthMeshes.push(m);
+    earthObstacles.push(addObstacle(x, z, s.x * 0.9, s.z * 0.9));
   });
 }
 loadBuilding('assets/edificio.glb', -30, 40, 14);
@@ -1019,6 +1031,7 @@ function policeCatch() { state.wanted = 0; state.wantedLevel = 0; state.driving 
 
 // Robar a la gente del estadio (con E cerca). Riesgo: que te persiga la policía
 function tryRob() {
+  if (state.planet === 'platus') return;   // en Platus no hay estadios ni gente
   for (const v of victims) {
     if (!v.userData.robbed && dist2D(player.position, v.position) < 6) {
       v.userData.robbed = true;
@@ -1255,6 +1268,97 @@ function spawnPedestrians() {
 }
 spawnPedestrians();
 
+// ---- Cierre del "mundo de la Tierra": todo lo agregado desde el marcador es terrestre ----
+scene.children.forEach(o => { if (!_preEarthChildren.has(o)) earthMeshes.push(o); });
+obstacles.slice(_preEarthObsN).forEach(o => earthObstacles.push(o));
+function setEarthWorld(v) {   // muestra/oculta la Tierra completa (con sus colisiones)
+  for (const m of earthMeshes) m.visible = v;
+  if (!v) { for (const o of earthObstacles) { const i = obstacles.indexOf(o); if (i >= 0) obstacles.splice(i, 1); } }
+  else { for (const o of earthObstacles) if (!obstacles.includes(o)) obstacles.push(o); }
+  setCityVisible(v);
+}
+
+// ===================================================================
+//  PLATUS: árboles muertos, rocas de carbón, fogatas y frío nocturno
+// ===================================================================
+const platusStuff = [], coalRocks = [], campfires = [];
+function buildPlatus() {
+  for (let i = 0; i < 60; i++) {   // árboles MUERTOS (troncos secos con ramas peladas)
+    const a = Math.random() * Math.PI * 2, r = 15 + Math.random() * 200;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (Math.abs(x) < 8 && Math.abs(z) < 8) continue;
+    const t = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.22, .38, 3.6, 6), mat(0x4a3728)); trunk.position.y = 1.8; trunk.castShadow = true; t.add(trunk);
+    for (let b = 0; b < 3; b++) {
+      const br = new THREE.Mesh(new THREE.CylinderGeometry(.07, .11, 1.6, 5), mat(0x3b2b1f));
+      br.position.y = 2.3 + b * 0.5; br.rotation.z = 0.7 + Math.random() * 0.9; br.rotation.y = Math.random() * 6.28;
+      br.translateY(0.7); t.add(br);
+    }
+    t.position.set(x, 0, z); t.visible = false; scene.add(t); platusStuff.push(t);
+  }
+  for (let i = 0; i < 26; i++) {   // rocas de CARBÓN: pícalas a golpes (👊/clic) para sacar carbón
+    const a = Math.random() * Math.PI * 2, r = 12 + Math.random() * 170;
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 + Math.random() * 0.5), new THREE.MeshStandardMaterial({ color: 0x1f2430, roughness: .9 }));
+    rock.position.set(Math.cos(a) * r, 0.55, Math.sin(a) * r); rock.castShadow = true;
+    rock.visible = false; scene.add(rock); platusStuff.push(rock); coalRocks.push(rock);
+  }
+}
+buildPlatus();
+function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); }
+function tryMineCoal() {   // picar carbón: 1 golpe cerca de una roca negra = 1 carbón
+  if (state.planet !== 'platus') return false;
+  for (const r of coalRocks) {
+    if (dist2D(player.position, r.position) < 3.2) {
+      state.inv.carbon = (state.inv.carbon || 0) + 1;
+      floatText(r.position, '⚫ +1 carbón', '#cbd5e1', 15);
+      r.rotation.y += 0.5; beep(220, 0.08, 0.05);
+      return true;
+    }
+  }
+  return false;
+}
+function spawnCampfire(x, z) {   // crea la fogata (usado al hacerla y al cargar partida)
+  const g = new THREE.Group();
+  for (let i = 0; i < 3; i++) { const log = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 1.1, 6), mat(0x4a3728)); log.rotation.z = Math.PI / 2; log.rotation.y = i * 1.05; log.position.y = 0.12; g.add(log); }
+  const fire = new THREE.Mesh(new THREE.ConeGeometry(.4, .9, 8), new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 1 })); fire.position.y = 0.6; g.add(fire);
+  const light = new THREE.PointLight(0xffa94d, 1.6, 14); light.position.y = 1.2; g.add(light);
+  g.position.set(x, 0, z); scene.add(g); campfires.push(g);
+  return g;
+}
+function clearCampfires() { campfires.forEach(c => scene.remove(c)); campfires.length = 0; }
+function makeCampfire() {   // T en Platus: 3 de carbón -> fogata delante tuyo
+  if ((state.inv.carbon || 0) < 3) { toast('🔥 Necesitas 3 de CARBÓN para una fogata: pica las rocas negras a golpes 👊'); return; }
+  state.inv.carbon -= 3;
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const p = player.position.clone().addScaledVector(fwd, 2.5);
+  spawnCampfire(p.x, p.z);
+  toast('🔥 ¡Fogata lista! De noche quédate cerca para no congelarte');
+  beep(500, 0.12, 0.05);
+}
+function updateCold(dt) {   // noches heladas de Platus: lejos de una fogata te congelas
+  const fx = ui('coldfx');
+  if (state.planet !== 'platus' || state.phase !== 'NIGHT' || !state.running) { if (fx) fx.style.opacity = '0'; return; }
+  let warmP = false, warmD = false;
+  for (const f of campfires) {
+    if (dist2D(player.position, f.position) < 7) warmP = true;
+    if (dad.visible && dist2D(dad.position, f.position) < 7) warmD = true;
+  }
+  if (!warmP) {
+    state.hp -= 2 * dt;
+    if (fx) fx.style.opacity = '0.85';
+    if (!state.coldWarned) { state.coldWarned = true; toast('🥶 ¡Hace MUCHO frío! Haz una FOGATA (T, con 3 carbón) o te congelas'); }
+  } else if (fx) fx.style.opacity = '0';
+  if (dad.visible && !warmD && !dad.userData.resting) state.dadHp -= 1.2 * dt;   // al papá con traje le pega menos
+}
+function applySpaceSuit(v) {   // traje espacial del papá (casco + mochila); el tuyo se ve en el HUD 🧑‍🚀
+  if (v && !dad.userData.helmet) {
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 12), new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.35, roughness: .1 }));
+    h.position.y = 1.62; dad.add(h); dad.userData.helmet = h;
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.6, 0.25), mat(0xe5e7eb)); pack.position.set(0, 1.1, -0.32); dad.add(pack); dad.userData.pack = pack;
+  }
+  if (dad.userData.helmet) { dad.userData.helmet.visible = v; dad.userData.pack.visible = v; }
+}
+
 // Flecha guía
 const arrow = new THREE.Group();
 const arrowCone = new THREE.Mesh(new THREE.ConeGeometry(.6, 1.4, 4), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
@@ -1281,7 +1385,7 @@ let car = null;             // el auto (feature): { group, wheels, hp, maxHp, he
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
   'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera'];
 // Inventario inicial: 0 de cada cosa colocable + comida/semillas
-function freshInv() { const inv = { food: 0, semillas: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
+function freshInv() { const inv = { food: 0, semillas: 0, carbon: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
 let buildSel = 0, buildRot = 0;
 const ghost = new THREE.Group(); scene.add(ghost); ghost.visible = false;
 let ghostMesh = null;
@@ -2029,6 +2133,7 @@ const state = {
   hunger: 100, night: 0,
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
+  hasSuits: false, usedRocket: false, meteorAt: 1000000, coldWarned: false,
   buildMode: false,
   dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
 };
@@ -2042,7 +2147,7 @@ function checkProgress() {
   const newStage = 1 + Math.floor(state.totalEarned / 1000);
   if (newStage > state.stage) { state.stage = newStage; toast('⭐ ¡ETAPA ' + state.stage + '! El juego se pone más difícil'); phaseText('ETAPA ' + state.stage); }
   if (!state.momUnlocked && state.totalEarned >= MOM_AT) { state.momUnlocked = true; state.momEventPending = true; toast('💃 A las $20.000: ¡esta noche el papá irá a una fiesta!'); }
-  if (!state.meteorTriggered && state.totalEarned >= METEOR_AT) triggerMeteor();
+  if (!state.meteorTriggered && state.planet === 'tierra' && state.totalEarned >= (state.meteorAt || METEOR_AT)) triggerMeteor();
   for (const u of UNLOCK_ITEMS) {   // desbloqueos del medio juego (cada ~50k)
     if (state.totalEarned >= u.unlockAt && !(state.unlocked && state.unlocked[u.key])) {
       if (!state.unlocked) state.unlocked = {};
@@ -2166,6 +2271,7 @@ function nearKeeper() {
   return false;
 }
 function openShopInput() {
+  if (state.planet === 'platus') { toast('🪐 En Platus no hay súper: pica carbón ⚫ y sobrevive'); return; }
   if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
   if (!nearKeeper()) { toast('🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
   closeMathBox();
@@ -2185,7 +2291,7 @@ function shopIcon(item) {
   if (item.car) return '🚗'; if (item.paint) return '🎨';
   if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
   if (item.factor) return '🛡️'; if (item.key === 'semillas') return '🌱';
-  if (item.key === 'dadgun') return '🔫'; if (item.key === 'dadarmor') return '🛡️'; if (item.key === 'rocket') return '🚀';
+  if (item.key === 'dadgun') return '🔫'; if (item.key === 'dadarmor') return '🛡️'; if (item.key === 'rocket') return '🚀'; if (item.key === 'traje') return '🧑‍🚀';
   if (item.key === 'perro') return '🐶'; if (item.key === 'laser') return '🔆'; if (item.key === 'piso2') return '🏠';
   if (item.key === 'moto') return '🏍️'; if (item.key === 'heladera') return '🧊';
   if (item.build) return '🧱'; return '🛒';
@@ -2403,7 +2509,9 @@ function startGame() {
   hideScreens();
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPlants(); clearHelpers();
-  state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setCityVisible(true);
+  state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
+  setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
+  state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
   state.phase = 'DAY'; state.running = true;
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
@@ -2437,6 +2545,8 @@ function saveGame() {
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
       creative: !!state.creative,
       mathLeft: state.mathLeft != null ? state.mathLeft : 5, mathStreak: state.mathStreak || 0,   // desafíos de mates
+      hasSuits: !!state.hasSuits, usedRocket: !!state.usedRocket, meteorAt: state.meteorAt || METEOR_AT,   // viajes espaciales
+      campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
@@ -2643,10 +2753,13 @@ function loadGame() {
   state.unlocked = d.unlocked || {};
   state.creative = !!d.creative;
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
+  state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
+  clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
+  if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setCityVisible(false); }
-  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setCityVisible(true); }
+  if (state.planet === 'platus') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); applySpaceSuit(true); }
+  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
@@ -2687,7 +2800,9 @@ function resetAll() {
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
-  if (state.rocket) { scene.remove(state.rocket); state.rocket = null; }
+  setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires();
+  state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
+  removeRocket();
 }
 
 // ===================================================================
@@ -2696,7 +2811,7 @@ function resetAll() {
 let buyHold = 0;
 function updateBuying(dt) {
   const ring = ui('buyring');
-  if (state.phase !== 'DAY' || state.buildMode) { ring.style.display = 'none'; buyHold = 0; return; }
+  if (state.phase !== 'DAY' || state.buildMode || state.planet === 'platus') { ring.style.display = 'none'; buyHold = 0; return; }
   let near = null; for (const it of shopStands) { if (dist2D(player.position, it.pos) < 2.8) { near = it; break; } }
   if (!near) { ring.style.display = 'none'; buyHold = 0; return; }
   ring.style.display = 'block';
@@ -2751,7 +2866,11 @@ function nearestStreetCar(maxD) {
 function stealCar(g) {
   let i = traffic.indexOf(g); if (i >= 0) traffic.splice(i, 1);
   i = parkedCars.indexOf(g); if (i >= 0) parkedCars.splice(i, 1);
-  if (g.userData.obstacle) { const j = obstacles.indexOf(g.userData.obstacle); if (j >= 0) obstacles.splice(j, 1); g.userData.obstacle = null; }
+  if (g.userData.obstacle) {
+    const j = obstacles.indexOf(g.userData.obstacle); if (j >= 0) obstacles.splice(j, 1);
+    const k = earthObstacles.indexOf(g.userData.obstacle); if (k >= 0) earthObstacles.splice(k, 1);   // que no reviva al volver de Platus
+    g.userData.obstacle = null;
+  }
   g.userData.moving = false;
   const barG = new THREE.Group(); barG.userData.billboard = true;
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
@@ -2912,6 +3031,7 @@ function buyItem(item) {
     if (state.dadArmor > 0.5) { state.dadArmor = 0.5; applyDadArmor(true); toast('🛡️ Armadura para papá: recibe la mitad de daño'); }
     else toast('El papá ya tiene su armadura');
   }
+  else if (item.key === 'traje') { state.hasSuits = true; toast('🧑‍🚀 Trajes espaciales para ti y tu papá: listos para viajar en cohete'); }
   else if (item.key === 'semillas') { state.inv.semillas = (state.inv.semillas || 0) + 10; toast('🌱 Compraste 10 semillas de manzana (pulsa K para plantar)'); }
   else if (item.key === 'rocket') { giveRocket(); }
 }
@@ -2923,6 +3043,7 @@ function setWeaponColor(c) {   // pinta la hoja del pico/arma en primera persona
 //  CASA DORADA
 // ===================================================================
 function tryCollectGolden() {
+  if (state.planet === 'platus') return;   // la casa dorada quedó en la Tierra
   if (!goldenHouse || goldenCollectedToday) return;
   if (dist2D(player.position, goldenHouse.position) < 5) {
     goldenCollectedToday = true; addMoney(1000); toast('🪙 ¡Casa secreta! Encontraste 1000 de oro (vuelve mañana)'); beep(660, 0.18, 0.05);
@@ -2931,6 +3052,7 @@ function tryCollectGolden() {
 
 // Vender tu casa a un aldeano: debe estar COMPLETA y tú cerca de un aldeano (tecla V)
 function sellHouse() {
+  if (state.planet === 'platus') return;   // no hay aldeanos que compren en Platus
   let nearNpc = false;
   for (const n of npcs) { if (dist2D(player.position, n.position) < 6) { nearNpc = true; break; } }
   if (!nearNpc) return;   // silencioso: E tambien sirve para cobrar oro / robar en otros lugares
@@ -3053,32 +3175,45 @@ function meteorImpact() {
   setTimeout(() => { f.style.opacity = '0'; f.style.background = '#000'; }, 700);
   gameOver();
 }
+function spawnRocketMesh() {   // el cohete estacionado en (10,10) con su letrero (reutilizable)
+  if (state.rocket) return;
+  const r = makeProductMesh('rocket', 0xf97316); r.scale.set(4, 4, 4); r.position.set(10, 0, 10); scene.add(r);
+  const s = makeSign('COHETE (R)', 0xf97316); s.position.set(10, 6, 10); scene.add(s); r.userData.sign = s;
+  state.rocket = r;
+}
+function removeRocket() {
+  if (state.rocket) { if (state.rocket.userData.sign) scene.remove(state.rocket.userData.sign); scene.remove(state.rocket); state.rocket = null; }
+  state.hasRocket = false;
+}
 function giveRocket() {
   state.hasRocket = true;
-  if (!state.rocket) {
-    const r = makeProductMesh('rocket', 0xf97316); r.scale.set(4, 4, 4); r.position.set(10, 0, 10); scene.add(r);
-    const s = makeSign('COHETE (R)', 0xf97316); s.position.set(10, 6, 10); scene.add(s);
-    state.rocket = r;
-  }
+  spawnRocketMesh();
   toast('🚀 ¡Cohete listo en (10,10)! Ve con tu PAPÁ y pulsa R');
 }
 function tryLaunchRocket() {
   if (!state.hasRocket || !state.rocket) { toast('Primero compra un Cohete ($1.000.000) en el súper'); return; }
   if (dist2D(player.position, state.rocket.position) > 6) { toast('Acércate al cohete'); return; }
   if (dist2D(dad.position, state.rocket.position) > 8) { toast('¡Tienes que ir con tu PAPÁ al cohete!'); return; }
+  if (!state.hasSuits) { toast('🧑‍🚀 Necesitas TRAJES ESPACIALES para ti y tu papá (cómpralos en el súper)'); return; }
+  if (state.usedRocket) {   // reutilizar el cohete necesita COMBUSTIBLE: 10 de carbón
+    if ((state.inv.carbon || 0) < 10) { toast('⛽ El cohete necesita combustible: 10 de CARBÓN (tienes ' + (state.inv.carbon || 0) + '). Pica las rocas negras 👊'); return; }
+    state.inv.carbon -= 10;
+    toast('⛽ Cargaste 10 de carbón como combustible. ¡Despegando!');
+  }
+  state.usedRocket = true;
   startEscapeCinematic();
 }
 // CINEMÁTICA: subes al espacio solo (sin controlar), miras por la ventana y ves la Tierra partirse en 3
 function startEscapeCinematic() {
   if (state.cinematic) return;
-  state.cinematic = true; state.cine = { t: 0, split: false, done: false, chunks: [] };
+  state.cinematic = true; state.cine = { t: 0, split: false, done: false, chunks: [], fromEarth: state.planet === 'tierra' };
   state.meteorTriggered = false; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   const earth = new THREE.Group();
   const ball = new THREE.Mesh(new THREE.SphereGeometry(6, 24, 24),
-    new THREE.MeshStandardMaterial({ color: 0x2563eb, emissive: 0x14304f, emissiveIntensity: 0.35, roughness: 1 }));
+    new THREE.MeshStandardMaterial({ color: state.cine.fromEarth ? 0x2563eb : 0x9c4a2a, emissive: state.cine.fromEarth ? 0x14304f : 0x3a1c10, emissiveIntensity: 0.35, roughness: 1 }));
   earth.add(ball);
-  for (let i = 0; i < 6; i++) {
+  if (state.cine.fromEarth) for (let i = 0; i < 6; i++) {   // continentes verdes (solo la Tierra)
     const c = new THREE.Mesh(new THREE.SphereGeometry(1.6 + Math.random(), 8, 8), mat(0x2f9e44));
     const a = Math.random() * 6.28, b = Math.random() * 3.14;
     c.position.set(6 * Math.sin(b) * Math.cos(a), 6 * Math.cos(b), 6 * Math.sin(b) * Math.sin(a)); c.scale.set(1, 0.5, 1); earth.add(c);
@@ -3095,7 +3230,7 @@ function updateCinematic(dt) {
   pitch = Math.max(-0.7, pitch - 0.3 * dt);
   camera.rotation.set(pitch, yaw, 0);
   if (c.earth) c.earth.position.y = player.position.y - 30 - c.t * 6;
-  if (c.t > 3.5 && !c.split) {
+  if (c.t > 3.5 && !c.split && c.fromEarth) {   // solo la Tierra se parte (el meteorito la destruyó)
     c.split = true; if (c.ball) c.ball.visible = false;
     for (let i = 0; i < 3; i++) {
       const chunk = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12, i * 2.09, 2.10),
@@ -3111,25 +3246,45 @@ function updateCinematic(dt) {
     c.done = true;
     if (c.earth) scene.remove(c.earth);
     state.cinematic = false;
-    goToPlanet();
+    if (c.fromEarth) goToPlanet(); else returnToEarth();   // ida a Platus / vuelta a la Tierra
     const f = ui('fade'); f.style.transition = 'opacity .9s'; f.style.opacity = '0';
   }
 }
 function goToPlanet() {
   state.planet = 'platus'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
+  state.meteorAt = state.totalEarned + 1000000;   // el próximo meteorito llega al SIGUIENTE millón (en la Tierra)
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
-  clearPlants(); clearHelpers(); removePet(); removeFloor2(); dad.visible = true;
+  clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
+  state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en Platus no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Platus no te persigue la policía terrestre
-  setCityVisible(false);                                                     // Platus: sin calles, tráfico ni semáforos
-  groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Platus: rojo y sin árboles
-  if (state.rocket) { scene.remove(state.rocket); state.rocket = null; } state.hasRocket = false;
+  setEarthWorld(false);                                                      // Platus: NADA de la Tierra (súper, ciudad, estadios, gente, calles)
+  setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
+  applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
+  groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Platus: suelo rojo
+  spawnRocketMesh(); state.rocket.position.set(10, 0, 10); if (state.rocket.userData.sign) state.rocket.userData.sign.position.set(10, 6, 10);   // el cohete queda estacionado (reutilizable)
   player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
   state.phase = 'DAY'; state.dayTime = 0;
   newMissions();
-  toast('🪐 Llegaste a PLATUS, un planeta de otra galaxia. Empiezas de cero: pocos recursos, sin árboles. ¡Sobrevive!');
+  toast('🪐 Llegaste a PLATUS: árboles muertos y noches HELADAS 🥶. Pica CARBÓN ⚫ a golpes 👊, haz FOGATAS (T) y junta 10 de carbón para reutilizar el cohete (R)');
   phaseText('PLATUS');
+}
+// Volver a la Tierra desde Platus (el cohete reutilizado con 10 de carbón)
+function returnToEarth() {
+  state.planet = 'tierra';
+  clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
+  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
+  state.wanted = 0; state.wantedLevel = 0; clearPolice();
+  setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false);
+  groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
+  state.meteorTriggered = false; state.meteorAt = state.totalEarned + 1000000;   // la próxima catástrofe: al siguiente millón
+  spawnRocketMesh(); state.rocket.position.set(10, 0, 10); if (state.rocket.userData.sign) state.rocket.userData.sign.position.set(10, 6, 10);
+  player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
+  state.hunger = 100; state.phase = 'DAY'; state.dayTime = 0;
+  newMissions();
+  toast('🌍 ¡Volviste a la TIERRA! El cohete queda estacionado: otro viaje cuesta 10 de carbón');
+  phaseText('TIERRA');
 }
 
 // ===================================================================
@@ -3150,6 +3305,7 @@ function startNight() {
   state.pinataDone = false;                                                 // habrá 1 monstruo dorado (piñata)
   state.hordeOn = false;                                                    // horda final del último minuto
   state.nightDamage = false;                                                // si la casa termina sin daño, sube la RACHA
+  state.coldWarned = false;                                                 // aviso de frío de Platus (una vez por noche)
   state.bossNight = state.night % 5 === 0;                                  // cada 5 noches: NOCHE JEFE (paga x3)
   if (state.bossNight) { spawnBossEnemy(); phaseText('⚔️ NOCHE JEFE'); toast('⚔️ ¡NOCHE JEFE! Un monstruo gigante te espera… sobrevive y el pago es x3'); }
   if (state.momEventPending) dadGoesToParty();
@@ -3184,11 +3340,13 @@ function attack() {
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
   if (best) hitEnemy(best, dmg, p);   // el botín flotante ya avisa cuánto pagó el kill
+  else tryMineCoal();                 // de noche en Platus también puedes picar carbón si no hay monstruo cerca
 }
 
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
 function attackNPC() {
   if (state.buildMode) return;
+  if (state.planet === 'platus') { vmSwing = 1; tryMineCoal(); return; }   // en Platus el golpe de día PICA CARBÓN
   const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const range = 4;
   let best = null, bestD = range;
@@ -3207,6 +3365,7 @@ function attackNPC() {
 // Cavar un hoyo con la PALA: a veces salen topos (que viven bajo tierra)
 function digHole() {
   if (state.phase !== 'DAY' && state.phase !== 'NIGHT') return;
+  if (state.planet === 'platus') { makeCampfire(); return; }   // en Platus, T = hacer una FOGATA (3 carbón)
   if (!state.weaponName.toLowerCase().includes('pala')) { toast('🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
   if (state.digCd > 0) return;
   state.digCd = 0.8; vmSwing = 1; beep(140, 0.1, 0.04);
@@ -3455,6 +3614,7 @@ function loop() {
     updateMeteorVisual(dt);                // el meteorito que se ve caer del cielo
     if (state.cinematic) updateCinematic(dt);
     updatePolice(dt);                      // policía persigue si estás buscado
+    updateCold(dt);                        // noches heladas de Platus (fogatas)
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
     hurtFeedback();
@@ -3515,9 +3675,15 @@ function drawMinimap() {
   const sc = 0.6, cx = 75 - player.position.x * sc, cz = 75 - player.position.z * sc;
   const dot = (x, z, col, r) => { g.fillStyle = col; g.beginPath(); g.arc(cx + x * sc, cz + z * sc, r, 0, 7); g.fill(); };
   const icon = (x, z, em, size) => { g.font = (size || 13) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(em, cx + x * sc, cz + z * sc); };
-  // gente y estadios
-  for (const n of npcs) dot(n.position.x, n.position.z, '#94a3b8', 1.5);
-  for (const s of stadiums) icon(s.x, s.z, '🏟️', 12);
+  // gente y estadios (solo en la Tierra)
+  if (state.planet !== 'platus') {
+    for (const n of npcs) dot(n.position.x, n.position.z, '#94a3b8', 1.5);
+    for (const s of stadiums) icon(s.x, s.z, '🏟️', 12);
+  } else {   // Platus: rocas de carbón, fogatas y el cohete
+    for (const r of coalRocks) dot(r.position.x, r.position.z, '#0f172a', 2.5);
+    for (const f of campfires) icon(f.position.x, f.position.z, '🔥', 11);
+  }
+  if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
   if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); }   // súper / armería
   icon(HOUSE.x, HOUSE.z, '🏠', 15);
@@ -3716,6 +3882,8 @@ function renderHUD() {
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');
+  if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0));
+  else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');
   if (state.dadArmor < 1) gear.push('🛡️ papá');

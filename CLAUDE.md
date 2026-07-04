@@ -81,7 +81,7 @@ Agregadas sobre la rama de móvil. Todo sigue en `index.html`.
 Verificado con Playwright: comprar auto (vida 100, 4 ruedas), conducir (avanza con W), colocar ventana
 transparente, pintar la pared de café→rojo, y **cero errores**.
 
-## Guardado, audio, minimapa, auto y Marte (mejoras)
+## Guardado, audio, minimapa, auto y Platus (mejoras)
 
 - **Guardado (localStorage, clave `tim_save`)**: `saveGame()` serializa stats + inventario + casa
   (`placed`) + auto + planeta + **huerto (`plants`: x/z/grow/apples) + ayudantes (`helpers`: x/z) +
@@ -92,7 +92,7 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
   - Helpers reutilizables para evitar duplicar geometría/estado: `spawnPlant` (usado por `plantSeed` y
     `loadGame`), `makeHelperAt`/`clearHelpers` (usado por `spawnHelper` y `loadGame`),
     `ensureDadWeapon`/`applyDadArmed` (usado por `toggleDadArm` y `loadGame`). `startGame` y
-    `goToPlanet` limpian `plants`+`helpers` (empezar de cero / viajar a Marte).
+    `goToPlanet` limpian `plants`+`helpers` (empezar de cero / viajar a Platus).
   - **Armadura del papá** (ítem de tienda `dadarmor`, $800): pone `state.dadArmor = 0.5` (recibe la
     mitad de daño). Todo el daño al papá pasa por `damageDad(amount)` (= `amount * state.dadArmor`),
     espejo de `damagePlayer`. Placa visible en el pecho vía `ensureDadArmorPlate`/`applyDadArmor`.
@@ -104,8 +104,9 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
   🚔 policía (con aro rojo, solo cuando estás buscado) · 🏟️ estadios; enemigos como puntos rojos.
 - **Auto** (`updateDriving`): atropella monstruos (`hitEnemy` 40), choca con `obstacles` (no atraviesa),
   sonido de motor. `spawnCar(opts)` acepta pos/heading/hp para cargar.
-- **Marte**: en `state.planet==='marte'` salen `alien`/`alienBig` (`makeAlienBig`, 140 vida/24 daño) y
-  las recompensas de la noche se multiplican ×1.5. Etapas altas (≥10) pagan mucho más.
+- **Platus** (planeta inventado de otra galaxia, `state.planet==='platus'`; antes se llamaba "Marte").
+  Salen `alien`/`alienBig` (`makeAlienBig`, 140 vida/24 daño) y las recompensas de la noche se
+  multiplican ×1.5. Etapas altas (≥10) pagan mucho más. `loadGame` mapea saves viejos `'marte'`→`'platus'`.
 - **Indicadores**: overlay `#poisonfx` (tinte verde pulsante al estar envenenado).
 - Enemigos legado reintroducidos en la rotación: `ghost` (12+), `ogre` (16+), `dragon` (18+).
 
@@ -125,9 +126,9 @@ anteriores siguen apareciendo. Definiciones en `ENEMY_DEFS` (modelo, `hp`, `spd(
   el daño de la embestida = `dmg` del comandante), `mole` (lo maneja `updateMoles`), `boss`, `poison`,
   `fly`, `breaksAir`. El bucle de combate está en `updateNight`.
 - Tipos legado (`ogre`, `ghost`, `dragon`) siguen en `ENEMY_DEFS` pero no salen en la rotación normal;
-  `alien` sale solo en Marte.
+  `alien` sale solo en Platus.
 
-## Arreglos tras code review (buscado/policía, ciudad en Marte, auto robado)
+## Arreglos tras code review (buscado/policía, ciudad en Platus, auto robado)
 
 Bugs detectados en un code review de la fusión (calles/tráfico + estrellas + robar auto) y corregidos:
 
@@ -135,11 +136,11 @@ Bugs detectados en un code review de la fusión (calles/tráfico + estrellas + r
    de los autos estacionados queda seteado y `stealCar` sí puede quitar la caja de colisión al robarlos
    (antes dejaba un muro invisible permanente en cada plaza de estacionamiento).
 2. **Buscado/policía se limpia en todas las transiciones**: `state.wanted`/`state.wantedLevel = 0` +
-   `clearPolice()` ahora también en `goToPlanet()` (Marte), `goToJail()` (muerte) y `faintFromHunger()`
+   `clearPolice()` ahora también en `goToPlanet()` (Platus), `goToJail()` (muerte) y `faintFromHunger()`
    — antes solo `policeCatch`/`startGame`/`loadGame` lo hacían, así que reaparecías BUSCADO.
-3. **Marte sin ciudad terrestre**: helper `setCityVisible(v)` oculta/muestra `roadMeshes` (nuevo array
+3. **Platus sin ciudad terrestre**: helper `setCityVisible(v)` oculta/muestra `roadMeshes` (nuevo array
    poblado en `makeRoad`) + `traffic` + `parkedCars` + `trafficLights`. Se llama `false` en `goToPlanet`
-   y `true` en `startGame`/`loadGame` (según `state.planet`). `nearestStreetCar` retorna `null` en Marte
+   y `true` en `startGame`/`loadGame` (según `state.planet`). `nearestStreetCar` retorna `null` en Platus
    (no se puede robar un auto invisible).
 4. **Atropellar peatón cuenta una vez por atropello** (flag `n.userData.hitByCar`) en vez de llamar
    `becomeWanted(15,2)` cada frame mientras lo arrastras (antes inflaba a 5 estrellas y reiniciaba el timer).

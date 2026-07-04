@@ -203,7 +203,7 @@
   <p>Vives con tu <b style="color:#38bdf8">papá</b> y empiezas con <b style="color:#4ade80">$1000</b>. Entra al <b style="color:#facc15">SÚPER</b>,
      compra cosas (manteniendo apretado), <b style="color:#fb923c">construye</b> tu casa donde quieras y gana dinero.
      Mientras mejor sea (¡una mansión!), más dinero. Sobrevive la <b style="color:#ef4444">noche</b> contra monstruos.</p>
-  <p style="font-size:13px;opacity:.7">En la ciudad hay una <b>casa secreta</b> con un tesoro (¡es la única en la que puedes entrar!). En los <b style="color:#22c55e">estadios</b> puedes robarle a la gente con <b>E</b>… pero cuidado con la <b style="color:#60a5fa">policía</b> (¡corre!). Cada 1000 monedas sube la <b>etapa</b>. A las 20.000 conoces a la <b style="color:#f9a8d4">mamá</b>. Al final cae un meteorito… ¡compra un cohete y escapa a otro planeta!</p>
+  <p style="font-size:13px;opacity:.7">En la ciudad hay una <b>casa secreta</b> con un tesoro (¡es la única en la que puedes entrar!). En los <b style="color:#22c55e">estadios</b> puedes robarle a la gente con <b>E</b>… pero cuidado con la <b style="color:#60a5fa">policía</b> (¡corre!). Cada 1000 monedas sube la <b>etapa</b>. A las 20.000 conoces a la <b style="color:#f9a8d4">mamá</b>. Al final cae un meteorito… ¡compra un cohete y escapa a <b style="color:#f97316">Platus</b>, un planeta de otra galaxia!</p>
   <div class="keys">
     <span><b>WASD</b></span><span>Caminar · <b>Shift</b> Correr · <b>Espacio</b> Saltar · <b>Ctrl</b> Agacharse</span>
     <span><b>Flechas / Mouse</b></span><span>Mirar (mover la cámara)</span>
@@ -1070,7 +1070,7 @@ function makeRoad(cx, cz, len, horizontal) {
     d.position.set(cx + (horizontal ? off : 0), 0.03, cz + (horizontal ? 0 : off)); scene.add(d); roadMeshes.push(d);
   }
 }
-// Mostrar/ocultar toda la ciudad (calles, tráfico, autos estacionados, semáforos): en Marte no hay ciudad
+// Mostrar/ocultar toda la ciudad (calles, tráfico, autos estacionados, semáforos): en Platus no hay ciudad
 function setCityVisible(v) {
   roadMeshes.forEach(m => m.visible = v);
   traffic.forEach(c => c.visible = v);
@@ -1516,7 +1516,7 @@ function makeAnt() {
   const sting = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 8), new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x16a34a, emissiveIntensity: 0.6 })); sting.position.set(0, 0.7, -1.25); sting.rotation.x = -Math.PI / 2; g.add(sting);
   return g;
 }
-// Alien grande (solo en Marte): más fuerte que el alien normal
+// Alien grande (solo en Platus): más fuerte que el alien normal
 function makeAlienBig() {
   const g = makeAlien(); g.scale.multiplyScalar(1.5);
   const spike = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.6, 8), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0891b2, emissiveIntensity: 0.5 })); spike.position.set(0, 2.6, 0); g.add(spike);
@@ -1578,7 +1578,7 @@ function unlockedTypes() {
 }
 const ENEMY_WEIGHT = { zombie: 5, zombieArmored: 4, smart: 4, smartArmored: 3, toro: 2, toroArmored: 2, mole: 3, moleBoss: 1, ant: 3, flyer: 2, ghost: 2, ogre: 1, dragon: 1 };
 function pickEnemyType() {
-  if (state.planet === 'marte') { const r = Math.random(); if (r < 0.3) return 'alienBig'; if (r < 0.65) return 'alien'; }   // Marte: aliens (y siguen saliendo los de la Tierra)
+  if (state.planet === 'platus') { const r = Math.random(); if (r < 0.3) return 'alienBig'; if (r < 0.65) return 'alien'; }   // Platus: aliens (y siguen saliendo los de la Tierra)
   const pool = unlockedTypes();
   let total = 0; for (const t of pool) total += ENEMY_WEIGHT[t] || 1;
   let r = Math.random() * total, pick = pool[0];
@@ -2236,7 +2236,7 @@ function loadGame() {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, night: d.night || 0,
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1,
-    dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: d.planet || 'tierra',
+    dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')),
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
   });
   lastHp = state.hp;
@@ -2245,7 +2245,7 @@ function loadGame() {
   setWeaponColor(d.weaponColor || 0x94a3b8);
   (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
   if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp });
-  if (state.planet === 'marte') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setCityVisible(false); }
+  if (state.planet === 'platus') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setCityVisible(false); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setCityVisible(true); }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes
@@ -2334,7 +2334,7 @@ function spawnCar(opts) {
 }
 // Auto más cercano de la CALLE (tráfico o estacionado) para robar
 function nearestStreetCar(maxD) {
-  if (state.planet === 'marte') return null;   // en Marte no hay autos de calle
+  if (state.planet === 'platus') return null;   // en Platus no hay autos de calle
   let best = null, bd = maxD;
   for (const c of traffic.concat(parkedCars)) { const d = dist2D(player.position, c.position); if (d < bd) { bd = d; best = c; } }
   return best;
@@ -2691,19 +2691,19 @@ function updateCinematic(dt) {
   }
 }
 function goToPlanet() {
-  state.planet = 'marte'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
+  state.planet = 'platus'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); clearHelpers(); dad.visible = true;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
-  state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Marte no te persigue la policía terrestre
-  setCityVisible(false);                                                     // Marte: sin calles, tráfico ni semáforos
-  groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Marte: rojo y sin árboles
+  state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Platus no te persigue la policía terrestre
+  setCityVisible(false);                                                     // Platus: sin calles, tráfico ni semáforos
+  groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Platus: rojo y sin árboles
   if (state.rocket) { scene.remove(state.rocket); state.rocket = null; } state.hasRocket = false;
   player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13);
   state.phase = 'DAY'; state.dayTime = 0;
-  toast('🪐 Llegaste a otro planeta. Empiezas de cero: pocos recursos, sin árboles. ¡Sobrevive!');
-  phaseText('PLANETA NUEVO');
+  toast('🪐 Llegaste a PLATUS, un planeta de otra galaxia. Empiezas de cero: pocos recursos, sin árboles. ¡Sobrevive!');
+  phaseText('PLATUS');
 }
 
 // ===================================================================
@@ -2863,14 +2863,14 @@ function surviveNight() {
   const hs = houseStats();
   let reward = 100 * state.stage + (hs.mansion ? 800 : (hs.ready ? 200 : 0));
   if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
-  if (state.planet === 'marte') reward = Math.round(reward * 1.5);   // Marte paga más (es más difícil)
+  if (state.planet === 'platus') reward = Math.round(reward * 1.5);   // Platus paga más (es más difícil)
   addMoney(reward);
   state.hp = Math.min(100, state.hp + 40); state.dadHp = Math.min(100, state.dadHp + 30);
   state.poison = 0; state.dadPoison = 0;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
   if (state.momUnlocked && !mom.visible) dadReturnsWithMom();
-  const extra = state.stage >= 15 ? ' 🏆 ¡Etapa alta!' : (state.planet === 'marte' ? ' 🪐' : (hs.mansion ? ' (¡bono mansión!)' : ''));
+  const extra = state.stage >= 15 ? ' 🏆 ¡Etapa alta!' : (state.planet === 'platus' ? ' 🪐' : (hs.mansion ? ' (¡bono mansión!)' : ''));
   toast('🌅 ¡Sobreviviste la noche ' + state.night + '! +$' + reward + extra);
   phaseText('DÍA');
   saveGame();   // autoguardado cada noche superada
@@ -2991,7 +2991,7 @@ function drawMinimap() {
   for (const n of npcs) dot(n.position.x, n.position.z, '#94a3b8', 1.5);
   for (const s of stadiums) icon(s.x, s.z, '🏟️', 12);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
-  if (state.planet !== 'marte') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); }   // súper / armería
+  if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); }   // súper / armería
   icon(HOUSE.x, HOUSE.z, '🏠', 15);
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
   if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
@@ -3058,7 +3058,7 @@ function updateArrow() {
   arrow.rotation.y = Math.atan2(target.x - player.position.x, target.z - player.position.z);
   arrowCone.rotation.set(Math.PI / 2, 0, 0);
   // marcador "construye tu casa aquí": solo de día, en la Tierra, hasta que ya construiste
-  homePlot.visible = !ready && state.phase === 'DAY' && state.planet !== 'marte';
+  homePlot.visible = !ready && state.phase === 'DAY' && state.planet !== 'platus';
 }
 
 function updateDayNight(dt) {
@@ -3139,7 +3139,7 @@ function updateBillboards(dt) {
 }
 function updateSky(dt) {
   const night = state.phase === 'NIGHT';
-  const base = state.planet === 'marte' ? new THREE.Color(0xd98c5f) : SKY_DAY;
+  const base = state.planet === 'platus' ? new THREE.Color(0xd98c5f) : SKY_DAY;
   const target = night ? SKY_NIGHT : base;
   scene.background.lerp(target, 0.04); scene.fog.color.copy(scene.background);
   ambient.intensity += ((night ? 0.25 : 1.0) - ambient.intensity) * 0.04;
@@ -3156,7 +3156,7 @@ function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':'
 function renderHUD() {
   ui('ui-money').textContent = '$' + state.money;
   ui('ui-stage').textContent = state.stage;
-  ui('ui-planet').textContent = state.planet === 'marte' ? 'Marte' : 'Tierra';
+  ui('ui-planet').textContent = state.planet === 'platus' ? 'Platus' : 'Tierra';
   ui('ui-hp').style.width = Math.max(0, state.hp) + '%';
   ui('ui-food').style.width = Math.max(0, state.hunger) + '%';
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';

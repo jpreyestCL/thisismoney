@@ -3487,11 +3487,16 @@ function toggleCar() {
     player.position.set(p.x, PLAYER_EYE, p.z);
     toast('🚶 Bajaste del auto'); return true;
   }
-  if (car && dist2D(player.position, car.group.position) < 4.5) {
+  if (car && dist2D(player.position, car.group.position) < 4.5) {   // subir a TU auto (comprado/robado): tiene prioridad si estás pegado a él
     state.driving = true; yaw = car.heading; state.buildMode = false;
     toast('🚗 Conduces: W/S avanzar · A/D girar · Shift/correr TURBO · 👊/Espacio bocina · E bajar'); return true;
   }
-  if (!car) { const street = nearestStreetCar(4.2); if (street) { stealCar(street); return true; } }   // robar un auto de la calle (si no tienes uno)
+  // robar un auto de la CALLE: si hay uno cerca, róbalo — aunque ya tengas uno (abandonas el actual y te llevas el nuevo)
+  const street = nearestStreetCar(6);
+  if (street && !(car && street === car.group)) {
+    if (car) removeCar();   // suelta el auto actual
+    stealCar(street); return true;
+  }
   return false;
 }
 // Conducir: reemplaza el caminar mientras state.driving

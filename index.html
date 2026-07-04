@@ -144,6 +144,7 @@
   <div id="hurt" style="position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(239,68,68,.9);opacity:0;transition:opacity .15s"></div>
   <div id="poisonfx" style="position:absolute;inset:0;box-shadow:inset 0 0 130px 40px rgba(34,197,94,.8);opacity:0;transition:opacity .3s;pointer-events:none"></div>
   <div id="phase"></div>
+  <div id="combo" style="position:absolute; top:22%; left:50%; transform:translateX(-50%); font-size:24px; font-weight:900; color:#fbbf24; text-shadow:0 2px 8px #000; opacity:0; transition:opacity .25s; pointer-events:none; z-index:9;"></div>
   <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
   <div id="objective">Objetivo</div>
   <div id="crosshair"></div>
@@ -1623,6 +1624,7 @@ function hitEnemy(e, dmg, fromPos) {
   e.userData.hp -= dmg; e.userData.flash = 0.15;
   if (fromPos) { const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1; e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6; }
   beep(180, 0.05, 0.035);
+  floatText(e.position, '-' + Math.round(dmg), '#fbbf24', 13);   // número de daño flotante
   if (e.userData.hp <= 0) { killEnemy(e); addMoney(15); return true; }
   return false;
 }
@@ -2899,6 +2901,66 @@ function toast(msg) { const t = ui('toast'); t.textContent = msg; t.style.opacit
 function phaseText(msg) { ui('phase').textContent = msg; setTimeout(() => { if (ui('phase').textContent === msg) ui('phase').textContent = ''; }, 2600); }
 
 // ===================================================================
+//  "JUICE": textos flotantes, monedas que saltan, combo de kills
+// ===================================================================
+const floats = [];   // textos "+$" / daño que flotan sobre el mundo
+const _floatV = new THREE.Vector3();
+function floatText(pos, text, color, size) {
+  const el = document.createElement('div');
+  el.textContent = text;
+  el.style.cssText = 'position:fixed; left:0; top:0; z-index:40; pointer-events:none; font-weight:900; white-space:nowrap; text-shadow:0 2px 5px rgba(0,0,0,.8); color:' + (color || '#fff') + '; font-size:' + (size || 15) + 'px;';
+  document.body.appendChild(el);
+  floats.push({ el, x: pos.x, y: (pos.y || 0) + 1.8, z: pos.z, t: 0 });
+}
+function updateFloats(dt) {
+  for (let i = floats.length - 1; i >= 0; i--) {
+    const f = floats[i]; f.t += dt;
+    _floatV.set(f.x, f.y + f.t * 1.4, f.z).project(camera);   // sube mientras vive
+    if (_floatV.z > 1) f.el.style.opacity = '0';              // detrás de la cámara
+    else {
+      f.el.style.transform = 'translate(' + ((_floatV.x * 0.5 + 0.5) * innerWidth - 18) + 'px,' + ((-_floatV.y * 0.5 + 0.5) * innerHeight) + 'px)';
+      f.el.style.opacity = String(Math.max(0, 1 - f.t / 1.2));
+    }
+    if (f.t > 1.2) { f.el.remove(); floats.splice(i, 1); }
+  }
+}
+// Monedas 3D que saltan al ganar plata
+const coins = [];
+const coinGeo = new THREE.CylinderGeometry(0.14, 0.14, 0.05, 10);
+const coinMat = new THREE.MeshBasicMaterial({ color: 0xfde047 });
+function coinBurst(pos, n) {
+  for (let i = 0; i < n; i++) {
+    const c = new THREE.Mesh(coinGeo, coinMat);
+    c.position.set(pos.x, (pos.y || 0) + 1, pos.z);
+    c.userData = { vx: (Math.random() - 0.5) * 5, vy: 3 + Math.random() * 3.5, vz: (Math.random() - 0.5) * 5, t: 0 };
+    scene.add(c); coins.push(c);
+  }
+}
+function updateCoins(dt) {
+  for (let i = coins.length - 1; i >= 0; i--) {
+    const c = coins[i], u = c.userData; u.t += dt; u.vy -= 12 * dt;
+    c.position.x += u.vx * dt; c.position.y = Math.max(0.08, c.position.y + u.vy * dt); c.position.z += u.vz * dt;
+    c.rotation.x += 7 * dt; c.rotation.y += 9 * dt;
+    if (u.t > 0.9) { scene.remove(c); coins.splice(i, 1); }
+  }
+}
+// Combo: kills encadenados en <2 s (sonido con tono ascendente)
+let combo = 0, comboTimer = 0;
+function addCombo() {
+  combo++; comboTimer = 2;
+  if (combo >= 2) {
+    const el = ui('combo'); el.textContent = '⚡ COMBO x' + combo; el.style.opacity = '1';
+    tone(280 + Math.min(12, combo) * 70, 0.09, 0.05, 'square');
+  }
+  return combo;
+}
+function updateCombo(dt) {
+  if (comboTimer <= 0) return;
+  comboTimer -= dt;
+  if (comboTimer <= 0) { combo = 0; ui('combo').style.opacity = '0'; }
+}
+
+// ===================================================================
 //  BUCLE PRINCIPAL
 // ===================================================================
 const clock = new THREE.Clock();
@@ -2938,6 +3000,7 @@ function loop() {
   }
   for (const e of enemies) swingLimbs(e, dt);
   updateBillboards(dt);
+  updateFloats(dt); updateCoins(dt); updateCombo(dt);   // "juice": textos, monedas, combo
   updateSky(dt);
   renderHUD();
   drawMinimap();
@@ -3153,8 +3216,11 @@ function updateTimers(dt) {
 }
 
 function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+let shownMoney = 0;   // el contador de dinero "rueda" hacia el valor real
 function renderHUD() {
-  ui('ui-money').textContent = '$' + state.money;
+  const mdiff = state.money - shownMoney;
+  shownMoney = Math.abs(mdiff) < 1 ? state.money : shownMoney + mdiff * 0.15;
+  ui('ui-money').textContent = '$' + Math.round(shownMoney);
   ui('ui-stage').textContent = state.stage;
   ui('ui-planet').textContent = state.planet === 'platus' ? 'Platus' : 'Tierra';
   ui('ui-hp').style.width = Math.max(0, state.hp) + '%';

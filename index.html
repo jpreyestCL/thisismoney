@@ -168,6 +168,14 @@
     <div id="shopList" style="overflow-y:auto; margin-top:8px; display:flex; flex-direction:column; gap:5px; -webkit-overflow-scrolling:touch; text-align:left;"></div>
     <button id="shopCloseBtn" style="margin-top:8px; pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:9px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
   </div>
+  <div id="mathbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #a855f7; padding:14px 16px 12px; border-radius:14px; text-align:center; width:min(94vw,420px); flex-direction:column;">
+    <div style="font-size:14px; font-weight:800; color:#c084fc">🧮 DESAFÍO DE MATES</div>
+    <div id="mathInfo" style="font-size:11px; opacity:.65; margin:2px 0 8px"></div>
+    <div id="mathQ" style="font-size:23px; font-weight:900; margin:6px 0 12px; white-space:pre-line"></div>
+    <div id="mathOpts" style="display:grid; grid-template-columns:1fr 1fr; gap:8px"></div>
+    <div id="mathFeedback" style="font-size:14px; font-weight:800; min-height:20px; margin-top:8px"></div>
+    <button id="mathCloseBtn" style="margin-top:6px; pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
+  </div>
   <!-- ===== Controles táctiles (celular) ===== -->
   <div id="joystick"><div id="joyKnob"></div></div>
   <div id="moveBtns">
@@ -194,6 +202,7 @@
       <div class="tbtn" data-act="dadClean">🧹<small>limpia</small></div>
       <div class="tbtn" data-act="dadArm">🔫<small>arma</small></div>
       <div class="tbtn" data-act="dadRest">😴<small>dormir</small></div>
+      <div class="tbtn" data-act="math">🧮<small>mates</small></div>
       <div class="tbtn" data-act="helper">🧒<small>hijo</small></div>
       <div class="tbtn" data-act="rocket">🚀<small>cohete</small></div>
       <div class="tbtn" data-act="help">❓<small>ayuda</small></div>
@@ -221,6 +230,7 @@
     <span><b>C / V / O</b></span><span>Papá: seguir / quieto / limpiar</span>
     <span><b>G</b></span><span>Dar/quitar arma al papá</span>
     <span><b>Z</b></span><span>😴 Papá descansa en sofá/cama (los monstruos no lo ven)</span>
+    <span><b>U</b></span><span>🧮 Desafío de mates: ¡resuélvelo y gana plata! (5 al día)</span>
     <span><b>H</b></span><span>Spawnear ayudante (con mamá)</span>
     <span><b>Clic</b></span><span>Atacar de noche &nbsp; · &nbsp; <b>N</b> empezar noche</span>
     <span><b>R</b></span><span>Lanzar cohete (con papá, tras meteorito)</span>
@@ -275,6 +285,7 @@
       <span><b>G</b></span><span>Darle o quitarle un arma al papá</span>
       <span><b>H</b></span><span>Llamar a un ayudante (después de conocer a la mamá)</span>
       <span><b>Z</b></span><span>😴 Papá descansa en el sofá o la cama: los monstruos NO lo detectan (Z de nuevo para levantarlo)</span>
+      <span><b>U</b></span><span>🧮 Desafío de mates (o botón 🧮 en celular): resuelve y gana $100-$400 (¡la racha paga hasta el doble!), 5 al día</span>
       <span><b>R</b></span><span>Lanzar el cohete (con el papá, después del meteorito)</span>
     </div>
     <h3 style="margin:16px 0 4px; color:#fbbf24;">💰 Cómo ganar dinero</h3>
@@ -284,6 +295,7 @@
       <li><b>Vende</b> tu casa completa a un aldeano (tecla E cerca de él) = <b>$1500</b></li>
       <li>Encuentra la <b>casa secreta</b> y agarra el oro (tecla E) = <b>$1000</b></li>
       <li>Roba en los <b>estadios</b> (tecla E)… ¡pero cuidado con la policía!</li>
+      <li>🧮 Resuelve <b>desafíos de mates</b> (tecla U / botón 🧮) = <b>$100-$400</b> cada uno, 5 al día</li>
     </ul>
     <h3 style="margin:16px 0 4px; color:#f87171;">👾 Monstruos por etapa (se acumulan)</h3>
     <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.5; opacity:.92;">
@@ -2106,11 +2118,13 @@ let typing = false;   // true mientras el input del vendedor está abierto (bloq
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false };
 addEventListener('keydown', e => {
-  if (typing) return;   // si está escribiendo en el vendedor, el juego ignora el teclado
+  if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
+  if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
   if (!state.running) return;
   if (e.code === 'KeyY') { openShopInput(); return; }   // abrir vendedor (comprar escribiendo)
+  if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
   if (e.code === 'KeyN') tryStartNight();
   if (e.code === 'KeyB') { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (1-5 elegir, F colocar, X borrar)' : 'Modo construir OFF'); }
   if (e.code === 'KeyP') buildRot = Math.PI / 2;
@@ -2154,6 +2168,7 @@ function nearKeeper() {
 function openShopInput() {
   if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
   if (!nearKeeper()) { toast('🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
+  closeMathBox();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
   const box = ui('shopbox'), inp = ui('shopInput');
@@ -2254,6 +2269,7 @@ ui('shopInput').addEventListener('keydown', e => {
 });
 ui('shopInput').addEventListener('input', () => renderShopList(ui('shopInput').value));   // filtra la lista al escribir
 ui('shopCloseBtn').onclick = closeShopInput;
+ui('mathCloseBtn').onclick = closeMathBox;
 
 // ===================================================================
 //  CONTROLES TÁCTILES (celular / tablet)
@@ -2321,7 +2337,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
       const quickTap = (performance.now() - lStartT) < 250 && lMoved < 14;
       lookId = null;
       if (!quickTap) return;
-      if (typing) { closeShopInput(); return; }         // tocar fuera del recuadro cierra el vendedor
+      if (typing) { closeShopInput(); closeMathBox(); return; }   // tocar fuera del recuadro cierra el vendedor / los desafíos
       if (state.running && state.phase === 'NIGHT') attack();   // toque rápido de noche = golpear monstruo
     }
   });
@@ -2329,7 +2345,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
 
   // ---------- Botones de acción ----------
   function press(act) {
-    if (typing && act !== 'shop') return;   // con el vendedor abierto, ciérralo antes
+    if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
       case 'interact': if (!toggleCar()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
@@ -2347,6 +2363,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
       case 'dadClean': setDadMode('clean'); break;
       case 'dadArm': toggleDadArm(); break;
       case 'dadRest': toggleDadRest(); break;
+      case 'math': openMathBox(); break;
       case 'helper': spawnHelper(); break;
       case 'rocket': tryLaunchRocket(); break;
       case 'help': toggleHelp(); break;
@@ -2394,6 +2411,7 @@ function startGame() {
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
+  state.mathLeft = 5; state.mathStreak = 0;
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
   removePet(); removeFloor2();
   houseTier = 0;
@@ -2418,6 +2436,7 @@ function saveGame() {
       car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto } : null,
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
       creative: !!state.creative,
+      mathLeft: state.mathLeft != null ? state.mathLeft : 5, mathStreak: state.mathStreak || 0,   // desafíos de mates
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
@@ -2430,6 +2449,84 @@ function saveGame() {
   } catch (e) {}
 }
 function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+// ===================================================================
+//  DESAFÍOS DE MATES (10-11 años): resuélvelos y gana plata (5 al día)
+// ===================================================================
+let mathProblem = null;
+function genMathProblem() {   // problemas de 5°-6° básico con 4 alternativas
+  const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const t = R(1, 6);
+  let q, ans, tier;
+  if (t === 1) { const a = R(120, 980), b = R(120, 980); q = a + ' + ' + b + ' = ?'; ans = a + b; tier = 1; }
+  else if (t === 2) { const a = R(300, 990), b = R(100, a - 60); q = a + ' − ' + b + ' = ?'; ans = a - b; tier = 1; }
+  else if (t === 3) {
+    const a = R(12, 99), b = R(3, 9); ans = a * b; tier = 2;
+    q = Math.random() < 0.4 ? 'Compras ' + b + ' espadas de $' + a + ' cada una.\n¿Cuánto pagas?' : a + ' × ' + b + ' = ?';
+  }
+  else if (t === 4) { const b = R(3, 9), c = R(12, 99); q = (b * c) + ' ÷ ' + b + ' = ?'; ans = c; tier = 2; }
+  else if (t === 5) { const den = [2, 4, 5, 10][R(0, 3)], num = R(1, den - 1), base = den * R(4, 20); q = num + '/' + den + ' de ' + base + ' = ?'; ans = base / den * num; tier = 3; }
+  else { const p = [10, 25, 50][R(0, 2)], base = (p === 25 ? 4 : (p === 10 ? 10 : 2)) * R(5, 40); q = p + '% de ' + base + ' = ?'; ans = base * p / 100; tier = 3; }
+  const opts = new Set([ans]);   // 3 alternativas falsas pero creíbles (cerca de la respuesta)
+  let guard = 0;
+  while (opts.size < 4 && guard++ < 80) {
+    const deltas = [R(1, 9), -R(1, 9), R(1, 2) * 10, -R(1, 2) * 10, (tier === 1 ? 100 : 5) * (Math.random() < 0.5 ? 1 : -1)];
+    const d = ans + deltas[R(0, deltas.length - 1)];
+    if (d > 0 && !opts.has(d)) opts.add(d);
+  }
+  const list = [...opts].sort(() => Math.random() - 0.5);
+  return { q, ans, tier, reward: tier === 1 ? 100 : (tier === 2 ? 200 : 400), opts: list };
+}
+function renderMathProblem() {
+  mathProblem = genMathProblem();
+  ui('mathQ').textContent = mathProblem.q;
+  ui('mathInfo').textContent = 'Vale $' + mathProblem.reward +
+    (state.mathStreak > 0 ? ' · 🔥 racha x' + state.mathStreak + ' (+' + (25 * Math.min(4, state.mathStreak)) + '%)' : '') +
+    ' · te quedan ' + state.mathLeft + ' hoy';
+  const box = ui('mathOpts'); box.innerHTML = '';
+  for (const v of mathProblem.opts) {
+    const b = document.createElement('button');
+    b.textContent = v;
+    b.style.cssText = 'pointer-events:all; cursor:pointer; background:rgba(168,85,247,.25); border:1px solid #a855f7; color:#fff; padding:12px 6px; font-size:20px; font-weight:900; border-radius:10px;';
+    b.onclick = () => answerMath(v);
+    box.appendChild(b);
+  }
+  ui('mathFeedback').textContent = '';
+}
+function openMathBox() {
+  if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
+  if ((state.mathLeft || 0) <= 0) { toast('🧮 Ya resolviste los 5 desafíos de hoy. ¡Mañana hay más!'); return; }
+  closeShopInput();
+  typing = true;
+  for (const k in keys) keys[k] = false;   // soltar teclas para no caminar solo
+  ui('mathbox').style.display = 'flex';
+  renderMathProblem();
+}
+function closeMathBox() {
+  ui('mathbox').style.display = 'none';
+  if (ui('shopbox').style.display !== 'flex') typing = false;
+  mathProblem = null;
+}
+function answerMath(v) {
+  if (!mathProblem) return;
+  const p = mathProblem; mathProblem = null;   // evita responder dos veces el mismo
+  state.mathLeft = Math.max(0, (state.mathLeft || 0) - 1);
+  const fb = ui('mathFeedback');
+  if (v === p.ans) {
+    const m = Math.round(p.reward * (1 + 0.25 * Math.min(4, state.mathStreak || 0)));   // la racha paga hasta el doble
+    state.mathStreak = (state.mathStreak || 0) + 1;
+    addMoney(m); coinBurst(player.position, 8);
+    fb.style.color = '#4ade80'; fb.textContent = '✅ ¡Correcto! +$' + m;
+    tone(880, .09, .05, 'triangle'); setTimeout(() => tone(1320, .12, .05, 'triangle'), 90);
+    missionProgress('math');
+  } else {
+    state.mathStreak = 0;
+    fb.style.color = '#f87171'; fb.textContent = '❌ Era ' + p.ans + ' — ¡la próxima te sale!';
+    beep(160, 0.2, 0.05);
+  }
+  if (state.mathLeft > 0) setTimeout(() => { if (ui('mathbox').style.display === 'flex' && !mathProblem) renderMathProblem(); }, 1300);
+  else setTimeout(() => { toast('🧮 ¡Terminaste los desafíos de hoy! Vuelven mañana'); closeMathBox(); }, 1300);
+}
+
 // ===================================================================
 //  BESTIARIO (colección de monstruos) y RÉCORD personal
 // ===================================================================
@@ -2478,6 +2575,7 @@ const MISSION_DEFS = [
   { type: 'plant',   icon: '🌱', need: () => 2, txt: n => 'Planta ' + n + ' semillas' },
   { type: 'rob',     icon: '🕶️', need: () => 1, txt: () => 'Roba sin que te vean' },
   { type: 'runover', icon: '🚗', need: () => 4, txt: n => 'Atropella ' + n + ' monstruos' },
+  { type: 'math',    icon: '🧮', need: () => 3, txt: n => 'Resuelve ' + n + ' desafíos de mates (U)' },
 ];
 function newMissions() {
   const pool = MISSION_DEFS.slice();
@@ -2544,6 +2642,7 @@ function loadGame() {
   if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp, moto: d.car.moto });
   state.unlocked = d.unlocked || {};
   state.creative = !!d.creative;
+  state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
   removePet(); if (d.pet) spawnPet();
   removeFloor2(); if (d.hasFloor2) buildFloor2();
   if (state.planet === 'platus') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setCityVisible(false); }
@@ -3234,6 +3333,7 @@ function surviveNight() {
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
   newMissions();                                     // 3 misiones nuevas cada amanecer
+  state.mathLeft = 5;                                // se renuevan los desafíos de mates
   if (state.momUnlocked && !mom.visible) dadReturnsWithMom();
   const extra = state.stage >= 15 ? ' 🏆 ¡Etapa alta!' : (state.planet === 'platus' ? ' 🪐' : (hs.mansion ? ' (¡bono mansión!)' : ''));
   toast('🌅 ¡Sobreviviste la noche ' + state.night + '! +$' + reward + extra);

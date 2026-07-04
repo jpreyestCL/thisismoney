@@ -136,7 +136,13 @@ Implementados para mantener al jugador enganchado. Todo persiste en el save dond
    multiplica ×(1+0.1*racha, tope ×2); racha **diaria** real (`checkDailyStreak`, localStorage
    `tim_daily`, bono 100*días tope 500, 1 vez/día).
 5. **Misiones diarias**: 3 al amanecer (`newMissions`/`missionProgress(type,n)`/`renderMissions`,
-   panel `#missions`). Tipos: kills/harvest/dig/plant/rob/runover. Premio 150+50*etapa.
+   panel `#missions`). Tipos: kills/harvest/dig/plant/rob/runover/math. Premio 150+50*etapa.
+   - **Desafíos de mates** (educativo, 10-11 años / 5°-6° básico): tecla `U` en PC o botón 🧮 en el
+     panel ⋯ móvil. Panel `#mathbox` con 4 alternativas tocables (`genMathProblem`: sumas/restas de
+     3 cifras, mult/división, fracciones, porcentajes y problemas con plata del juego). Paga
+     $100/$200/$400 por dificultad, racha `state.mathStreak` (+25% c/u, tope +100%), **5 al día**
+     (`state.mathLeft`, se renuevan en `surviveNight`). Respuesta mala muestra la correcta y corta
+     la racha. Persiste en el save. Esc/Cerrar/tap fuera lo cierran (`closeMathBox`).
 6. **Colección/récords**: bestiario (`state.bestiary`, `recordKill`; 1ª vez de cada tipo +$100; se ve
    en el menú de ayuda vía `renderBestiary`, `ENEMY_NAMES`); récord personal (localStorage `tim_best`,
    `updateBest` en `checkProgress`, celebración 🏆 una vez por partida, línea `#bestline` en el título).

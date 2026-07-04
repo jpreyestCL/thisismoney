@@ -206,6 +206,7 @@
      compra cosas (manteniendo apretado), <b style="color:#fb923c">construye</b> tu casa donde quieras y gana dinero.
      Mientras mejor sea (¡una mansión!), más dinero. Sobrevive la <b style="color:#ef4444">noche</b> contra monstruos.</p>
   <p style="font-size:13px;opacity:.7">En la ciudad hay una <b>casa secreta</b> con un tesoro (¡es la única en la que puedes entrar!). En los <b style="color:#22c55e">estadios</b> puedes robarle a la gente con <b>E</b>… pero cuidado con la <b style="color:#60a5fa">policía</b> (¡corre!). Cada 1000 monedas sube la <b>etapa</b>. A las 20.000 conoces a la <b style="color:#f9a8d4">mamá</b>. Al final cae un meteorito… ¡compra un cohete y escapa a <b style="color:#f97316">Platus</b>, un planeta de otra galaxia!</p>
+  <p id="bestline" style="display:none; color:#fbbf24; font-weight:800; font-size:14px; margin:0;"></p>
   <div class="keys">
     <span><b>WASD</b></span><span>Caminar · <b>Shift</b> Correr · <b>Espacio</b> Saltar · <b>Ctrl</b> Agacharse</span>
     <span><b>Flechas / Mouse</b></span><span>Mirar (mover la cámara)</span>
@@ -289,6 +290,7 @@
       <li>Los monstruos de etapas anteriores <b>siguen apareciendo</b>: se van acumulando.</li>
     </ul>
     <p style="margin:14px 0 0; font-size:12px; opacity:.7;">¿No ves el joystick ni los botones en el celular? Actívalos aquí:</p>
+    <div id="bestiary" style="margin-top:12px; font-size:12px; line-height:1.8; opacity:.9;"></div>
     <button class="btn" id="touchToggle" style="margin-top:8px; background:linear-gradient(90deg,#38bdf8,#0284c7);">📱 Controles táctiles</button>
     <button class="btn" id="helpClose" style="margin-top:12px;">CERRAR (I)</button>
   </div>
@@ -1647,6 +1649,7 @@ function killLoot(e) {
     tone(880, .1, .06, 'triangle'); setTimeout(() => tone(1320, .14, .06, 'triangle'), 90);
   } else { floatText(e.position, '+$' + m, '#4ade80', 15); coinBurst(e.position, 4); }
   addMoney(m);
+  recordKill(e);            // bestiario (colección de monstruos)
   missionProgress('kills');
 }
 // Piñata: un monstruo dorado por noche; matarlo suelta lluvia de monedas
@@ -1923,6 +1926,7 @@ function checkProgress() {
   if (newStage > state.stage) { state.stage = newStage; toast('⭐ ¡ETAPA ' + state.stage + '! El juego se pone más difícil'); phaseText('ETAPA ' + state.stage); }
   if (!state.momUnlocked && state.totalEarned >= MOM_AT) { state.momUnlocked = true; state.momEventPending = true; toast('💃 A las $20.000: ¡esta noche el papá irá a una fiesta!'); }
   if (!state.meteorTriggered && state.totalEarned >= METEOR_AT) triggerMeteor();
+  updateBest();   // ¿superaste tu récord personal?
 }
 
 function damagePlayer(amount) { state.hp -= amount * state.armorFactor; }
@@ -2099,6 +2103,7 @@ ui('deleteBtn').onclick = deleteObject;
 ui('startBtn').onclick = startGame;
 ui('continueBtn').onclick = () => continueGame();
 if (hasSave()) ui('continueBtn').style.display = '';   // mostrar "Continuar" si hay partida guardada
+showBestLine();   // récord personal en la pantalla de inicio
 ui('jailBtn').onclick = () => hideScreens();
 ui('overBtn').onclick = () => { resetAll(); startGame(); };
 // Autoguardado: al ocultar la pestaña, al cerrar y cada 15 s
@@ -2110,6 +2115,7 @@ function toggleHelp(force) {
   const h = ui('help');
   const show = force !== undefined ? force : (h.style.display !== 'flex');
   h.style.display = show ? 'flex' : 'none';
+  if (show) renderBestiary();   // el bestiario vive en el menú de ayuda
 }
 ui('helpBtn').onclick = () => toggleHelp();
 ui('touchToggle').onclick = () => setTouchMode(!document.body.classList.contains('touch'));
@@ -2249,6 +2255,7 @@ function saveAndExit() {
   ['jail', 'over'].forEach(s => ui(s).classList.add('hidden'));
   ui('start').classList.remove('hidden');
   ui('continueBtn').style.display = '';   // ya hay partida guardada para continuar
+  showBestLine();
 }
 
 function startGame() {
@@ -2262,7 +2269,7 @@ function startGame() {
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; applyDadArmor(false); setWeaponColor(0x94a3b8);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
-  state.streak = 0;
+  state.streak = 0; state.bestiary = {}; state.recordShown = false;
   houseTier = 0;
   newMissions();
   checkDailyStreak();
@@ -2288,11 +2295,49 @@ function saveGame() {
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
       streak: state.streak || 0,   // racha de noches perfectas
       missions: state.missions || null,   // misiones del día con su progreso
+      bestiary: state.bestiary || {},     // colección de monstruos
     };
     localStorage.setItem('tim_save', JSON.stringify(data));
   } catch (e) {}
 }
 function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+// ===================================================================
+//  BESTIARIO (colección de monstruos) y RÉCORD personal
+// ===================================================================
+const ENEMY_NAMES = { zombie: 'Zombi', zombieArmored: 'Zombi blindado', smart: 'Zombi inteligente', smartArmored: 'Inteligente blindado', toro: 'Toro', toroArmored: 'Toro blindado', mole: 'Topo', moleBoss: 'Topo jefe', ant: 'Hormiga', flyer: 'Volador', ghost: 'Fantasma', ogre: 'Ogro', dragon: 'Dragón', alien: 'Alien', alienBig: 'Alien grande' };
+function recordKill(e) {   // registra el kill en el bestiario; la 1ª vez de cada tipo paga $100
+  const t = e.userData.type;
+  if (!ENEMY_NAMES[t]) return;
+  if (!state.bestiary) state.bestiary = {};
+  if (!state.bestiary[t]) { state.bestiary[t] = 0; addMoney(100); toast('📖 ¡Nuevo en el BESTIARIO: ' + ENEMY_NAMES[t] + '! +$100'); }
+  state.bestiary[t]++;
+}
+function renderBestiary() {
+  const el = ui('bestiary'); if (!el) return;
+  const b = state.bestiary || {};
+  const total = Object.keys(ENEMY_NAMES).length, found = Object.keys(b).length;
+  el.innerHTML = '<b style="color:#34d399">📖 BESTIARIO (' + found + '/' + total + ')</b><br>' +
+    Object.keys(ENEMY_NAMES).map(k => b[k] ? ENEMY_NAMES[k] + ' <b>×' + b[k] + '</b>' : '<span style="opacity:.4">???</span>').join(' · ');
+}
+function getBest() { try { return JSON.parse(localStorage.getItem('tim_best')) || null; } catch (e) { return null; } }
+function updateBest() {   // guarda tu mejor partida y celebra cuando la superas en vivo
+  try {
+    const b = getBest();
+    if (!b || state.totalEarned > b.total) {
+      localStorage.setItem('tim_best', JSON.stringify({ total: state.totalEarned, stage: state.stage, night: state.night }));
+      if (b && b.total > 0 && !state.recordShown) {
+        state.recordShown = true;
+        phaseText('🏆 ¡NUEVO RÉCORD!'); toast('🏆 ¡NUEVO RÉCORD! Superaste tus $' + b.total);
+        tone(660, .12, .06, 'triangle'); setTimeout(() => tone(880, .12, .06, 'triangle'), 110); setTimeout(() => tone(1320, .16, .06, 'triangle'), 220);
+      }
+    }
+  } catch (e) {}
+}
+function showBestLine() {
+  const b = getBest(), el = ui('bestline');
+  if (b && el) { el.style.display = ''; el.textContent = '🏆 Tu récord: Etapa ' + b.stage + ' · $' + b.total + ' ganados · Noche ' + b.night; }
+}
+
 // ===================================================================
 //  MISIONES DIARIAS: 3 metas cortas cada día, con recompensa
 // ===================================================================
@@ -2377,6 +2422,8 @@ function loadGame() {
   applyDadArmed(!!d.dadArmed && state.dadGun);   // repone el arma del papá si estaba armado
   applyDadArmor(state.dadArmor < 1);             // repone la armadura del papá si la compraste
   if (d.missions && d.missions.length) { state.missions = d.missions; renderMissions(); } else newMissions();
+  state.bestiary = d.bestiary || {};
+  state.recordShown = state.totalEarned >= ((getBest() || {}).total || 0);   // no re-celebrar el récord de esta misma partida
   return true;
 }
 function continueGame() {

@@ -108,6 +108,15 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
   Salen `alien`/`alienBig` (`makeAlienBig`, 140 vida/24 daño) y las recompensas de la noche se
   multiplican ×1.5. Etapas altas (≥10) pagan mucho más. `loadGame` mapea saves viejos `'marte'`→`'platus'`.
 - **Indicadores**: overlay `#poisonfx` (tinte verde pulsante al estar envenenado).
+- **Mundo agrandado**: límites jugables ±230 (antes ±110), suelo 520², avenidas centrales de 460
+  (llegan al borde), +70 árboles en las afueras y un 2º desierto en (-165,140).
+- **Papá descansa** (tecla `Z` en PC / botón 😴 en el panel ⋯ móvil): `toggleDadRest()` lo sienta en
+  el sofá o lo acuesta en la cama más cercana; `dad.userData.resting` lo excluye de `pickTarget`,
+  proyectiles y embestidas (los monstruos NO lo ven). Se cura 2/s descansando y 0.5/s normal
+  (regeneración pasiva en `updateDad`). Se guarda (`dadResting`) y se levanta con Z o C/V/O.
+- **Modo creativo** (botón 🎨 en el inicio, `state.creative`): plata infinita ($∞, se re-fija en
+  `renderHUD`), sin candados de desbloqueo, badge 🎨 CREATIVO, no actualiza el récord (`updateBest`
+  retorna). Se guarda con la partida.
 - Enemigos legado reintroducidos en la rotación: `ghost` (12+), `ogre` (16+), `dragon` (18+).
 
 ## Sistema de dopamina / retención (7 paquetes)

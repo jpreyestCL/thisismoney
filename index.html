@@ -143,6 +143,7 @@
   <canvas id="minimap" width="150" height="150" style="position:absolute;top:96px;right:12px;background:rgba(0,0,0,.4);border-radius:10px"></canvas>
   <div id="hurt" style="position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(239,68,68,.9);opacity:0;transition:opacity .15s"></div>
   <div id="poisonfx" style="position:absolute;inset:0;box-shadow:inset 0 0 130px 40px rgba(34,197,94,.8);opacity:0;transition:opacity .3s;pointer-events:none"></div>
+  <div id="missions" style="position:absolute; top:66px; left:12px; background:rgba(0,0,0,.42); padding:6px 10px; border-radius:10px; font-size:11px; line-height:1.7; pointer-events:none; max-width:46vw;"></div>
   <div id="phase"></div>
   <div id="combo" style="position:absolute; top:22%; left:50%; transform:translateX(-50%); font-size:24px; font-weight:900; color:#fbbf24; text-shadow:0 2px 8px #000; opacity:0; transition:opacity .25s; pointer-events:none; z-index:9;"></div>
   <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
@@ -997,7 +998,7 @@ function tryRob() {
       v.userData.robbed = true;
       const loot = 100 + Math.floor(Math.random() * 300); addMoney(loot);
       if (Math.random() < 0.6) { becomeWanted(18, 2); toast('🚨 ¡Robaste $' + loot + ' pero te vieron! ¡Corre! La policía viene…'); }
-      else toast('🤑 Robaste $' + loot + ' sin que te vieran');
+      else { toast('🤑 Robaste $' + loot + ' sin que te vieran'); missionProgress('rob'); }
       return;
     }
   }
@@ -1646,6 +1647,7 @@ function killLoot(e) {
     tone(880, .1, .06, 'triangle'); setTimeout(() => tone(1320, .14, .06, 'triangle'), 90);
   } else { floatText(e.position, '+$' + m, '#4ade80', 15); coinBurst(e.position, 4); }
   addMoney(m);
+  missionProgress('kills');
 }
 // Piñata: un monstruo dorado por noche; matarlo suelta lluvia de monedas
 function makePinata(e) {
@@ -2262,6 +2264,7 @@ function startGame() {
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0;
   houseTier = 0;
+  newMissions();
   checkDailyStreak();
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
   dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true;
@@ -2284,11 +2287,53 @@ function saveGame() {
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
       streak: state.streak || 0,   // racha de noches perfectas
+      missions: state.missions || null,   // misiones del día con su progreso
     };
     localStorage.setItem('tim_save', JSON.stringify(data));
   } catch (e) {}
 }
 function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+// ===================================================================
+//  MISIONES DIARIAS: 3 metas cortas cada día, con recompensa
+// ===================================================================
+const MISSION_DEFS = [
+  { type: 'kills',   icon: '⚔️', need: () => 6 + state.stage * 2, txt: n => 'Mata ' + n + ' monstruos' },
+  { type: 'harvest', icon: '🍎', need: () => 3, txt: n => 'Cosecha ' + n + ' manzanas' },
+  { type: 'dig',     icon: '🪏', need: () => 3, txt: n => 'Cava ' + n + ' hoyos' },
+  { type: 'plant',   icon: '🌱', need: () => 2, txt: n => 'Planta ' + n + ' semillas' },
+  { type: 'rob',     icon: '🕶️', need: () => 1, txt: () => 'Roba sin que te vean' },
+  { type: 'runover', icon: '🚗', need: () => 4, txt: n => 'Atropella ' + n + ' monstruos' },
+];
+function newMissions() {
+  const pool = MISSION_DEFS.slice();
+  state.missions = [];
+  for (let i = 0; i < 3; i++) {
+    const def = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    const need = def.need();
+    state.missions.push({ type: def.type, need, got: 0, done: false, reward: 150 + 50 * state.stage, icon: def.icon, txt: def.txt(need) });
+  }
+  renderMissions();
+}
+function missionProgress(type, n) {
+  if (!state.missions) return;
+  for (const m of state.missions) {
+    if (m.done || m.type !== type) continue;
+    m.got += (n || 1);
+    if (m.got >= m.need) {
+      m.done = true; addMoney(m.reward);
+      toast('🎯 ¡Misión cumplida! ' + m.txt + ' → +$' + m.reward);
+      tone(880, .09, .05, 'triangle'); setTimeout(() => tone(1320, .12, .05, 'triangle'), 90);
+    }
+  }
+  renderMissions();
+}
+function renderMissions() {
+  const el = ui('missions'); if (!el) return;
+  if (!state.missions || !state.missions.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.innerHTML = '<b style="font-size:10px; opacity:.7">🎯 MISIONES DEL DÍA</b><br>' + state.missions.map(m =>
+    '<div style="opacity:' + (m.done ? '.45' : '1') + '">' + (m.done ? '✅' : m.icon) + ' ' + m.txt + ' <b>' + Math.min(m.got, m.need) + '/' + m.need + '</b></div>').join('');
+}
 // Racha DIARIA (calendario real): jugar días seguidos da bono al empezar (una vez al día)
 function checkDailyStreak() {
   try {
@@ -2331,6 +2376,7 @@ function loadGame() {
   dad.userData.mode = d.dadMode || 'follow';
   applyDadArmed(!!d.dadArmed && state.dadGun);   // repone el arma del papá si estaba armado
   applyDadArmor(state.dadArmor < 1);             // repone la armadura del papá si la compraste
+  if (d.missions && d.missions.length) { state.missions = d.missions; renderMissions(); } else newMissions();
   return true;
 }
 function continueGame() {
@@ -2476,7 +2522,7 @@ function updateDriving(dt) {
   for (const w of car.wheels) w.rotation.x += move * 2.2;
   // atropellar monstruos si vas con algo de velocidad
   if (Math.abs(move) > 0.06) {
-    for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 2.3) hitEnemy(e, 40, car.group.position); }
+    for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 2.3 && hitEnemy(e, 40, car.group.position)) missionProgress('runover'); }
     // atropellar a un PEATÓN te vuelve buscado (empújalo)
     for (const n of npcs) {
       if (dist2D(n.position, car.group.position) < 2.3) {
@@ -2625,6 +2671,7 @@ function plantSeed() {
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const pos = player.position.clone().addScaledVector(fwd, 2.5); pos.y = 0;
   spawnPlant(pos.x, pos.z, 0, 0);   // empieza chiquita (brote)
+  missionProgress('plant');
   toast('🌱 Plantaste una semilla. Crecerá y dará manzanas (acércate para cosechar)');
 }
 function updatePlants(dt) {
@@ -2642,6 +2689,7 @@ function updatePlants(dt) {
       pl.appleMeshes.forEach(a => pl.mesh.remove(a));
       state.inv.food += pl.apples;
       toast('🍎 Cosechaste ' + pl.apples + ' manzana(s) (comida) — pulsa Q para comer');
+      missionProgress('harvest', pl.apples);
       pl.apples = 0; pl.appleMeshes = [];
     }
   }
@@ -2780,6 +2828,7 @@ function goToPlanet() {
   if (state.rocket) { scene.remove(state.rocket); state.rocket = null; } state.hasRocket = false;
   player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13);
   state.phase = 'DAY'; state.dayTime = 0;
+  newMissions();
   toast('🪐 Llegaste a PLATUS, un planeta de otra galaxia. Empiezas de cero: pocos recursos, sin árboles. ¡Sobrevive!');
   phaseText('PLATUS');
 }
@@ -2862,6 +2911,7 @@ function digHole() {
   if (!state.weaponName.toLowerCase().includes('pala')) { toast('🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
   if (state.digCd > 0) return;
   state.digCd = 0.8; vmSwing = 1; beep(140, 0.1, 0.04);
+  missionProgress('dig');
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const t = player.position.clone().addScaledVector(fwd, 3); t.y = 0;
   const hole = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0x2e1f12 }));
@@ -2982,6 +3032,7 @@ function surviveNight() {
   state.poison = 0; state.dadPoison = 0;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
+  newMissions();                                     // 3 misiones nuevas cada amanecer
   if (state.momUnlocked && !mom.visible) dadReturnsWithMom();
   const extra = state.stage >= 15 ? ' 🏆 ¡Etapa alta!' : (state.planet === 'platus' ? ' 🪐' : (hs.mansion ? ' (¡bono mansión!)' : ''));
   toast('🌅 ¡Sobreviviste la noche ' + state.night + '! +$' + reward + extra);

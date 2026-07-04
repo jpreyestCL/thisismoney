@@ -2287,7 +2287,7 @@ const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
   hp: 100, dadHp: 100,
   inv: freshInv(), driving: false, poison: 0, dadPoison: 0,
-  weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false,
+  weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false, hasShovel: false,
   hunger: 100, night: 0,
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
@@ -2792,7 +2792,7 @@ function startGame() {
   state.cinematic = false; document.body.classList.remove('cine');
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
-  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; applyDadArmor(false); setWeaponColor(0x94a3b8);
+  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); setWeaponColor(0x94a3b8);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
@@ -2846,7 +2846,7 @@ function saveGame() {
     const data = {
       money: state.money, totalEarned: state.totalEarned, stage: state.stage,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
-      weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc,
+      weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel,
       dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet,
       houseTier: houseTier, inv: state.inv, px: player.position.x, pz: player.position.z,
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
@@ -3329,7 +3329,7 @@ function loadGame() {
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, night: d.night || 0,
-    weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1,
+    weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')),
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
     streak: d.streak || 0,
@@ -3379,7 +3379,7 @@ function continueGame() {
 
 function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
-  state.hunger = 100; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1;
+  state.hunger = 100; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false;
   state.dadArmor = 1; applyDadArmor(false);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.dadGun = state.hasRocket = false;
@@ -3621,8 +3621,10 @@ function buyItem(item) {
   if (item.build) { state.inv[item.key] = (state.inv[item.key] || 0) + 1; toast('🛒 Compraste ' + item.name + (item.deco ? ' (colócala: B y luego F)' : ' (constrúyela con B/F)')); }
   else if (item.eat) { state.inv.food++; toast('🍖 ' + item.name + ' guardada en el inventario (pulsa 7 para comer)'); }
   else if (item.dmg) {   // arma (espada o pala): equipa la más fuerte
-    if (item.dmg > state.weaponDmg) { state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color); toast('⚔️ ' + item.name + ' equipada: hace ' + item.dmg + ' de daño'); }
-    else toast('Ya tienes un arma más fuerte (' + state.weaponName + ')');
+    const isShovel = item.key && item.key.startsWith('pala');
+    if (isShovel) state.hasShovel = true;   // tener CUALQUIER pala habilita CAVAR (T), aunque tu arma equipada sea más fuerte
+    if (item.dmg > state.weaponDmg) { state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color); toast((isShovel ? '🪏 ' : '⚔️ ') + item.name + ' equipada: hace ' + item.dmg + ' de daño' + (isShovel ? ' · ya puedes CAVAR (T)' : '')); }
+    else toast(isShovel ? '🪏 ' + item.name + ' guardada: ya puedes CAVAR (T) aunque tu arma sea otra' : 'Ya tienes un arma más fuerte (' + state.weaponName + ')');
   }
   else if (item.factor) {  // armadura: deja la que menos daño recibe
     if (item.factor < state.armorFactor) { state.armorFactor = item.factor; toast('🛡️ ' + item.name + ': un zombi te hace ' + Math.round(10 * item.factor) + ' (antes 10)'); }
@@ -3977,7 +3979,7 @@ function attackNPC() {
 function digHole() {
   if (state.phase !== 'DAY' && state.phase !== 'NIGHT') return;
   if (state.planet === 'platus') { makeCampfire(); return; }   // en Platus, T = hacer una FOGATA (3 carbón)
-  if (!state.weaponName.toLowerCase().includes('pala')) { toast('🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
+  if (!state.hasShovel && !state.weaponName.toLowerCase().includes('pala')) { toast('🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
   if (state.digCd > 0) return;
   state.digCd = 0.8; vmSwing = 1; beep(140, 0.1, 0.04);
   missionProgress('dig');

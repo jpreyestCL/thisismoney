@@ -1957,6 +1957,8 @@ function toggleDadArm() {
 }
 function updateDad(dt) {
   if (!dad.visible) return;
+  // el papá se cura de a poco (0.5/s); descansando en el sofá/la cama se cura 4 veces más rápido (2/s)
+  if (state.dadHp > 0 && state.dadHp < 100) state.dadHp = Math.min(100, state.dadHp + (dad.userData.resting ? 2 : 0.5) * dt);
   if (dad.userData.resting) return;   // descansando en sofá/cama: no se mueve ni pelea
   // si está armado y es de noche, ataca al enemigo más cercano
   if (state.phase === 'NIGHT' && dad.userData.armed) {

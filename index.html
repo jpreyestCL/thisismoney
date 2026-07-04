@@ -1603,6 +1603,7 @@ function spawnEnemy(type, atPos) {
   Object.assign(e.userData, data);
   addHealthBar(e);
   scene.add(e); enemies.push(e);
+  return e;
 }
 
 // Barra de vida flotante sobre cada enemigo
@@ -1625,8 +1626,63 @@ function hitEnemy(e, dmg, fromPos) {
   if (fromPos) { const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1; e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6; }
   beep(180, 0.05, 0.035);
   floatText(e.position, '-' + Math.round(dmg), '#fbbf24', 13);   // número de daño flotante
-  if (e.userData.hp <= 0) { killEnemy(e); addMoney(15); return true; }
+  if (e.userData.hp <= 0) { killLoot(e); killEnemy(e); return true; }
   return false;
+}
+// Botín al matar: escala con la etapa, 10% de kill DORADO (x5), piñata y bono por combo
+function killLoot(e) {
+  const c = addCombo();
+  let m = 10 + 5 * state.stage;
+  m = Math.round(m * (1 + Math.min(0.5, (c - 1) * 0.1)));   // el combo paga hasta +50%
+  const golden = Math.random() < 0.10;
+  if (golden) m *= 5;
+  if (e.userData.pinata) {
+    m += 300 + 60 * state.stage;
+    toast('🪅 ¡Reventaste la PIÑATA! +$' + m); coinBurst(e.position, 20);
+    tone(660, .1, .06, 'triangle'); setTimeout(() => tone(990, .14, .06, 'triangle'), 100);
+  } else if (golden) {
+    floatText(e.position, '💰 ¡DORADO! +$' + m, '#fde047', 20); coinBurst(e.position, 12);
+    tone(880, .1, .06, 'triangle'); setTimeout(() => tone(1320, .14, .06, 'triangle'), 90);
+  } else { floatText(e.position, '+$' + m, '#4ade80', 15); coinBurst(e.position, 4); }
+  addMoney(m);
+}
+// Piñata: un monstruo dorado por noche; matarlo suelta lluvia de monedas
+function makePinata(e) {
+  state.pinataDone = true;
+  e.userData.pinata = true;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.09, 8, 18), new THREE.MeshBasicMaterial({ color: 0xfde047 }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = 2.5; e.add(ring);
+  toast('🪅 ¡Apareció un monstruo DORADO! Mátalo para la lluvia de monedas');
+}
+// Cofres nocturnos: aparecen hasta 2 veces por noche cerca de la casa, duran 30 s
+let chest = null;
+function removeChest() { if (chest) { scene.remove(chest); chest = null; } }
+function spawnChest() {
+  removeChest();
+  const a = Math.random() * Math.PI * 2, r = 10 + Math.random() * 18;
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 0.7), mat(0x92400e)); base.position.y = 0.35; g.add(base);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.25, 0.7), mat(0xfde047)); lid.position.y = 0.82; g.add(lid);
+  const glow = new THREE.PointLight(0xfde047, 1.4, 9); glow.position.y = 1.4; g.add(glow);
+  g.position.set(HOUSE.x + Math.cos(a) * r, 0, HOUSE.z + Math.sin(a) * r);
+  g.userData.life = 30; scene.add(g); chest = g;
+  toast('🎁 ¡Apareció un COFRE cerca de tu casa! Tienes 30 s…'); beep(700, 0.15, 0.05);
+}
+function openChest() {
+  const r = Math.random();
+  if (r < 0.55) { const m = 100 + Math.floor(Math.random() * 200) + 40 * state.stage; addMoney(m); floatText(chest.position, '+$' + m, '#fde047', 18); toast('🎁 Cofre: ¡$' + m + '!'); }
+  else if (r < 0.8) { state.inv.food += 3; toast('🎁 Cofre: 3 comidas 🍖'); }
+  else { state.inv.semillas = (state.inv.semillas || 0) + 5; toast('🎁 Cofre: 5 semillas 🌱'); }
+  coinBurst(chest.position, 10); tone(880, 0.1, 0.05, 'triangle'); setTimeout(() => tone(1175, 0.12, 0.05, 'triangle'), 80);
+  removeChest();
+}
+function updateChest(dt) {
+  if (!chest) return;
+  chest.userData.life -= dt;
+  chest.rotation.y += dt * 1.5;
+  if (chest.userData.life < 5) chest.visible = Math.floor(chest.userData.life * 6) % 2 === 0;   // parpadea al final
+  if (chest.userData.life <= 0) { removeChest(); return; }
+  if (dist2D(player.position, chest.position) < 2.2) openChest();
 }
 function updateEnemyFX(dt) {
   for (const e of enemies) {
@@ -1663,7 +1719,7 @@ function moveToward(e, target, step) {
 }
 function removeEnemy(i) { const e = enemies[i]; if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); enemies.splice(i, 1); }
 function killEnemy(e) { const i = enemies.indexOf(e); if (i >= 0) removeEnemy(i); }
-function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; }
+function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; removeChest(); }
 function updateProjectiles(dt) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i], ud = p.userData;
@@ -2719,6 +2775,8 @@ function tryStartNight() {
 function startNight() {
   state.phase = 'NIGHT'; state.nightTime = 0; state.spawnTimer = 0; state.buildMode = false;
   state.night++;
+  state.chestAt = [20 + Math.random() * 220, 320 + Math.random() * 230];   // 2 cofres por noche, en momentos al azar
+  state.pinataDone = false;                                                 // habrá 1 monstruo dorado (piñata)
   if (state.momEventPending) dadGoesToParty();
   const n = enemiesForNight(state.night);
   toast(n === 0 ? '🌙 Noche tranquila: ¡aprovecha para construir!' : '🌙 ¡Noche ' + state.night + '! Vienen ' + n + ' monstruos');
@@ -2738,7 +2796,7 @@ function attack() {
     const d = dist2D(p, e.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
-  if (best && hitEnemy(best, dmg, p)) toast('💥 Enemigo eliminado +$15');
+  if (best) hitEnemy(best, dmg, p);   // el botín flotante ya avisa cuánto pagó el kill
 }
 
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
@@ -2806,8 +2864,11 @@ function updateNight(dt) {
   const aliveCount = enemies.filter(e => e.userData.type !== 'bull').length;
   const maxEnemies = enemiesForNight(state.night);
   if (state.spawnTimer <= 0 && aliveCount < maxEnemies && state.nightTime < NIGHT_LENGTH - 8) {
-    spawnEnemy(pickEnemyType()); state.spawnTimer = Math.max(1.0, 3.5 - state.stage * 0.15);   // los monstruos dependen de la ETAPA
+    const ne = spawnEnemy(pickEnemyType()); state.spawnTimer = Math.max(1.0, 3.5 - state.stage * 0.15);   // los monstruos dependen de la ETAPA
+    if (!state.pinataDone && (Math.random() < 0.12 || state.nightTime > NIGHT_LENGTH * 0.5)) makePinata(ne);
   }
+  if (state.chestAt && state.chestAt.length && state.nightTime >= state.chestAt[0]) { state.chestAt.shift(); spawnChest(); }
+  updateChest(dt);
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
     if (ud.type === 'bull') {

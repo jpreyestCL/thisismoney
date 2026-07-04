@@ -1470,7 +1470,7 @@ function makeCampfire() {   // T en Platus: 3 de carbón -> fogata delante tuyo
 }
 function updateCold(dt) {   // noches heladas de Platus: lejos de una fogata te congelas
   const fx = ui('coldfx');
-  if (state.planet !== 'platus' || state.phase !== 'NIGHT' || !state.running) { if (fx) fx.style.opacity = '0'; return; }
+  if (state.planet !== 'platus' || state.phase !== 'NIGHT' || !state.running || state.underground) { if (fx) fx.style.opacity = '0'; return; }
   let warmP = false, warmD = false;
   for (const f of campfires) {
     if (dist2D(player.position, f.position) < 7) warmP = true;
@@ -1992,9 +1992,11 @@ function launchBull(k) {
   e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, dmg: (k.userData.dmg || 17), vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
 }
 function pickTarget(from) {
-  const cands = [player.position];
+  const cands = [];
+  if (!state.underground) cands.push(player.position);   // bajo tierra los monstruos NO te ven
   if (dad.visible && !dad.userData.resting) cands.push(dad.position);   // descansando: los monstruos no lo ven
   for (const h of helpers) cands.push(h.position);
+  if (!cands.length) return HOUSE;   // nada que atacar (todos escondidos): van hacia la casa
   let best = cands[0], bd = dist2D(from, best);
   for (const c of cands) { const d = dist2D(from, c); if (d < bd) { bd = d; best = c; } }
   return best;
@@ -2296,6 +2298,7 @@ const state = {
   planetName: 'Platus', planetGround: 0x9c4a2a, cargo: {},
   buildMode: false,
   dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
+  underground: false, groundY: 0, shelterHole: null,   // refugio subterráneo (cavar hondo con la pala)
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -2320,7 +2323,7 @@ function checkProgress() {
   updateBest();   // ¿superaste tu récord personal?
 }
 
-function damagePlayer(amount) { if (state.creative) return; state.hp -= amount * state.armorFactor; }
+function damagePlayer(amount) { if (state.creative || state.underground) return; state.hp -= amount * state.armorFactor; }   // bajo tierra estás a salvo
 function damageDad(amount) { if (state.creative) return; state.dadHp -= amount * state.dadArmor; }   // el papá recibe menos daño si compraste su armadura
 
 // Sonido corto (bip) con WebAudio
@@ -2414,7 +2417,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { if (!toggleCar() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: auto · cohete · banco · oro / robar / vender casa
+  if (e.code === 'KeyE') { if (!toggleCar() && !tryShelter() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: auto · refugio · cohete · banco · oro / robar / vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -2730,7 +2733,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!toggleCar() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!toggleCar() && !tryShelter() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -2787,6 +2790,7 @@ function startGame() {
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPlants(); clearHelpers();
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
+  clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
   state.phase = 'DAY'; state.running = true; state.paused = false; ui('pause').style.display = 'none';
   state.cinematic = false; document.body.classList.remove('cine');
@@ -2860,6 +2864,7 @@ function saveGame() {
       cargo: state.cargo || {},   // cajones del cohete (viajan con vos)
       bank: state.bank || 0, debt: state.debt || 0,   // banco: ahorros y deudas
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
+      holes: holes.map(h => ({ x: h.x, z: h.z, depth: h.depth })),   // hoyos/refugios cavados con la pala
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
@@ -3350,6 +3355,7 @@ function loadGame() {
   state.bank = d.bank || 0; state.debt = d.debt || 0;
   resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
+  clearHoles(); (d.holes || []).forEach(o => spawnHole(o.x, o.z, o.depth)); state.underground = false; state.groundY = 0; state.shelterHole = null;   // hoyos/refugios (nunca cargas bajo tierra)
   if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
   removeFloor2(); if (d.hasFloor2) buildFloor2();
@@ -3396,6 +3402,7 @@ function resetAll() {
   victims.forEach(v => v.userData.robbed = false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires();
+  clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
   state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false; state.cargo = {};
   resetWeather();
@@ -3883,6 +3890,7 @@ function goToPlanet() {
   state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
+  clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
@@ -3975,25 +3983,76 @@ function attackNPC() {
   toast('👊 ¡Le pegaste a alguien! Te volviste BUSCADO… ¡corre (Shift)!');
 }
 
-// Cavar un hoyo con la PALA: a veces salen topos (que viven bajo tierra)
+// ===================================================================
+//  HOYOS: cavar el MISMO lugar lo hace más hondo; a las 4 cavadas es un
+//  REFUGIO subterráneo en el que te puedes METER (seguro de los monstruos)
+// ===================================================================
+const holes = [];
+const DEPTH_STEP = 1.35, ENTER_DIGS = 4, MAX_DIGS = 8, HOLE_FIND = 2.8;
+function renderHole(h) {   // (re)construye la malla del hoyo según su profundidad
+  while (h.group.children.length) h.group.remove(h.group.children[0]);
+  const dy = h.depth * DEPTH_STEP, R = 1.6;
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(R, R, dy, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x3a2817, side: THREE.DoubleSide, roughness: 1 }));
+  shaft.position.y = -dy / 2; h.group.add(shaft);
+  const rim = new THREE.Mesh(new THREE.RingGeometry(R * 0.82, R * 1.15, 20), new THREE.MeshBasicMaterial({ color: 0x1a1109, side: THREE.DoubleSide }));
+  rim.rotation.x = -Math.PI / 2; rim.position.y = 0.06; h.group.add(rim);
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(R, 20), new THREE.MeshStandardMaterial({ color: 0x2a1c0f })); floor.rotation.x = -Math.PI / 2; floor.position.y = -dy + 0.02; h.group.add(floor);
+  h.enterable = h.depth >= ENTER_DIGS;
+  if (h.enterable) {   // cuartito subterráneo (piso + paredes) al fondo + letrero
+    const room = new THREE.Mesh(new THREE.BoxGeometry(6, 0.25, 6), mat(0x6b4a2a)); room.position.y = -dy - 0.12; h.group.add(room);
+    for (const [wx, wz, ww, wd] of [[0, -3, 6.3, 0.3], [0, 3, 6.3, 0.3], [-3, 0, 0.3, 6], [3, 0, 0.3, 6]]) { const w = new THREE.Mesh(new THREE.BoxGeometry(ww, 2.4, wd), mat(0x5a3f22)); w.position.set(wx, -dy + 1.1, wz); h.group.add(w); }
+    const sign = makeSign('REFUGIO (E)', 0x8b5a2b); sign.scale.set(.45, .45, .45); sign.position.y = 1.7; sign.userData.billboard = true; h.group.add(sign);
+  }
+}
+function spawnHole(x, z, depth) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  const h = { x, z, depth, group: g, enterable: false };
+  holes.push(h); renderHole(h); return h;
+}
+function clearHoles() { holes.forEach(h => scene.remove(h.group)); holes.length = 0; }
+function findHole(x, z) { for (const h of holes) if (Math.hypot(x - h.x, z - h.z) < HOLE_FIND) return h; return null; }
+function nearEnterableHole() { for (const h of holes) if (h.enterable && Math.hypot(player.position.x - h.x, player.position.z - h.z) < 3.4) return h; return null; }
+
+// Cavar con la PALA (tecla T): profundiza el mismo hoyo y a veces salen topos/plata
 function digHole() {
   if (state.phase !== 'DAY' && state.phase !== 'NIGHT') return;
   if (state.planet === 'platus') { makeCampfire(); return; }   // en Platus, T = hacer una FOGATA (3 carbón)
+  if (state.underground) { toast('🕳️ Ya estás bajo tierra (E para salir)'); return; }
   if (!state.hasShovel && !state.weaponName.toLowerCase().includes('pala')) { toast('🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
   if (state.digCd > 0) return;
   state.digCd = 0.8; vmSwing = 1; beep(140, 0.1, 0.04);
   missionProgress('dig');
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const t = player.position.clone().addScaledVector(fwd, 3); t.y = 0;
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0x2e1f12 }));
-  hole.rotation.x = -Math.PI / 2; hole.position.set(t.x, 0.07, t.z); scene.add(hole);
+  let h = findHole(t.x, t.z);
+  const wasEnterable = h && h.enterable;
+  if (h) { if (h.depth < MAX_DIGS) h.depth++; renderHole(h); }   // profundizar el mismo hoyo
+  else h = spawnHole(t.x, t.z, 1);                               // hoyo nuevo
+  if (h.enterable && !wasEnterable) { toast('🏠 ¡Cavaste un REFUGIO subterráneo! Acércate y pulsa E para METERTE (los monstruos no te encuentran)'); return; }
   const r = Math.random();
-  if (r < 0.5) {                       // ¡encontraste topos! salen en grupo si vas avanzado
+  if (r < (h.depth >= ENTER_DIGS ? 0.2 : 0.45)) {   // ¡topos! (viven bajo tierra); menos cuando ya es profundo
     const n = state.stage >= 5 ? 2 + Math.floor(Math.random() * 2) : 1;
     for (let k = 0; k < n; k++) spawnEnemy('mole', new THREE.Vector3(t.x + (Math.random() * 2 - 1), 0, t.z + (Math.random() * 2 - 1)));
     toast('🦣 ¡Salió ' + (n > 1 ? n + ' topos' : 'un topo') + ' del hoyo!');
-  } else if (r < 0.72) { const m = 50 + Math.floor(Math.random() * 150); addMoney(m); toast('💰 Cavaste y encontraste $' + m); }
-  else toast('⛏️ Solo tierra… sigue cavando');
+  } else if (r < 0.7) { const m = 50 + Math.floor(Math.random() * 150); addMoney(m); toast('💰 Cavaste y encontraste $' + m); }
+  else if (h.enterable) toast('🕳️ Refugio listo — pulsa E para meterte');
+  else toast('⛏️ El hoyo está más hondo (' + h.depth + '/' + ENTER_DIGS + ')… sigue cavando para hacer un refugio');
+}
+// Meterse / salir del refugio subterráneo (tecla E cerca del hoyo profundo)
+function tryShelter() {
+  if (state.underground) {   // salir
+    const h = state.shelterHole;
+    state.underground = false; state.groundY = 0; state.shelterHole = null;
+    player.position.set(h ? h.x : player.position.x, PLAYER_EYE, (h ? h.z : player.position.z) + 2.3);
+    toast('⬆️ Saliste del refugio'); return true;
+  }
+  const h = nearEnterableHole();
+  if (!h) return false;
+  state.underground = true; state.shelterHole = h; state.groundY = -h.depth * DEPTH_STEP;
+  player.position.set(h.x, PLAYER_EYE + state.groundY, h.z);
+  beep(200, 0.15, 0.05);
+  toast('🕳️ Estás en tu REFUGIO bajo tierra: los monstruos NO te encuentran. Pulsa E para salir.');
+  return true;
 }
 
 // Los topos se mueven y atacan siempre (de día o de noche), porque salen al cavar
@@ -4363,12 +4422,18 @@ function updateMovement(dt) {
   const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }   // no ir más rápido en diagonal
   player.position.addScaledVector(forward, az * step);
   player.position.addScaledVector(rightV, ax * step);
-  // salto (espacio / botón) y gravedad; agacharse baja la altura
-  const standY = crouch ? CROUCH_EYE : PLAYER_EYE;
+  // salto (espacio / botón) y gravedad; agacharse baja la altura; bajo tierra el "suelo" es el fondo del refugio
+  const standY = (crouch ? CROUCH_EYE : PLAYER_EYE) + (state.groundY || 0);
   if ((keys['Space'] || touch.jump) && grounded) { vy = 8; grounded = false; }
   touch.jump = false;   // el salto es de un solo toque
   vy -= 25 * dt; player.position.y += vy * dt;
   if (player.position.y <= standY) { player.position.y = standY; vy = 0; grounded = true; }
+  if (state.underground && state.shelterHole) {   // caminar dentro del cuartito del refugio
+    const h = state.shelterHole;
+    player.position.x = THREE.MathUtils.clamp(player.position.x, h.x - 2.6, h.x + 2.6);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, h.z - 2.6, h.z + 2.6);
+    camera.rotation.y = yaw; camera.rotation.x = pitch; return;   // sin colisiones de la superficie bajo tierra
+  }
   player.position.x = THREE.MathUtils.clamp(player.position.x, -230, 230);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -230, 230);
   resolveCollisions();

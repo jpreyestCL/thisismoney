@@ -110,6 +110,33 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
 - **Indicadores**: overlay `#poisonfx` (tinte verde pulsante al estar envenenado).
 - Enemigos legado reintroducidos en la rotación: `ghost` (12+), `ogre` (16+), `dragon` (18+).
 
+## Sistema de dopamina / retención (7 paquetes)
+
+Implementados para mantener al jugador enganchado. Todo persiste en el save donde corresponde.
+
+1. **Juice**: `floatText(pos,txt,color)` (textos que flotan, proyección 3D→pantalla), `coinBurst(pos,n)`
+   (monedas 3D que saltan), combo de kills <2 s (`addCombo`, cartel `#combo` + tono ascendente),
+   contador de dinero que "rueda" (`shownMoney` en `renderHUD`). Daño flotante en `hitEnemy`.
+2. **Recompensa variable**: `killLoot(e)` — el kill paga `10+5*etapa` (+hasta 50% por combo), 10% de
+   kill **DORADO** (×5), piñata (`makePinata`, 1 monstruo dorado/noche, +300+60*etapa), **cofres**
+   nocturnos (`spawnChest`/`updateChest`, 2/noche vía `state.chestAt`, 30 s, plata/comida/semillas).
+3. **Tensión**: `state.bossNight` (noche % 5 == 0) → `spawnBossEnemy()` (el más fuerte, ×1.6 tamaño,
+   ×4 vida, kill +$500) y pago nocturno ×3; **HORDA FINAL** último minuto (`state.hordeOn`, +50% tope,
+   spawn ×2); **madrugar** (`tryStartNight` con >2 min de día → +$100).
+4. **Rachas**: noche sin daño a la casa (`state.nightDamage`) → `state.streak++` y el pago se
+   multiplica ×(1+0.1*racha, tope ×2); racha **diaria** real (`checkDailyStreak`, localStorage
+   `tim_daily`, bono 100*días tope 500, 1 vez/día).
+5. **Misiones diarias**: 3 al amanecer (`newMissions`/`missionProgress(type,n)`/`renderMissions`,
+   panel `#missions`). Tipos: kills/harvest/dig/plant/rob/runover. Premio 150+50*etapa.
+6. **Colección/récords**: bestiario (`state.bestiary`, `recordKill`; 1ª vez de cada tipo +$100; se ve
+   en el menú de ayuda vía `renderBestiary`, `ENEMY_NAMES`); récord personal (localStorage `tim_best`,
+   `updateBest` en `checkProgress`, celebración 🏆 una vez por partida, línea `#bestline` en el título).
+7. **Desbloqueos del medio juego** (`UNLOCK_ITEMS`, anunciados en `checkProgress`, candado 🔒 en la
+   tienda hasta `unlockAt` de `totalEarned`): $50k perro guardián (`pet`, pelea de noche, 30 dmg),
+   $100k torreta láser (clave `laser` en `updateDefenses`, dispara rápido), $150k segundo piso
+   (`buildFloor2`, +$300/noche), $200k moto (`spawnCar({moto:true})`, ×1.45 velocidad), $250k heladera
+   (colocable; el hambre baja a la mitad en `updateHunger`).
+
 ## Sistema de enemigos por etapa (acumulativo)
 
 Los monstruos dependen de `state.stage` (sube cada 1000 ganados) y **se acumulan**: los de etapas

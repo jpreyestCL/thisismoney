@@ -577,8 +577,16 @@ const PAINT_COLORS = [
   ['blanca', 0xf8fafc], ['negra', 0x1f2937], ['cafe', 0x92400e], ['gris', 0x9ca3af],
 ];
 const PAINTS = PAINT_COLORS.map(([n, c]) => ({ key: 'paint_' + n, name: 'Pintura ' + n, price: 400, color: c, paint: c }));
+// Desbloqueos del medio juego: aparecen en la tienda al superar cierto total ganado
+const UNLOCK_ITEMS = [
+  { key: 'perro',    name: 'Perro guardián', price: 2500, color: 0x92400e, unlockAt: 50000 },
+  { key: 'laser',    name: 'Torreta láser',  price: 3000, color: 0x22d3ee, unlockAt: 100000, value: 120, build: true, defense: true },
+  { key: 'piso2',    name: 'Segundo piso',   price: 8000, color: 0xf59e0b, unlockAt: 150000 },
+  { key: 'moto',     name: 'Moto',           price: 3500, color: 0xef4444, unlockAt: 200000 },
+  { key: 'heladera', name: 'Heladera',       price: 2000, color: 0xe5e7eb, unlockAt: 250000, value: 60, build: true, deco: true },
+];
 // Catálogo completo del vendedor (todo lo comprable escribiendo con Y)
-const SHOP = [...STORE_A, ...STORE_B, ...DECOR_ITEMS, ...PAINTS];
+const SHOP = [...STORE_A, ...STORE_B, ...DECOR_ITEMS, ...PAINTS, ...UNLOCK_ITEMS];
 
 // Dibuja un producto que se parece a lo que es
 function makeProductMesh(key, color) {
@@ -1251,7 +1259,7 @@ homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
 let car = null;             // el auto (feature): { group, wheels, hp, maxHp, heading, dmgCd, bar }
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
-  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta'];
+  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera'];
 // Inventario inicial: 0 de cada cosa colocable + comida/semillas
 function freshInv() { const inv = { food: 0, semillas: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
 let buildSel = 0, buildRot = 0;
@@ -1269,6 +1277,8 @@ function objGeometry(key) {
   if (key === 'lamp') return new THREE.CylinderGeometry(0.12, 0.12, 2.4);
   if (key === 'oven') return new THREE.BoxGeometry(1.2, 1.4, 1);
   if (key === 'ballesta' || key === 'torreta') return new THREE.BoxGeometry(0.8, 0.9, 1.2);
+  if (key === 'laser') return new THREE.BoxGeometry(0.7, 1.1, 0.7);
+  if (key === 'heladera') return new THREE.BoxGeometry(0.9, 1.9, 0.8);
   if (key === 'window') return new THREE.BoxGeometry(2.6, 2, 0.12);   // ventana: grande pero no tanto, transparente
   if (key === 'cuadro') return new THREE.BoxGeometry(1.4, 1, 0.1);
   if (key === 'mesa') return new THREE.BoxGeometry(1.6, 0.16, 1);
@@ -1280,8 +1290,8 @@ function objGeometry(key) {
   return new THREE.BoxGeometry(1, 1, 1);
 }
 function objColor(key) { return SHOP.find(s => s.key === key).color; }
-const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6,
-  window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4 };
+const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
+  window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4, heladera: 0.95 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
 // Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
 function objMaterial(key) {
@@ -1338,10 +1348,14 @@ function spawnPlaced(key, x, z, rot, hp) {
     bar(1.6, 0.2, 0, 1.3); bar(1.6, 0.2, 0, -1.3); bar(0.2, 2.6, -0.75, 0); bar(0.2, 2.6, 0.75, 0);  // marco
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), mat(0xfacc15)); knob.position.set(0.55, 0, 0.13); m.add(knob);  // manilla
   }
-  if (key === 'ballesta' || key === 'torreta') {
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9), mat(0x1f2937));
+  if (key === 'ballesta' || key === 'torreta' || key === 'laser') {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9), mat(key === 'laser' ? 0x22d3ee : 0x1f2937));
     barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.15, 0.5); m.add(barrel);
-    obj.ammo = 5; obj.shotCd = 0; obj.reloading = false; obj.reloadT = 0;
+    obj.ammo = key === 'laser' ? 12 : 5; obj.shotCd = 0; obj.reloading = false; obj.reloadT = 0;
+  }
+  if (key === 'heladera') {   // manilla de la heladera
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.08), mat(0x9ca3af));
+    handle.position.set(0.35, 0.2, 0.44); m.add(handle);
   }
   if (key === 'lamp') {
     const light = new THREE.PointLight(0xfff1a8, 0, 18); light.position.set(m.position.x, 2.6, m.position.z); scene.add(light); obj.light = light;
@@ -1751,18 +1765,18 @@ function spawnBolt(from, target, dmg) {
 // Las ballestas/torretas colocadas disparan solas a los zombis de noche
 function updateDefenses(dt) {
   for (const o of placed) {
-    if (o.key !== 'ballesta' && o.key !== 'torreta') continue;
-    const turret = o.key === 'torreta';
+    if (o.key !== 'ballesta' && o.key !== 'torreta' && o.key !== 'laser') continue;
+    const turret = o.key === 'torreta', laser = o.key === 'laser';
     o.shotCd -= dt;
-    if (o.reloading) { o.reloadT -= dt; if (o.reloadT <= 0) { o.reloading = false; o.ammo = 5; } continue; }
-    let near = null, nd = 26;
+    if (o.reloading) { o.reloadT -= dt; if (o.reloadT <= 0) { o.reloading = false; o.ammo = laser ? 12 : 5; } continue; }
+    let near = null, nd = laser ? 30 : 26;
     for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(o.mesh.position, e.position); if (d < nd) { nd = d; near = e; } }
     if (!near) continue;               // sin objetivo, no dispara
     o.mesh.rotation.y = Math.atan2(near.position.x - o.mesh.position.x, near.position.z - o.mesh.position.z);
     if (o.shotCd <= 0 && o.ammo > 0) {
-      spawnBolt(o.mesh.position, near.position, turret ? 12 : 16);
-      o.ammo--; o.shotCd = turret ? 0.4 : 1.0;
-      if (o.ammo <= 0) { o.reloading = true; o.reloadT = turret ? 1 : 3; }   // recarga: torreta 1s, ballesta 3s
+      spawnBolt(o.mesh.position, near.position, laser ? 26 : (turret ? 12 : 16));
+      o.ammo--; o.shotCd = laser ? 0.22 : (turret ? 0.4 : 1.0);
+      if (o.ammo <= 0) { o.reloading = true; o.reloadT = laser ? 0.8 : (turret ? 1 : 3); }   // recarga: láser 0.8s, torreta 1s, ballesta 3s
     }
   }
 }
@@ -1796,6 +1810,59 @@ function updateHelpers(dt) {
     swingLimbs(h, dt);
   }
 }
+
+// ===================================================================
+//  PERRO GUARDIÁN (desbloqueo a los $50.000): te sigue y pelea de noche
+// ===================================================================
+let pet = null;
+function makePet() {
+  const g = new THREE.Group();
+  const cafe = mat(0x92400e), oscuro = mat(0x6b4423);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.45, 0.5), cafe); body.position.y = 0.45; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), cafe); head.position.set(0.55, 0.75, 0); g.add(head);
+  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.15, 0.2), oscuro); snout.position.set(0.8, 0.68, 0); g.add(snout);
+  for (const sx of [0.3, -0.3]) for (const sz of [0.15, -0.15]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.45, 0.13), oscuro); leg.position.set(sx, 0.22, sz); g.add(leg); }
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.1), oscuro); tail.position.set(-0.55, 0.6, 0); g.add(tail);
+  for (const sz of [0.12, -0.12]) { const ear = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.1), oscuro); ear.position.set(0.5, 1.0, sz); g.add(ear); }
+  return g;
+}
+function spawnPet() {
+  if (pet) return;
+  pet = makePet(); pet.userData.atkCd = 0;
+  pet.position.set(player.position.x + 2, 0, player.position.z + 2);
+  scene.add(pet);
+}
+function removePet() { if (pet) { scene.remove(pet); pet = null; } }
+function updatePet(dt) {
+  if (!pet) return;
+  let near = null, nd = 18;
+  if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(pet.position, e.position); if (d < nd) { nd = d; near = e; } }
+  if (near) {   // ataca al monstruo más cercano (muerde fuerte)
+    if (nd > 1.3) { moveToward(pet, near.position, 4.4 * dt); pet.rotation.y = Math.atan2(near.position.x - pet.position.x, near.position.z - pet.position.z) - Math.PI / 2; }
+    else { pet.userData.atkCd -= dt; if (pet.userData.atkCd <= 0) { pet.userData.atkCd = 0.5; hitEnemy(near, 30, pet.position); beep(500, 0.06, 0.04); } }
+  } else {      // si no hay pelea, te sigue
+    const d = dist2D(pet.position, player.position);
+    if (d > 3.5) { moveToward(pet, player.position, 4.6 * dt); pet.rotation.y = Math.atan2(player.position.x - pet.position.x, player.position.z - pet.position.z) - Math.PI / 2; }
+  }
+}
+
+// ===================================================================
+//  SEGUNDO PISO (desbloqueo a los $150.000): visual + $300/noche extra
+// ===================================================================
+let floor2Group = null;
+function buildFloor2() {
+  state.hasFloor2 = true;
+  if (floor2Group) scene.remove(floor2Group);
+  const g = new THREE.Group();
+  const mk = (w, h, d, x, y, z, color) => { const m2 = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m2.position.set(x, y, z); m2.castShadow = true; g.add(m2); };
+  mk(5, 2.4, 0.3, 0, 4.6, -2.5, 0xd6a35c); mk(5, 2.4, 0.3, 0, 4.6, 2.5, 0xd6a35c);     // paredes piso 2
+  mk(0.3, 2.4, 5, -2.5, 4.6, 0, 0xd6a35c); mk(0.3, 2.4, 5, 2.5, 4.6, 0, 0xd6a35c);
+  mk(5.6, 0.35, 5.6, 0, 6.0, 0, 0x7c3f21);                                             // techo
+  mk(1.2, 1, 0.12, 0, 4.7, -2.62, 0x9fd0ff);                                           // ventanita
+  g.position.set(HOUSE.x, 0, HOUSE.z);
+  scene.add(g); floor2Group = g;
+}
+function removeFloor2() { state.hasFloor2 = false; if (floor2Group) { scene.remove(floor2Group); floor2Group = null; } }
 
 // ===================================================================
 //  LIMPIEZA (si el papá no limpia, salen zombis dentro de la casa)
@@ -1926,6 +1993,15 @@ function checkProgress() {
   if (newStage > state.stage) { state.stage = newStage; toast('⭐ ¡ETAPA ' + state.stage + '! El juego se pone más difícil'); phaseText('ETAPA ' + state.stage); }
   if (!state.momUnlocked && state.totalEarned >= MOM_AT) { state.momUnlocked = true; state.momEventPending = true; toast('💃 A las $20.000: ¡esta noche el papá irá a una fiesta!'); }
   if (!state.meteorTriggered && state.totalEarned >= METEOR_AT) triggerMeteor();
+  for (const u of UNLOCK_ITEMS) {   // desbloqueos del medio juego (cada ~50k)
+    if (state.totalEarned >= u.unlockAt && !(state.unlocked && state.unlocked[u.key])) {
+      if (!state.unlocked) state.unlocked = {};
+      state.unlocked[u.key] = true;
+      toast('🔓 ¡DESBLOQUEADO: ' + u.name + '! Ya puedes comprarlo al vendedor');
+      phaseText('🔓 ' + u.name.toUpperCase());
+      tone(520, .1, .05, 'triangle'); setTimeout(() => tone(780, .12, .05, 'triangle'), 100);
+    }
+  }
   updateBest();   // ¿superaste tu récord personal?
 }
 
@@ -2056,6 +2132,8 @@ function shopIcon(item) {
   if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
   if (item.factor) return '🛡️'; if (item.key === 'semillas') return '🌱';
   if (item.key === 'dadgun') return '🔫'; if (item.key === 'dadarmor') return '🛡️'; if (item.key === 'rocket') return '🚀';
+  if (item.key === 'perro') return '🐶'; if (item.key === 'laser') return '🔆'; if (item.key === 'piso2') return '🏠';
+  if (item.key === 'moto') return '🏍️'; if (item.key === 'heladera') return '🧊';
   if (item.build) return '🧱'; return '🛒';
 }
 // Menú de tienda: una fila por producto; tocar = comprar (sin teclado)
@@ -2065,11 +2143,12 @@ function renderShopList(filter) {
   const f = (filter || '').trim().toLowerCase();
   list.innerHTML = '';
   SHOP.filter(it => !f || it.name.toLowerCase().includes(f)).forEach(it => {
-    const can = state.money >= it.price;
+    const locked = it.unlockAt && state.totalEarned < it.unlockAt;
+    const can = !locked && state.money >= it.price;
     const row = document.createElement('button');
     row.className = 'shopRow';
     row.style.cssText = 'display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:8px; padding:8px 10px; font-size:14px; font-weight:700; color:#fff; background:' + (can ? 'rgba(34,197,94,.18)' : 'rgba(255,255,255,.06)') + '; opacity:' + (can ? '1' : '.5') + ';';
-    row.innerHTML = '<span style="font-size:18px">' + shopIcon(it) + '</span><span style="flex:1">' + it.name + '</span><span style="color:' + (can ? '#4ade80' : '#f87171') + '">$' + it.price + '</span>';
+    row.innerHTML = '<span style="font-size:18px">' + (locked ? '🔒' : shopIcon(it)) + '</span><span style="flex:1">' + it.name + (locked ? ' <small style="opacity:.65">se desbloquea a los $' + it.unlockAt + '</small>' : '') + '</span><span style="color:' + (can ? '#4ade80' : '#f87171') + '">$' + it.price + '</span>';
     row.onclick = () => buyShopItem(it);
     list.appendChild(row);
   });
@@ -2269,7 +2348,8 @@ function startGame() {
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; applyDadArmor(false); setWeaponColor(0x94a3b8);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
-  state.streak = 0; state.bestiary = {}; state.recordShown = false;
+  state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
+  removePet(); removeFloor2();
   houseTier = 0;
   newMissions();
   checkDailyStreak();
@@ -2289,7 +2369,8 @@ function saveGame() {
       dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet,
       houseTier: houseTier, inv: state.inv, px: player.position.x, pz: player.position.z,
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
-      car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp } : null,
+      car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto } : null,
+      pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
@@ -2411,7 +2492,10 @@ function loadGame() {
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
   (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
-  if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp });
+  if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp, moto: d.car.moto });
+  state.unlocked = d.unlocked || {};
+  removePet(); if (d.pet) spawnPet();
+  removeFloor2(); if (d.hasFloor2) buildFloor2();
   if (state.planet === 'platus') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setCityVisible(false); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setCityVisible(true); }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
@@ -2447,7 +2531,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -2491,8 +2575,10 @@ function spawnCar(opts) {
     const w = new THREE.Mesh(wgeo, wm); w.position.set(sx * 1.15, 0.55, sz * 1.35); w.castShadow = true; g.add(w); wheels.push(w);
   }
   for (const sx of [-1, 1]) { const f = new THREE.Mesh(new THREE.CircleGeometry(0.18, 12), new THREE.MeshStandardMaterial({ color: 0xfff7c2, emissive: 0xfff7c2, emissiveIntensity: 0.6 })); f.position.set(sx * 0.7, 0.95, 2.01); g.add(f); }  // faros
+  const moto = !!(opts && opts.moto);
+  if (moto) g.scale.set(0.45, 0.9, 0.85);   // moto: angosta y un poco más baja (y más rápida al conducir)
   let hx, hz, heading;
-  if (opts) { hx = opts.x; hz = opts.z; heading = opts.heading || 0; }
+  if (opts && opts.x != null) { hx = opts.x; hz = opts.z; heading = opts.heading || 0; }
   else { const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); const p = player.position.clone().addScaledVector(fwd, 6); hx = p.x; hz = p.z; heading = yaw; }
   g.position.set(hx, 0, hz); g.rotation.y = heading; scene.add(g);
   // barra de vida flotante
@@ -2500,7 +2586,7 @@ function spawnCar(opts) {
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
-  car = { group: g, wheels, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
+  car = { group: g, wheels, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, speedMult: moto ? 1.45 : 1 };
   if (!opts) toast('🚗 ¡Auto comprado! Acércate y pulsa E para subir y conducir');
 }
 // Auto más cercano de la CALLE (tráfico o estacionado) para robar
@@ -2552,8 +2638,9 @@ function updateDriving(dt) {
   car.heading += steer * 1.9 * dt * (Math.abs(throttle) > 0.05 ? 1 : 0.55);
   const fwd = new THREE.Vector3(-Math.sin(car.heading), 0, -Math.cos(car.heading));
   const turbo = keys['ShiftLeft'] || keys['ShiftRight'] || touch.run;   // TURBO al conducir
-  const move = throttle * (turbo ? 44 : 24) * dt;
-  car.speed = Math.abs(throttle) * (turbo ? 44 : 24);   // para el velocímetro
+  const sm = car.speedMult || 1;                                        // la moto es más rápida
+  const move = throttle * (turbo ? 44 : 24) * sm * dt;
+  car.speed = Math.abs(throttle) * (turbo ? 44 : 24) * sm;   // para el velocímetro
   const prevX = car.group.position.x, prevZ = car.group.position.z;
   car.group.position.addScaledVector(fwd, move);
   car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -110, 110);
@@ -2633,6 +2720,7 @@ function paintHouse(color, label) {
   toast('🎨 Pintaste tu casa (' + n + ' piezas) de ' + label.replace('Pintura ', '')); beep(520, 0.1, 0.04);
 }
 function buyItem(item) {
+  if (item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
   if (state.money < item.price) { toast('💸 Te falta plata'); return; }
   // casos que pueden fallar (no cobrar si no se puede)
   if (item.paint) {
@@ -2642,6 +2730,19 @@ function buyItem(item) {
   if (item.car) {
     if (car) { toast('🚗 Ya tienes un auto'); return; }
     state.money -= item.price; spawnCar(); return;
+  }
+  if (item.key === 'perro') {
+    if (pet) { toast('🐶 Ya tienes a tu perro'); return; }
+    state.money -= item.price; spawnPet(); toast('🐶 ¡Perro guardián! Te sigue y pelea de noche'); return;
+  }
+  if (item.key === 'piso2') {
+    if (state.hasFloor2) { toast('🏠 Ya tienes segundo piso'); return; }
+    if (!houseStats().ready) { toast('🏠 Primero construye tu casa (4 paredes)'); return; }
+    state.money -= item.price; buildFloor2(); toast('🏠 ¡Segundo piso construido! +$300 extra cada noche'); return;
+  }
+  if (item.key === 'moto') {
+    state.money -= item.price; removeCar(); spawnCar({ moto: true });
+    toast('🏍️ ¡Moto comprada! Más rápida que el auto (E para subir)'); return;
   }
   state.money -= item.price;
   tone(880, 0.06, 0.045, 'triangle'); setTimeout(() => tone(1175, 0.08, 0.045, 'triangle'), 70);   // sonido de compra
@@ -2866,7 +2967,7 @@ function updateCinematic(dt) {
 function goToPlanet() {
   state.planet = 'platus'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
-  clearPlants(); clearHelpers(); dad.visible = true;
+  clearPlants(); clearHelpers(); removePet(); removeFloor2(); dad.visible = true;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Platus no te persigue la policía terrestre
@@ -3066,6 +3167,7 @@ function surviveNight() {
   clearWaves();
   const hs = houseStats();
   let reward = 100 * state.stage + (hs.mansion ? 800 : (hs.ready ? 200 : 0));
+  if (state.hasFloor2) reward += 300;                          // segundo piso: renta extra
   if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
   if (state.planet === 'platus') reward = Math.round(reward * 1.5);   // Platus paga más (es más difícil)
   if (state.bossNight) reward *= 3;                                    // noche jefe superada: paga x3
@@ -3183,6 +3285,7 @@ function loop() {
     updateDad(dt);
     dadWalkBob(dt);
     updateHelpers(dt);
+    updatePet(dt);                         // perro guardián (desbloqueo $50k)
     updateNPCs(dt);
     updateSoccer(dt);
     swingLimbs(mom, dt);
@@ -3227,7 +3330,8 @@ function updatePoison(dt) {
 }
 // Hambre baja con el tiempo; en 0 pierdes vida y puedes desmayarte
 function updateHunger(dt) {
-  state.hunger = Math.max(0, state.hunger - 0.238 * dt);   // 100/0.238 ≈ 420s = 7 minutos exactos
+  const drain = placed.some(o => o.key === 'heladera') ? 0.119 : 0.238;   // con heladera el hambre baja a la mitad
+  state.hunger = Math.max(0, state.hunger - drain * dt);   // 100/0.238 ≈ 420s = 7 minutos exactos
   if (state.hunger <= 0) {
     state.hp -= 2 * dt;
     if (state.hp <= 0) faintFromHunger();

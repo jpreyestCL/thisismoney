@@ -314,6 +314,25 @@
   </div>
 </div>
 
+<div id="intro" style="position:fixed; inset:0; display:none; z-index:25; background:rgba(2,6,23,.88); align-items:center; justify-content:center; pointer-events:all;">
+  <div style="max-width:440px; width:90vw; background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:26px 24px; text-align:center;">
+    <div id="introEmoji" style="font-size:52px;"></div>
+    <h2 id="introTitle" style="margin:10px 0 6px; color:#38bdf8;"></h2>
+    <p id="introText" style="font-size:15px; line-height:1.55; opacity:.92; margin:0 0 18px;"></p>
+    <button class="btn" id="introBtn">Siguiente ▶</button>
+  </div>
+</div>
+<div id="win" class="screen hidden" style="background:linear-gradient(rgba(6,40,20,.88),rgba(2,6,23,.95));">
+  <h1 style="color:#4ade80;">🌟 ¡VERDANIA!</h1>
+  <p style="max-width:460px;">Después de tanto trabajar, sobrevivir y viajar por las galaxias, tu familia encontró
+     un planeta verde y en paz. <b>¡GANASTE!</b></p>
+  <div id="winStats" style="background:rgba(0,0,0,.4); border-radius:12px; padding:12px 22px; font-size:15px; line-height:1.9; margin:8px 0 14px;"></div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+    <button class="btn" id="winContinue" style="background:linear-gradient(90deg,#38bdf8,#0284c7);">SEGUIR JUGANDO 🌍</button>
+    <button class="btn" id="winNG">⭐ NUEVA PARTIDA+ ($10.000)</button>
+  </div>
+  <p style="font-size:12px; opacity:.6; margin-top:14px;">Hecho con ❤️ — This is Money</p>
+</div>
 <div id="fade" style="position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:20;"></div>
 <div id="rotateHint"><div style="font-size:44px">📱↻</div><div style="margin-top:10px;font-weight:800;font-size:18px">Gira el teléfono</div><div style="opacity:.75;font-size:13px;margin-top:4px">Se juega mejor en horizontal</div></div>
 
@@ -2279,6 +2298,7 @@ function openShopInput() {
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
   const box = ui('shopbox'), inp = ui('shopInput');
   box.style.display = 'flex'; inp.value = '';
+  if (Math.random() < 0.35) say('🛒 Vendedor', VENDOR_LINES[Math.floor(Math.random() * VENDOR_LINES.length)]);
   renderShopList('');
   if (!document.body.classList.contains('touch')) inp.focus();   // en PC enfoca; en celular NO (para no abrir el teclado y tapar la lista)
 }
@@ -2527,7 +2547,9 @@ function startGame() {
   checkDailyStreak();
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
   dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
+  state.trips = 0; state.ngplus = false;
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
+  showIntro();   // la historia en 4 tarjetas (se pasa con un botón)
 }
 // Guardado / carga de la partida (localStorage)
 function saveGame() {
@@ -2546,6 +2568,7 @@ function saveGame() {
       creative: !!state.creative,
       mathLeft: state.mathLeft != null ? state.mathLeft : 5, mathStreak: state.mathStreak || 0,   // desafíos de mates
       hasSuits: !!state.hasSuits, usedRocket: !!state.usedRocket, meteorAt: state.meteorAt || METEOR_AT,   // viajes espaciales
+      trips: state.trips || 0, ngplus: !!state.ngplus,
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
@@ -2559,6 +2582,81 @@ function saveGame() {
   } catch (e) {}
 }
 function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+// ===================================================================
+//  HISTORIA: intro, diálogos de la familia y final en VERDANIA
+// ===================================================================
+const INTRO_CARDS = [
+  { e: '🏚️', t: 'Lo perdieron todo', x: 'Vives con tu papá. Un mal negocio les quitó la casa, los ahorros… todo. Solo les quedan $1.000 y las ganas de salir adelante.' },
+  { e: '🔨', t: 'Reconstruir desde cero', x: 'De día: trabaja, compra en el súper y construye tu casa. Tu papá te ayudará en todo lo que le pidas.' },
+  { e: '🌙', t: 'Pero al caer la noche…', x: 'Los monstruos vienen por tu casa. Defiéndela. Cada noche superada paga, y mientras mejor sea tu casa, más ganas.' },
+  { e: '☄️', t: 'Y algo se acerca…', x: 'Dicen que al llegar al MILLÓN, algo caerá del cielo. Prepárate: quizás la única salida sea… otro planeta. 🚀' },
+];
+let introStep = 0;
+function showIntro() {
+  introStep = 0; typing = true;
+  ui('intro').style.display = 'flex';
+  renderIntroCard();
+}
+function renderIntroCard() {
+  const c = INTRO_CARDS[introStep];
+  ui('introEmoji').textContent = c.e; ui('introTitle').textContent = c.t; ui('introText').textContent = c.x;
+  ui('introBtn').textContent = introStep === INTRO_CARDS.length - 1 ? '¡A JUGAR! 🎮' : 'Siguiente ▶';
+}
+ui('introBtn').onclick = () => {
+  introStep++;
+  if (introStep >= INTRO_CARDS.length) { ui('intro').style.display = 'none'; typing = false; tone(660, .1, .05, 'triangle'); }
+  else { renderIntroCard(); tone(520, .06, .04, 'triangle'); }
+};
+// Diálogos: la familia y el vendedor hablan (burbujas por toast)
+function say(who, text) { toast(who + ': «' + text + '»'); }
+const DAD_LINES = {
+  day: ['Qué lindo día para trabajar, ¿no?', '¡Esta casa va quedando increíble!', 'Cuando seas grande, vas a ser millonario.', 'Oye… ¿y si plantamos más manzanas?'],
+  night: ['¡Aguanta! ¡Ya casi amanece!', '¡Cuidado con ese monstruo!', '¡Peleamos juntos, hijo!', 'No dejes que toquen la casa…'],
+  platus: ['Brrr… qué frío hace en este planeta.', 'Extraño la Tierra… pero estamos juntos.', 'Ese carbón nos salvará la vida.', '¿Viste esos árboles? Están todos secos…'],
+  lowhp: ['Ay… eso dolió…', 'Hijo… necesito descansar un poco…'],
+  rich: ['¡Somos ricos! ¡RICOS!', 'Nunca dudé de ti, hijo.'],
+};
+let talkT = 40;   // primer comentario al rato de empezar
+function updateDialogues(dt) {
+  if (!dad.visible || state.cinematic) return;
+  talkT -= dt;
+  if (talkT > 0) return;
+  talkT = 75 + Math.random() * 60;
+  let pool = DAD_LINES.day;
+  if (state.dadHp < 35) pool = DAD_LINES.lowhp;
+  else if (state.planet === 'platus') pool = DAD_LINES.platus;
+  else if (state.phase === 'NIGHT') pool = DAD_LINES.night;
+  else if (state.money > 50000) pool = Math.random() < 0.3 ? DAD_LINES.rich : DAD_LINES.day;
+  say('👨 Papá', pool[Math.floor(Math.random() * pool.length)]);
+}
+const VENDOR_LINES = ['¡Bienvenido, casero! Lo mejor de la galaxia.', '¡Ofertas! Bueno… los mismos precios de siempre.', 'Un gusto verte de nuevo, campeón.', 'Dicen que un meteorito se acerca… yo vendo cohetes, por si acaso.'];
+// FINAL: Verdania — se llega lanzando el cohete desde Platus con $10M ganados (o 4+ viajes)
+function verdaniaReady() { return state.totalEarned >= 10000000 || (state.trips || 0) >= 4; }
+function showVictory() {
+  state.phase = 'WIN'; state.running = false;
+  ui('hud').style.display = 'none'; ui('fade').style.opacity = '0';
+  const kills = Object.values(state.bestiary || {}).reduce((a, b) => a + b, 0);
+  ui('winStats').innerHTML =
+    '💰 Total ganado: <b>$' + state.totalEarned + '</b><br>' +
+    '⭐ Etapa alcanzada: <b>' + state.stage + '</b> · 🌙 Noches sobrevividas: <b>' + state.night + '</b><br>' +
+    '⚔️ Monstruos derrotados: <b>' + kills + '</b> · 🚀 Viajes espaciales: <b>' + (state.trips || 0) + '</b>' +
+    (state.ngplus ? '<br>⭐ (Partida+)' : '');
+  ui('win').classList.remove('hidden');
+  tone(523, .18, .06, 'triangle'); setTimeout(() => tone(659, .18, .06, 'triangle'), 180); setTimeout(() => tone(784, .18, .06, 'triangle'), 360); setTimeout(() => tone(1046, .3, .07, 'triangle'), 540);
+  updateBest(); saveGame();
+}
+ui('winContinue').onclick = () => {
+  ui('win').classList.add('hidden'); ui('hud').style.display = '';
+  state.running = true; returnToEarth();
+  say('👨 Papá', 'Verdania era hermoso… pero nuestro hogar es donde construimos juntos.');
+};
+ui('winNG').onclick = () => {
+  ui('win').classList.add('hidden'); ui('hud').style.display = '';
+  startGame();
+  state.ngplus = true; state.money = 10000;
+  toast('⭐ NUEVA PARTIDA+: empiezas con $10.000. ¡A romper tu récord!');
+};
+
 // ===================================================================
 //  DESAFÍOS DE MATES (10-11 años): resuélvelos y gana plata (5 al día)
 // ===================================================================
@@ -2612,6 +2710,7 @@ function openMathBox() {
   renderMathProblem();
 }
 function closeMathBox() {
+
   ui('mathbox').style.display = 'none';
   if (ui('shopbox').style.display !== 'flex') typing = false;
   mathProblem = null;
@@ -2754,6 +2853,7 @@ function loadGame() {
   state.creative = !!d.creative;
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
   state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
+  state.trips = d.trips || 0; state.ngplus = !!d.ngplus;
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
   if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
@@ -3201,6 +3301,9 @@ function tryLaunchRocket() {
     toast('⛽ Cargaste 10 de carbón como combustible. ¡Despegando!');
   }
   state.usedRocket = true;
+  state.trips = (state.trips || 0) + 1;
+  state.nextDest = (state.planet === 'platus' && verdaniaReady()) ? 'verdania' : null;   // ¿el viaje final?
+  if (state.nextDest === 'verdania') toast('🌟 El cohete detectó un planeta VERDE en el radar… ¡rumbo a VERDANIA!');
   startEscapeCinematic();
 }
 // CINEMÁTICA: subes al espacio solo (sin controlar), miras por la ventana y ves la Tierra partirse en 3
@@ -3246,7 +3349,9 @@ function updateCinematic(dt) {
     c.done = true;
     if (c.earth) scene.remove(c.earth);
     state.cinematic = false;
-    if (c.fromEarth) goToPlanet(); else returnToEarth();   // ida a Platus / vuelta a la Tierra
+    if (c.fromEarth) goToPlanet();
+    else if (state.nextDest === 'verdania') { state.nextDest = null; showVictory(); }   // ¡FINAL DEL JUEGO!
+    else returnToEarth();   // ida a Platus / vuelta a la Tierra
     const f = ui('fade'); f.style.transition = 'opacity .9s'; f.style.opacity = '0';
   }
 }
@@ -3493,6 +3598,7 @@ function surviveNight() {
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
   newMissions();                                     // 3 misiones nuevas cada amanecer
   state.mathLeft = 5;                                // se renuevan los desafíos de mates
+  if (state.momUnlocked && dad.visible) { state.inv.food++; setTimeout(() => say('👩 Mamá', 'Te hice el desayuno, mi amor. ¡Come algo! 🍳'), 2500); }   // mamá cocina cada mañana
   if (state.momUnlocked && !mom.visible) dadReturnsWithMom();
   const extra = state.stage >= 15 ? ' 🏆 ¡Etapa alta!' : (state.planet === 'platus' ? ' 🪐' : (hs.mansion ? ' (¡bono mansión!)' : ''));
   toast('🌅 ¡Sobreviviste la noche ' + state.night + '! +$' + reward + extra);
@@ -3615,6 +3721,7 @@ function loop() {
     if (state.cinematic) updateCinematic(dt);
     updatePolice(dt);                      // policía persigue si estás buscado
     updateCold(dt);                        // noches heladas de Platus (fogatas)
+    updateDialogues(dt);                   // la familia comenta lo que pasa
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
     hurtFeedback();
@@ -3882,7 +3989,8 @@ function renderHUD() {
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');
-  if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0));
+  if (state.ngplus) gear.unshift('⭐ Partida+');
+  if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');

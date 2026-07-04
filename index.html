@@ -215,6 +215,26 @@
     <div style="font-size:11px; opacity:.65">💡 Lo ahorrado gana <b>5% de interés</b> cada noche superada. Las deudas crecen <b>10%</b> por noche… ¡cuidado!</div>
     <button id="bankCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
   </div>
+  <div id="rocketbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #f97316; padding:14px 16px 12px; border-radius:14px; text-align:center; width:min(96vw,480px); flex-direction:column; gap:8px;">
+    <div style="font-size:15px; font-weight:800; color:#fb923c">🚀 COHETE — carga los cajones para el viaje</div>
+    <div id="rocketInfo" style="font-size:11px; opacity:.7"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; text-align:left;">
+      <div>
+        <div style="font-size:12px; font-weight:800; color:#4ade80; margin-bottom:4px;">🎒 Tu mochila <small style="opacity:.6">(toca = guardar)</small></div>
+        <div id="rocketInv" style="display:flex; flex-direction:column; gap:4px; max-height:36vh; overflow-y:auto;"></div>
+      </div>
+      <div>
+        <div style="font-size:12px; font-weight:800; color:#fb923c; margin-bottom:4px;">📦 En el cohete <small style="opacity:.6">(toca = sacar)</small></div>
+        <div id="rocketCargo" style="display:flex; flex-direction:column; gap:4px; max-height:36vh; overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+      <button class="bankBtn" id="rocketStoreAll" style="border-color:#4ade80; background:rgba(74,222,128,.15)">⏫ Guardar todo</button>
+      <button class="bankBtn" id="rocketTakeAll" style="border-color:#fb923c; background:rgba(251,146,60,.15)">⏬ Sacar todo</button>
+    </div>
+    <button class="btn" id="rocketLaunchBtn" style="width:100%; background:linear-gradient(90deg,#f97316,#ea580c);">🚀 DESPEGAR al siguiente planeta</button>
+    <button id="rocketCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
+  </div>
   <div id="mathbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #a855f7; padding:14px 16px 12px; border-radius:14px; text-align:center; width:min(94vw,420px); flex-direction:column;">
     <div style="font-size:14px; font-weight:800; color:#c084fc">🧮 DESAFÍO DE MATES</div>
     <div id="mathInfo" style="font-size:11px; opacity:.65; margin:2px 0 8px"></div>
@@ -2254,7 +2274,7 @@ const state = {
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
   hasSuits: false, usedRocket: false, meteorAt: 1000000, coldWarned: false,
   bank: 0, debt: 0, weather: 'clear', weatherLeft: 0, trips: 0, ngplus: false, nextDest: null, paused: false,
-  planetName: 'Platus', planetGround: 0x9c4a2a,
+  planetName: 'Platus', planetGround: 0x9c4a2a, cargo: {},
   buildMode: false,
   dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
 };
@@ -2352,6 +2372,7 @@ const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false };
 addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
+  if (e.code === 'Escape' && ui('rocketbox').style.display === 'flex') { closeRocket(); return; }  // Esc cierra los cajones del cohete
   if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
   if (state.paused) return;   // en pausa el teclado no hace nada (solo Esc, arriba)
   if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
@@ -2374,7 +2395,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { if (!toggleCar() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: auto · banco · oro / robar / vender casa
+  if (e.code === 'KeyE') { if (!toggleCar() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: auto · cohete · banco · oro / robar / vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -2404,7 +2425,7 @@ function openShopInput() {
   if (state.planet === 'platus') { toast('🪐 En Platus no hay súper: pica carbón ⚫ y sobrevive'); return; }
   if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
   if (!nearKeeper()) { toast('🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
-  closeMathBox(); releaseLock();
+  closeMathBox(); closeRocket(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
   const box = ui('shopbox'), inp = ui('shopInput');
@@ -2690,7 +2711,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!toggleCar() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!toggleCar() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -2763,7 +2784,8 @@ function startGame() {
   checkDailyStreak();
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
   dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
-  state.trips = 0; state.ngplus = false; state.bank = 0; state.debt = 0;
+  state.trips = 0; state.ngplus = false; state.bank = 0; state.debt = 0; state.cargo = {};
+  state.planetName = 'Platus'; state.planetGround = 0x9c4a2a;
   resetWeather();
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
   showIntro();   // la historia en 4 tarjetas (se pasa con un botón)
@@ -2815,6 +2837,7 @@ function saveGame() {
       hasSuits: !!state.hasSuits, usedRocket: !!state.usedRocket, meteorAt: state.meteorAt || METEOR_AT,   // viajes espaciales
       trips: state.trips || 0, ngplus: !!state.ngplus,
       planetName: state.planetName || null, planetGround: state.planetGround || null,   // planeta alienígena actual
+      cargo: state.cargo || {},   // cajones del cohete (viajan con vos)
       bank: state.bank || 0, debt: state.debt || 0,   // banco: ahorros y deudas
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
@@ -2879,7 +2902,7 @@ function renderBank() {
     ((state.debt || 0) > 0 ? '<br>📉 Deuda: <b style="color:#f87171">$' + state.debt + '</b>' : '');
 }
 function openBank() {
-  closeShopInput(); closeMathBox(); releaseLock();
+  closeShopInput(); closeMathBox(); closeRocket(); releaseLock();
   typing = true; for (const k in keys) keys[k] = false;
   ui('bankbox').style.display = 'flex'; renderBank();
   beep(600, 0.1, 0.04);
@@ -2908,6 +2931,56 @@ function bankAction(a) {
 }
 document.querySelectorAll('[data-bank]').forEach(b => b.onclick = () => bankAction(b.dataset.bank));   // enlazar por data-bank (NO por la clase de estilo .bankBtn, que la comparten los botones de pausa)
 ui('bankCloseBtn').onclick = closeBank;
+
+// ===================================================================
+//  COHETE: cajones de carga (llévate cosas al siguiente planeta)
+// ===================================================================
+// La carga del cohete SOBREVIVE al viaje (goToPlanet no la borra). Cárgalo en la Tierra
+// con comida/materiales/armas y sácalos en el planeta nuevo para sobrevivir más.
+const INV_ICON = { food: '🍖', semillas: '🌱', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊' };
+const INV_LABEL = { food: 'Comida', semillas: 'Semillas', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera' };
+const INV_KEYS = ['food', 'semillas', 'carbon', ...BUILD_KEYS];
+function rocketRow(key, n, into) {
+  const b = document.createElement('button');
+  b.style.cssText = 'display:flex; align-items:center; gap:6px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:7px; padding:6px 8px; font-size:13px; font-weight:700; color:#fff; background:rgba(255,255,255,.08);';
+  b.innerHTML = '<span style="font-size:16px">' + (INV_ICON[key] || '📦') + '</span><span style="flex:1">' + (INV_LABEL[key] || key) + '</span><b>×' + n + '</b>';
+  b.onclick = () => { moveCargo(key, 1, into); };
+  return b;
+}
+function renderRocket() {
+  const invBox = ui('rocketInv'), cargoBox = ui('rocketCargo');
+  invBox.innerHTML = ''; cargoBox.innerHTML = '';
+  let anyInv = false, anyCargo = false;
+  for (const k of INV_KEYS) {
+    if ((state.inv[k] || 0) > 0) { invBox.appendChild(rocketRow(k, state.inv[k], true)); anyInv = true; }
+    if ((state.cargo[k] || 0) > 0) { cargoBox.appendChild(rocketRow(k, state.cargo[k], false)); anyCargo = true; }
+  }
+  if (!anyInv) invBox.innerHTML = '<div style="opacity:.5; font-size:12px; padding:6px;">Mochila vacía</div>';
+  if (!anyCargo) cargoBox.innerHTML = '<div style="opacity:.5; font-size:12px; padding:6px;">Cajones vacíos</div>';
+  const req = state.usedRocket ? ('combustible: ' + (state.inv.carbon || 0) + '/10 carbón ⚫') : (state.hasSuits ? 'listo para despegar' : 'faltan TRAJES 🧑‍🚀');
+  ui('rocketInfo').textContent = '🎒 lo que dejes en los cajones viaja contigo al próximo planeta · ' + req;
+}
+function moveCargo(key, n, into) {   // into=true: mochila→cohete; into=false: cohete→mochila
+  if (into) { const have = state.inv[key] || 0; n = Math.min(n, have); if (n <= 0) return; state.inv[key] -= n; state.cargo[key] = (state.cargo[key] || 0) + n; }
+  else { const have = state.cargo[key] || 0; n = Math.min(n, have); if (n <= 0) return; state.cargo[key] -= n; state.inv[key] = (state.inv[key] || 0) + n; }
+  beep(500, 0.04, 0.03); renderRocket();
+}
+function openRocket() {
+  closeShopInput(); closeMathBox(); closeBank(); releaseLock();
+  typing = true; for (const k in keys) keys[k] = false;
+  ui('rocketbox').style.display = 'flex'; renderRocket();
+  beep(600, 0.1, 0.04);
+}
+function closeRocket() { ui('rocketbox').style.display = 'none'; if (!ui('shopbox') || ui('shopbox').style.display !== 'flex') typing = false; }
+function tryRocket() {   // interactuar cerca del cohete abre los cajones
+  if (!state.rocket) return false;
+  if (dist2D(player.position, state.rocket.position) > 6) return false;
+  openRocket(); return true;
+}
+ui('rocketCloseBtn').onclick = closeRocket;
+ui('rocketLaunchBtn').onclick = () => { tryLaunchRocket(); };
+ui('rocketStoreAll').onclick = () => { for (const k of INV_KEYS) if ((state.inv[k] || 0) > 0) moveCargo(k, state.inv[k], true); };
+ui('rocketTakeAll').onclick = () => { for (const k of INV_KEYS) if ((state.cargo[k] || 0) > 0) moveCargo(k, state.cargo[k], false); };
 
 // ===================================================================
 //  CLIMA: lluvia en la Tierra (riega el huerto) y tormentas de polvo en Platus
@@ -3101,7 +3174,7 @@ function renderMathProblem() {
 function openMathBox() {
   if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
   if ((state.mathLeft || 0) <= 0) { toast('🧮 Ya resolviste los 5 desafíos de hoy. ¡Mañana hay más!'); return; }
-  closeShopInput(); releaseLock();
+  closeShopInput(); closeRocket(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar teclas para no caminar solo
   ui('mathbox').style.display = 'flex';
@@ -3253,6 +3326,7 @@ function loadGame() {
   state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
   state.trips = d.trips || 0; state.ngplus = !!d.ngplus;
   state.planetName = d.planetName || 'Platus'; state.planetGround = d.planetGround || 0x9c4a2a;
+  state.cargo = d.cargo || {};
   state.bank = d.bank || 0; state.debt = d.debt || 0;
   resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
@@ -3303,7 +3377,7 @@ function resetAll() {
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires();
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
-  state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false;
+  state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false; state.cargo = {};
   resetWeather();
   removeRocket();
 }
@@ -3681,7 +3755,9 @@ function meteorImpact() {
 function spawnRocketMesh() {   // el cohete estacionado en (10,10) con su letrero (reutilizable)
   if (state.rocket) return;
   const r = makeProductMesh('rocket', 0xf97316); r.scale.set(4, 4, 4); r.position.set(10, 0, 10); scene.add(r);
-  const s = makeSign('COHETE (R)', 0xf97316); s.position.set(10, 6, 10); scene.add(s); r.userData.sign = s;
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.52, 0.05), mat(0x334155)); door.position.set(0, 0.5, 0.24); r.add(door);          // puerta (se entra con E / 🤝)
+  const win = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14), new THREE.MeshStandardMaterial({ color: 0x9fd8ff, emissive: 0x2a4a6a, emissiveIntensity: .5 })); win.position.set(0, 0.72, 0.265); r.add(win);   // ventanilla
+  const s = makeSign('COHETE (E)', 0xf97316); s.position.set(10, 6, 10); scene.add(s); r.userData.sign = s;
   state.rocket = r;
 }
 function removeRocket() {
@@ -3691,7 +3767,7 @@ function removeRocket() {
 function giveRocket() {
   state.hasRocket = true;
   spawnRocketMesh();
-  toast('🚀 ¡Cohete listo en (10,10)! Ve con tu PAPÁ y pulsa R');
+  toast('🚀 ¡Cohete listo! Acércate y pulsa E (o 🤝 en celular) para abrir sus CAJONES: cárgalo con comida y cosas para sobrevivir en el próximo planeta. Adentro está el botón DESPEGAR.');
 }
 function tryLaunchRocket() {
   if (!state.hasRocket || !state.rocket) { toast('Primero compra un Cohete ($1.000.000) en el súper'); return; }
@@ -3703,6 +3779,7 @@ function tryLaunchRocket() {
     state.inv.carbon -= 10;
     toast('⛽ Cargaste 10 de carbón como combustible. ¡Despegando!');
   }
+  closeRocket();   // cerrar los cajones si se despegó desde el panel
   state.usedRocket = true;
   state.trips = (state.trips || 0) + 1;
   state.nextDest = (state.planet === 'platus' && verdaniaReady()) ? 'verdania' : null;   // ¿el viaje final?

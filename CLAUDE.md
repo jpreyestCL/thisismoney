@@ -128,7 +128,15 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
     por `checkProgress`, que además solo dispara meteorito en la Tierra).
   - **Cinemática**: el planeta del que escapas se ve por la ventana; si escapas de la TIERRA se
     parte en 3 pedazos (ya existía); desde Platus el planeta es rojo y no se parte (`cine.fromEarth`).
-  - Al llegar a Platus: raciones del cohete (5 comida + 2 semillas), $200, trajes puestos.
+  - Al llegar a un planeta: raciones del cohete (5 comida + 2 semillas), $200, trajes puestos.
+  - **Solo hacia adelante** (`PLANETS` array, nombre+color por `state.trips`): el cohete nunca vuelve
+    a la Tierra; cada viaje va a un planeta NUEVO (PLATUS→ZORVAX→KRYON→…). `updateCinematic` llama
+    `goToPlanet()` siempre (se eliminó `returnToEarth`). Verdania (final) → SEGUIR JUGANDO = otro planeta.
+  - **Cajones del cohete** (`state.cargo`, panel `#rocketbox`): interactuar cerca del cohete (E / botón
+    🤝 en móvil) abre los cajones — mochila↔cohete (`moveCargo`, Guardar/Sacar todo) + botón DESPEGAR.
+    La carga SOBREVIVE al viaje (`goToPlanet` no la borra), así compras en la Tierra y sobrevives más
+    en el planeta nuevo. El cohete tiene puerta+ventanilla (`spawnRocketMesh`). El botón DESPEGAR
+    resuelve además el "no encuentro cómo lanzar el cohete en el celular".
 - **Indicadores**: overlay `#poisonfx` (tinte verde pulsante al estar envenenado).
 - **Mundo agrandado**: límites jugables ±230 (antes ±110), suelo 520², avenidas centrales de 460
   (llegan al borde), +70 árboles en las afueras y un 2º desierto en (-165,140).

@@ -2260,7 +2260,9 @@ function startGame() {
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; applyDadArmor(false); setWeaponColor(0x94a3b8);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
+  state.streak = 0;
   houseTier = 0;
+  checkDailyStreak();
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
   dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true;
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
@@ -2281,11 +2283,26 @@ function saveGame() {
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
+      streak: state.streak || 0,   // racha de noches perfectas
     };
     localStorage.setItem('tim_save', JSON.stringify(data));
   } catch (e) {}
 }
 function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+// Racha DIARIA (calendario real): jugar días seguidos da bono al empezar (una vez al día)
+function checkDailyStreak() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const d = JSON.parse(localStorage.getItem('tim_daily') || '{}');
+    if (d.last === today) return;   // hoy ya se pagó
+    const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const s = d.last === yest ? (d.streak || 0) + 1 : 1;
+    localStorage.setItem('tim_daily', JSON.stringify({ last: today, streak: s }));
+    const bonus = Math.min(500, 100 * s);
+    addMoney(bonus);
+    toast('📅 Día ' + s + ' seguido jugando: ¡bono de $' + bonus + '!');
+  } catch (e) {}
+}
 function clearSave() { try { localStorage.removeItem('tim_save'); } catch (e) {} }
 function loadGame() {
   let d; try { d = JSON.parse(localStorage.getItem('tim_save')); } catch (e) { return false; }
@@ -2297,6 +2314,7 @@ function loadGame() {
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')),
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
+    streak: d.streak || 0,
   });
   lastHp = state.hp;
   state.inv = Object.assign(freshInv(), d.inv || {});
@@ -2320,6 +2338,7 @@ function continueGame() {
   state.running = true;
   if (!loadGame()) { startGame(); return; }
   toast('▶️ Partida cargada — ¡sigue donde ibas!');
+  checkDailyStreak();
 }
 
 function resetAll() {
@@ -2782,6 +2801,7 @@ function startNight() {
   state.chestAt = [20 + Math.random() * 220, 320 + Math.random() * 230];   // 2 cofres por noche, en momentos al azar
   state.pinataDone = false;                                                 // habrá 1 monstruo dorado (piñata)
   state.hordeOn = false;                                                    // horda final del último minuto
+  state.nightDamage = false;                                                // si la casa termina sin daño, sube la RACHA
   state.bossNight = state.night % 5 === 0;                                  // cada 5 noches: NOCHE JEFE (paga x3)
   if (state.bossNight) { spawnBossEnemy(); phaseText('⚔️ NOCHE JEFE'); toast('⚔️ ¡NOCHE JEFE! Un monstruo gigante te espera… sobrevive y el pago es x3'); }
   if (state.momEventPending) dadGoesToParty();
@@ -2927,10 +2947,10 @@ function updateNight(dt) {
     if (ud.breaksAir && ud.attackCd <= 0) {
       let roof = null, rd = 4;
       for (const o of placed) { if (o.key === 'roof' && o.hp > 0) { const dd = dist2D(e.position, o.mesh.position); if (dd < rd) { rd = dd; roof = o; } } }
-      if (roof) { roof.hp -= ud.dmg; ud.attackCd = 1; if (roof.hp <= 0) removePlaced(roof); }
+      if (roof) { roof.hp -= ud.dmg; ud.attackCd = 1; state.nightDamage = true; if (roof.hp <= 0) removePlaced(roof); }
     }
     if (blocked) {
-      if (ud.attackCd <= 0) { blocked.hp -= ud.opensDoors ? 30 : (ud.dmg || 10); ud.attackCd = 1; if (blocked.hp <= 0) removePlaced(blocked); }
+      if (ud.attackCd <= 0) { blocked.hp -= ud.opensDoors ? 30 : (ud.dmg || 10); ud.attackCd = 1; state.nightDamage = true; if (blocked.hp <= 0) removePlaced(blocked); }
     } else if (d > 1.4) {
       moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
     } else if (ud.attackCd <= 0) {
@@ -2952,6 +2972,11 @@ function surviveNight() {
   if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
   if (state.planet === 'platus') reward = Math.round(reward * 1.5);   // Platus paga más (es más difícil)
   if (state.bossNight) reward *= 3;                                    // noche jefe superada: paga x3
+  if (!state.nightDamage) {                                            // NOCHE PERFECTA: la casa no recibió daño
+    state.streak = (state.streak || 0) + 1;
+    toast('🔥 ¡Noche PERFECTA! Racha x' + state.streak + ' (+' + Math.min(100, state.streak * 10) + '% al pago)');
+  } else if (state.streak) { state.streak = 0; toast('💔 La casa recibió daño: se cortó la racha'); }
+  reward = Math.round(reward * (1 + 0.1 * Math.min(10, state.streak || 0)));   // la racha paga hasta el doble
   addMoney(reward);
   state.hp = Math.min(100, state.hp + 40); state.dadHp = Math.min(100, state.dadHp + 30);
   state.poison = 0; state.dadPoison = 0;
@@ -3335,6 +3360,7 @@ function renderHUD() {
   // equipo
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
+  if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');
   if (state.dadArmor < 1) gear.push('🛡️ papá');
   if (state.momUnlocked) gear.push('👩 H');

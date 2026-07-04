@@ -1636,6 +1636,7 @@ function killLoot(e) {
   m = Math.round(m * (1 + Math.min(0.5, (c - 1) * 0.1)));   // el combo paga hasta +50%
   const golden = Math.random() < 0.10;
   if (golden) m *= 5;
+  if (e.userData.bossKill) { m += 500; toast('⚔️ ¡Derrotaste al JEFE! +$500 extra'); coinBurst(e.position, 16); }
   if (e.userData.pinata) {
     m += 300 + 60 * state.stage;
     toast('🪅 ¡Reventaste la PIÑATA! +$' + m); coinBurst(e.position, 20);
@@ -2770,6 +2771,9 @@ function goToPlanet() {
 function tryStartNight() {
   if (state.phase !== 'DAY') return;
   if (!houseStats().ready) { toast('Construye al menos 4 paredes cerca de tu casa (B para construir)'); return; }
+  if (state.dayTime < DAY_LENGTH - 120) {   // madrugar: empezar la noche con >2 min de día restante paga bono
+    addMoney(100); floatText(player.position, '+$100 madrugador', '#4ade80', 16);
+  }
   startNight();
 }
 function startNight() {
@@ -2777,6 +2781,9 @@ function startNight() {
   state.night++;
   state.chestAt = [20 + Math.random() * 220, 320 + Math.random() * 230];   // 2 cofres por noche, en momentos al azar
   state.pinataDone = false;                                                 // habrá 1 monstruo dorado (piñata)
+  state.hordeOn = false;                                                    // horda final del último minuto
+  state.bossNight = state.night % 5 === 0;                                  // cada 5 noches: NOCHE JEFE (paga x3)
+  if (state.bossNight) { spawnBossEnemy(); phaseText('⚔️ NOCHE JEFE'); toast('⚔️ ¡NOCHE JEFE! Un monstruo gigante te espera… sobrevive y el pago es x3'); }
   if (state.momEventPending) dadGoesToParty();
   const n = enemiesForNight(state.night);
   toast(n === 0 ? '🌙 Noche tranquila: ¡aprovecha para construir!' : '🌙 ¡Noche ' + state.night + '! Vienen ' + n + ' monstruos');
@@ -2785,6 +2792,18 @@ function startNight() {
 }
 // Cuántos monstruos por noche (noche 1 libre; luego 3,5,7,9...)
 function enemiesForNight(n) { return n <= 1 ? 3 : Math.min(40, 2 * n - 1); }   // noche 1 ya trae 3 monstruos
+// Noche jefe (cada 5): el tipo más fuerte desbloqueado, gigante, x4 de vida
+function spawnBossEnemy() {
+  const pool = unlockedTypes();
+  const e = spawnEnemy(pool[pool.length - 1]);
+  const ud = e.userData;
+  e.scale.multiplyScalar(1.6);
+  ud.maxhp = ud.maxhp * 4; ud.hp = ud.maxhp;
+  ud.dmg = Math.round(ud.dmg * 1.3);
+  ud.barY = (ud.barY || 2.6) * 1.7;
+  ud.bossKill = true;   // matarlo paga +$500 extra (en killLoot)
+  return e;
+}
 function attack() {
   if (state.buildMode) return;
   vmSwing = 1; beep(320, 0.05, 0.03);
@@ -2862,9 +2881,14 @@ function updateNight(dt) {
   state.nightTime += dt;
   state.spawnTimer -= dt;
   const aliveCount = enemies.filter(e => e.userData.type !== 'bull').length;
-  const maxEnemies = enemiesForNight(state.night);
+  if (!state.hordeOn && state.nightTime >= NIGHT_LENGTH - 60) {   // último minuto: ¡HORDA FINAL!
+    state.hordeOn = true;
+    toast('🚨 ¡HORDA FINAL! Aguanta el último minuto…'); phaseText('¡HORDA FINAL!');
+    beep(200, 0.3, 0.07); setTimeout(() => beep(160, 0.3, 0.07), 350);
+  }
+  const maxEnemies = Math.round(enemiesForNight(state.night) * (state.hordeOn ? 1.5 : 1));
   if (state.spawnTimer <= 0 && aliveCount < maxEnemies && state.nightTime < NIGHT_LENGTH - 8) {
-    const ne = spawnEnemy(pickEnemyType()); state.spawnTimer = Math.max(1.0, 3.5 - state.stage * 0.15);   // los monstruos dependen de la ETAPA
+    const ne = spawnEnemy(pickEnemyType()); state.spawnTimer = Math.max(1.0, 3.5 - state.stage * 0.15) * (state.hordeOn ? 0.5 : 1);   // los monstruos dependen de la ETAPA; la horda spawnea al doble
     if (!state.pinataDone && (Math.random() < 0.12 || state.nightTime > NIGHT_LENGTH * 0.5)) makePinata(ne);
   }
   if (state.chestAt && state.chestAt.length && state.nightTime >= state.chestAt[0]) { state.chestAt.shift(); spawnChest(); }
@@ -2927,6 +2951,7 @@ function surviveNight() {
   let reward = 100 * state.stage + (hs.mansion ? 800 : (hs.ready ? 200 : 0));
   if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
   if (state.planet === 'platus') reward = Math.round(reward * 1.5);   // Platus paga más (es más difícil)
+  if (state.bossNight) reward *= 3;                                    // noche jefe superada: paga x3
   addMoney(reward);
   state.hp = Math.min(100, state.hp + 40); state.dadHp = Math.min(100, state.dadHp + 30);
   state.poison = 0; state.dadPoison = 0;
@@ -3323,8 +3348,8 @@ function renderHUD() {
   if (state.phase === 'DAY') {
     if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);
     else if (!houseStats().ready) obj = '🛒 Compra en el súper (mantén E) y construye 4 paredes (B)';
-    else obj = '🌙 Pulsa N para la noche · 🏆 casa dorada en la ciudad (E cerca)';
-  } else if (state.phase === 'NIGHT') obj = '🗡️ ¡Defiende! Quedan ' + fmt(NIGHT_LENGTH - state.nightTime);
+    else obj = '⏩ Pulsa N: empieza la noche YA (+$100 por madrugar) · 🏆 casa dorada en la ciudad';
+  } else if (state.phase === 'NIGHT') obj = (state.hordeOn ? '🚨 ¡HORDA FINAL! ' : (state.bossNight ? '⚔️ NOCHE JEFE (paga x3) · ' : '🗡️ ¡Defiende! ')) + 'Quedan ' + fmt(NIGHT_LENGTH - state.nightTime);
   if (state.wanted > 0) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';
   ui('objective').textContent = obj;
 }

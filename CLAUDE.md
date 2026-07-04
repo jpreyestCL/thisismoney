@@ -141,6 +141,37 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
   retorna). Se guarda con la partida.
 - Enemigos legado reintroducidos en la rotación: `ghost` (12+), `ogre` (16+), `dragon` (18+).
 
+## Historia, funcionalidad, UX y calidad (lote de 5 commits)
+
+1. **Historia**: intro en 4 tarjetas (`INTRO_CARDS`/`showIntro`, al empezar partida); diálogos con
+   `say(quien, texto)` — el papá comenta por contexto cada ~1-2 min (`updateDialogues`, `DAD_LINES`),
+   el vendedor saluda (`VENDOR_LINES`), la mamá regala desayuno cada amanecer; **FINAL**: cohete desde
+   Platus con `verdaniaReady()` ($10M total o 4+ viajes) → pantalla `#win` VERDANIA con estadísticas
+   (`showVictory`) + SEGUIR JUGANDO o NUEVA PARTIDA+ ($10.000, `state.ngplus`).
+2. **Banco** (edificio en `BANK_POS` (58,-24), E para entrar, panel `#bankbox`): ahorros `state.bank`
+   ganan **5% de interés** por noche; préstamo $2000 con deuda `state.debt` +10%/noche. Persisten.
+3. **Vender**: botón 🔁 en la tienda (`shopSellMode` en `renderShopList`) — el vendedor compra tus
+   objetos colocables del inventario al 50%.
+4. **Clima** (`updateWeather`, `state.weather`): lluvia en la Tierra (Points + cielo gris + huerto ×2)
+   y tormenta de polvo en Platus de día (cielo naranjo + daño lejos de fogata).
+5. **Mates progresivas**: etapa 8+ desbloquea problemas de dos operaciones (tier 4, $700) y todos
+   los premios escalan +5% por etapa.
+6. **Foto**: botón 📷 (`takePhoto`, `renderer.render` + `toDataURL` + descarga PNG).
+7. **UX desktop**: pointer lock al hacer clic en el canvas (Esc suelta); **menú de PAUSA** (Esc,
+   `togglePause`, `state.paused` congela el loop) con sliders de sensibilidad (`lookMult`,
+   `tim_sens`) y tamaño de botones (`--btnscale`, `tim_btnsize`), sonido, **modo rendimiento**
+   (`applyPerfMode`: sin sombras + pixelRatio 1, `tim_perf`), foto, ayuda, código y salir;
+   **cola de toasts** (`#toastStack`, el aviso anterior sube a una pila de 2).
+8. **UX móvil**: **PWA** (`manifest.webmanifest` + `sw.js`: index red-primero, assets/CDN
+   caché-primero → instalable y offline); vibración háptica (`vibr()` en daño/dorado/misión/cofre);
+   hotbar con pestañas 🏠/🛡️/🪑 en celular (`BUILD_CATS`/`buildCat`).
+9. **Perfiles con nombre**: JUGAR/CREATIVO piden username (`#namebox`); CONTINUAR lista perfiles
+   (`#profilebox`, con 🗑️ borrar); saves en `tim_save_<nombre>` + registro `tim_profiles` +
+   último `tim_profile`; migración automática del `tim_save` viejo a "Jugador". **Código de
+   partida**: copiar/pegar el save en base64 entre dispositivos (menú pausa).
+10. **Calidad**: música por contexto con melodía+bajo (día/noche/Platus en `MUSIC`); árboles de la
+    Tierra y árboles muertos de Platus como `InstancedMesh` (2 draw calls c/u).
+
 ## Sistema de dopamina / retención (7 paquetes)
 
 Implementados para mantener al jugador enganchado. Todo persiste en el save donde corresponde.

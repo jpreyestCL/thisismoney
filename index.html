@@ -369,6 +369,24 @@
     <button class="btn" id="introBtn">Siguiente ▶</button>
   </div>
 </div>
+<div id="namebox" style="position:fixed; inset:0; display:none; z-index:26; background:rgba(2,6,23,.85); align-items:center; justify-content:center; pointer-events:all;">
+  <div style="width:min(90vw,340px); background:rgba(6,10,20,.97); border:2px solid #4ade80; border-radius:16px; padding:22px; text-align:center;">
+    <h3 style="margin:0 0 10px; color:#4ade80;">👤 ¿Cómo te llamas?</h3>
+    <p style="font-size:12px; opacity:.65; margin:0 0 10px;">Tu partida se guarda con tu nombre: cada uno tiene la suya.</p>
+    <input id="nameInput" maxlength="12" placeholder="Tu nombre…" autocomplete="off" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #4ade80; background:#0b1220; color:#fff; text-align:center; outline:none;">
+    <div style="display:flex; gap:8px; margin-top:14px; justify-content:center;">
+      <button class="btn" id="nameOk">¡JUGAR!</button>
+      <button class="btn" id="nameCancel" style="background:linear-gradient(90deg,#64748b,#475569);">Volver</button>
+    </div>
+  </div>
+</div>
+<div id="profilebox" style="position:fixed; inset:0; display:none; z-index:26; background:rgba(2,6,23,.85); align-items:center; justify-content:center; pointer-events:all;">
+  <div style="width:min(90vw,360px); max-height:80vh; overflow-y:auto; background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:20px; text-align:center;">
+    <h3 style="margin:0 0 12px; color:#38bdf8;">👥 ¿Quién juega?</h3>
+    <div id="profileList" style="display:flex; flex-direction:column; gap:8px;"></div>
+    <button class="btn" id="profileCancel" style="margin-top:12px; background:linear-gradient(90deg,#64748b,#475569);">Volver</button>
+  </div>
+</div>
 <div id="win" class="screen hidden" style="background:linear-gradient(rgba(6,40,20,.88),rgba(2,6,23,.95));">
   <h1 style="color:#4ade80;">🌟 ¡VERDANIA!</h1>
   <p style="max-width:460px;">Después de tanto trabajar, sobrevivir y viajar por las galaxias, tu familia encontró
@@ -1121,19 +1139,26 @@ function tryRob() {
 
 // Árboles (en la Tierra)
 const decor = [];
-function buildTrees() {
-  const plant = (r0, r1) => {   // un árbol en un anillo de distancia [r0, r1]
+function buildTrees() {   // árboles INSTANCIADOS: ~100 árboles en solo 2 draw calls (rinde mejor en celular)
+  const spots = [];
+  const plant = (r0, r1) => {
     const a = Math.random() * Math.PI * 2, r = r0 + Math.random() * (r1 - r0);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if ((Math.abs(x) < 14 && Math.abs(z) < 14) || (x > 25 && z < -8)) return;
     if (Math.abs(x) < 6 || Math.abs(z) < 6) return;   // no sobre las avenidas centrales
-    const tree = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.4, .5, 3), mat(0x6b4423)); trunk.position.y = 1.5; trunk.castShadow = true; tree.add(trunk);
-    const leaves = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 8), mat(0x2d5016)); leaves.position.y = 4.5; leaves.castShadow = true; tree.add(leaves);
-    tree.position.set(x, 0, z); scene.add(tree); decor.push(tree);
+    spots.push([x, z]);
   };
   for (let i = 0; i < 36; i++) plant(28, 88);     // anillo cercano (como antes)
   for (let i = 0; i < 70; i++) plant(95, 220);    // afueras: bosque del mapa agrandado
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.4, .5, 3), mat(0x6b4423), spots.length);
+  const leaves = new THREE.InstancedMesh(new THREE.ConeGeometry(2, 4, 8), mat(0x2d5016), spots.length);
+  trunks.castShadow = true; leaves.castShadow = true;
+  const m4 = new THREE.Matrix4();
+  spots.forEach(([x, z], i) => {
+    m4.makeTranslation(x, 1.5, z); trunks.setMatrixAt(i, m4);
+    m4.makeTranslation(x, 4.5, z); leaves.setMatrixAt(i, m4);
+  });
+  scene.add(trunks); scene.add(leaves); decor.push(trunks, leaves);
 }
 buildTrees();
 
@@ -1359,19 +1384,28 @@ function setEarthWorld(v) {   // muestra/oculta la Tierra completa (con sus coli
 // ===================================================================
 const platusStuff = [], coalRocks = [], campfires = [];
 function buildPlatus() {
-  for (let i = 0; i < 60; i++) {   // árboles MUERTOS (troncos secos con ramas peladas)
+  // árboles MUERTOS instanciados (troncos secos + ramas peladas): 2 draw calls
+  const spots = [];
+  for (let i = 0; i < 60; i++) {
     const a = Math.random() * Math.PI * 2, r = 15 + Math.random() * 200;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (Math.abs(x) < 8 && Math.abs(z) < 8) continue;
-    const t = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.22, .38, 3.6, 6), mat(0x4a3728)); trunk.position.y = 1.8; trunk.castShadow = true; t.add(trunk);
-    for (let b = 0; b < 3; b++) {
-      const br = new THREE.Mesh(new THREE.CylinderGeometry(.07, .11, 1.6, 5), mat(0x3b2b1f));
-      br.position.y = 2.3 + b * 0.5; br.rotation.z = 0.7 + Math.random() * 0.9; br.rotation.y = Math.random() * 6.28;
-      br.translateY(0.7); t.add(br);
-    }
-    t.position.set(x, 0, z); t.visible = false; scene.add(t); platusStuff.push(t);
+    spots.push([x, z]);
   }
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.22, .38, 3.6, 6), mat(0x4a3728), spots.length);
+  const branches = new THREE.InstancedMesh(new THREE.CylinderGeometry(.07, .11, 1.6, 5), mat(0x3b2b1f), spots.length * 3);
+  trunks.castShadow = true;
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), eu = new THREE.Euler(), off = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+  spots.forEach(([x, z], i) => {
+    m4.makeTranslation(x, 1.8, z); trunks.setMatrixAt(i, m4);
+    for (let b = 0; b < 3; b++) {
+      eu.set(0, Math.random() * 6.28, 0.7 + Math.random() * 0.9); q.setFromEuler(eu);
+      off.set(0, 0.7, 0).applyQuaternion(q); off.x += x; off.y += 2.3 + b * 0.5; off.z += z;
+      m4.compose(off, q, one); branches.setMatrixAt(i * 3 + b, m4);
+    }
+  });
+  trunks.visible = false; branches.visible = false;
+  scene.add(trunks); scene.add(branches); platusStuff.push(trunks, branches);
   for (let i = 0; i < 26; i++) {   // rocas de CARBÓN: pícalas a golpes (👊/clic) para sacar carbón
     const a = Math.random() * Math.PI * 2, r = 12 + Math.random() * 170;
     const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 + Math.random() * 0.5), new THREE.MeshStandardMaterial({ color: 0x1f2430, roughness: .9 }));
@@ -2280,17 +2314,23 @@ function ensureEngine() {
 
 // --- Música ambiental (día tranquila, noche tensa); se puede silenciar ---
 let musicTimer = null, musicStep = 0;
-const MUSIC = { day: [0, 4, 7, 12, 7, 4, 0, -5], night: [0, 3, 7, 3, -2, 1, 8, 3] };
+// Música por contexto: día alegre (mayor), noche tensa (menor) y Platus desolado (lento y raro).
+// Dos voces: melodía + bajo cada 2 pasos.
+const MUSIC = {
+  day:    { mel: [0, 4, 7, 12, 9, 7, 4, 7, 5, 9, 12, 16, 12, 9, 7, 4], bass: [0, -12, -5, -12], base: 174.61, wave: 'sine' },
+  night:  { mel: [0, 3, 7, 3, 10, 8, 7, 3, 0, -2, 1, 3, 7, 3, 1, -2], bass: [-12, -12, -9, -14], base: 130.81, wave: 'triangle' },
+  platus: { mel: [0, -2, 3, 0, 7, 5, -2, 0, 3, -4, 0, -2, 5, 3, 0, -5], bass: [-12, -17, -12, -19], base: 146.83, wave: 'triangle' },
+};
 function startMusic() {
   if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
   if (!soundOn) return;
   musicTimer = setInterval(() => {
-    if (!soundOn || !state.running || document.hidden) return;
-    const night = state.phase === 'NIGHT';
-    const scale = night ? MUSIC.night : MUSIC.day;
-    const semi = scale[musicStep % scale.length]; musicStep++;
-    const base = night ? 130.81 : 174.61;
-    tone(base * Math.pow(2, semi / 12), 0.32, 0.022, night ? 'triangle' : 'sine');
+    if (!soundOn || !state.running || document.hidden || state.paused) return;
+    const M = state.planet === 'platus' ? MUSIC.platus : (state.phase === 'NIGHT' ? MUSIC.night : MUSIC.day);
+    if (M === MUSIC.platus && musicStep % 2) { musicStep++; return; }   // Platus: notas espaciadas (desolado)
+    const i = musicStep % M.mel.length; musicStep++;
+    tone(M.base * Math.pow(2, M.mel[i] / 12), 0.34, 0.02, M.wave);                                             // melodía
+    if (i % 2 === 0) tone(M.base * Math.pow(2, M.bass[(i / 2) % M.bass.length] / 12), 0.5, 0.016, 'sine');     // bajo
   }, 400);
 }
 function toggleSound() {
@@ -2456,13 +2496,69 @@ const ui = id => document.getElementById(id);
 function rotateBuild() { buildRot = (buildRot + Math.PI / 2) % (Math.PI * 2); state.buildMode = true; refreshGhost(); }
 ui('rotateBtn').onclick = rotateBuild;
 ui('deleteBtn').onclick = deleteObject;
-ui('startBtn').onclick = startGame;
-ui('creativeBtn').onclick = () => {   // mismo mundo, pero con plata infinita y todo desbloqueado
+// Nueva partida: primero pregunta TU NOMBRE (cada jugador tiene su propia partida guardada)
+let pendingMode = 'normal';
+function openNamebox(mode) {
+  pendingMode = mode;
+  ui('namebox').style.display = 'flex';
+  ui('nameInput').value = currentProfile || '';
+  setTimeout(() => { try { ui('nameInput').focus(); } catch (e) {} }, 60);
+}
+ui('startBtn').onclick = () => openNamebox('normal');
+ui('creativeBtn').onclick = () => openNamebox('creative');
+ui('nameCancel').onclick = () => { ui('namebox').style.display = 'none'; };
+ui('nameOk').onclick = () => {
+  const name = (ui('nameInput').value.trim() || 'Jugador').slice(0, 12);
+  setProfile(name);
+  ui('namebox').style.display = 'none';
   startGame();
-  state.creative = true; state.money = 999999999;
-  toast('🎨 MODO CREATIVO: plata infinita y todo desbloqueado. ¡Compra y construye lo que quieras!');
+  if (pendingMode === 'creative') {
+    state.creative = true; state.money = 999999999;
+    toast('🎨 MODO CREATIVO: plata infinita y todo desbloqueado. ¡Compra y construye lo que quieras!');
+  }
 };
-ui('continueBtn').onclick = () => continueGame();
+ui('nameInput').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') ui('nameOk').click(); });
+// Continuar: si hay varias partidas, muestra QUIÉN JUEGA
+function openProfilebox() {
+  const list = getProfiles().filter(n => { try { return !!localStorage.getItem(profileKey(n)); } catch (e) { return false; } });
+  if (!list.length) { ui('profilebox').style.display = 'none'; toast('No hay partidas guardadas'); return; }
+  if (list.length === 1) { setProfile(list[0]); ui('profilebox').style.display = 'none'; continueGame(); return; }
+  const box = ui('profileList'); box.innerHTML = '';
+  list.forEach(n => {
+    let info = '';
+    try { const d = JSON.parse(localStorage.getItem(profileKey(n))); info = 'Etapa ' + (d.stage || 1) + ' · $' + (d.money || 0) + (d.planet === 'platus' ? ' · 🪐' : '') + (d.creative ? ' · 🎨' : ''); } catch (e) {}
+    const row = document.createElement('div'); row.style.cssText = 'display:flex; gap:8px; align-items:stretch;';
+    const b = document.createElement('button'); b.className = 'bankBtn'; b.style.flex = '1'; b.style.textAlign = 'left';
+    b.innerHTML = '<b>👤 ' + n + '</b><br><small style="opacity:.7">' + info + '</small>';
+    b.onclick = () => { setProfile(n); ui('profilebox').style.display = 'none'; continueGame(); };
+    const del = document.createElement('button'); del.className = 'bankBtn'; del.textContent = '🗑️';
+    del.onclick = () => { if (confirm('¿Borrar la partida de ' + n + '?')) { try { localStorage.removeItem(profileKey(n)); saveProfiles(getProfiles().filter(x => x !== n)); } catch (e) {} openProfilebox(); } };
+    row.appendChild(b); row.appendChild(del); box.appendChild(row);
+  });
+  ui('profilebox').style.display = 'flex';
+}
+ui('profileCancel').onclick = () => { ui('profilebox').style.display = 'none'; };
+// Código de partida: copia/pega tu save entre dispositivos (sin internet ni cuentas)
+ui('pauseCode').onclick = () => {
+  try {
+    const data = localStorage.getItem(saveKey());
+    if (!data) { toast('💾 Aún no hay partida guardada'); return; }
+    prompt('📋 Copia este CÓDIGO DE PARTIDA y pégalo en otro dispositivo (menú pausa → Cargar código):', btoa(unescape(encodeURIComponent(data))));
+  } catch (e) { toast('No se pudo generar el código'); }
+};
+ui('pauseLoad').onclick = () => {
+  try {
+    const code = prompt('📥 Pega aquí tu código de partida:');
+    if (!code) return;
+    const json = decodeURIComponent(escape(atob(code.trim())));
+    JSON.parse(json);   // valida que sea un save real
+    localStorage.setItem(saveKey(), json);
+    togglePause(false);
+    continueGame();
+    toast('📥 ¡Partida cargada desde el código!');
+  } catch (e) { toast('❌ Ese código no es válido'); }
+};
+ui('continueBtn').onclick = () => openProfilebox();   // elige QUIÉN juega (si hay varias partidas)
 if (hasSave()) ui('continueBtn').style.display = '';   // mostrar "Continuar" si hay partida guardada
 showBestLine();   // récord personal en la pantalla de inicio
 ui('jailBtn').onclick = () => hideScreens();
@@ -2658,6 +2754,32 @@ function startGame() {
   showIntro();   // la historia en 4 tarjetas (se pasa con un botón)
 }
 // Guardado / carga de la partida (localStorage)
+// ===================================================================
+//  PERFILES: cada jugador guarda con su NOMBRE (varias partidas por equipo)
+// ===================================================================
+let currentProfile = null;
+try { currentProfile = localStorage.getItem('tim_profile') || null; } catch (e) {}
+function profileKey(name) { return 'tim_save_' + name; }
+function saveKey() { return currentProfile ? profileKey(currentProfile) : 'tim_save'; }
+function getProfiles() { try { return JSON.parse(localStorage.getItem('tim_profiles') || '[]'); } catch (e) { return []; } }
+function saveProfiles(list) { try { localStorage.setItem('tim_profiles', JSON.stringify(list)); } catch (e) {} }
+function setProfile(name) {
+  currentProfile = name;
+  try { localStorage.setItem('tim_profile', name); const p = getProfiles(); if (!p.includes(name)) { p.push(name); saveProfiles(p); } } catch (e) {}
+}
+// migración: la partida vieja (tim_save sin nombre) pasa a llamarse "Jugador"
+(function migrateOldSave() {
+  try {
+    const old = localStorage.getItem('tim_save');
+    if (old && !localStorage.getItem(profileKey('Jugador'))) {
+      localStorage.setItem(profileKey('Jugador'), old);
+      const p = getProfiles(); if (!p.includes('Jugador')) { p.push('Jugador'); saveProfiles(p); }
+      localStorage.removeItem('tim_save');
+      if (!currentProfile) setProfile('Jugador');
+    }
+  } catch (e) {}
+})();
+
 function saveGame() {
   if (!state.running || state.phase === 'OVER') return;
   try {
@@ -2685,10 +2807,10 @@ function saveGame() {
       missions: state.missions || null,   // misiones del día con su progreso
       bestiary: state.bestiary || {},     // colección de monstruos
     };
-    localStorage.setItem('tim_save', JSON.stringify(data));
+    localStorage.setItem(saveKey(), JSON.stringify(data));
   } catch (e) {}
 }
-function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+function hasSave() { return getProfiles().some(n => { try { return !!localStorage.getItem(profileKey(n)); } catch (e) { return false; } }); }
 // ===================================================================
 //  PAUSA (Esc / botón ⏸️) con ajustes: sensibilidad, botones, rendimiento
 // ===================================================================
@@ -3082,9 +3204,9 @@ function checkDailyStreak() {
     toast('📅 Día ' + s + ' seguido jugando: ¡bono de $' + bonus + '!');
   } catch (e) {}
 }
-function clearSave() { try { localStorage.removeItem('tim_save'); } catch (e) {} }
+function clearSave() { try { localStorage.removeItem(saveKey()); } catch (e) {} }
 function loadGame() {
-  let d; try { d = JSON.parse(localStorage.getItem('tim_save')); } catch (e) { return false; }
+  let d; try { d = JSON.parse(localStorage.getItem(saveKey())); } catch (e) { return false; }
   if (!d) return false;
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPolice(); clearPlants(); clearHelpers();
   Object.assign(state, {

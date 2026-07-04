@@ -172,6 +172,26 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
 10. **Calidad**: música por contexto con melodía+bajo (día/noche/Platus en `MUSIC`); árboles de la
     Tierra y árboles muertos de Platus como `InstancedMesh` (2 draw calls c/u).
 
+## Arreglos tras code review (lote historia/UX) + creativo invulnerable
+
+1. **Botones de pausa muertos**: `querySelectorAll('.bankBtn')` reasignaba el `onclick` de los 6 botones
+   de pausa (comparten la clase de estilo). Ahora se enlaza por `[data-bank]` (solo los del banco).
+2. **Teclado en pausa**: `if (state.paused) return;` en el keydown (solo Esc reanuda); antes N/R/Y/F/B
+   seguían ejecutándose con el juego pausado.
+3. **Pointer lock atrapaba el mouse en los menús** (PC): helper `releaseLock()` (`exitPointerLock`) al
+   abrir tienda/banco/mates y en `togglePause(true)`.
+4. **CONTINUAR oculto tras actualizar**: `hasSave()` corría antes del IIFE `migrateOldSave`; se
+   re-evalúa el botón al final de la migración.
+5. **Clima no se reseteaba al cargar**: helper `resetWeather()` (limpia `weather`/`weatherLeft`/
+   `weatherT`/`rainObj`/`#coldfx`) usado en `startGame`/`resetAll`/`goToPlanet`/`returnToEarth`/`loadGame`.
+6. **PWA íconos falsos**: nuevo `icon.svg` cuadrado (raíz, no ignorado) + manifest honesto
+   (img_58 declarado 848×1264). `sw.js` VERSION→`tim-v2` y cachea `icon.svg`.
+7. **Slots 10-19 inaccesibles en PC** (teclas solo 1-9): **rueda del mouse** recorre los 19 slots
+   (`canvas 'wheel'` → `selectSlot`, con wrap). También funciona el clic al slot cuando no hay lock.
+8. **Modo creativo invulnerable**: en el loop, antes del chequeo de muerte, `if (state.creative) {
+   state.hp = 100; state.dadHp = 100; hunger≥20 }` y `damagePlayer`/`damageDad` retornan en creativo;
+   los chequeos `hp<=0 → goToJail` / `dadHp<=0 → gameOver` se saltan en creativo.
+
 ## Sistema de dopamina / retención (7 paquetes)
 
 Implementados para mantener al jugador enganchado. Todo persiste en el save donde corresponde.

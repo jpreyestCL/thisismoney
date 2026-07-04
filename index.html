@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="assets/img_58.png">
-<link rel="icon" type="image/png" href="assets/img_58.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
 <title>This is Money</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -270,7 +270,7 @@
     <span><b>E</b></span><span>Comprar / cobrar casa secreta / robar / <b>vender casa</b></span>
     <span><b>I</b></span><span>📖 Abrir el menú de AYUDA (todas las teclas)</span>
     <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
-    <span><b>1-9</b></span><span>Inventario: <b>1</b> herramienta · <b>2-9</b> construir · <b>Q</b> comer</span>
+    <span><b>1-9 / rueda</b></span><span>Inventario: <b>1</b> herramienta · <b>2-9</b> o la <b>rueda del mouse</b> para el resto (10-19) · <b>Q</b> comer</span>
     <span><b>B</b></span><span>Modo construir &nbsp; · &nbsp; <b>T</b> cavar (con pala)</span>
     <span><b>P / L</b></span><span>Girar vertical / horizontal</span>
     <span><b>F</b> / <b>X</b></span><span>Colocar / Borrar objeto</span>
@@ -2280,8 +2280,8 @@ function checkProgress() {
   updateBest();   // ¿superaste tu récord personal?
 }
 
-function damagePlayer(amount) { state.hp -= amount * state.armorFactor; }
-function damageDad(amount) { state.dadHp -= amount * state.dadArmor; }   // el papá recibe menos daño si compraste su armadura
+function damagePlayer(amount) { if (state.creative) return; state.hp -= amount * state.armorFactor; }
+function damageDad(amount) { if (state.creative) return; state.dadHp -= amount * state.dadArmor; }   // el papá recibe menos daño si compraste su armadura
 
 // Sonido corto (bip) con WebAudio
 let audioCtx = null;
@@ -2352,6 +2352,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
   if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
+  if (state.paused) return;   // en pausa el teclado no hace nada (solo Esc, arriba)
   if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
@@ -2402,7 +2403,7 @@ function openShopInput() {
   if (state.planet === 'platus') { toast('🪐 En Platus no hay súper: pica carbón ⚫ y sobrevive'); return; }
   if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
   if (!nearKeeper()) { toast('🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
-  closeMathBox();
+  closeMathBox(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
   const box = ui('shopbox'), inp = ui('shopInput');
@@ -2490,6 +2491,19 @@ canvas.addEventListener('click', () => {
   if (!state.running || state.paused || typing || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
   try { if (document.pointerLockElement !== canvas) canvas.requestPointerLock(); } catch (e) {}
 });
+// Soltar el mouse (salir del pointer lock) para poder clickear los menús en PC
+function releaseLock() { try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {} }
+// Rueda del mouse (PC): recorre TODOS los slots del hotbar (las teclas solo llegan al 9;
+// los slots 10-19 no tienen dígito, y con pointer lock tampoco se pueden clickear).
+canvas.addEventListener('wheel', e => {
+  if (!state.running || state.paused || typing || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
+  const total = BUILD_KEYS.length + 1;                 // 19 slots: 1 herramienta + 18 colocables
+  let cur = state.buildMode ? buildSel + 2 : 1;        // número de slot actual (1..19)
+  cur += (e.deltaY > 0 ? 1 : -1);
+  if (cur < 1) cur = total; else if (cur > total) cur = 1;
+  selectSlot(cur);
+  e.preventDefault();
+}, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 const ui = id => document.getElementById(id);
@@ -2749,7 +2763,7 @@ function startGame() {
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
   dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
   state.trips = 0; state.ngplus = false; state.bank = 0; state.debt = 0;
-  state.weather = 'clear'; if (rainObj) rainObj.visible = false;
+  resetWeather();
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
   showIntro();   // la historia en 4 tarjetas (se pasa con un botón)
 }
@@ -2778,6 +2792,8 @@ function setProfile(name) {
       if (!currentProfile) setProfile('Jugador');
     }
   } catch (e) {}
+  // el botón CONTINUAR se evaluó antes de esta migración; re-evaluarlo ahora que ya hay perfiles
+  try { if (hasSave() && ui('continueBtn')) ui('continueBtn').style.display = ''; } catch (e) {}
 })();
 
 function saveGame() {
@@ -2835,6 +2851,7 @@ function togglePause(force) {
   state.paused = show;
   ui('pause').style.display = show ? 'flex' : 'none';
   if (show) {
+    releaseLock();
     ui('sensSlider').value = lookMult; ui('sensVal').textContent = lookMult.toFixed(1) + '×';
     ui('btnSlider').value = btnScale; ui('btnVal').textContent = btnScale.toFixed(1) + '×';
     ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO';
@@ -2860,7 +2877,7 @@ function renderBank() {
     ((state.debt || 0) > 0 ? '<br>📉 Deuda: <b style="color:#f87171">$' + state.debt + '</b>' : '');
 }
 function openBank() {
-  closeShopInput(); closeMathBox();
+  closeShopInput(); closeMathBox(); releaseLock();
   typing = true; for (const k in keys) keys[k] = false;
   ui('bankbox').style.display = 'flex'; renderBank();
   beep(600, 0.1, 0.04);
@@ -2887,7 +2904,7 @@ function bankAction(a) {
   }
   renderBank();
 }
-document.querySelectorAll('.bankBtn').forEach(b => b.onclick = () => bankAction(b.dataset.bank));
+document.querySelectorAll('[data-bank]').forEach(b => b.onclick = () => bankAction(b.dataset.bank));   // enlazar por data-bank (NO por la clase de estilo .bankBtn, que la comparten los botones de pausa)
 ui('bankCloseBtn').onclick = closeBank;
 
 // ===================================================================
@@ -2904,6 +2921,12 @@ function ensureRain() {
   return rainObj;
 }
 let weatherT = 90 + Math.random() * 120;
+function resetWeather() {   // deja el clima despejado y reinicia el temporizador (usado en toda transición)
+  state.weather = 'clear'; state.weatherLeft = 0;
+  weatherT = 90 + Math.random() * 120;
+  if (rainObj) rainObj.visible = false;
+  const dx = ui('coldfx'); if (dx) dx.style.opacity = '0';
+}
 function updateWeather(dt) {
   if (!state.running || state.phase === 'TITLE') return;
   if (state.weather === 'clear') {
@@ -3076,14 +3099,13 @@ function renderMathProblem() {
 function openMathBox() {
   if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
   if ((state.mathLeft || 0) <= 0) { toast('🧮 Ya resolviste los 5 desafíos de hoy. ¡Mañana hay más!'); return; }
-  closeShopInput();
+  closeShopInput(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar teclas para no caminar solo
   ui('mathbox').style.display = 'flex';
   renderMathProblem();
 }
 function closeMathBox() {
-
   ui('mathbox').style.display = 'none';
   if (ui('shopbox').style.display !== 'flex') typing = false;
   mathProblem = null;
@@ -3229,6 +3251,7 @@ function loadGame() {
   state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
   state.trips = d.trips || 0; state.ngplus = !!d.ngplus;
   state.bank = d.bank || 0; state.debt = d.debt || 0;
+  resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
   if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
@@ -3278,7 +3301,7 @@ function resetAll() {
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires();
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
   state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false;
-  state.weather = 'clear'; if (rainObj) rainObj.visible = false;
+  resetWeather();
   removeRocket();
 }
 
@@ -3741,7 +3764,7 @@ function goToPlanet() {
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en Platus no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Platus no te persigue la policía terrestre
-  state.weather = 'clear'; if (rainObj) rainObj.visible = false;             // el clima no viaja contigo
+  resetWeather();             // el clima no viaja contigo
   setEarthWorld(false);                                                      // Platus: NADA de la Tierra (súper, ciudad, estadios, gente, calles)
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
@@ -3759,7 +3782,7 @@ function returnToEarth() {
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();
-  state.weather = 'clear'; if (rainObj) rainObj.visible = false;
+  resetWeather();
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   state.meteorTriggered = false; state.meteorAt = state.totalEarned + 1000000;   // la próxima catástrofe: al siguiente millón
@@ -4120,9 +4143,10 @@ function loop() {
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
+    if (state.creative) { state.hp = 100; state.dadHp = 100; if (state.hunger < 20) state.hunger = 20; }   // creativo: no se puede morir (ni tú ni el papá)
     hurtFeedback();
-    if (state.hp <= 0) goToJail();         // monstruos te matan -> cárcel (día o noche)
-    else if (state.dadHp <= 0 && dad.visible) gameOver();
+    if (!state.creative && state.hp <= 0) goToJail();         // monstruos te matan -> cárcel (día o noche)
+    else if (!state.creative && state.dadHp <= 0 && dad.visible) gameOver();
     updateTimers(dt);
   }
   for (const e of enemies) swingLimbs(e, dt);

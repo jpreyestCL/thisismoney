@@ -85,7 +85,7 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
 
 - **Guardado (localStorage, clave `tim_save`)**: `saveGame()` serializa stats + inventario + casa
   (`placed`) + auto + planeta + **huerto (`plants`: x/z/grow/apples) + ayudantes (`helpers`: x/z) +
-  papá (modo, armado, posición)**; `loadGame()` reconstruye todo con `spawnPlaced()`/`spawnCar(opts)`/
+  papá (modo, armado, posición, `dadArmor`)**; `loadGame()` reconstruye todo con `spawnPlaced()`/`spawnCar(opts)`/
   `spawnPlant(x,z,grow,apples)`/`makeHelperAt(x,z)`/`applyDadArmed(v)`. Autosave al superar la noche,
   al ocultar/cerrar la pestaña y cada 15 s. Botón **CONTINUAR** en el inicio si hay partida
   (`hasSave()`); **JUGAR DE NUEVO** borra el save (`clearSave()`).
@@ -93,6 +93,10 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
     `loadGame`), `makeHelperAt`/`clearHelpers` (usado por `spawnHelper` y `loadGame`),
     `ensureDadWeapon`/`applyDadArmed` (usado por `toggleDadArm` y `loadGame`). `startGame` y
     `goToPlanet` limpian `plants`+`helpers` (empezar de cero / viajar a Marte).
+  - **Armadura del papá** (ítem de tienda `dadarmor`, $800): pone `state.dadArmor = 0.5` (recibe la
+    mitad de daño). Todo el daño al papá pasa por `damageDad(amount)` (= `amount * state.dadArmor`),
+    espejo de `damagePlayer`. Placa visible en el pecho vía `ensureDadArmorPlate`/`applyDadArmor`.
+    Indicador 🛡️ en `#dadhud` (PC) y en `gearhud` (móvil). Se guarda y se resetea igual que el arma.
 - **Audio**: `tone()`/`beep()` (SFX), `ensureEngine()` (motor del auto, oscilador continuo),
   `startMusic()` (música ambiental día/noche vía `setInterval`). Botón **🔊/🔇** (`toggleSound`,
   se guarda en `tim_sound`). Todo pasa por `ensureAudio()` (resume en gesto).

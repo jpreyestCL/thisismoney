@@ -537,6 +537,7 @@ const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'coca',     name: 'Coca-Cola',    price: 80,  color: 0xdc2626, eat: 20 },
   { key: 'semillas', name: 'Semillas manzana (x10)', price: 60, color: 0x7c9a3b },
   { key: 'dadgun',   name: 'Arma papa',    price: 400, color: 0xf59e0b },
+  { key: 'dadarmor', name: 'Armadura papa', price: 800, color: 0x64748b },
   { key: 'rocket',   name: 'Cohete',       price: 1000000, color: 0xf97316 },
 ];
 const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
@@ -615,6 +616,9 @@ function makeProductMesh(key, color) {
     const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.06), mat(color)); scoop.position.y = 0.95; scoop.castShadow = true; g.add(scoop);
   } else if (key.startsWith('armadura')) {
     const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.35), mat(color)); chest.position.y = 0.5; chest.castShadow = true; g.add(chest);
+  } else if (key === 'dadarmor') {
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.35), mat(color)); chest.position.y = 0.5; chest.castShadow = true; g.add(chest);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.12, 0.4), mat(0x334155)); strap.position.y = 0.62; g.add(strap);
   } else if (key === 'dadgun') {
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 0.18), mat(color)); body.position.y = 0.5; g.add(body);
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5), mat(0x334155)); barrel.rotation.z = Math.PI / 2; barrel.position.set(0.45, 0.5, 0); g.add(barrel);
@@ -1667,7 +1671,7 @@ function updateProjectiles(dt) {
       for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (e.userData.type === 'bull') continue; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
     } else {                                            // proyectil enemigo: te pega a ti o al papá
       if (dist2D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg); hit = true; }
-      else if (dad.visible && dist2D(p.position, dad.position) < 1.4) { state.dadHp -= ud.dmg; hit = true; }
+      else if (dad.visible && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg); hit = true; }
     }
     if (hit || ud.life <= 0) { scene.remove(p); projectiles.splice(i, 1); }
   }
@@ -1771,6 +1775,19 @@ function applyDadArmed(v) {   // pone/quita el arma (compartido por G y por load
   if (v) ensureDadWeapon();
   if (dad.userData.weapon) dad.userData.weapon.visible = v;
 }
+function ensureDadArmorPlate() {   // placa de armadura en el pecho del papá (una sola vez)
+  if (!dad.userData.armorPlate) {
+    const plate = new THREE.Group();
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.7, 0.18), mat(0x64748b)); chest.castShadow = true; plate.add(chest);
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.14, 0.22), mat(0x334155)); strap.position.y = 0.18; plate.add(strap);
+    plate.position.set(0, 1.15, 0.28); dad.add(plate); dad.userData.armorPlate = plate;
+  }
+  return dad.userData.armorPlate;
+}
+function applyDadArmor(v) {   // muestra/oculta la armadura del papá (compartido por compra y loadGame)
+  if (v) ensureDadArmorPlate();
+  if (dad.userData.armorPlate) dad.userData.armorPlate.visible = v;
+}
 function toggleDadArm() {
   if (!state.dadGun) { toast('Compra un "Arma papá" en el súper'); return; }
   applyDadArmed(!dad.userData.armed);
@@ -1827,7 +1844,7 @@ const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
   hp: 100, dadHp: 100,
   inv: freshInv(), driving: false, poison: 0, dadPoison: 0,
-  weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadGun: false, hasRocket: false,
+  weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false,
   hunger: 100, night: 0,
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
@@ -1848,6 +1865,7 @@ function checkProgress() {
 }
 
 function damagePlayer(amount) { state.hp -= amount * state.armorFactor; }
+function damageDad(amount) { state.dadHp -= amount * state.dadArmor; }   // el papá recibe menos daño si compraste su armadura
 
 // Sonido corto (bip) con WebAudio
 let audioCtx = null;
@@ -1972,7 +1990,7 @@ function shopIcon(item) {
   if (item.car) return '🚗'; if (item.paint) return '🎨';
   if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
   if (item.factor) return '🛡️'; if (item.key === 'semillas') return '🌱';
-  if (item.key === 'dadgun') return '🔫'; if (item.key === 'rocket') return '🚀';
+  if (item.key === 'dadgun') return '🔫'; if (item.key === 'dadarmor') return '🛡️'; if (item.key === 'rocket') return '🚀';
   if (item.build) return '🧱'; return '🛒';
 }
 // Menú de tienda: una fila por producto; tocar = comprar (sin teclado)
@@ -2180,7 +2198,7 @@ function startGame() {
   state.phase = 'DAY'; state.running = true;
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
-  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; setWeaponColor(0x94a3b8);
+  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; applyDadArmor(false); setWeaponColor(0x94a3b8);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   houseTier = 0;
@@ -2203,7 +2221,7 @@ function saveGame() {
       car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp } : null,
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
-      dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z,   // papá: modo, arma y posición
+      dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
     };
     localStorage.setItem('tim_save', JSON.stringify(data));
   } catch (e) {}
@@ -2217,7 +2235,7 @@ function loadGame() {
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, night: d.night || 0,
-    weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1,
+    weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: d.planet || 'tierra',
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
   });
@@ -2235,6 +2253,7 @@ function loadGame() {
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
   dad.userData.mode = d.dadMode || 'follow';
   applyDadArmed(!!d.dadArmed && state.dadGun);   // repone el arma del papá si estaba armado
+  applyDadArmor(state.dadArmor < 1);             // repone la armadura del papá si la compraste
   return true;
 }
 function continueGame() {
@@ -2247,6 +2266,7 @@ function continueGame() {
 function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1;
+  state.dadArmor = 1; applyDadArmor(false);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.dadGun = state.hasRocket = false;
   state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
@@ -2465,6 +2485,10 @@ function buyItem(item) {
     else toast('Ya tienes una armadura mejor');
   }
   else if (item.key === 'dadgun') { state.dadGun = true; toast('🔫 Arma para papá comprada (G para armarlo)'); }
+  else if (item.key === 'dadarmor') {
+    if (state.dadArmor > 0.5) { state.dadArmor = 0.5; applyDadArmor(true); toast('🛡️ Armadura para papá: recibe la mitad de daño'); }
+    else toast('El papá ya tiene su armadura');
+  }
   else if (item.key === 'semillas') { state.inv.semillas = (state.inv.semillas || 0) + 10; toast('🌱 Compraste 10 semillas de manzana (pulsa K para plantar)'); }
   else if (item.key === 'rocket') { giveRocket(); }
 }
@@ -2770,7 +2794,7 @@ function updateMoles(dt) {
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
     if (d > 1.4) { moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
-    else if (ud.attackCd <= 0) { ud.attackCd = 1; if (isPlayer) damagePlayer(ud.dmg); else state.dadHp -= ud.dmg * 0.7; }
+    else if (ud.attackCd <= 0) { ud.attackCd = 1; if (isPlayer) damagePlayer(ud.dmg); else damageDad(ud.dmg * 0.7); }
   }
 }
 
@@ -2787,7 +2811,7 @@ function updateNight(dt) {
     if (ud.type === 'bull') {
       e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
       if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17); removeEnemy(i); continue; }
-      if (dad.visible && dist2D(e.position, dad.position) < 1.6) { state.dadHp -= (ud.dmg || 17) * 0.8; removeEnemy(i); continue; }
+      if (dad.visible && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8); removeEnemy(i); continue; }
       if (ud.life <= 0) removeEnemy(i); continue;
     }
     if (ud.mole) continue;   // topos / topo jefe: los maneja updateMoles (día y noche)
@@ -2826,7 +2850,7 @@ function updateNight(dt) {
       ud.attackCd = 1;
       const dmg = ud.dmg || 10;
       if (isPlayer) { damagePlayer(dmg); if (ud.poison) applyPoison('player'); }
-      else { state.dadHp -= dmg * 0.7; if (ud.poison) applyPoison('dad'); }
+      else { damageDad(dmg * 0.7); if (ud.poison) applyPoison('dad'); }
     }
   }
   updateDefenses(dt);
@@ -3155,11 +3179,12 @@ function renderHUD() {
 
   // papá
   const modeTxt = { follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando' }[dad.userData.mode] || '';
-  ui('dadhud').innerHTML = `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}<br><span style="opacity:.7;font-size:11px">C seguir · V quieto · O limpiar · G arma</span>`;
+  ui('dadhud').innerHTML = `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}<br><span style="opacity:.7;font-size:11px">C seguir · V quieto · O limpiar · G arma</span>`;
   // equipo
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.dadGun) gear.push('🔫 papá');
+  if (state.dadArmor < 1) gear.push('🛡️ papá');
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
   if (car) gear.push('🚗 ' + Math.max(0, Math.round(car.hp)) + (state.driving ? ' · 🏎️ ' + Math.round((car.speed || 0) * 3.6) + ' km/h' : ''));

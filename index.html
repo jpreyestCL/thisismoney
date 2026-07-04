@@ -34,6 +34,8 @@
   #toast { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,.65); padding: 9px 20px; border-radius: 10px; font-size: 15px; font-weight: 600; opacity: 0; transition: opacity .3s; text-align: center; }
   #toastStack { position: absolute; bottom: 162px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; pointer-events: none; }
+  /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
+  body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
   .bankBtn { pointer-events: all; cursor: pointer; background: rgba(250,204,21,.18); border: 1px solid #facc15; color: #fff; padding: 10px 6px; font-size: 13px; font-weight: 800; border-radius: 9px; }
   #dadhud { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; }
@@ -2769,7 +2771,7 @@ function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).cla
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
   saveGame();
-  state.running = false; state.driving = false;
+  state.running = false; state.driving = false; state.cinematic = false; document.body.classList.remove('cine');
   if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
   if (engineGain) engineGain.gain.value = 0;
   ui('hud').style.display = 'none'; ui('helpBtn').style.display = 'none'; ui('soundBtn').style.display = 'none'; ui('exitBtn').style.display = 'none'; ui('fotoBtn').style.display = 'none';
@@ -2787,6 +2789,7 @@ function startGame() {
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
   state.phase = 'DAY'; state.running = true; state.paused = false; ui('pause').style.display = 'none';
+  state.cinematic = false; document.body.classList.remove('cine');
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; applyDadArmor(false); setWeaponColor(0x94a3b8);
@@ -3806,12 +3809,17 @@ function tryLaunchRocket() {
 // CINEMÁTICA: subes al espacio solo (sin controlar), miras por la ventana y ves la Tierra partirse en 3
 function startEscapeCinematic() {
   if (state.cinematic) return;
-  state.cinematic = true; state.cine = { t: 0, split: false, done: false, chunks: [], fromEarth: state.planet === 'tierra' };
+  const fromEarth = state.planet === 'tierra';
+  const col = fromEarth ? 0x2563eb : (state.planetGround || 0x9c4a2a);   // color del planeta que dejas
+  const emis = fromEarth ? 0x14304f : 0x3a1c10;
+  state.cine = { t: 0, split: false, done: false, chunks: [], fromEarth, col, label: fromEarth ? 'La Tierra' : (state.planetName || 'El planeta') };
+  state.cinematic = true;
+  document.body.classList.add('cine');   // oculta el HUD para ver el planeta partirse
   state.meteorTriggered = false; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   const earth = new THREE.Group();
   const ball = new THREE.Mesh(new THREE.SphereGeometry(6, 24, 24),
-    new THREE.MeshStandardMaterial({ color: state.cine.fromEarth ? 0x2563eb : 0x9c4a2a, emissive: state.cine.fromEarth ? 0x14304f : 0x3a1c10, emissiveIntensity: 0.35, roughness: 1 }));
+    new THREE.MeshStandardMaterial({ color: col, emissive: emis, emissiveIntensity: 0.35, roughness: 1 }));
   earth.add(ball);
   if (state.cine.fromEarth) for (let i = 0; i < 6; i++) {   // continentes verdes (solo la Tierra)
     const c = new THREE.Mesh(new THREE.SphereGeometry(1.6 + Math.random(), 8, 8), mat(0x2f9e44));
@@ -3827,18 +3835,18 @@ function updateCinematic(dt) {
   player.position.y += 18 * dt;
   if (state.rocket) state.rocket.position.y = player.position.y - 2;
   dad.visible = false;
-  pitch = Math.max(-0.7, pitch - 0.3 * dt);
+  pitch = Math.max(-1.05, pitch - 0.45 * dt);   // la cámara baja para MIRAR el planeta abajo
   camera.rotation.set(pitch, yaw, 0);
-  if (c.earth) c.earth.position.y = player.position.y - 30 - c.t * 6;
-  if (c.t > 3.5 && !c.split && c.fromEarth) {   // solo la Tierra se parte (el meteorito la destruyó)
+  if (c.earth) c.earth.position.y = player.position.y - 26 - c.t * 3.2;   // el planeta se aleja abajo (despacio para alcanzar a verlo partirse)
+  if (c.t > 2.6 && !c.split) {   // TODO planeta del que escapas se parte en 3 pedazos
     c.split = true; if (c.ball) c.ball.visible = false;
     for (let i = 0; i < 3; i++) {
-      const chunk = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12, i * 2.09, 2.10),
-        new THREE.MeshStandardMaterial({ color: 0x2563eb, emissive: 0xdc2626, emissiveIntensity: 0.4, roughness: 1 }));
-      chunk.userData.v = new THREE.Vector3(Math.cos(i * 2.09), (i - 1) * 0.5, Math.sin(i * 2.09)).multiplyScalar(4);
+      const chunk = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12, i * 2.094, 2.10),
+        new THREE.MeshStandardMaterial({ color: c.col, emissive: 0xdc2626, emissiveIntensity: 0.55, roughness: 1 }));
+      chunk.userData.v = new THREE.Vector3(Math.cos(i * 2.094), (i - 1) * 0.5, Math.sin(i * 2.094)).multiplyScalar(3);
       c.earth.add(chunk); c.chunks.push(chunk);
     }
-    toast('💥 ¡La Tierra se partió en 3 pedazos!');
+    toast('💥 ¡' + c.label + ' se partió en 3 pedazos!');
   }
   for (const ch of c.chunks) { ch.position.addScaledVector(ch.userData.v, dt); ch.rotation.x += dt; ch.rotation.y += dt; }
   if (c.t > 6.5) { const f = ui('fade'); f.style.transition = 'none'; f.style.background = '#000'; f.style.opacity = String(Math.min(1, (c.t - 6.5) / 1.5)); }
@@ -3846,6 +3854,7 @@ function updateCinematic(dt) {
     c.done = true;
     if (c.earth) scene.remove(c.earth);
     state.cinematic = false;
+    document.body.classList.remove('cine');   // vuelve el HUD
     if (state.nextDest === 'verdania') { state.nextDest = null; showVictory(); }   // ¡FINAL DEL JUEGO!
     else goToPlanet();   // Tierra→planeta, o planeta→SIGUIENTE planeta (nunca de vuelta a la Tierra)
     const f = ui('fade'); f.style.transition = 'opacity .9s'; f.style.opacity = '0';

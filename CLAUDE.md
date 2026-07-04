@@ -126,8 +126,10 @@ transparente, pintar la pared de café→rojo, y **cero errores**.
     (`spawnRocketMesh`/`removeRocket`). Desde Platus → `returnToEarth()` (mundo restaurado).
     El meteorito siguiente llega al PRÓXIMO millón (`state.meteorAt = totalEarned + 1M`, usado
     por `checkProgress`, que además solo dispara meteorito en la Tierra).
-  - **Cinemática**: el planeta del que escapas se ve por la ventana; si escapas de la TIERRA se
-    parte en 3 pedazos (ya existía); desde Platus el planeta es rojo y no se parte (`cine.fromEarth`).
+  - **Cinemática**: al despegar, la cámara baja (pitch→-1.05) y **CUALQUIER** planeta del que escapas
+    se parte en 3 pedazos (con su color, `cine.col`/`cine.label`; split en t>2.6, se aleja despacio).
+    El HUD se oculta con `body.cine` (clase agregada en `startEscapeCinematic`, quitada al terminar y
+    en `saveAndExit`/`startGame`) para ver el planeta partirse; queda solo el toast.
   - Al llegar a un planeta: raciones del cohete (5 comida + 2 semillas), $200, trajes puestos.
   - **Solo hacia adelante** (`PLANETS` array, nombre+color por `state.trips`): el cohete nunca vuelve
     a la Tierra; cada viaje va a un planeta NUEVO (PLATUS→ZORVAX→KRYON→…). `updateCinematic` llama

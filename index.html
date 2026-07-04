@@ -27,6 +27,7 @@
   #toast { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,.65); padding: 9px 20px; border-radius: 10px; font-size: 15px; font-weight: 600; opacity: 0; transition: opacity .3s; text-align: center; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
+  .bankBtn { pointer-events: all; cursor: pointer; background: rgba(250,204,21,.18); border: 1px solid #facc15; color: #fff; padding: 10px 6px; font-size: 13px; font-weight: 800; border-radius: 9px; }
   #dadhud { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; }
   #dadhud b { color: #38bdf8; }
   #gearhud { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; text-align: right; }
@@ -167,7 +168,24 @@
     <input id="shopInput" type="text" placeholder="🔎 filtrar (ej: espada, pintura, comida)…" autocomplete="off"
       style="width:100%; padding:8px 10px; font-size:14px; border-radius:8px; border:1px solid #34d399; background:#0b1220; color:#fff; outline:none;">
     <div id="shopList" style="overflow-y:auto; margin-top:8px; display:flex; flex-direction:column; gap:5px; -webkit-overflow-scrolling:touch; text-align:left;"></div>
-    <button id="shopCloseBtn" style="margin-top:8px; pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:9px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
+    <div style="display:flex; gap:8px; justify-content:center; margin-top:8px;">
+      <button id="shopSellBtn" style="pointer-events:all; cursor:pointer; background:rgba(250,204,21,.2); color:#facc15; border:1px solid #facc15; padding:9px 18px; font-size:14px; font-weight:700; border-radius:8px;">🔁 Vender</button>
+      <button id="shopCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:9px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
+    </div>
+  </div>
+  <div id="bankbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #facc15; padding:14px 16px 12px; border-radius:14px; text-align:center; width:min(94vw,420px); flex-direction:column; gap:8px;">
+    <div style="font-size:15px; font-weight:800; color:#facc15">🏦 BANCO — tu plata trabaja sola</div>
+    <div id="bankInfo" style="font-size:14px; line-height:1.7"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px">
+      <button class="bankBtn" data-bank="dep500">Depositar $500</button>
+      <button class="bankBtn" data-bank="depAll">Depositar TODO</button>
+      <button class="bankBtn" data-bank="ret500">Retirar $500</button>
+      <button class="bankBtn" data-bank="retAll">Retirar TODO</button>
+      <button class="bankBtn" data-bank="loan">Préstamo $2.000</button>
+      <button class="bankBtn" data-bank="pay">Pagar deuda</button>
+    </div>
+    <div style="font-size:11px; opacity:.65">💡 Lo ahorrado gana <b>5% de interés</b> cada noche superada. Las deudas crecen <b>10%</b> por noche… ¡cuidado!</div>
+    <button id="bankCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
   </div>
   <div id="mathbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #a855f7; padding:14px 16px 12px; border-radius:14px; text-align:center; width:min(94vw,420px); flex-direction:column;">
     <div style="font-size:14px; font-weight:800; color:#c084fc">🧮 DESAFÍO DE MATES</div>
@@ -260,6 +278,7 @@
 <button id="helpBtn" style="position:fixed; top:58px; left:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">❓</button>
 <button id="soundBtn" style="position:fixed; top:58px; left:58px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">🔊</button>
 <button id="exitBtn" style="position:fixed; top:58px; left:104px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:12px; font-weight:700; height:40px; padding:0 10px; display:none;">💾 Salir</button>
+<button id="fotoBtn" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
 <div id="help">
   <div style="max-width:640px; width:92vw; max-height:86vh; overflow:auto; background:rgba(2,6,23,.96); border:2px solid #34d399; border-radius:16px; padding:22px 26px;">
     <h2 style="margin:0 0 6px; color:#34d399;">📖 AYUDA — Todas las teclas</h2>
@@ -979,6 +998,16 @@ function buildStadiums() {
   makeStadium(-70, -10, 0x1d4ed8, 'TENIS');
 }
 buildStadiums();
+
+// ---- BANCO (educativo): ahorra y gana 5% de interés por noche; préstamos al 10% ----
+const BANK_POS = new THREE.Vector3(58, 0, -24);
+(function buildBank() {
+  const b = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 6), mat(0xd9c58b)); b.position.set(BANK_POS.x, 2.5, BANK_POS.z); b.castShadow = true; b.receiveShadow = true; scene.add(b);
+  const roofB = new THREE.Mesh(new THREE.BoxGeometry(9, 0.5, 7), mat(0x8a744a)); roofB.position.set(BANK_POS.x, 5.2, BANK_POS.z); scene.add(roofB);
+  for (const sx of [-2.6, 0, 2.6]) { const col = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4.6, 10), mat(0xf5ecd7)); col.position.set(BANK_POS.x + sx, 2.3, BANK_POS.z + 3.1); scene.add(col); }
+  const sign = makeSign('BANCO (E)', 0xfacc15); sign.position.set(BANK_POS.x, 6.4, BANK_POS.z); scene.add(sign);
+  addObstacle(BANK_POS.x, BANK_POS.z, 8, 6);
+})();
 
 // La cárcel (edificio con rejas)
 function buildJail() {
@@ -2153,6 +2182,7 @@ const state = {
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
   hasSuits: false, usedRocket: false, meteorAt: 1000000, coldWarned: false,
+  bank: 0, debt: 0, weather: 'clear', weatherLeft: 0, trips: 0, ngplus: false, nextDest: null,
   buildMode: false,
   dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
 };
@@ -2243,6 +2273,7 @@ let typing = false;   // true mientras el input del vendedor está abierto (bloq
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false };
 addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
+  if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
   if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
@@ -2263,7 +2294,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { if (!toggleCar()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: subir/bajar auto · cobrar oro / robar / vender casa
+  if (e.code === 'KeyE') { if (!toggleCar() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: auto · banco · oro / robar / vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -2298,6 +2329,7 @@ function openShopInput() {
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
   const box = ui('shopbox'), inp = ui('shopInput');
   box.style.display = 'flex'; inp.value = '';
+  shopSellMode = false; ui('shopSellBtn').textContent = '🔁 Vender';
   if (Math.random() < 0.35) say('🛒 Vendedor', VENDOR_LINES[Math.floor(Math.random() * VENDOR_LINES.length)]);
   renderShopList('');
   if (!document.body.classList.contains('touch')) inp.focus();   // en PC enfoca; en celular NO (para no abrir el teclado y tapar la lista)
@@ -2317,11 +2349,32 @@ function shopIcon(item) {
   if (item.build) return '🧱'; return '🛒';
 }
 // Menú de tienda: una fila por producto; tocar = comprar (sin teclado)
+let shopSellMode = false;   // 🔁: la tienda también COMPRA tus cosas al 50%
 function renderShopList(filter) {
   const list = ui('shopList'); if (!list) return;
   ui('shopMoney').textContent = '$' + state.money;
   const f = (filter || '').trim().toLowerCase();
   list.innerHTML = '';
+  if (shopSellMode) {   // modo VENDER: tus objetos del inventario al 50% del precio
+    const sellable = SHOP.filter(it => it.build && (state.inv[it.key] || 0) > 0 && (!f || it.name.toLowerCase().includes(f)));
+    if (!sellable.length) { list.innerHTML = '<div style="opacity:.6; font-size:13px; padding:10px;">No tienes objetos para vender (compra y NO coloques, o recoge con X)</div>'; return; }
+    sellable.forEach(it => {
+      const half = Math.max(1, Math.floor(it.price / 2));
+      const row = document.createElement('button');
+      row.className = 'shopRow';
+      row.style.cssText = 'display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:8px; padding:8px 10px; font-size:14px; font-weight:700; color:#fff; background:rgba(250,204,21,.15);';
+      row.innerHTML = '<span style="font-size:18px">' + shopIcon(it) + '</span><span style="flex:1">' + it.name + ' <small style="opacity:.6">(tienes ' + state.inv[it.key] + ')</small></span><span style="color:#facc15">+$' + half + '</span>';
+      row.onclick = () => {
+        if ((state.inv[it.key] || 0) <= 0) return;
+        state.inv[it.key]--; addMoney(half);
+        toast('🔁 Vendiste 1 ' + it.name + ' por $' + half);
+        tone(700, .07, .04, 'triangle');
+        renderShopList(ui('shopInput').value);
+      };
+      list.appendChild(row);
+    });
+    return;
+  }
   SHOP.filter(it => !f || it.name.toLowerCase().includes(f)).forEach(it => {
     const locked = !state.creative && it.unlockAt && state.totalEarned < it.unlockAt;   // en creativo no hay candados
     const can = !locked && state.money >= it.price;
@@ -2385,6 +2438,7 @@ ui('helpBtn').onclick = () => toggleHelp();
 ui('touchToggle').onclick = () => setTouchMode(!document.body.classList.contains('touch'));
 ui('soundBtn').onclick = () => toggleSound();
 ui('exitBtn').onclick = () => saveAndExit();
+ui('fotoBtn').onclick = () => takePhoto();
 try { if (localStorage.getItem('tim_sound') === '0') soundOn = false; } catch (e) {}
 ui('soundBtn').textContent = soundOn ? '🔊' : '🔇';
 ui('helpClose').onclick = () => toggleHelp(false);
@@ -2395,6 +2449,11 @@ ui('shopInput').addEventListener('keydown', e => {
 });
 ui('shopInput').addEventListener('input', () => renderShopList(ui('shopInput').value));   // filtra la lista al escribir
 ui('shopCloseBtn').onclick = closeShopInput;
+ui('shopSellBtn').onclick = () => {
+  shopSellMode = !shopSellMode;
+  ui('shopSellBtn').textContent = shopSellMode ? '🛒 Comprar' : '🔁 Vender';
+  renderShopList(ui('shopInput').value);
+};
 ui('mathCloseBtn').onclick = closeMathBox;
 
 // ===================================================================
@@ -2474,7 +2533,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!toggleCar()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!toggleCar() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -2511,14 +2570,14 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
   bindButtons(ui('moveBtns'));
 }
 
-function hideScreens() { ['start', 'jail', 'over'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; startMusic(); }
+function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; startMusic(); }
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
   saveGame();
   state.running = false; state.driving = false;
   if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
   if (engineGain) engineGain.gain.value = 0;
-  ui('hud').style.display = 'none'; ui('helpBtn').style.display = 'none'; ui('soundBtn').style.display = 'none'; ui('exitBtn').style.display = 'none';
+  ui('hud').style.display = 'none'; ui('helpBtn').style.display = 'none'; ui('soundBtn').style.display = 'none'; ui('exitBtn').style.display = 'none'; ui('fotoBtn').style.display = 'none';
   ['jail', 'over'].forEach(s => ui(s).classList.add('hidden'));
   ui('start').classList.remove('hidden');
   ui('continueBtn').style.display = '';   // ya hay partida guardada para continuar
@@ -2547,7 +2606,8 @@ function startGame() {
   checkDailyStreak();
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
   dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
-  state.trips = 0; state.ngplus = false;
+  state.trips = 0; state.ngplus = false; state.bank = 0; state.debt = 0;
+  state.weather = 'clear'; if (rainObj) rainObj.visible = false;
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
   showIntro();   // la historia en 4 tarjetas (se pasa con un botón)
 }
@@ -2569,6 +2629,7 @@ function saveGame() {
       mathLeft: state.mathLeft != null ? state.mathLeft : 5, mathStreak: state.mathStreak || 0,   // desafíos de mates
       hasSuits: !!state.hasSuits, usedRocket: !!state.usedRocket, meteorAt: state.meteorAt || METEOR_AT,   // viajes espaciales
       trips: state.trips || 0, ngplus: !!state.ngplus,
+      bank: state.bank || 0, debt: state.debt || 0,   // banco: ahorros y deudas
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
@@ -2582,6 +2643,103 @@ function saveGame() {
   } catch (e) {}
 }
 function hasSave() { try { return !!localStorage.getItem('tim_save'); } catch (e) { return false; } }
+// ===================================================================
+//  BANCO: ahorrar con interés (educativo) y préstamos con deuda
+// ===================================================================
+function renderBank() {
+  ui('bankInfo').innerHTML = '💵 En tu bolsillo: <b style="color:#4ade80">$' + state.money + '</b><br>' +
+    '🏦 Ahorrado: <b style="color:#facc15">$' + (state.bank || 0) + '</b>' +
+    ((state.debt || 0) > 0 ? '<br>📉 Deuda: <b style="color:#f87171">$' + state.debt + '</b>' : '');
+}
+function openBank() {
+  closeShopInput(); closeMathBox();
+  typing = true; for (const k in keys) keys[k] = false;
+  ui('bankbox').style.display = 'flex'; renderBank();
+  beep(600, 0.1, 0.04);
+}
+function closeBank() { ui('bankbox').style.display = 'none'; if (ui('shopbox').style.display !== 'flex' && ui('mathbox').style.display !== 'flex') typing = false; }
+function tryBank() {
+  if (state.planet !== 'tierra') return false;
+  if (dist2D(player.position, BANK_POS) > 7) return false;
+  openBank(); return true;
+}
+function bankAction(a) {
+  const mv = (n) => { n = Math.min(n, state.money); if (n <= 0) { toast('💸 No tienes plata para depositar'); return; } state.money -= n; state.bank = (state.bank || 0) + n; toast('🏦 Depositaste $' + n + ' (ganará 5% cada noche)'); };
+  const rt = (n) => { n = Math.min(n, state.bank || 0); if (n <= 0) { toast('🏦 No tienes ahorros'); return; } state.bank -= n; state.money += n; toast('💵 Retiraste $' + n); };
+  if (a === 'dep500') mv(500);
+  else if (a === 'depAll') mv(state.money);
+  else if (a === 'ret500') rt(500);
+  else if (a === 'retAll') rt(state.bank || 0);
+  else if (a === 'loan') {
+    if ((state.debt || 0) > 0) { toast('📉 Ya tienes una deuda: págala primero'); }
+    else { state.debt = 2000; state.money += 2000; toast('🏦 Préstamo de $2.000. ¡La deuda crece 10% cada noche!'); }
+  } else if (a === 'pay') {
+    if (!(state.debt > 0)) { toast('😊 No tienes deudas'); }
+    else { const p = Math.min(state.money, state.debt); state.money -= p; state.debt -= p; toast(state.debt > 0 ? '💳 Pagaste $' + p + ' (te queda deuda de $' + state.debt + ')' : '🎉 ¡Deuda pagada!'); }
+  }
+  renderBank();
+}
+document.querySelectorAll('.bankBtn').forEach(b => b.onclick = () => bankAction(b.dataset.bank));
+ui('bankCloseBtn').onclick = closeBank;
+
+// ===================================================================
+//  CLIMA: lluvia en la Tierra (riega el huerto) y tormentas de polvo en Platus
+// ===================================================================
+let rainObj = null;
+function ensureRain() {
+  if (rainObj) return rainObj;
+  const N = 400, pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * 44; pos[i * 3 + 1] = Math.random() * 18; pos[i * 3 + 2] = (Math.random() - 0.5) * 44; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  rainObj = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x9db8d9, size: 0.14, transparent: true, opacity: 0.7 }));
+  rainObj.visible = false; scene.add(rainObj);
+  return rainObj;
+}
+let weatherT = 90 + Math.random() * 120;
+function updateWeather(dt) {
+  if (!state.running || state.phase === 'TITLE') return;
+  if (state.weather === 'clear') {
+    weatherT -= dt;
+    if (weatherT <= 0) {
+      if (state.planet === 'tierra') { state.weather = 'rain'; state.weatherLeft = 40; ensureRain().visible = true; toast('🌧️ ¡Empezó a llover! El huerto crece al doble'); }
+      else if (state.phase === 'DAY') { state.weather = 'dust'; state.weatherLeft = 45; toast('🌪️ ¡TORMENTA DE POLVO! Corre a una fogata o te hará daño'); beep(180, .3, .06); }
+      else weatherT = 40;
+    }
+  } else {
+    state.weatherLeft -= dt;
+    if (state.weather === 'rain' && rainObj) {   // las gotas caen y siguen al jugador
+      const p = rainObj.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) { let y = p.getY(i) - 14 * dt; if (y < 0) y = 18; p.setY(i, y); }
+      p.needsUpdate = true;
+      rainObj.position.set(player.position.x, 0, player.position.z);
+    }
+    if (state.weather === 'dust') {   // el polvo daña lejos de una fogata (también de día)
+      let warm = false; for (const f of campfires) if (dist2D(player.position, f.position) < 7) warm = true;
+      if (!warm) state.hp -= 1.5 * dt;
+      const dx = ui('coldfx'); if (dx) dx.style.opacity = '0.7';   // reusa el borde (se ve arenoso con el cielo naranja)
+    }
+    if (state.weatherLeft <= 0) {
+      if (state.weather === 'rain' && rainObj) rainObj.visible = false;
+      if (state.weather === 'dust') { const dx = ui('coldfx'); if (dx) dx.style.opacity = '0'; toast('🌤️ Pasó la tormenta'); }
+      state.weather = 'clear'; weatherT = 120 + Math.random() * 160;
+    }
+  }
+}
+
+// ===================================================================
+//  FOTO: guarda una captura del juego (botón 📷)
+// ===================================================================
+function takePhoto() {
+  try {
+    renderer.render(scene, camera);   // renderiza justo antes para que el canvas tenga la imagen
+    const url = renderer.domElement.toDataURL('image/png');
+    const a = document.createElement('a'); a.href = url; a.download = 'this-is-money.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('📷 ¡Foto guardada! Compártela con tus amigos');
+    tone(880, .08, .05, 'triangle');
+  } catch (e) { toast('📷 No se pudo sacar la foto aquí'); }
+}
+
 // ===================================================================
 //  HISTORIA: intro, diálogos de la familia y final en VERDANIA
 // ===================================================================
@@ -2661,11 +2819,17 @@ ui('winNG').onclick = () => {
 //  DESAFÍOS DE MATES (10-11 años): resuélvelos y gana plata (5 al día)
 // ===================================================================
 let mathProblem = null;
-function genMathProblem() {   // problemas de 5°-6° básico con 4 alternativas
+function genMathProblem() {   // problemas de 5°-6° básico con 4 alternativas (suben de nivel con la etapa)
   const R = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-  const t = R(1, 6);
+  const t = R(1, state.stage >= 8 ? 7 : 6);   // etapa 8+: se desbloquean problemas de DOS operaciones
   let q, ans, tier;
-  if (t === 1) { const a = R(120, 980), b = R(120, 980); q = a + ' + ' + b + ' = ?'; ans = a + b; tier = 1; }
+  if (t === 7) {   // dos operaciones: enseña el orden (primero ×, después + o −)
+    const a = R(10, 60), b = R(2, 9), c = R(2, 9);
+    if (Math.random() < 0.5) { q = a + ' + ' + b + ' × ' + c + ' = ?'; ans = a + b * c; }
+    else { q = '(' + a + ' + ' + b + ') × ' + c + ' = ?'; ans = (a + b) * c; }
+    tier = 4;
+  }
+  else if (t === 1) { const a = R(120, 980), b = R(120, 980); q = a + ' + ' + b + ' = ?'; ans = a + b; tier = 1; }
   else if (t === 2) { const a = R(300, 990), b = R(100, a - 60); q = a + ' − ' + b + ' = ?'; ans = a - b; tier = 1; }
   else if (t === 3) {
     const a = R(12, 99), b = R(3, 9); ans = a * b; tier = 2;
@@ -2682,7 +2846,8 @@ function genMathProblem() {   // problemas de 5°-6° básico con 4 alternativas
     if (d > 0 && !opts.has(d)) opts.add(d);
   }
   const list = [...opts].sort(() => Math.random() - 0.5);
-  return { q, ans, tier, reward: tier === 1 ? 100 : (tier === 2 ? 200 : 400), opts: list };
+  const base = tier === 1 ? 100 : (tier === 2 ? 200 : (tier === 3 ? 400 : 700));
+  return { q, ans, tier, reward: Math.round(base * (1 + state.stage * 0.05)), opts: list };   // etapas altas pagan más
 }
 function renderMathProblem() {
   mathProblem = genMathProblem();
@@ -2854,6 +3019,7 @@ function loadGame() {
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
   state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
   state.trips = d.trips || 0; state.ngplus = !!d.ngplus;
+  state.bank = d.bank || 0; state.debt = d.debt || 0;
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
   if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
@@ -2902,6 +3068,8 @@ function resetAll() {
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires();
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
+  state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false;
+  state.weather = 'clear'; if (rainObj) rainObj.visible = false;
   removeRocket();
 }
 
@@ -3364,6 +3532,7 @@ function goToPlanet() {
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en Platus no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Platus no te persigue la policía terrestre
+  state.weather = 'clear'; if (rainObj) rainObj.visible = false;             // el clima no viaja contigo
   setEarthWorld(false);                                                      // Platus: NADA de la Tierra (súper, ciudad, estadios, gente, calles)
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
@@ -3381,6 +3550,7 @@ function returnToEarth() {
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();
+  state.weather = 'clear'; if (rainObj) rainObj.visible = false;
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   state.meteorTriggered = false; state.meteorAt = state.totalEarned + 1000000;   // la próxima catástrofe: al siguiente millón
@@ -3586,6 +3756,8 @@ function surviveNight() {
   if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
   if (state.planet === 'platus') reward = Math.round(reward * 1.5);   // Platus paga más (es más difícil)
   if (state.bossNight) reward *= 3;                                    // noche jefe superada: paga x3
+  if ((state.bank || 0) > 0) { const int_ = Math.round(state.bank * 0.05); state.bank += int_; setTimeout(() => toast('🏦 +$' + int_ + ' de INTERÉS (5%): ¡tu plata ahorrada trabaja sola!'), 4000); }
+  if ((state.debt || 0) > 0) { state.debt = Math.round(state.debt * 1.10); setTimeout(() => toast('📉 Tu deuda creció 10%: debes $' + state.debt + ' (ve al BANCO a pagarla)'), 6000); }
   if (!state.nightDamage) {                                            // NOCHE PERFECTA: la casa no recibió daño
     state.streak = (state.streak || 0) + 1;
     toast('🔥 ¡Noche PERFECTA! Racha x' + state.streak + ' (+' + Math.min(100, state.streak * 10) + '% al pago)');
@@ -3716,12 +3888,13 @@ function loop() {
     updateTrafficLights(dt);               // semáforos del cruce central
     updateTraffic(dt);                     // autos andando por las calles
     updateCar(dt);                         // vida del auto (los monstruos lo dañan)
-    updatePlants(dt);                      // huerto: árboles crecen y dan manzanas
+    updatePlants(state.weather === 'rain' ? dt * 2 : dt);   // huerto (la lluvia lo hace crecer al doble)
     updateMeteorVisual(dt);                // el meteorito que se ve caer del cielo
     if (state.cinematic) updateCinematic(dt);
     updatePolice(dt);                      // policía persigue si estás buscado
     updateCold(dt);                        // noches heladas de Platus (fogatas)
     updateDialogues(dt);                   // la familia comenta lo que pasa
+    updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
     hurtFeedback();
@@ -3792,7 +3965,7 @@ function drawMinimap() {
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
-  if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); }   // súper / armería
+  if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); }   // súper / armería / banco
   icon(HOUSE.x, HOUSE.z, '🏠', 15);
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
   if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
@@ -3940,7 +4113,9 @@ function updateBillboards(dt) {
 }
 function updateSky(dt) {
   const night = state.phase === 'NIGHT';
-  const base = state.planet === 'platus' ? new THREE.Color(0xd98c5f) : SKY_DAY;
+  let base = state.planet === 'platus' ? new THREE.Color(0xd98c5f) : SKY_DAY;
+  if (state.weather === 'rain') base = new THREE.Color(0x6b7f96);        // cielo gris de lluvia
+  else if (state.weather === 'dust') base = new THREE.Color(0xc06a2e);   // cielo naranjo de tormenta
   const target = night ? SKY_NIGHT : base;
   scene.background.lerp(target, 0.04); scene.fog.color.copy(scene.background);
   ambient.intensity += ((night ? 0.25 : 1.0) - ambient.intensity) * 0.04;

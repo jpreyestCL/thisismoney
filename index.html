@@ -4119,7 +4119,7 @@ function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
   state.driving = false;
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
-  clearWaves(); state.hp = 100; state.phase = 'JAIL';   // ir a la cárcel ya NO te quita el dinero
+  clearWaves(); state.money = 0; state.hp = 100; state.phase = 'JAIL';   // ir a la cárcel te quita TODO el dinero (castigo)
   ui('hud').style.display = 'none'; ui('jail').classList.remove('hidden');
   setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(10, PLAYER_EYE, 16); }, 0);
 }

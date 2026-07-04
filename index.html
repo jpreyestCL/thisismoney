@@ -2254,6 +2254,7 @@ const state = {
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
   hasSuits: false, usedRocket: false, meteorAt: 1000000, coldWarned: false,
   bank: 0, debt: 0, weather: 'clear', weatherLeft: 0, trips: 0, ngplus: false, nextDest: null, paused: false,
+  planetName: 'Platus', planetGround: 0x9c4a2a,
   buildMode: false,
   dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
 };
@@ -2813,6 +2814,7 @@ function saveGame() {
       mathLeft: state.mathLeft != null ? state.mathLeft : 5, mathStreak: state.mathStreak || 0,   // desafíos de mates
       hasSuits: !!state.hasSuits, usedRocket: !!state.usedRocket, meteorAt: state.meteorAt || METEOR_AT,   // viajes espaciales
       trips: state.trips || 0, ngplus: !!state.ngplus,
+      planetName: state.planetName || null, planetGround: state.planetGround || null,   // planeta alienígena actual
       bank: state.bank || 0, debt: state.debt || 0,   // banco: ahorros y deudas
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
@@ -3036,8 +3038,8 @@ function showVictory() {
 }
 ui('winContinue').onclick = () => {
   ui('win').classList.add('hidden'); ui('hud').style.display = '';
-  state.running = true; returnToEarth();
-  say('👨 Papá', 'Verdania era hermoso… pero nuestro hogar es donde construimos juntos.');
+  state.running = true; state.trips = (state.trips || 0) + 1; goToPlanet();   // seguir explorando: otro planeta nuevo
+  say('👨 Papá', 'Verdania fue hermoso… pero el universo es enorme. ¡Sigamos explorando, hijo!');
 };
 ui('winNG').onclick = () => {
   ui('win').classList.add('hidden'); ui('hud').style.display = '';
@@ -3250,13 +3252,14 @@ function loadGame() {
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
   state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
   state.trips = d.trips || 0; state.ngplus = !!d.ngplus;
+  state.planetName = d.planetName || 'Platus'; state.planetGround = d.planetGround || 0x9c4a2a;
   state.bank = d.bank || 0; state.debt = d.debt || 0;
   resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
   if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); applySpaceSuit(true); }
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes
@@ -3749,49 +3752,42 @@ function updateCinematic(dt) {
     c.done = true;
     if (c.earth) scene.remove(c.earth);
     state.cinematic = false;
-    if (c.fromEarth) goToPlanet();
-    else if (state.nextDest === 'verdania') { state.nextDest = null; showVictory(); }   // ¡FINAL DEL JUEGO!
-    else returnToEarth();   // ida a Platus / vuelta a la Tierra
+    if (state.nextDest === 'verdania') { state.nextDest = null; showVictory(); }   // ¡FINAL DEL JUEGO!
+    else goToPlanet();   // Tierra→planeta, o planeta→SIGUIENTE planeta (nunca de vuelta a la Tierra)
     const f = ui('fade'); f.style.transition = 'opacity .9s'; f.style.opacity = '0';
   }
 }
+// Planetas alienígenas (todos hostiles: árboles muertos, carbón, frío). El cohete SOLO va
+// hacia adelante, a un planeta NUEVO cada vez — nunca de vuelta a la Tierra.
+const PLANETS = [
+  { name: 'PLATUS',  ground: 0x9c4a2a },   // rojizo
+  { name: 'ZORVAX',  ground: 0x2f5d4a },   // verdoso oscuro
+  { name: 'KRYON',   ground: 0x3a2a5a },   // púrpura
+  { name: 'NEBULA',  ground: 0x5a3a55 },   // magenta apagado
+  { name: 'OASIS-9', ground: 0x6a5a2a },   // ocre
+  { name: 'HELIOS',  ground: 0x7a3a1a },   // naranja quemado
+];
 function goToPlanet() {
-  state.planet = 'platus'; state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
-  state.meteorAt = state.totalEarned + 1000000;   // el próximo meteorito llega al SIGUIENTE millón (en la Tierra)
+  const P = PLANETS[Math.max(0, (state.trips || 1) - 1) % PLANETS.length];   // planeta según cuántos viajes llevas
+  state.planet = 'platus'; state.planetName = P.name; state.planetGround = P.ground;
+  state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
-  state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en Platus no hay súper)
+  state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
-  state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // en Platus no te persigue la policía terrestre
+  state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // no hay policía terrestre
   resetWeather();             // el clima no viaja contigo
-  setEarthWorld(false);                                                      // Platus: NADA de la Tierra (súper, ciudad, estadios, gente, calles)
+  setEarthWorld(false);                                                      // NADA de la Tierra (súper, ciudad, estadios, gente, calles)
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
-  groundMat.color.set(0x9c4a2a); decor.forEach(t => t.visible = false);     // Platus: suelo rojo
+  groundMat.color.set(P.ground); decor.forEach(t => t.visible = false);     // color propio del planeta
   spawnRocketMesh(); state.rocket.position.set(10, 0, 10); if (state.rocket.userData.sign) state.rocket.userData.sign.position.set(10, 6, 10);   // el cohete queda estacionado (reutilizable)
   player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
   state.phase = 'DAY'; state.dayTime = 0;
   newMissions();
-  toast('🪐 Llegaste a PLATUS: árboles muertos y noches HELADAS 🥶. Pica CARBÓN ⚫ a golpes 👊, haz FOGATAS (T) y junta 10 de carbón para reutilizar el cohete (R)');
-  phaseText('PLATUS');
-}
-// Volver a la Tierra desde Platus (el cohete reutilizado con 10 de carbón)
-function returnToEarth() {
-  state.planet = 'tierra';
-  clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
-  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
-  state.wanted = 0; state.wantedLevel = 0; clearPolice();
-  resetWeather();
-  setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false);
-  groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
-  state.meteorTriggered = false; state.meteorAt = state.totalEarned + 1000000;   // la próxima catástrofe: al siguiente millón
-  spawnRocketMesh(); state.rocket.position.set(10, 0, 10); if (state.rocket.userData.sign) state.rocket.userData.sign.position.set(10, 6, 10);
-  player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
-  state.hunger = 100; state.phase = 'DAY'; state.dayTime = 0;
-  newMissions();
-  toast('🌍 ¡Volviste a la TIERRA! El cohete queda estacionado: otro viaje cuesta 10 de carbón');
-  phaseText('TIERRA');
+  toast('🪐 Llegaste a ' + P.name + ': árboles muertos y noches HELADAS 🥶. Pica CARBÓN ⚫ a golpes 👊, haz FOGATAS (T) y junta 10 de carbón para viajar al SIGUIENTE planeta (R). No hay vuelta a la Tierra.');
+  phaseText(P.name);
 }
 
 // ===================================================================
@@ -4384,7 +4380,7 @@ function renderHUD() {
   shownMoney = Math.abs(mdiff) < 1 ? state.money : shownMoney + mdiff * 0.15;
   ui('ui-money').textContent = state.creative ? '$∞' : '$' + Math.round(shownMoney);
   ui('ui-stage').textContent = state.stage;
-  ui('ui-planet').textContent = state.planet === 'platus' ? 'Platus' : 'Tierra';
+  ui('ui-planet').textContent = state.planet === 'platus' ? (state.planetName || 'Platus') : 'Tierra';
   ui('ui-hp').style.width = Math.max(0, state.hp) + '%';
   ui('ui-food').style.width = Math.max(0, state.hunger) + '%';
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';

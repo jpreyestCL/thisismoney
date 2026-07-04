@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/img_58.png">
+<link rel="icon" type="image/png" href="assets/img_58.png">
 <title>This is Money</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1453,6 +1460,13 @@ const placed = [];          // objetos colocados {mesh, key, hp, light?}
 let car = null;             // el auto (feature): { group, wheels, hp, maxHp, heading, dmgCd, bar }
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
   'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera'];
+// Categorías del hotbar en celular (18 slots no caben en pantalla chica)
+const BUILD_CATS = {
+  casa: ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'],
+  defensa: ['ballesta', 'torreta', 'laser'],
+  muebles: ['window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'heladera'],
+};
+let buildCat = 'casa';
 // Inventario inicial: 0 de cada cosa colocable + comida/semillas
 function freshInv() { const inv = { food: 0, semillas: 0, carbon: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
 let buildSel = 0, buildRot = 0;
@@ -1854,6 +1868,7 @@ function killLoot(e) {
   } else if (golden) {
     floatText(e.position, '💰 ¡DORADO! +$' + m, '#fde047', 20); coinBurst(e.position, 12);
     tone(880, .1, .06, 'triangle'); setTimeout(() => tone(1320, .14, .06, 'triangle'), 90);
+    vibr([40, 30, 90]);
   } else { floatText(e.position, '+$' + m, '#4ade80', 15); coinBurst(e.position, 4); }
   addMoney(m);
   recordKill(e);            // bestiario (colección de monstruos)
@@ -1887,6 +1902,7 @@ function openChest() {
   else if (r < 0.8) { state.inv.food += 3; toast('🎁 Cofre: 3 comidas 🍖'); }
   else { state.inv.semillas = (state.inv.semillas || 0) + 5; toast('🎁 Cofre: 5 semillas 🌱'); }
   coinBurst(chest.position, 10); tone(880, 0.1, 0.05, 'triangle'); setTimeout(() => tone(1175, 0.12, 0.05, 'triangle'), 80);
+  vibr(50);
   removeChest();
 }
 function updateChest(dt) {
@@ -2490,6 +2506,8 @@ ui('mathCloseBtn').onclick = closeMathBox;
 // Tocar un slot del hotbar lo selecciona. Usamos 'click' (no 'pointerdown') para NO
 // bloquear el scroll horizontal de la barra en celular: swipe = scrollear, tap = elegir.
 ui('buildbar').addEventListener('click', e => {
+  const tab = e.target.closest('[data-cat]');
+  if (tab) { buildCat = tab.dataset.cat; return; }   // pestañas de categoría (celular)
   const slot = e.target.closest('.slot'); if (!slot) return;
   const n = +slot.dataset.slot; if (n) selectSlot(n);
 });
@@ -2688,6 +2706,8 @@ function applyPerfMode() {   // modo rendimiento: sin sombras y resolución nati
   scene.traverse(o => { if (o.isMesh && o.material) o.material.needsUpdate = true; });
 }
 applyBtnScale(); if (perfMode) applyPerfMode();
+// PWA: el juego se puede INSTALAR en el teléfono (ícono propio) y funciona OFFLINE
+try { if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js'); } catch (e) {}
 function togglePause(force) {
   const show = force !== undefined ? force : !state.paused;
   state.paused = show;
@@ -3036,6 +3056,7 @@ function missionProgress(type, n) {
       m.done = true; addMoney(m.reward);
       toast('🎯 ¡Misión cumplida! ' + m.txt + ' → +$' + m.reward);
       tone(880, .09, .05, 'triangle'); setTimeout(() => tone(1320, .12, .05, 'triangle'), 90);
+      vibr(90);
     }
   }
   renderMissions();
@@ -3863,6 +3884,8 @@ function gameOver() {
 //  AVISOS
 // ===================================================================
 let toastTimer = 0;
+// Vibración háptica (celular): pequeños pulsos que hacen sentir el juego
+function vibr(pattern) { try { if (navigator.vibrate && document.body.classList.contains('touch')) navigator.vibrate(pattern); } catch (e) {} }
 function toast(msg) {   // cola de avisos: el anterior sube a una pila (hasta 2) en vez de perderse
   const t = ui('toast');
   if (t.textContent && Number(t.style.opacity) > 0 && t.textContent !== msg) {
@@ -4021,6 +4044,7 @@ function hurtFeedback() {
   if (state.hp < lastHp - 0.5) {
     const h = ui('hurt'); h.style.opacity = '1'; setTimeout(() => h.style.opacity = '0', 120);
     beep(110, 0.12, 0.06);
+    vibr(60);   // el golpe se siente en la mano
   }
   lastHp = state.hp;
   // veneno: tinte verde pulsante mientras estás envenenado
@@ -4222,14 +4246,23 @@ function renderHUD() {
 
   // barra de construcción. En celular solo aparece en modo construir (para no tapar la pantalla).
   const bb = ui('buildbar');
-  const showBar = (state.phase === 'DAY' || state.phase === 'NIGHT') && (!document.body.classList.contains('touch') || state.buildMode);
+  const isTouch = document.body.classList.contains('touch');
+  const showBar = (state.phase === 'DAY' || state.phase === 'NIGHT') && (!isTouch || state.buildMode);
   if (showBar) {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
-    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴' };
-    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta' };
-    let html = `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
-    BUILD_KEYS.forEach((k, i) => { html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}" data-slot="${i + 2}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`; });
+    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊' };
+    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera' };
+    let html = '';
+    if (isTouch && state.buildMode) {   // pestañas de categoría en celular (18 slots no caben)
+      for (const [cat, em] of [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑']])
+        html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;
+    }
+    html += `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
+    BUILD_KEYS.forEach((k, i) => {
+      if (isTouch && state.buildMode && !BUILD_CATS[buildCat].includes(k)) return;   // solo la categoría activa
+      html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}" data-slot="${i + 2}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`;
+    });
     bb.innerHTML = html;
   } else bb.style.display = 'none';
   const showBuildBtns = (state.buildMode && state.phase === 'DAY') ? 'block' : 'none';

@@ -1847,6 +1847,46 @@ function updateShootingStar(dt) {
   }
   if (g.userData.life <= 0) clearShootStar();
 }
+// ECLIPSE CÓSMICO (evento raro de Platus): se oscurece todo, la gravedad casi desaparece y LLUEVE BOTÍN
+let eclipseTimer = 130 + Math.random() * 120, eclipseDisc = null;
+const eclipseLoot = [];
+function startEclipse() {
+  state.eclipse = 18;
+  eclipseDisc = new THREE.Mesh(new THREE.CircleGeometry(34, 44), new THREE.MeshBasicMaterial({ color: 0x08080f }));
+  const ring = new THREE.Mesh(new THREE.RingGeometry(34, 40, 44), new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.5, side: THREE.DoubleSide })); eclipseDisc.add(ring);
+  scene.add(eclipseDisc);
+  toast('🌑 ¡ECLIPSE CÓSMICO! Gravedad casi CERO 🪶 y ¡LLUVIA DE BOTÍN! Flota y atrápalo');
+  beep(70, 0.7, 0.06); phaseText('🌑 ECLIPSE');
+}
+function endEclipse() {
+  state.eclipse = 0;
+  if (eclipseDisc) { scene.remove(eclipseDisc); eclipseDisc = null; }
+  eclipseLoot.forEach(l => scene.remove(l.mesh)); eclipseLoot.length = 0;
+}
+function spawnEclipseLoot() {
+  const g = new THREE.Group();
+  const coin = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .7 })); g.add(coin);
+  g.add(new THREE.PointLight(0xfde047, 0.5, 6));
+  g.position.set(player.position.x + (Math.random() * 34 - 17), 26, player.position.z + (Math.random() * 34 - 17));
+  g.userData = { value: 80 + Math.floor(Math.random() * 140) };
+  scene.add(g); eclipseLoot.push({ mesh: g, vy: 0 });
+}
+function updateEclipse(dt) {
+  if (state.planet !== 'platus' || state.cinematic) { if (state.eclipse > 0) endEclipse(); return; }
+  if (state.eclipse > 0) {
+    state.eclipse -= dt;
+    if (eclipseDisc) { eclipseDisc.position.set(player.position.x, 56, player.position.z); eclipseDisc.lookAt(player.position); }
+    if (Math.random() < dt * 4) spawnEclipseLoot();
+    for (let i = eclipseLoot.length - 1; i >= 0; i--) {
+      const l = eclipseLoot[i]; l.vy += 7 * dt; l.mesh.position.y -= l.vy * dt; l.mesh.rotation.y += dt * 3;
+      if (dist2D(player.position, l.mesh.position) < 2.6 && l.mesh.position.y < 6) { addMoney(l.mesh.userData.value); coinBurst(l.mesh.position, 6); floatText(l.mesh.position, '+$' + l.mesh.userData.value, '#fde047', 15); scene.remove(l.mesh); eclipseLoot.splice(i, 1); continue; }
+      if (l.mesh.position.y < 0.3) { scene.remove(l.mesh); eclipseLoot.splice(i, 1); }
+    }
+    if (state.eclipse <= 0) { endEclipse(); toast('☀️ Pasó el eclipse'); }
+    return;
+  }
+  if (state.phase === 'DAY' || state.phase === 'NIGHT') { eclipseTimer -= dt; if (eclipseTimer <= 0) { eclipseTimer = 150 + Math.random() * 150; startEclipse(); } }
+}
 function spawnCampfire(x, z) {   // crea la fogata (usado al hacerla y al cargar partida)
   const g = new THREE.Group();
   for (let i = 0; i < 3; i++) { const log = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 1.1, 6), mat(0x4a3728)); log.rotation.z = Math.PI / 2; log.rotation.y = i * 1.05; log.position.y = 0.12; g.add(log); }
@@ -2818,6 +2858,7 @@ const state = {
   planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1, planetCreature: 'yeti', inRuins: false, ruinsCleared: false,   // rasgos del planeta actual + ruinas
   contract: null,   // contrato activo del vendedor alien
   incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
+  eclipse: 0,   // eclipse cósmico activo (segundos restantes)
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -3379,6 +3420,7 @@ function startGame() {
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.contract = null;   // sin contratos al empezar
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
+  endEclipse();
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
@@ -3963,6 +4005,7 @@ function loadGame() {
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
   state.contract = d.contract || null;   // contrato del vendedor alien
   clearEggPets(); (d.eggPets || []).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
+  endEclipse();
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
@@ -4001,7 +4044,7 @@ function resetAll() {
   clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
-  clearEggPets(); state.incubTime = 0; state.eggQueue = 0;
+  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse();
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -4529,7 +4572,7 @@ function goToPlanet() {
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
-  clearTrail();
+  clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
@@ -5001,6 +5044,7 @@ function loop() {
     updateTrail(dt);                       // rastro bioluminiscente bajo tus pasos (Platus)
     updateShootingStar(dt);                // estrella fugaz: tócala para un deseo (Platus, noche)
     updateEggs(dt); updateEggPets(dt);     // huevos alien: recoger, incubar y mascotas nacidas
+    updateEclipse(dt);                     // eclipse cósmico: evento raro (gravedad casi cero + lluvia de botín)
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -5127,7 +5171,8 @@ function updateMovement(dt) {
   // salto (espacio / botón) y gravedad; agacharse baja la altura; bajo tierra el "suelo" es el fondo del refugio
   const standY = (crouch ? CROUCH_EYE : PLAYER_EYE) + (state.groundY || 0);
   const lowG = state.planet === 'platus' && !state.underground;   // planetas alien: BAJA GRAVEDAD (saltas altísimo y flotas)
-  const grav = lowG ? 9 * (state.planetGrav || 1) : 25, jumpV = lowG ? 12 : 8;   // cada planeta tiene su gravedad (KRYON casi flotas)
+  let grav = lowG ? 9 * (state.planetGrav || 1) : 25; const jumpV = lowG ? 12 : 8;   // cada planeta tiene su gravedad (KRYON casi flotas)
+  if (state.eclipse > 0) grav *= 0.2;   // ECLIPSE: gravedad casi cero, flotas para atrapar el botín
   const jumpHeld = keys['Space'] || touch.jumpHeld;   // mantener saltar = empuje del jetpack
   if ((keys['Space'] || touch.jump) && grounded) { vy = jumpV; grounded = false; }
   // JETPACK alien (solo en Platus): mantén saltar en el aire y te elevas volando
@@ -5255,6 +5300,10 @@ function updateSky(dt) {
   ambient.intensity += ((night ? 0.25 : 1.0 * dim) - ambient.intensity) * 0.04;
   sun.intensity += ((night ? 0.15 : 1.0 * dim) - sun.intensity) * 0.04;
   for (const o of placed) if (o.light) o.light.intensity += (((night ? 1.6 : 0)) - o.light.intensity) * 0.05;
+  if (state.eclipse > 0) {   // ECLIPSE: todo se oscurece de golpe
+    scene.background.lerp(new THREE.Color(0x05060a), 0.12); scene.fog.color.copy(scene.background);
+    ambient.intensity += (0.18 - ambient.intensity) * 0.1; sun.intensity += (0.1 - sun.intensity) * 0.1;
+  }
   if (state.planet === 'platus') {   // el cielo alien (2 lunas + auroras) sigue al jugador y titila
     platusSky.position.set(player.position.x, 0, player.position.z);
     const t = performance.now() * 0.0006;

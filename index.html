@@ -1532,8 +1532,77 @@ const platusSky = new THREE.Group();
   }
   platusSky.visible = false; scene.add(platusSky);
 })();
+// RUINAS ALIEN: una ENTRADA (portal) en la superficie del planeta te baja a una CÁMARA lejana
+// con orbes de botín y un cofre. Adentro los monstruos NO te encuentran (isPlayerHidden).
+const RUINS_C = new THREE.Vector3(600, 0, 600);   // cámara fuera del área jugable (oculta por la niebla)
+const ruinsOrbs = [];
+let ruinsRoom = null, ruinsEntrance = null, ruinsChest = null;
+(function buildRuins() {
+  ruinsRoom = new THREE.Group(); ruinsRoom.position.copy(RUINS_C); ruinsRoom.visible = false;
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 24), new THREE.MeshStandardMaterial({ color: 0x2a2440, roughness: .9 })); floor.position.y = -0.2; ruinsRoom.add(floor);
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(24, 0.4, 24), new THREE.MeshStandardMaterial({ color: 0x1a1730 })); ceil.position.y = 6; ruinsRoom.add(ceil);
+  for (const [x, z, w, d] of [[0, -12, 24, 0.6], [0, 12, 24, 0.6], [-12, 0, 0.6, 24], [12, 0, 0.6, 24]]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 6, d), new THREE.MeshStandardMaterial({ color: 0x3a3358, roughness: .9 })); wall.position.set(x, 3, z); ruinsRoom.add(wall); }
+  for (const [px, pz] of [[-7, -7], [7, -7], [-7, 7], [7, 7]]) {
+    const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.9, 6, 8), new THREE.MeshStandardMaterial({ color: 0x4a4370 })); pil.position.set(px, 3, pz); ruinsRoom.add(pil);
+    const glow = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.12, 8, 16), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: .8 })); glow.rotation.x = Math.PI / 2; glow.position.set(px, 5.4, pz); ruinsRoom.add(glow);
+  }
+  const amb = new THREE.PointLight(0x8b5cf6, 1.3, 44); amb.position.y = 4; ruinsRoom.add(amb);
+  const exitSign = makeSign('SALIR (E)', 0x22d3ee); exitSign.scale.set(.5, .5, .5); exitSign.position.set(0, 2.2, -11.2); ruinsRoom.add(exitSign);
+  for (let i = 0; i < 6; i++) {   // ORBES de botín flotantes
+    const a = i / 6 * Math.PI * 2; const orb = new THREE.Group(); orb.position.set(Math.cos(a) * 6, 1.4, Math.sin(a) * 6);
+    const s = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .7 })); orb.add(s);
+    ruinsRoom.add(orb);
+    ruinsOrbs.push({ group: orb, wpos: new THREE.Vector3(RUINS_C.x + Math.cos(a) * 6, 1.4, RUINS_C.z + Math.sin(a) * 6), value: 250 + Math.floor(Math.random() * 200), ready: true });
+  }
+  const cg = new THREE.Group(); cg.position.set(0, 0, 8);   // COFRE grande al fondo
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1, 1), mat(0x6d28d9)); base.position.y = 0.5; cg.add(base);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 1), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .4 })); lid.position.y = 1.1; cg.add(lid);
+  ruinsRoom.add(cg);
+  ruinsChest = { group: cg, wpos: new THREE.Vector3(RUINS_C.x, 0.6, RUINS_C.z + 8), ready: true, value: 800 };
+  scene.add(ruinsRoom);
+  // ENTRADA en la superficie: arco alien con brillo + letrero
+  ruinsEntrance = new THREE.Group();
+  for (const sx of [-1.3, 1.3]) { const col = new THREE.Mesh(new THREE.BoxGeometry(0.6, 3.2, 0.6), new THREE.MeshStandardMaterial({ color: 0x4a4370, emissive: 0x1e1b4b, emissiveIntensity: .3 })); col.position.set(sx, 1.6, 0); ruinsEntrance.add(col); }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.6, 0.6), new THREE.MeshStandardMaterial({ color: 0x4a4370 })); lintel.position.y = 3.2; ruinsEntrance.add(lintel);
+  const portal = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.45, side: THREE.DoubleSide })); portal.position.y = 1.6; ruinsEntrance.add(portal);
+  ruinsEntrance.add(new THREE.PointLight(0x22d3ee, 0.8, 10));
+  const rs = makeSign('RUINAS ALIEN (E)', 0x22d3ee); rs.scale.set(.5, .5, .5); rs.position.set(0, 4, 0); ruinsEntrance.add(rs);
+  ruinsEntrance.position.set(40, 0, 40); ruinsEntrance.visible = false; scene.add(ruinsEntrance);
+})();
+function refillRuins() {   // botín fresco y entrada en un punto nuevo, en cada planeta
+  ruinsOrbs.forEach(o => { o.ready = true; o.group.visible = true; });
+  if (ruinsChest) { ruinsChest.ready = true; ruinsChest.group.visible = true; }
+  if (ruinsEntrance) { const a = Math.random() * Math.PI * 2, r = 25 + Math.random() * 90; ruinsEntrance.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); ruinsEntrance.visible = state.planet === 'platus'; }
+}
+function tryRuins() {
+  if (state.inRuins) {   // salir de las ruinas
+    state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
+    const r = state.ruinsReturn || { x: player.position.x, z: player.position.z };
+    player.position.set(r.x, PLAYER_EYE, r.z);
+    toast('⬆️ Saliste de las ruinas'); return true;
+  }
+  if (state.planet !== 'platus' || !ruinsEntrance || !ruinsEntrance.visible) return false;
+  if (dist2D(player.position, ruinsEntrance.position) > 3.6) return false;
+  state.ruinsReturn = { x: ruinsEntrance.position.x, z: ruinsEntrance.position.z + 3 };
+  state.inRuins = true; if (ruinsRoom) ruinsRoom.visible = true;
+  player.position.set(RUINS_C.x, PLAYER_EYE, RUINS_C.z - 8); beep(300, 0.15, 0.05);
+  toast('🏛️ Entraste a las RUINAS ALIEN: recoge los ORBES 💠 y el COFRE 🎁 (los monstruos no te encuentran). Pulsa E para salir.');
+  return true;
+}
+function updateRuins(dt) {
+  if (!state.inRuins) return;
+  for (const o of ruinsOrbs) {
+    if (!o.ready) continue;
+    o.group.rotation.y += dt * 1.5; o.group.position.y = 1.4 + Math.sin(performance.now() * 0.003 + o.wpos.x) * 0.15;
+    if (dist2D(player.position, o.wpos) < 1.8) { o.ready = false; o.group.visible = false; addMoney(o.value); floatText(o.wpos, '💠 +$' + o.value, '#fde047', 16); beep(760, 0.08, 0.05); }
+  }
+  if (ruinsChest && ruinsChest.ready && dist2D(player.position, ruinsChest.wpos) < 2.4) {
+    ruinsChest.ready = false; ruinsChest.group.visible = false; addMoney(ruinsChest.value);
+    floatText(ruinsChest.wpos, '🎁 ¡TESORO! +$' + ruinsChest.value, '#4ade80', 18); coinBurst(ruinsChest.wpos, 16); beep(660, 0.15, 0.05);
+  }
+}
 function refillCrystals() { crystals.forEach(c => { c.gems = c.maxGems; c.group.children.forEach(o => { if (o.userData.shard) o.visible = true; }); c.group.visible = state.planet === 'platus'; }); mushrooms.forEach(m => { m.ready = true; m.regrow = 0; m.group.visible = state.planet === 'platus'; }); }
-function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); platusSky.visible = v; }
+function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; }
 function tryMineCrystal() {   // picar un CRISTAL: cada golpe cercano da plata; se agota tras varios golpes
   if (state.planet !== 'platus') return false;
   for (const c of crystals) {
@@ -2647,7 +2716,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { if (!toggleCar() && !tryShelter() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: auto · refugio · cohete · banco · oro / robar / vender casa
+  if (e.code === 'KeyE') { if (!toggleCar() && !tryShelter() && !tryRuins() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: auto · refugio · ruinas · cohete · banco · oro / robar / vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -2965,7 +3034,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!toggleCar() && !tryShelter() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!toggleCar() && !tryShelter() && !tryRuins() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -3048,6 +3117,7 @@ function startGame() {
   dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
   state.trips = 0; state.ngplus = false; state.bank = 0; state.debt = 0; state.cargo = {};
   state.planetName = 'Platus'; state.planetGround = 0x9c4a2a; state.planetHazard = 'cold'; state.planetGrav = 1; state.inRuins = false;
+  if (ruinsRoom) ruinsRoom.visible = false;
   scene.fog.far = 160;   // niebla normal de la Tierra
   resetWeather();
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
@@ -3091,7 +3161,9 @@ function saveGame() {
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
       weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel,
       dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet,
-      houseTier: houseTier, inv: state.inv, px: player.position.x, pz: player.position.z,
+      houseTier: houseTier, inv: state.inv,
+      px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : player.position.x,   // en las ruinas guardamos el punto de salida (no la cámara lejana)
+      pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : player.position.z,
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
       car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto } : null,
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
@@ -3604,7 +3676,7 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillRuins(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes
@@ -3643,6 +3715,7 @@ function resetAll() {
   placed.slice().forEach(removePlaced); removeCar();
   clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
+  state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -4176,6 +4249,8 @@ function goToPlanet() {
   setEarthWorld(false);                                                      // NADA de la Tierra (súper, ciudad, estadios, gente, calles)
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
   refillCrystals();                                                          // cada planeta nuevo trae cristales frescos
+  refillRuins();                                                             // ruinas alien con botín fresco (entrada en un punto nuevo)
+  state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
   applyPlanetLook(P);                                                        // árboles, lunas, cielo y niebla propios del planeta
   groundMat.color.set(P.ground); decor.forEach(t => t.visible = false);     // color propio del planeta
@@ -4632,6 +4707,7 @@ function loop() {
     updateCold(dt);                        // noches heladas de Platus (fogatas)
     updateMeteorShower(dt);                // lluvia de meteoritos de noche en Platus (botín)
     updateMushrooms(dt);                   // hongos bioluminiscentes de Platus (curan al recogerlos)
+    updateRuins(dt);                       // ruinas alien: recoger orbes/cofre estando adentro
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -4704,6 +4780,7 @@ function drawMinimap() {
     for (const r of coalRocks) dot(r.position.x, r.position.z, '#0f172a', 2.5);
     for (const f of campfires) icon(f.position.x, f.position.z, '🔥', 11);
     for (const c of crystals) if (c.gems > 0) dot(c.group.position.x, c.group.position.z, c.rare ? '#e879f9' : '#67e8f9', 2.5);
+    if (ruinsEntrance && ruinsEntrance.visible && !state.inRuins) icon(ruinsEntrance.position.x, ruinsEntrance.position.z, '🏛️', 13);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
@@ -4770,6 +4847,11 @@ function updateMovement(dt) {
     player.position.x = THREE.MathUtils.clamp(player.position.x, h.x - 2.6, h.x + 2.6);
     player.position.z = THREE.MathUtils.clamp(player.position.z, h.z - 2.6, h.z + 2.6);
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;   // sin colisiones de la superficie bajo tierra
+  }
+  if (state.inRuins) {   // caminar dentro de la cámara de las ruinas (lejos del mundo)
+    player.position.x = THREE.MathUtils.clamp(player.position.x, RUINS_C.x - 11, RUINS_C.x + 11);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, RUINS_C.z - 11, RUINS_C.z + 11);
+    camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   player.position.x = THREE.MathUtils.clamp(player.position.x, -230, 230);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -230, 230);

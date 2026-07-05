@@ -1620,7 +1620,7 @@ function checkRuinsComplete() {   // saqueaste TODO -> bono + aviso
   addMoney(bonus); toast('🏛️ ¡Saqueaste TODAS las ruinas! +$' + bonus + ' de bono. Hay más en el próximo planeta.'); beep(880, 0.2, 0.05);
 }
 function refillCrystals() { crystals.forEach(c => { c.gems = c.maxGems; c.group.children.forEach(o => { if (o.userData.shard) o.visible = true; }); c.group.visible = state.planet === 'platus'; }); mushrooms.forEach(m => { m.ready = true; m.regrow = 0; m.group.visible = state.planet === 'platus'; }); }
-function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); geodes.forEach(ge => ge.group.visible = v && ge.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; }
+function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); geodes.forEach(ge => ge.group.visible = v && ge.ready); eggs.forEach(e => e.group.visible = v && e.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; }
 // GEODA GIGANTE: roca enorme; pégale muchas veces y al romperse EXPLOTA en un montón de gemas
 const geodes = [];
 (function buildGeodes() {
@@ -1655,6 +1655,72 @@ function crackGeode(ge) {
   tone(660, .12, .06, 'triangle'); setTimeout(() => tone(990, .16, .06, 'triangle'), 110);
   contractProgress('crystal', 3);
   toast('💎 ¡Reventaste una GEODA gigante! +$' + total);
+}
+// HUEVOS ALIEN: recógelos por el planeta; incuban solos y eclosionan en una mascota de rareza al azar (gacha)
+const eggs = [], eggPets = [];
+const EGG_TIERS = [
+  { p: 0.60, tier: 'común',      dmg: 25, col: 0x84cc16 },
+  { p: 0.90, tier: 'rara',       dmg: 45, col: 0x22d3ee },
+  { p: 1.00, tier: 'LEGENDARIA', dmg: 80, col: 0xfde047 },
+];
+function makeEggMesh(col) {
+  const g = new THREE.Group();
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 14), new THREE.MeshStandardMaterial({ color: col || 0xe9d5ff, emissive: (col || 0x7c3aed), emissiveIntensity: .35, roughness: .5 }));
+  shell.scale.y = 1.35; shell.position.y = 0.5; g.add(shell);
+  for (let k = 0; k < 4; k++) { const spot = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x94a3b8, emissiveIntensity: .3 })); spot.position.set(Math.cos(k * 1.6) * 0.25, 0.4 + k * 0.18, Math.sin(k * 1.6) * 0.25); g.add(spot); }
+  return g;
+}
+(function buildEggs() {
+  for (let i = 0; i < 6; i++) {
+    const g = makeEggMesh(); const a = Math.random() * Math.PI * 2, r = 15 + Math.random() * 175;
+    g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); g.visible = false; scene.add(g);
+    eggs.push({ group: g, ready: true });
+  }
+})();
+function refillEggs() { eggs.forEach(e => { e.ready = true; e.group.visible = state.planet === 'platus'; }); }
+function spawnEggPet(opts) {   // mascota nacida de un huevo: flota, sigue y pelea de noche
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), new THREE.MeshStandardMaterial({ color: opts.col, emissive: opts.col, emissiveIntensity: .5, roughness: .4 })); body.position.y = 0.9; g.add(body);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0x0f172a })); eye.position.set(0, 0.95, 0.32); g.add(eye);
+  const gl = new THREE.PointLight(opts.col, 0.5, 6); gl.position.y = 0.9; g.add(gl);
+  g.position.set(player.position.x - 2 + Math.random() * 4, 0, player.position.z - 2 + Math.random() * 4);
+  g.userData = { atkCd: 0, dmg: opts.dmg, tier: opts.tier, col: opts.col };
+  scene.add(g); eggPets.push(g);
+  return g;
+}
+function clearEggPets() { eggPets.forEach(p => scene.remove(p)); eggPets.length = 0; }
+function updateEggPets(dt) {
+  for (const p of eggPets) {
+    p.position.y = 0.3 + Math.sin(performance.now() * 0.004 + p.position.x) * 0.12;
+    let near = null, nd = 18;
+    if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(p.position, e.position); if (d < nd) { nd = d; near = e; } }
+    if (near) {
+      if (nd > 1.4) { moveToward(p, near.position, 5 * dt); p.rotation.y = Math.atan2(near.position.x - p.position.x, near.position.z - p.position.z); }
+      else { p.userData.atkCd -= dt; if (p.userData.atkCd <= 0) { p.userData.atkCd = 0.5; hitEnemy(near, p.userData.dmg, p.position); beep(600, 0.05, 0.045); } }
+    } else { const d = dist2D(p.position, player.position); if (d > 3.5) { moveToward(p, player.position, 5 * dt); p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z); } }
+  }
+}
+function hatchEgg() {
+  const r = Math.random(); const t = EGG_TIERS.find(x => r <= x.p) || EGG_TIERS[0];
+  spawnEggPet(t);
+  toast('🐣 ¡Nació una mascota ' + t.tier + '! Te sigue y pelea de noche');
+  beep(700, 0.12, 0.05); setTimeout(() => beep(1000, 0.14, 0.05), 110);
+  if (t.tier === 'LEGENDARIA') { coinBurst(player.position, 22); floatText(player.position, '🌟 ¡LEGENDARIA!', '#fde047', 24); vibr([40, 30, 90]); }
+  if (state.eggQueue > 0) { state.eggQueue--; state.incubTime = 16; }
+}
+function updateEggs(dt) {
+  if (state.planet === 'platus' && !state.inRuins) {
+    for (const e of eggs) {
+      if (!e.ready) continue;
+      e.group.rotation.y += dt * 0.8; e.group.position.y = Math.sin(performance.now() * 0.003 + e.group.position.x) * 0.08;
+      if (dist2D(player.position, e.group.position) < 2) {   // recoger
+        e.ready = false; e.group.visible = false; beep(680, 0.08, 0.05); floatText(e.group.position, '🥚 ¡Huevo!', '#e9d5ff', 15);
+        if (state.incubTime > 0) { state.eggQueue = (state.eggQueue || 0) + 1; toast('🥚 Huevo en cola (' + state.eggQueue + ') — se incubará después'); }
+        else { state.incubTime = 16; toast('🥚 ¡Encontraste un huevo alien! Incubando… nacerá una mascota sorpresa'); }
+      }
+    }
+  }
+  if (state.incubTime > 0) { state.incubTime -= dt; if (state.incubTime <= 0) hatchEgg(); }
 }
 function tryMineCrystal() {   // picar un CRISTAL: cada golpe cercano da plata; se agota tras varios golpes
   if (state.planet !== 'platus') return false;
@@ -2751,6 +2817,7 @@ const state = {
   laserGun: false, hasShield: false, shieldHp: 0, shieldMax: 60, shieldCd: 0,   // pistola láser + escudo de energía
   planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1, planetCreature: 'yeti', inRuins: false, ruinsCleared: false,   // rasgos del planeta actual + ruinas
   contract: null,   // contrato activo del vendedor alien
+  incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -3311,6 +3378,7 @@ function startGame() {
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.contract = null;   // sin contratos al empezar
+  clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
@@ -3390,6 +3458,8 @@ function saveGame() {
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       helperWeapon: !!state.helperWeapon, helperArmor: !!state.helperArmor,   // arma/armadura de los hijos
       contract: state.contract || null,   // contrato del vendedor alien
+      eggPets: eggPets.map(p => ({ dmg: p.userData.dmg, col: p.userData.col, tier: p.userData.tier })),   // mascotas nacidas de huevos
+      incubTime: state.incubTime || 0, eggQueue: state.eggQueue || 0,
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
       dadResting: !!dad.userData.resting,
       streak: state.streak || 0,   // racha de noches perfectas
@@ -3887,11 +3957,12 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillRuins(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillEggs(); refillRuins(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
   state.contract = d.contract || null;   // contrato del vendedor alien
+  clearEggPets(); (d.eggPets || []).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
@@ -3930,6 +4001,7 @@ function resetAll() {
   clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
+  clearEggPets(); state.incubTime = 0; state.eggQueue = 0;
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -4467,6 +4539,7 @@ function goToPlanet() {
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
   refillCrystals();                                                          // cada planeta nuevo trae cristales frescos
   refillGeodes();                                                            // geodas gigantes nuevas
+  refillEggs();                                                              // huevos alien nuevos para recoger
   refillRuins();                                                             // ruinas alien con botín fresco (entrada en un punto nuevo)
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
@@ -4927,6 +5000,7 @@ function loop() {
     updateRuins(dt);                       // ruinas alien: recoger orbes/cofre estando adentro
     updateTrail(dt);                       // rastro bioluminiscente bajo tus pasos (Platus)
     updateShootingStar(dt);                // estrella fugaz: tócala para un deseo (Platus, noche)
+    updateEggs(dt); updateEggPets(dt);     // huevos alien: recoger, incubar y mascotas nacidas
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -5000,6 +5074,7 @@ function drawMinimap() {
     for (const f of campfires) icon(f.position.x, f.position.z, '🔥', 11);
     for (const c of crystals) if (c.gems > 0) dot(c.group.position.x, c.group.position.z, c.rare ? '#e879f9' : '#67e8f9', 2.5);
     for (const ge of geodes) if (ge.ready) icon(ge.group.position.x, ge.group.position.z, '💎', 12);
+    for (const e of eggs) if (e.ready) icon(e.group.position.x, e.group.position.z, '🥚', 11);
     if (ruinsEntrance && ruinsEntrance.visible && !state.inRuins) icon(ruinsEntrance.position.x, ruinsEntrance.position.z, '🏛️', 13);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }
@@ -5240,6 +5315,8 @@ function renderHUD() {
   if (state.ngplus) gear.unshift('⭐ Partida+');
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));
+  if (state.incubTime > 0) gear.push('🥚 incubando ' + Math.ceil(state.incubTime) + 's' + (state.eggQueue > 0 ? ' (+' + state.eggQueue + ')' : ''));
+  if (eggPets.length) gear.push('🐣 ' + eggPets.length);
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');

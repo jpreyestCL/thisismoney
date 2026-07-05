@@ -1465,7 +1465,47 @@ function buildPlatus() {
   platusKeepers.push(new THREE.Vector3(zx, 0, zz));
 }
 buildPlatus();
-function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); }
+// FIEBRE DE CRISTALES: formaciones brillantes que valen MUCHA plata (Platus = hacerse rico rápido)
+const crystals = [];
+function buildCrystals() {
+  for (let i = 0; i < 20; i++) {
+    const rare = Math.random() < 0.22;                 // ~1 de cada 5 es MORADO (jackpot)
+    const col = rare ? 0xd946ef : 0x22d3ee;
+    const g = new THREE.Group();
+    const a = Math.random() * Math.PI * 2, r = 14 + Math.random() * 185;
+    g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+    const base = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7), new THREE.MeshStandardMaterial({ color: 0x2a2440, roughness: .9 })); base.position.y = 0.32; base.castShadow = true; g.add(base);
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < n; k++) {
+      const cr = new THREE.Mesh(new THREE.ConeGeometry(0.18 + Math.random() * 0.12, 0.9 + Math.random() * 0.7, 5), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.6, roughness: .2, metalness: .1 }));
+      cr.position.set((Math.random() * 2 - 1) * 0.4, 0.75 + Math.random() * 0.3, (Math.random() * 2 - 1) * 0.4);
+      cr.rotation.set(Math.random() * .5 - .25, Math.random() * 6, Math.random() * .5 - .25); cr.castShadow = true; cr.userData.shard = true; g.add(cr);
+    }
+    const light = new THREE.PointLight(col, 0.5, 7); light.position.y = 1; g.add(light);
+    g.visible = false; scene.add(g);
+    const c = { group: g, gems: rare ? 2 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3), value: rare ? 400 + Math.floor(Math.random() * 300) : 80 + Math.floor(Math.random() * 90), rare };
+    c.maxGems = c.gems; crystals.push(c);
+  }
+}
+buildCrystals();
+function refillCrystals() { crystals.forEach(c => { c.gems = c.maxGems; c.group.children.forEach(o => { if (o.userData.shard) o.visible = true; }); c.group.visible = state.planet === 'platus'; }); }
+function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); }
+function tryMineCrystal() {   // picar un CRISTAL: cada golpe cercano da plata; se agota tras varios golpes
+  if (state.planet !== 'platus') return false;
+  for (const c of crystals) {
+    if (c.gems <= 0) continue;
+    if (dist2D(player.position, c.group.position) < 3.4) {
+      c.gems--; addMoney(c.value);
+      floatText(c.group.position, (c.rare ? '💜' : '💎') + ' +$' + c.value, c.rare ? '#e879f9' : '#67e8f9', 16);
+      beep(c.rare ? 900 : 640, 0.08, 0.05);
+      const shards = c.group.children.filter(o => o.userData.shard && o.visible);
+      if (shards.length) shards[shards.length - 1].visible = false;   // se va rompiendo
+      if (c.gems <= 0) { c.group.visible = false; toast('💎 ¡Cristal agotado! Busca más brillando por el planeta'); }
+      return true;
+    }
+  }
+  return false;
+}
 function tryMineCoal() {   // picar carbón: 1 golpe cerca de una roca negra = 1 carbón
   if (state.planet !== 'platus') return false;
   for (const r of coalRocks) {
@@ -4008,13 +4048,14 @@ function goToPlanet() {
   resetWeather();             // el clima no viaja contigo
   setEarthWorld(false);                                                      // NADA de la Tierra (súper, ciudad, estadios, gente, calles)
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
+  refillCrystals();                                                          // cada planeta nuevo trae cristales frescos
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
   groundMat.color.set(P.ground); decor.forEach(t => t.visible = false);     // color propio del planeta
   spawnRocketMesh(); state.rocket.position.set(10, 0, 10); if (state.rocket.userData.sign) state.rocket.userData.sign.position.set(10, 6, 10);   // el cohete queda estacionado (reutilizable)
   player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
   state.phase = 'DAY'; state.dayTime = 0;
   newMissions();
-  toast('🪐 Llegaste a ' + P.name + ': árboles muertos y noches HELADAS 🥶. Pica CARBÓN ⚫ a golpes 👊, haz FOGATAS (T) y compra materiales al VENDEDOR ALIEN 👽 (Y). Junta 10 de carbón para viajar al SIGUIENTE planeta (R). No hay vuelta a la Tierra.');
+  toast('🪐 Llegaste a ' + P.name + ': árboles muertos y noches HELADAS 🥶. Pica CARBÓN ⚫ a golpes 👊, haz FOGATAS (T) y pica CRISTALES 💎 brillantes (¡valen mucha plata, los morados son el jackpot!) y compra tecnología alien al VENDEDOR 👽 (Y). Junta 10 de carbón para viajar al SIGUIENTE planeta (R). No hay vuelta a la Tierra.');
   phaseText(P.name);
 }
 
@@ -4071,7 +4112,7 @@ function attack() {
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
   if (best) { hitEnemy(best, dmg, p); if (state.laserGun) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
-  else tryMineCoal();                 // de noche en Platus también puedes picar carbón si no hay monstruo cerca
+  else if (!tryMineCrystal()) tryMineCoal();   // en Platus, si no hay monstruo cerca: picar CRISTAL (plata) o carbón
 }
 // Rayo láser: línea roja del jugador al enemigo (breve destello)
 function shootBeam(target) {
@@ -4088,7 +4129,7 @@ function shootBeam(target) {
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
 function attackNPC() {
   if (state.buildMode) return;
-  if (state.planet === 'platus') { vmSwing = 1; tryMineCoal(); return; }   // en Platus el golpe de día PICA CARBÓN
+  if (state.planet === 'platus') { vmSwing = 1; if (!tryMineCrystal()) tryMineCoal(); return; }   // en Platus el golpe de día PICA CRISTAL (plata) o CARBÓN
   const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const range = 4;
   let best = null, bestD = range;
@@ -4498,6 +4539,7 @@ function drawMinimap() {
   } else {   // Platus: rocas de carbón, fogatas, el vendedor zombi y el cohete
     for (const r of coalRocks) dot(r.position.x, r.position.z, '#0f172a', 2.5);
     for (const f of campfires) icon(f.position.x, f.position.z, '🔥', 11);
+    for (const c of crystals) if (c.gems > 0) dot(c.group.position.x, c.group.position.z, c.rare ? '#e879f9' : '#67e8f9', 2.5);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);

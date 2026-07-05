@@ -2412,6 +2412,11 @@ function hitEnemy(e, dmg, fromPos) {
   beep(180, 0.05, 0.035);
   floatText(e.position, '-' + Math.round(dmg), '#fbbf24', 13);   // número de daño flotante
   if (e.userData.hp <= 0) { killLoot(e); killEnemy(e); return true; }
+  // criatura firma del planeta debilitada -> se puede DOMAR y MONTAR (E)
+  if (!mount && !state.riding && e.userData.type === state.planetCreature && !e.userData.tameable && e.userData.hp < e.userData.maxhp * 0.3) {
+    e.userData.tameable = true; e.userData.flash = 0.4;
+    toast('🌀 ¡Casi domas al ' + (ENEMY_NAMES[e.userData.type] || 'bicho') + '! NO lo mates: acércate y pulsa E para MONTARLO');
+  }
   return false;
 }
 // Botín al matar: escala con la etapa, 10% de kill DORADO (x5), piñata y bono por combo
@@ -2860,6 +2865,7 @@ const state = {
   incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
   coreClaimed: false, relics: 0,   // núcleo del planeta (1 por planeta) + reliquias juntadas
+  riding: false,   // montando una criatura firma domada
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -2993,7 +2999,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { if (!toggleCar() && !tryShelter() && !tryRuins() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: auto · refugio · ruinas · cohete · banco · oro / robar / vender casa
+  if (e.code === 'KeyE') { if (!tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: montura · auto · refugio · ruinas · cohete · banco · oro / robar / vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -3348,7 +3354,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!toggleCar() && !tryShelter() && !tryRuins() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -3421,7 +3427,7 @@ function startGame() {
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.contract = null;   // sin contratos al empezar
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
-  endEclipse(); state.coreClaimed = false; state.relics = 0;
+  endEclipse(); state.coreClaimed = false; state.relics = 0; removeMount();
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
@@ -4008,7 +4014,7 @@ function loadGame() {
   state.contract = d.contract || null;   // contrato del vendedor alien
   clearEggPets(); (d.eggPets || []).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
   state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0;
-  endEclipse();
+  endEclipse(); removeMount();
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
@@ -4047,7 +4053,7 @@ function resetAll() {
   clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
-  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse();
+  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse(); removeMount();
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -4232,6 +4238,52 @@ function destroyCar() {
 function removeCar() {   // al reiniciar
   if (!car) return;
   scene.remove(car.group); scene.remove(car.bar.g); car = null; state.driving = false;
+}
+
+// ===================================================================
+//  DOMAR Y MONTAR la criatura firma del planeta: debilítala y móntala
+// ===================================================================
+let mount = null;
+function tameCreature(e) {
+  const ud = e.userData;
+  if (ud.bar) scene.remove(ud.bar.g);
+  const idx = enemies.indexOf(e); if (idx >= 0) enemies.splice(idx, 1);   // deja de ser enemigo
+  mount = e; mount.userData = { heading: yaw, isMount: true, type: ud.type };
+  mount.position.y = 0;
+  state.riding = true; state.buildMode = false;
+  toast('🦣 ¡DOMASTE al ' + (ENEMY_NAMES[ud.type] || 'bicho') + '! Móntalo: W/S avanza, A/D gira, aplasta enemigos. E para bajar');
+  beep(500, 0.15, 0.05); vibr([30, 20, 60]);
+}
+function removeMount() { if (mount) { scene.remove(mount); mount = null; } state.riding = false; }
+function tryMount() {
+  if (state.riding) {   // bajarse
+    state.riding = false; if (mount) player.position.set(mount.position.x + 2, PLAYER_EYE, mount.position.z);
+    toast('⬇️ Te bajaste de tu montura (E cerca para volver a subir)'); return true;
+  }
+  if (mount) { if (dist2D(player.position, mount.position) < 4) { state.riding = true; state.buildMode = false; toast('🐾 ¡Arriba! W/S avanza, A/D gira'); return true; } return false; }
+  for (const e of enemies) {   // domar: la criatura firma DEBILITADA cercana
+    if (e.userData.type === state.planetCreature && e.userData.tameable && dist2D(player.position, e.position) < 4) { tameCreature(e); return true; }
+  }
+  return false;
+}
+function updateRiding(dt) {
+  if (!mount) { state.riding = false; return; }
+  const throttle = Math.max(-1, Math.min(1, (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0) + touch.moveY));
+  const steer = Math.max(-1, Math.min(1, (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0) - touch.moveX));
+  if (keys['ArrowUp']) pitch += 1.8 * dt; if (keys['ArrowDown']) pitch -= 1.8 * dt; pitch = Math.max(-1.2, Math.min(1.2, pitch));
+  mount.userData.heading += steer * 2.0 * dt;
+  const fwd = new THREE.Vector3(-Math.sin(mount.userData.heading), 0, -Math.cos(mount.userData.heading));
+  const turbo = keys['ShiftLeft'] || keys['ShiftRight'] || touch.run;
+  const move = throttle * (turbo ? 42 : 24) * dt;
+  const prevX = mount.position.x, prevZ = mount.position.z;
+  mount.position.addScaledVector(fwd, move);
+  mount.position.x = THREE.MathUtils.clamp(mount.position.x, -230, 230); mount.position.z = THREE.MathUtils.clamp(mount.position.z, -230, 230);
+  const R = 1.6; for (const o of obstacles) { if (mount.position.x > o.minX - R && mount.position.x < o.maxX + R && mount.position.z > o.minZ - R && mount.position.z < o.maxZ + R) { mount.position.x = prevX; mount.position.z = prevZ; break; } }
+  mount.rotation.y = mount.userData.heading;
+  mount.position.y = Math.abs(Math.sin(performance.now() * 0.008)) * 0.15;   // galope
+  if (Math.abs(move) > 0.06) for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.userData.type === 'bull') continue; if (dist2D(e.position, mount.position) < 2.8 && hitEnemy(e, 60, mount.position)) missionProgress('kills'); }
+  player.position.set(mount.position.x, PLAYER_EYE + 2.2, mount.position.z);
+  yaw = mount.userData.heading; camera.rotation.set(pitch, yaw, 0);
 }
 
 // ===================================================================
@@ -4575,7 +4627,7 @@ function goToPlanet() {
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
-  clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false;   // cada planeta tiene su propio núcleo
+  clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false; removeMount();   // cada planeta tiene su propio núcleo; la montura no viaja
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
@@ -4924,7 +4976,7 @@ function surviveNight() {
 }
 function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
-  state.driving = false;
+  state.driving = false; removeMount();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
   clearWaves(); state.money = 0; state.hp = 100; state.phase = 'JAIL';   // ir a la cárcel te quita TODO el dinero (castigo)
   ui('hud').style.display = 'none'; ui('jail').classList.remove('hidden');
@@ -5100,7 +5152,7 @@ function updateHunger(dt) {
 }
 // Morir de hambre: te desmayas y revives en casa (no es la cárcel; es por no comer)
 function faintFromHunger() {
-  state.hp = 60; state.hunger = 45; lastHp = 60; state.driving = false;
+  state.hp = 60; state.hunger = 45; lastHp = 60; state.driving = false; state.riding = false;
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // al desmayarte se pierde la búsqueda
   if (state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = 0; }
   player.position.set(10, PLAYER_EYE, 16);
@@ -5159,6 +5211,7 @@ function drawMinimap() {
 function updateMovement(dt) {
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
   if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
+  if (state.riding && mount) { updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
   const fwd = keys['KeyW'], back = keys['KeyS'];
   const left = keys['KeyA'], right = keys['KeyD'];
   // Flechas = mirar (mover la cámara), WASD = caminar
@@ -5383,6 +5436,7 @@ function renderHUD() {
   if (state.incubTime > 0) gear.push('🥚 incubando ' + Math.ceil(state.incubTime) + 's' + (state.eggQueue > 0 ? ' (+' + state.eggQueue + ')' : ''));
   if (eggPets.length) gear.push('🐣 ' + eggPets.length);
   if (state.relics > 0) gear.push('🏆 ' + state.relics + ' reliquias');
+  if (state.riding) gear.push('🐾 montando (E baja)');
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');

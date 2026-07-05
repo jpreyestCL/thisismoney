@@ -261,6 +261,7 @@
     <div class="tbtn" data-act="build">🔨<small>construir</small></div>
     <div class="tbtn" data-act="place">✋<small>poner</small></div>
     <div class="tbtn" data-act="dig">🪏<small>cavar</small></div>
+    <div class="tbtn" data-act="fogata">🔥<small>fogata</small></div>
     <div class="tbtn" data-act="plant">🌱<small>plantar</small></div>
     <div class="tbtn" data-act="more">⋯<small>más</small></div>
     <span id="moreBtns">
@@ -1691,7 +1692,8 @@ function spawnCampfire(x, z) {   // crea la fogata (usado al hacerla y al cargar
   return g;
 }
 function clearCampfires() { campfires.forEach(c => scene.remove(c)); campfires.length = 0; }
-function makeCampfire() {   // T en Platus: 3 de carbón -> fogata delante tuyo
+function makeCampfire() {   // botón 🔥 (o F en Platus sin construir): 3 de carbón -> fogata delante tuyo
+  if (state.planet !== 'platus') { toast('🔥 Las fogatas sirven en los planetas alien (para el frío/veneno)'); return; }
   if ((state.inv.carbon || 0) < 3) { toast('🔥 Necesitas 3 de CARBÓN para una fogata: pica las rocas negras a golpes 👊'); return; }
   state.inv.carbon -= 3;
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
@@ -2757,7 +2759,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyB') { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (1-5 elegir, F colocar, X borrar)' : 'Modo construir OFF'); }
   if (e.code === 'KeyP') buildRot = Math.PI / 2;
   if (e.code === 'KeyL') buildRot = 0;
-  if (e.code === 'KeyF') placeObject();
+  if (e.code === 'KeyF') { if (state.planet === 'platus' && !state.buildMode) makeCampfire(); else placeObject(); }   // en Platus (sin construir) F = FOGATA
   if (e.code === 'KeyX') deleteObject();
   if (e.code === 'KeyC') setDadMode('follow');
   if (e.code === 'KeyV') setDadMode('stay');
@@ -3092,6 +3094,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
       case 'build': state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (elige un slot y ✋ coloca)' : 'Modo construir OFF'); break;
       case 'place': placeObject(); break;
       case 'dig': digHole(); break;
+      case 'fogata': makeCampfire(); break;
       case 'plant': plantSeed(); break;
       case 'rotate': rotateBuild(); break;
       case 'delete': deleteObject(); break;
@@ -4466,9 +4469,8 @@ function nearEnterableHole() { for (const h of holes) if (h.enterable && Math.hy
 // Cavar con la PALA (tecla T): profundiza el mismo hoyo y a veces salen topos/plata
 function digHole() {
   if (state.phase !== 'DAY' && state.phase !== 'NIGHT') return;
-  if (state.planet === 'platus') { makeCampfire(); return; }   // en Platus, T = hacer una FOGATA (3 carbón)
   if (state.underground) { toast('🕳️ Ya estás bajo tierra (E para salir)'); return; }
-  if (!state.hasShovel && !state.weaponName.toLowerCase().includes('pala')) { toast('🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
+  if (!state.hasShovel && !state.weaponName.toLowerCase().includes('pala')) { toast(state.planet === 'platus' ? '🪏 Necesitas una PALA para cavar (cómprala al VENDEDOR alien, Y)' : '🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
   if (state.digCd > 0) return;
   state.digCd = 0.8; vmSwing = 1; beep(140, 0.1, 0.04);
   missionProgress('dig');

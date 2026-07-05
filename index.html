@@ -712,6 +712,15 @@ const UNLOCK_ITEMS = [
 ];
 // Catálogo completo del vendedor (todo lo comprable escribiendo con Y)
 const SHOP = [...STORE_A, ...STORE_B, ...DECOR_ITEMS, ...PAINTS, ...UNLOCK_ITEMS];
+// TECNOLOGÍA ALIEN: solo la vende el vendedor de Platus (no existe en la Tierra). Da una razón real para viajar.
+const ALIEN_TECH = [
+  { key: 'jetpack',     name: 'Jetpack alien',     price: 1500, color: 0x22d3ee, alien: true },
+  { key: 'laserpistol', name: 'Pistola láser',     price: 1800, color: 0xef4444, dmg: 22, alien: true },
+  { key: 'escudo',      name: 'Escudo de energía', price: 1600, color: 0x38bdf8, alien: true },
+  { key: 'alienpet',    name: 'Mascota alien',     price: 2200, color: 0x7c3aed, alien: true },
+];
+// El vendedor de Platus ofrece TODO lo de la Tierra + la tecnología alien exclusiva
+function shopCatalog() { return state.planet === 'platus' ? SHOP.concat(ALIEN_TECH) : SHOP; }
 
 // Dibuja un producto que se parece a lo que es
 function makeProductMesh(key, color) {
@@ -2133,6 +2142,38 @@ function updatePet(dt) {
   }
 }
 
+// Mascota ALIEN (tecnología de Platus): flota, te sigue y pelea más fuerte que el perro
+let petAlien = null;
+function makeAlienPet() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 14), new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x4c1d95, emissiveIntensity: 0.4, roughness: .4 }));
+  body.position.y = 0.9; body.scale.set(1, 0.85, 1); body.castShadow = true; g.add(body);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 0.9 })); eye.position.set(0, 1.0, 0.34); g.add(eye);
+  for (const s of [-1, 1]) { const ten = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.02, 0.5), mat(0x6d28d9)); ten.position.set(s * 0.22, 0.5, 0); g.add(ten); }
+  const glow = new THREE.PointLight(0x7c3aed, 0.6, 6); glow.position.y = 0.9; g.add(glow);
+  return g;
+}
+function spawnAlienPet() {
+  if (petAlien) return;
+  petAlien = makeAlienPet(); petAlien.userData.atkCd = 0;
+  petAlien.position.set(player.position.x - 2, 0, player.position.z + 2);
+  scene.add(petAlien);
+}
+function removeAlienPet() { if (petAlien) { scene.remove(petAlien); petAlien = null; } }
+function updatePetAlien(dt) {
+  if (!petAlien) return;
+  petAlien.position.y = 0.3 + Math.sin(performance.now() * 0.004) * 0.12;   // flota
+  let near = null, nd = 20;
+  if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(petAlien.position, e.position); if (d < nd) { nd = d; near = e; } }
+  if (near) {
+    if (nd > 1.4) { moveToward(petAlien, near.position, 5.2 * dt); petAlien.rotation.y = Math.atan2(near.position.x - petAlien.position.x, near.position.z - petAlien.position.z); }
+    else { petAlien.userData.atkCd -= dt; if (petAlien.userData.atkCd <= 0) { petAlien.userData.atkCd = 0.45; hitEnemy(near, 45, petAlien.position); beep(640, 0.06, 0.045); } }
+  } else {
+    const d = dist2D(petAlien.position, player.position);
+    if (d > 3.5) { moveToward(petAlien, player.position, 5.4 * dt); petAlien.rotation.y = Math.atan2(player.position.x - petAlien.position.x, player.position.z - petAlien.position.z); }
+  }
+}
+
 // ===================================================================
 //  SEGUNDO PISO (desbloqueo a los $150.000): visual + $300/noche extra
 // ===================================================================
@@ -2318,6 +2359,8 @@ const state = {
   buildMode: false,
   dayTime: 0, nightTime: 0, spawnTimer: 0, superCd: 0, digCd: 0, wanted: 0, wantedLevel: 0, policeDelay: 0, running: false,
   underground: false, groundY: 0, shelterHole: null,   // refugio subterráneo (cavar hondo con la pala)
+  hasJetpack: false, jetOn: false,                     // tecnología alien de Platus: jetpack (volar)
+  laserGun: false, hasShield: false, shieldHp: 0, shieldMax: 60, shieldCd: 0,   // pistola láser + escudo de energía
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -2342,7 +2385,22 @@ function checkProgress() {
   updateBest();   // ¿superaste tu récord personal?
 }
 
-function damagePlayer(amount) { if (state.creative || state.underground) return; state.hp -= amount * state.armorFactor; }   // bajo tierra estás a salvo
+function damagePlayer(amount) {
+  if (state.creative || state.underground) return;   // bajo tierra estás a salvo
+  let dmg = amount * state.armorFactor;
+  if (state.hasShield && state.shieldHp > 0) {   // el escudo de energía absorbe primero
+    const absorbed = Math.min(state.shieldHp, dmg);
+    state.shieldHp -= absorbed; dmg -= absorbed; state.shieldCd = 3;   // 3s sin recargar tras un golpe
+    if (state.shieldHp <= 0) toast('🛡️ ¡Escudo agotado! Se recarga solo si no te pegan');
+  }
+  state.hp -= dmg;
+}
+// Recarga del escudo de energía cuando no te han pegado por un rato
+function updateShield(dt) {
+  if (!state.hasShield) return;
+  if (state.shieldCd > 0) { state.shieldCd -= dt; return; }
+  if (state.shieldHp < state.shieldMax) state.shieldHp = Math.min(state.shieldMax, state.shieldHp + 8 * dt);
+}
 function damageDad(amount) { if (state.creative) return; state.dadHp -= amount * state.dadArmor; }   // el papá recibe menos daño si compraste su armadura
 
 // Sonido corto (bip) con WebAudio
@@ -2409,7 +2467,7 @@ function toggleSound() {
 const keys = {};
 let typing = false;   // true mientras el input del vendedor está abierto (bloquea controles del juego)
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
-const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false };
+const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false };
 addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
@@ -2482,6 +2540,8 @@ function closeShopInput() {
   ui('shopInput').blur();
 }
 function shopIcon(item) {
+  if (item.key === 'jetpack') return '🚀'; if (item.key === 'laserpistol') return '🔫';
+  if (item.key === 'escudo') return '🛡️'; if (item.key === 'alienpet') return '👽';
   if (item.car) return '🚗'; if (item.paint) return '🎨';
   if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
   if (item.factor) return '🛡️'; if (item.key === 'semillas') return '🌱';
@@ -2498,7 +2558,7 @@ function renderShopList(filter) {
   const f = (filter || '').trim().toLowerCase();
   list.innerHTML = '';
   if (shopSellMode) {   // modo VENDER: tus objetos del inventario al 50% del precio
-    const sellable = SHOP.filter(it => it.build && (state.inv[it.key] || 0) > 0 && (!f || it.name.toLowerCase().includes(f)));
+    const sellable = shopCatalog().filter(it => it.build && (state.inv[it.key] || 0) > 0 && (!f || it.name.toLowerCase().includes(f)));
     if (!sellable.length) { list.innerHTML = '<div style="opacity:.6; font-size:13px; padding:10px;">No tienes objetos para vender (compra y NO coloques, o recoge con X)</div>'; return; }
     sellable.forEach(it => {
       const half = Math.max(1, Math.floor(it.price / 2));
@@ -2517,7 +2577,7 @@ function renderShopList(filter) {
     });
     return;
   }
-  SHOP.filter(it => !f || it.name.toLowerCase().includes(f)).forEach(it => {
+  shopCatalog().filter(it => !f || it.name.toLowerCase().includes(f)).forEach(it => {
     const locked = !state.creative && it.unlockAt && state.totalEarned < it.unlockAt;   // en creativo no hay candados
     const can = !locked && state.money >= it.price;
     const row = document.createElement('button');
@@ -2536,7 +2596,7 @@ function buyShopItem(item) {
 function processShopBuy() {   // Enter en PC: compra el primero que coincide con el filtro
   const text = ui('shopInput').value.trim().toLowerCase();
   if (!text) { closeShopInput(); return; }
-  const item = SHOP.find(s => s.name.toLowerCase().includes(text));
+  const item = shopCatalog().find(s => s.name.toLowerCase().includes(text));
   if (!item) { toast('🤔 No existe "' + text + '"'); return; }
   buyShopItem(item);
 }
@@ -2782,8 +2842,13 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
       if (act === 'run') { touch.run = !touch.run; el.classList.toggle('on', touch.run); return; }
       if (act === 'crouch') { touch.crouch = !touch.crouch; el.classList.toggle('on', touch.crouch); return; }
       if (act === 'more') { ui('moreBtns').classList.toggle('open'); el.classList.toggle('on'); return; }
+      if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
       press(act);
     }, { passive: false });
+    const release = e => { const el = e.target.closest && e.target.closest('.tbtn'); if (el && el.dataset.act === 'jump') touch.jumpHeld = false; };
+    container.addEventListener('pointerup', release);
+    container.addEventListener('pointercancel', release);
+    container.addEventListener('pointerleave', () => { touch.jumpHeld = false; });
   }
   bindButtons(ui('touchBtns'));
   bindButtons(ui('moveBtns'));
@@ -2821,7 +2886,8 @@ function startGame() {
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
   state.mathLeft = 5; state.mathStreak = 0;
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
-  removePet(); removeFloor2();
+  removePet(); removeAlienPet(); removeFloor2();
+  state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;   // tecnología alien: se compra de nuevo
   houseTier = 0;
   newMissions();
   checkDailyStreak();
@@ -2875,6 +2941,7 @@ function saveGame() {
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
       car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto } : null,
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
+      petAlien: !!petAlien, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
       mathLeft: state.mathLeft != null ? state.mathLeft : 5, mathStreak: state.mathStreak || 0,   // desafíos de mates
       hasSuits: !!state.hasSuits, usedRocket: !!state.usedRocket, meteorAt: state.meteorAt || METEOR_AT,   // viajes espaciales
@@ -3377,6 +3444,9 @@ function loadGame() {
   clearHoles(); (d.holes || []).forEach(o => spawnHole(o.x, o.z, o.depth)); state.underground = false; state.groundY = 0; state.shelterHole = null;   // hoyos/refugios (nunca cargas bajo tierra)
   if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
+  removeAlienPet(); if (d.petAlien) spawnAlienPet();
+  state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
+  state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); }
@@ -3415,7 +3485,8 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -3641,6 +3712,26 @@ function buyItem(item) {
   if (item.key === 'moto') {
     state.money -= item.price; removeCar(); spawnCar({ moto: true });
     toast('🏍️ ¡Moto comprada! Más rápida que el auto (E para subir)'); return;
+  }
+  if (item.key === 'jetpack') {
+    if (state.hasJetpack) { toast('🚀 Ya tienes jetpack'); return; }
+    state.money -= item.price; state.hasJetpack = true;
+    toast('🚀 ¡Jetpack alien! En Platus mantén SALTAR (Espacio / botón ⬆️) en el aire para VOLAR'); return;
+  }
+  if (item.key === 'escudo') {
+    if (state.hasShield) { toast('🛡️ Ya tienes escudo de energía'); return; }
+    state.money -= item.price; state.hasShield = true; state.shieldHp = state.shieldMax;
+    toast('🛡️ ¡Escudo de energía! Absorbe el daño y se recarga solo cuando no te pegan'); return;
+  }
+  if (item.key === 'alienpet') {
+    if (petAlien) { toast('👽 Ya tienes tu mascota alien'); return; }
+    state.money -= item.price; spawnAlienPet();
+    toast('👽 ¡Mascota alien! Te sigue y pelea de noche (más fuerte que el perro)'); return;
+  }
+  if (item.key === 'laserpistol') {
+    state.money -= item.price; state.laserGun = true;
+    if (item.dmg > state.weaponDmg) { state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color); }
+    toast('🔫 ¡Pistola láser! Dispara LEJOS con un rayo (👊 / clic)'); return;
   }
   state.money -= item.price;
   tone(880, 0.06, 0.045, 'triangle'); setTimeout(() => tone(1175, 0.08, 0.045, 'triangle'), 70);   // sonido de compra
@@ -3972,15 +4063,26 @@ function attack() {
   if (state.buildMode) return;
   vmSwing = 1; beep(320, 0.05, 0.03);
   const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-  const range = 5, dmg = state.weaponDmg;
+  const range = state.laserGun ? 30 : 5, dmg = state.weaponDmg;   // la pistola láser dispara LEJOS
   let best = null, bestD = range;
   for (const e of enemies) {
     if (e.userData.type === 'bull') continue;
     const d = dist2D(p, e.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
-  if (best) hitEnemy(best, dmg, p);   // el botín flotante ya avisa cuánto pagó el kill
+  if (best) { hitEnemy(best, dmg, p); if (state.laserGun) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
   else tryMineCoal();                 // de noche en Platus también puedes picar carbón si no hay monstruo cerca
+}
+// Rayo láser: línea roja del jugador al enemigo (breve destello)
+function shootBeam(target) {
+  const from = player.position.clone(); from.y -= 0.3;
+  const to = target.clone(); to.y += 1;
+  const dirv = new THREE.Vector3().subVectors(to, from); const len = dirv.length() || 1;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, len, 6), new THREE.MeshBasicMaterial({ color: 0xff3b3b }));
+  beam.position.copy(from).addScaledVector(dirv, 0.5);
+  beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirv.clone().normalize());
+  scene.add(beam); beep(760, 0.05, 0.045);
+  setTimeout(() => scene.remove(beam), 90);
 }
 
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
@@ -4305,6 +4407,8 @@ function loop() {
     dadWalkBob(dt);
     updateHelpers(dt);
     updatePet(dt);                         // perro guardián (desbloqueo $50k)
+    updatePetAlien(dt);                    // mascota alien (tecnología de Platus)
+    updateShield(dt);                      // recarga del escudo de energía
     updateNPCs(dt);
     updateSoccer(dt);
     swingLimbs(mom, dt);
@@ -4444,9 +4548,16 @@ function updateMovement(dt) {
   player.position.addScaledVector(rightV, ax * step);
   // salto (espacio / botón) y gravedad; agacharse baja la altura; bajo tierra el "suelo" es el fondo del refugio
   const standY = (crouch ? CROUCH_EYE : PLAYER_EYE) + (state.groundY || 0);
-  if ((keys['Space'] || touch.jump) && grounded) { vy = 8; grounded = false; }
-  touch.jump = false;   // el salto es de un solo toque
-  vy -= 25 * dt; player.position.y += vy * dt;
+  const lowG = state.planet === 'platus' && !state.underground;   // Platus: BAJA GRAVEDAD (saltas altísimo y flotas)
+  const grav = lowG ? 9 : 25, jumpV = lowG ? 12 : 8;
+  const jumpHeld = keys['Space'] || touch.jumpHeld;   // mantener saltar = empuje del jetpack
+  if ((keys['Space'] || touch.jump) && grounded) { vy = jumpV; grounded = false; }
+  // JETPACK alien (solo en Platus): mantén saltar en el aire y te elevas volando
+  if (state.hasJetpack && lowG && jumpHeld && !grounded && player.position.y < standY + 42) {
+    vy += 40 * dt; if (vy > 9) vy = 9; state.jetOn = true;
+  } else state.jetOn = false;
+  touch.jump = false;   // el salto (de piso) es de un solo toque
+  vy -= grav * dt; player.position.y += vy * dt;
   if (player.position.y <= standY) { player.position.y = standY; vy = 0; grounded = true; }
   if (state.underground && state.shelterHole) {   // caminar dentro del cuartito del refugio
     const h = state.shelterHole;
@@ -4622,6 +4733,10 @@ function renderHUD() {
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
   if (car) gear.push('🚗 ' + Math.max(0, Math.round(car.hp)) + (state.driving ? ' · 🏎️ ' + Math.round((car.speed || 0) * 3.6) + ' km/h' : ''));
   if (state.poison > 0) gear.push('🟢 veneno ' + Math.ceil(state.poison) + 's');
+  if (state.hasShield) gear.push('🛡️ escudo ' + Math.round(state.shieldHp) + '/' + state.shieldMax);
+  if (state.hasJetpack) gear.push('🚀 jetpack' + (state.jetOn ? ' 🔥' : ''));
+  if (state.laserGun) gear.push('🔫 láser');
+  if (petAlien) gear.push('👽 mascota');
   ui('gearhud').innerHTML = gear.join(' · ');
 
   // objetivo

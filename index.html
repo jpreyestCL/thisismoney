@@ -1620,7 +1620,42 @@ function checkRuinsComplete() {   // saqueaste TODO -> bono + aviso
   addMoney(bonus); toast('🏛️ ¡Saqueaste TODAS las ruinas! +$' + bonus + ' de bono. Hay más en el próximo planeta.'); beep(880, 0.2, 0.05);
 }
 function refillCrystals() { crystals.forEach(c => { c.gems = c.maxGems; c.group.children.forEach(o => { if (o.userData.shard) o.visible = true; }); c.group.visible = state.planet === 'platus'; }); mushrooms.forEach(m => { m.ready = true; m.regrow = 0; m.group.visible = state.planet === 'platus'; }); }
-function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; }
+function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); geodes.forEach(ge => ge.group.visible = v && ge.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; }
+// GEODA GIGANTE: roca enorme; pégale muchas veces y al romperse EXPLOTA en un montón de gemas
+const geodes = [];
+(function buildGeodes() {
+  for (let i = 0; i < 3; i++) {
+    const g = new THREE.Group();
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.8, 0), new THREE.MeshStandardMaterial({ color: 0x4a4658, roughness: .95 })); rock.castShadow = true; g.add(rock);
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({ color: 0x67e8f9, emissive: 0x22d3ee, emissiveIntensity: .7 })); g.add(core);   // cristal interior (se ve al agrietarse)
+    const light = new THREE.PointLight(0x22d3ee, 0.6, 8); light.position.y = 1; g.add(light);
+    const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 160;
+    g.position.set(Math.cos(a) * r, 1.4, Math.sin(a) * r); g.visible = false; scene.add(g);
+    geodes.push({ group: g, rock, hp: 12, maxhp: 12, ready: true });
+  }
+})();
+function refillGeodes() { geodes.forEach(ge => { ge.hp = ge.maxhp; ge.ready = true; ge.rock.scale.setScalar(1); ge.group.visible = state.planet === 'platus'; }); }
+function tryHitGeode() {   // pegarle a la geoda; se agrieta (la roca se encoge y asoma el cristal) y al romper explota
+  if (state.planet !== 'platus') return false;
+  for (const ge of geodes) {
+    if (!ge.ready) continue;
+    if (dist2D(player.position, ge.group.position) < 3.8) {
+      ge.hp--; ge.group.rotation.y += 0.3; ge.rock.scale.setScalar(Math.max(0.35, ge.hp / ge.maxhp));
+      beep(160, 0.06, 0.05); floatText(ge.group.position, '⛏️ ' + (ge.maxhp - ge.hp) + '/' + ge.maxhp, '#cbd5e1', 13);
+      if (ge.hp <= 0) crackGeode(ge);
+      return true;
+    }
+  }
+  return false;
+}
+function crackGeode(ge) {
+  ge.ready = false; ge.group.visible = false;
+  const total = 500 + Math.floor(Math.random() * 700) + 100 * state.stage;
+  addMoney(total); coinBurst(ge.group.position, 30); floatText(ge.group.position, '💎 ¡GEODA! +$' + total, '#67e8f9', 24);
+  tone(660, .12, .06, 'triangle'); setTimeout(() => tone(990, .16, .06, 'triangle'), 110);
+  contractProgress('crystal', 3);
+  toast('💎 ¡Reventaste una GEODA gigante! +$' + total);
+}
 function tryMineCrystal() {   // picar un CRISTAL: cada golpe cercano da plata; se agota tras varios golpes
   if (state.planet !== 'platus') return false;
   for (const c of crystals) {
@@ -3852,7 +3887,7 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillRuins(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillRuins(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
@@ -4431,6 +4466,7 @@ function goToPlanet() {
   setEarthWorld(false);                                                      // NADA de la Tierra (súper, ciudad, estadios, gente, calles)
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
   refillCrystals();                                                          // cada planeta nuevo trae cristales frescos
+  refillGeodes();                                                            // geodas gigantes nuevas
   refillRuins();                                                             // ruinas alien con botín fresco (entrada en un punto nuevo)
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
@@ -4530,7 +4566,7 @@ function attack() {
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
   if (best) { hitEnemy(best, dmg, p); if (state.laserGun) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
-  else if (!tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // en Platus: cráter de meteorito · cristal · carbón
+  else if (!tryHitGeode() && !tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // en Platus: geoda · cráter · cristal · carbón
 }
 // Rayo láser: línea roja del jugador al enemigo (breve destello)
 function shootBeam(target) {
@@ -4547,7 +4583,7 @@ function shootBeam(target) {
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
 function attackNPC() {
   if (state.buildMode) return;
-  if (state.planet === 'platus') { vmSwing = 1; if (!tryMineCrystal()) tryMineCoal(); return; }   // en Platus el golpe de día PICA CRISTAL (plata) o CARBÓN
+  if (state.planet === 'platus') { vmSwing = 1; if (!tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus el golpe de día: GEODA · CRISTAL · CARBÓN
   const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const range = 4;
   let best = null, bestD = range;
@@ -4963,6 +4999,7 @@ function drawMinimap() {
     for (const r of coalRocks) dot(r.position.x, r.position.z, '#0f172a', 2.5);
     for (const f of campfires) icon(f.position.x, f.position.z, '🔥', 11);
     for (const c of crystals) if (c.gems > 0) dot(c.group.position.x, c.group.position.z, c.rare ? '#e879f9' : '#67e8f9', 2.5);
+    for (const ge of geodes) if (ge.ready) icon(ge.group.position.x, ge.group.position.z, '💎', 12);
     if (ruinsEntrance && ruinsEntrance.visible && !state.inRuins) icon(ruinsEntrance.position.x, ruinsEntrance.position.z, '🏛️', 13);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }

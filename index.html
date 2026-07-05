@@ -667,6 +667,8 @@ const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'semillas', name: 'Semillas manzana (x10)', price: 60, color: 0x7c9a3b },
   { key: 'dadgun',   name: 'Arma papa',    price: 400, color: 0xf59e0b },
   { key: 'dadarmor', name: 'Armadura papa', price: 800, color: 0x64748b },
+  { key: 'hijoarma',     name: 'Arma para hijos',     price: 600, color: 0xf59e0b },
+  { key: 'hijoarmadura', name: 'Armadura para hijos', price: 700, color: 0x94a3b8 },
   { key: 'traje',    name: 'Trajes espaciales', price: 2000, color: 0xe5e7eb },
   { key: 'rocket',   name: 'Cohete',       price: 1000000, color: 0xf97316 },
 ];
@@ -2370,27 +2372,41 @@ function updateDefenses(dt) {
 //  AYUDANTES (hijos) — se desbloquean con la mamá
 // ===================================================================
 const helpers = [];
+function applyHelperGearTo(h) {   // pone/quita arma y armadura a UN hijo según el estado comprado
+  if (state.helperWeapon && !h.userData.weapon) {   // espadita en la mano
+    const w = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.05), mat(0xf59e0b)); w.position.set(0.55, 1.5, 0.3); h.add(w); h.userData.weapon = w;
+  }
+  if (h.userData.weapon) h.userData.weapon.visible = !!state.helperWeapon;
+  if (state.helperArmor && !h.userData.armor) {   // peto de armadura en el pecho
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.75, 0.5), mat(0x94a3b8)); plate.position.set(0, 1.35, 0); h.add(plate); h.userData.armor = plate;
+  }
+  if (h.userData.armor) h.userData.armor.visible = !!state.helperArmor;
+}
+function applyHelperGear() { for (const h of helpers) applyHelperGearTo(h); }   // a TODOS los hijos (al comprar)
 function makeHelperAt(x, z) {   // crea un ayudante en (x,z) sin cobrar (usado por spawnHelper y loadGame)
   const h = makePerson(0xf472b6, 0xf1c27d); h.scale.set(0.7, 0.7, 0.7);
   h.position.set(x, 0, z); h.userData.atkCd = 0; scene.add(h); helpers.push(h);
+  applyHelperGearTo(h);   // el hijo nuevo llega ya equipado si compraste arma/armadura
   return h;
 }
 function clearHelpers() { helpers.forEach(h => scene.remove(h)); helpers.length = 0; }
-function spawnHelper() {
+function spawnHelper() {   // puedes tener TODOS los hijos que quieras ($300 c/u)
   if (state.phase !== 'DAY') { toast('Solo puedes llamar ayudantes de día'); return; }
   if (!state.momUnlocked) { toast('Necesitas conocer a la mamá (a las $20.000)'); return; }
   if (state.money < 300) { toast('Un ayudante cuesta $300'); return; }
   state.money -= 300;
   makeHelperAt(HOUSE.x + (Math.random() * 4 - 2), HOUSE.z + 6);
-  toast('👧 ¡Nuevo ayudante! (' + helpers.length + ')');
+  toast('👧 ¡Nuevo hijo! Tienes ' + helpers.length + ' (cada uno cuesta $300)');
 }
 function updateHelpers(dt) {
+  const dmg = state.helperWeapon ? 45 : 20;                 // con arma pegan mucho más fuerte
+  const cd = state.helperArmor ? 0.4 : 0.6;                 // con armadura atacan más seguido
   for (const h of helpers) {
     let near = null, nd = 14;
     if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(h.position, e.position); if (d < nd) { nd = d; near = e; } }
     if (near) {
       if (nd > 1.5) { moveToward(h, near.position, 3 * dt); h.rotation.y = Math.atan2(near.position.x - h.position.x, near.position.z - h.position.z); }
-      else { h.userData.atkCd -= dt; if (h.userData.atkCd <= 0) { h.userData.atkCd = 0.6; hitEnemy(near, 20, h.position); } }
+      else { h.userData.atkCd -= dt; if (h.userData.atkCd <= 0) { h.userData.atkCd = cd; hitEnemy(near, dmg, h.position); } }
     } else { const d = dist2D(h.position, player.position); if (d > 4) { moveToward(h, player.position, 3 * dt); h.rotation.y = Math.atan2(player.position.x - h.position.x, player.position.z - h.position.z); } }
     swingLimbs(h, dt);
   }
@@ -2639,6 +2655,7 @@ const state = {
   hp: 100, dadHp: 100,
   inv: freshInv(), driving: false, poison: 0, dadPoison: 0,
   weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false, hasShovel: false,
+  helperWeapon: false, helperArmor: false,   // arma / armadura para los hijos (todos)
   hunger: 100, night: 0,
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
@@ -2836,6 +2853,7 @@ function shopIcon(item) {
   if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
   if (item.factor) return '🛡️'; if (item.key === 'semillas') return '🌱';
   if (item.key === 'dadgun') return '🔫'; if (item.key === 'dadarmor') return '🛡️'; if (item.key === 'rocket') return '🚀'; if (item.key === 'traje') return '🧑‍🚀';
+  if (item.key === 'hijoarma') return '⚔️'; if (item.key === 'hijoarmadura') return '🛡️';
   if (item.key === 'perro') return '🐶'; if (item.key === 'laser') return '🔆'; if (item.key === 'piso2') return '🏠';
   if (item.key === 'moto') return '🏍️'; if (item.key === 'heladera') return '🧊';
   if (item.build) return '🧱'; return '🛒';
@@ -3172,6 +3190,7 @@ function startGame() {
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); setWeaponColor(0x94a3b8);
+  state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
@@ -3249,6 +3268,7 @@ function saveGame() {
       holes: holes.map(h => ({ x: h.x, z: h.z, depth: h.depth })),   // hoyos/refugios cavados con la pala
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
+      helperWeapon: !!state.helperWeapon, helperArmor: !!state.helperArmor,   // arma/armadura de los hijos
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
       dadResting: !!dad.userData.resting,
       streak: state.streak || 0,   // racha de noches perfectas
@@ -3749,7 +3769,8 @@ function loadGame() {
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillRuins(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
-  (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes
+  state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
+  (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
   dad.userData.mode = d.dadMode || 'follow';
@@ -3773,6 +3794,7 @@ function continueGame() {
 function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false;
+  state.helperWeapon = false; state.helperArmor = false;
   state.dadArmor = 1; applyDadArmor(false);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.dadGun = state.hasRocket = false;
@@ -4046,6 +4068,8 @@ function buyItem(item) {
     if (item.factor < state.armorFactor) { state.armorFactor = item.factor; toast('🛡️ ' + item.name + ': un zombi te hace ' + Math.round(10 * item.factor) + ' (antes 10)'); }
     else toast('Ya tienes una armadura mejor');
   }
+  else if (item.key === 'hijoarma') { state.helperWeapon = true; applyHelperGear(); toast('⚔️ ¡Tus hijos ahora tienen ARMA! Pegan mucho más fuerte de noche'); }
+  else if (item.key === 'hijoarmadura') { state.helperArmor = true; applyHelperGear(); toast('🛡️ ¡Tus hijos ahora tienen ARMADURA! Están mejor equipados y atacan más seguido'); }
   else if (item.key === 'dadgun') { state.dadGun = true; toast('🔫 Arma para papá comprada (G para armarlo)'); }
   else if (item.key === 'dadarmor') {
     if (state.dadArmor > 0.5) { state.dadArmor = 0.5; applyDadArmor(true); toast('🛡️ Armadura para papá: recibe la mitad de daño'); }

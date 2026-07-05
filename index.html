@@ -1935,6 +1935,16 @@ function makeFlyer() {
   g.userData.wings = wings;
   return g;
 }
+// OVNI JEFE (noche jefe de Platus): nave nodriza que flota alto y suelta aliens
+function makeUfo() {
+  const g = new THREE.Group();
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.4, 0.5, 22), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: .6, roughness: .3 })); g.add(disc);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.4, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0891b2, emissiveIntensity: .5, transparent: true, opacity: .8 })); dome.position.y = 0.3; g.add(dome);
+  for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2; const b = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 8), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xfde047, emissiveIntensity: .9 })); b.position.set(Math.cos(a) * 2.9, -0.12, Math.sin(a) * 2.9); g.add(b); }
+  g.add(new THREE.PointLight(0x22d3ee, 1.3, 22));
+  g.userData.spin = disc;
+  return g;
+}
 
 // Definición de cada monstruo: modelo, vida, velocidad, daño y comportamiento.
 // spd(s) recibe la etapa actual. Flags: opensDoors (abre puertas), commander (manda toros),
@@ -1957,6 +1967,7 @@ const ENEMY_DEFS = {
   ogre:          { make: makeOgre,          hp: 220, spd: () => 1.1,           dmg: 26, barY: 4.5 },
   ghost:         { make: makeGhost,         hp: 30,  spd: s => 3.2 + s * 0.1,  dmg: 12, barY: 3.2, fly: true },
   dragon:        { make: makeDragon,        hp: 150, spd: () => 3.5,           dmg: 20, barY: 6.2, fly: true },
+  ufo:           { make: makeUfo,           hp: 380, spd: () => 2,             dmg: 22, barY: 13, ufo: true },
 };
 
 // Monstruos desbloqueados a la etapa actual (SE ACUMULAN: los viejos siguen apareciendo)
@@ -1997,6 +2008,7 @@ function spawnEnemy(type, atPos) {
   if (def.poison) data.poison = true;
   if (def.fly) data.fly = true;
   if (def.breaksAir) data.breaksAir = true;
+  if (def.ufo) data.ufo = true;
   if (atPos) e.position.copy(atPos);
   else { const a = Math.random() * Math.PI * 2, r = 32; e.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); }
   Object.assign(e.userData, data);
@@ -2036,6 +2048,7 @@ function killLoot(e) {
   const golden = Math.random() < 0.10;
   if (golden) m *= 5;
   if (e.userData.bossKill) { m += 500; toast('⚔️ ¡Derrotaste al JEFE! +$500 extra'); coinBurst(e.position, 16); }
+  if (e.userData.ufoKill) { m += 900; toast('🛸 ¡DERRIBASTE EL OVNI JEFE! +$900 extra'); coinBurst(e.position, 24); }
   if (e.userData.pinata) {
     m += 300 + 60 * state.stage;
     toast('🪅 ¡Reventaste la PIÑATA! +$' + m); coinBurst(e.position, 20);
@@ -3410,7 +3423,7 @@ function answerMath(v) {
 // ===================================================================
 //  BESTIARIO (colección de monstruos) y RÉCORD personal
 // ===================================================================
-const ENEMY_NAMES = { zombie: 'Zombi', zombieArmored: 'Zombi blindado', smart: 'Zombi inteligente', smartArmored: 'Inteligente blindado', toro: 'Toro', toroArmored: 'Toro blindado', mole: 'Topo', moleBoss: 'Topo jefe', ant: 'Hormiga', flyer: 'Volador', ghost: 'Fantasma', ogre: 'Ogro', dragon: 'Dragón', alien: 'Alien', alienBig: 'Alien grande' };
+const ENEMY_NAMES = { zombie: 'Zombi', zombieArmored: 'Zombi blindado', smart: 'Zombi inteligente', smartArmored: 'Inteligente blindado', toro: 'Toro', toroArmored: 'Toro blindado', mole: 'Topo', moleBoss: 'Topo jefe', ant: 'Hormiga', flyer: 'Volador', ghost: 'Fantasma', ogre: 'Ogro', dragon: 'Dragón', alien: 'Alien', alienBig: 'Alien grande', ufo: 'OVNI jefe' };
 function recordKill(e) {   // registra el kill en el bestiario; la 1ª vez de cada tipo paga $100
   const t = e.userData.type;
   if (!ENEMY_NAMES[t]) return;
@@ -4129,7 +4142,10 @@ function startNight() {
   state.nightDamage = false;                                                // si la casa termina sin daño, sube la RACHA
   state.coldWarned = false;                                                 // aviso de frío de Platus (una vez por noche)
   state.bossNight = state.night % 5 === 0;                                  // cada 5 noches: NOCHE JEFE (paga x3)
-  if (state.bossNight) { spawnBossEnemy(); phaseText('⚔️ NOCHE JEFE'); toast('⚔️ ¡NOCHE JEFE! Un monstruo gigante te espera… sobrevive y el pago es x3'); }
+  if (state.bossNight) {
+    if (state.planet === 'platus') spawnUfoBoss();   // en Platus la noche jefe trae el OVNI nodriza
+    else { spawnBossEnemy(); phaseText('⚔️ NOCHE JEFE'); toast('⚔️ ¡NOCHE JEFE! Un monstruo gigante te espera… sobrevive y el pago es x3'); }
+  }
   if (state.momEventPending) dadGoesToParty();
   const n = enemiesForNight(state.night);
   toast(n === 0 ? '🌙 Noche tranquila: ¡aprovecha para construir!' : '🌙 ¡Noche ' + state.night + '! Vienen ' + n + ' monstruos');
@@ -4149,6 +4165,36 @@ function spawnBossEnemy() {
   ud.barY = (ud.barY || 2.6) * 1.7;
   ud.bossKill = true;   // matarlo paga +$500 extra (en killLoot)
   return e;
+}
+// OVNI JEFE: en las noches jefe de Platus, en vez del monstruo gigante aparece una nave nodriza
+function spawnUfoBoss() {
+  const e = spawnEnemy('ufo');
+  const a = Math.random() * Math.PI * 2;
+  e.position.set(player.position.x + Math.cos(a) * 18, 12, player.position.z + Math.sin(a) * 18);
+  const ud = e.userData;
+  ud.maxhp = 380; ud.hp = 380; ud.ufoKill = true; ud.beamCd = 3; ud.hoverT = Math.random() * 6;
+  toast('🛸 ¡OVNI JEFE! Una nave nodriza suelta aliens. Derríbala con la PISTOLA LÁSER 🔫 o vuela con el JETPACK 🚀 para gran recompensa');
+  phaseText('🛸 OVNI JEFE');
+  return e;
+}
+// Comportamiento del OVNI: flota alto rondando al jugador y cada rato suelta aliens (+daño si estás debajo)
+function updateUfoBoss(e, dt) {
+  const ud = e.userData;
+  ud.hoverT = (ud.hoverT || 0) + dt;
+  const hx = player.position.x + Math.cos(ud.hoverT * 0.5) * 10, hz = player.position.z + Math.sin(ud.hoverT * 0.5) * 10;
+  e.position.x += (hx - e.position.x) * Math.min(1, dt * 0.8);
+  e.position.z += (hz - e.position.z) * Math.min(1, dt * 0.8);
+  e.position.y = 10 + Math.sin(ud.hoverT * 1.5) * 1.2;
+  if (ud.spin) ud.spin.rotation.y += dt * 2;
+  ud.barY = e.position.y + 3;   // la barra de vida sigue su altura
+  ud.beamCd -= dt;
+  if (ud.beamCd <= 0) {
+    ud.beamCd = 6;
+    const n = 1 + (state.stage >= 3 ? 1 : 0);
+    for (let k = 0; k < n; k++) spawnEnemy(Math.random() < 0.5 ? 'alienBig' : 'alien', new THREE.Vector3(e.position.x + (Math.random() * 4 - 2), 0, e.position.z + (Math.random() * 4 - 2)));
+    floatText(e.position, '🛸 ¡suelta aliens!', '#22d3ee', 16); beep(300, 0.2, 0.05);
+    if (dist2D(e.position, player.position) < 6) damagePlayer(ud.dmg || 22);   // rayo si estás justo debajo
+  }
 }
 function attack() {
   if (state.buildMode) return;
@@ -4313,6 +4359,7 @@ function updateNight(dt) {
       if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8); removeEnemy(i); continue; }
       if (ud.life <= 0) removeEnemy(i); continue;
     }
+    if (ud.ufo) { updateUfoBoss(e, dt); continue; }   // OVNI jefe: flota alto y suelta aliens (no camina)
     if (ud.mole) continue;   // topos / topo jefe: los maneja updateMoles (día y noche)
     ud.attackCd -= dt;
     const tgt = pickTarget(e.position);
@@ -4599,7 +4646,7 @@ function drawMinimap() {
   icon(HOUSE.x, HOUSE.z, '🏠', 15);
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
   if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
-  if (state.phase === 'NIGHT') for (const e of enemies) dot(e.position.x, e.position.z, '#ef4444', 2);
+  if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.ufo) icon(e.position.x, e.position.z, '🛸', 14); else dot(e.position.x, e.position.z, '#ef4444', 2); }
   // policía: solo aparece cuando estás BUSCADO; se resalta con un aro rojo
   if (police.length) {
     for (const p of police) {

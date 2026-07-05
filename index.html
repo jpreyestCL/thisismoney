@@ -719,8 +719,8 @@ const ALIEN_TECH = [
   { key: 'escudo',      name: 'Escudo de energía', price: 1600, color: 0x38bdf8, alien: true },
   { key: 'alienpet',    name: 'Mascota alien',     price: 2200, color: 0x7c3aed, alien: true },
 ];
-// El vendedor de Platus ofrece TODO lo de la Tierra + la tecnología alien exclusiva
-function shopCatalog() { return state.planet === 'platus' ? SHOP.concat(ALIEN_TECH) : SHOP; }
+// El vendedor de Platus ofrece TODO lo de la Tierra (menos autos/motos) + la tecnología alien exclusiva
+function shopCatalog() { return state.planet === 'platus' ? SHOP.filter(it => !it.car && it.key !== 'moto').concat(ALIEN_TECH) : SHOP; }
 
 // Dibuja un producto que se parece a lo que es
 function makeProductMesh(key, color) {
@@ -1129,6 +1129,7 @@ function becomeWanted(sec, stars) {
   if (police.length === 0 && state.policeDelay <= 0) state.policeDelay = Math.max(2, 8 - state.wantedLevel);
 }
 function updatePolice(dt) {
+  if (state.planet === 'platus') { if (police.length) clearPolice(); state.wanted = 0; state.wantedLevel = 0; return; }   // en Platus NO hay policía
   if (state.wanted > 0) {
     state.wanted -= dt;
     if (state.policeDelay > 0) { state.policeDelay -= dt; return; }   // aún no llegan: aprovecha para huir
@@ -1416,6 +1417,7 @@ function setEarthWorld(v) {   // muestra/oculta la Tierra completa (con sus coli
 // ===================================================================
 const platusStuff = [], coalRocks = [], campfires = [];
 const platusKeepers = [];   // posiciones del/los vendedor(es) zombi de Platus (para comprar con Y)
+let platusTrunkMat = null, platusBranchMat = null;   // materiales de los árboles muertos (se recolorean por planeta)
 function buildPlatus() {
   // árboles MUERTOS instanciados (troncos secos + ramas peladas): 2 draw calls
   const spots = [];
@@ -1425,8 +1427,9 @@ function buildPlatus() {
     if (Math.abs(x) < 8 && Math.abs(z) < 8) continue;
     spots.push([x, z]);
   }
-  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.22, .38, 3.6, 6), mat(0x4a3728), spots.length);
-  const branches = new THREE.InstancedMesh(new THREE.CylinderGeometry(.07, .11, 1.6, 5), mat(0x3b2b1f), spots.length * 3);
+  platusTrunkMat = mat(0x4a3728); platusBranchMat = mat(0x3b2b1f);   // materiales guardados para recolorear por planeta
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.22, .38, 3.6, 6), platusTrunkMat, spots.length);
+  const branches = new THREE.InstancedMesh(new THREE.CylinderGeometry(.07, .11, 1.6, 5), platusBranchMat, spots.length * 3);
   trunks.castShadow = true;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), eu = new THREE.Euler(), off = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
   spots.forEach(([x, z], i) => {
@@ -1589,9 +1592,10 @@ function updateMeteorShower(dt) {
     if (g.position.y <= 0.5) { landMeteor(g); meteors.splice(i, 1); }
   }
   for (let i = craters.length - 1; i >= 0; i--) { const c = craters[i]; c.life -= dt; if (c.life <= 0 || c.gems <= 0) { scene.remove(c.group); craters.splice(i, 1); } }
-  if (state.phase === 'NIGHT' && state.planet === 'platus' && !state.cinematic) {
+  const lava = state.planetHazard === 'lava';   // HELIOS: meteoritos también de día (bombardeo constante)
+  if (state.planet === 'platus' && !state.cinematic && (state.phase === 'NIGHT' || (lava && state.phase === 'DAY'))) {
     meteorTimer -= dt;
-    if (meteorTimer <= 0) { meteorTimer = 5 + Math.random() * 6; spawnFallingMeteor(); }
+    if (meteorTimer <= 0) { meteorTimer = (lava ? 3 : 5) + Math.random() * (lava ? 4 : 6); spawnFallingMeteor(); }
   }
 }
 function tryMineCrater() {   // picar el cráter de un meteorito: botín grande + a veces carbón
@@ -1627,20 +1631,23 @@ function makeCampfire() {   // T en Platus: 3 de carbón -> fogata delante tuyo
   toast('🔥 ¡Fogata lista! De noche quédate cerca para no congelarte');
   beep(500, 0.12, 0.05);
 }
-function updateCold(dt) {   // noches heladas de Platus: lejos de una fogata te congelas
+function updateCold(dt) {   // peligro nocturno del planeta: frío (cold) o aire tóxico (toxic); en ambos, la FOGATA te protege
   const fx = ui('coldfx');
-  if (state.planet !== 'platus' || state.phase !== 'NIGHT' || !state.running || state.underground) { if (fx) fx.style.opacity = '0'; return; }
+  const hz = state.planetHazard, nightHazard = (hz === 'cold' || hz === 'toxic');
+  if (state.planet !== 'platus' || state.phase !== 'NIGHT' || !state.running || isPlayerHidden() || !nightHazard) { if (fx) fx.style.opacity = '0'; return; }
   let warmP = false, warmD = false;
   for (const f of campfires) {
     if (dist2D(player.position, f.position) < 7) warmP = true;
     if (dad.visible && dist2D(dad.position, f.position) < 7) warmD = true;
   }
   if (!warmP) {
-    state.hp -= 2 * dt;
-    if (fx) fx.style.opacity = '0.85';
-    if (!state.coldWarned) { state.coldWarned = true; toast('🥶 ¡Hace MUCHO frío! Haz una FOGATA (T, con 3 carbón) o te congelas'); }
+    if (hz === 'toxic') { state.poison = Math.max(state.poison, 1.2); if (!state.coldWarned) { state.coldWarned = true; toast('☠️ ¡El aire es TÓXICO! Quédate junto a una FOGATA (T, 3 carbón) o te envenenas'); } }
+    else {
+      state.hp -= 2 * dt; if (fx) fx.style.opacity = '0.85';
+      if (!state.coldWarned) { state.coldWarned = true; toast('🥶 ¡Hace MUCHO frío! Haz una FOGATA (T, con 3 carbón) o te congelas'); }
+    }
   } else if (fx) fx.style.opacity = '0';
-  if (dad.visible && !warmD && !dad.userData.resting) state.dadHp -= 1.2 * dt;   // al papá con traje le pega menos
+  if (dad.visible && !warmD && !dad.userData.resting) { if (hz === 'toxic') state.dadPoison = Math.max(state.dadPoison, 1); else state.dadHp -= 1.2 * dt; }
 }
 function applySpaceSuit(v) {   // traje espacial del papá (casco + mochila); el tuyo se ve en el HUD 🧑‍🚀
   if (v && !dad.userData.helmet) {
@@ -2163,9 +2170,10 @@ function launchBull(k) {
   const e = makeBull(); e.position.copy(k.position); e.rotation.y = Math.atan2(dx, dz);
   e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, dmg: (k.userData.dmg || 17), vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
 }
+function isPlayerHidden() { return state.underground || state.inRuins; }   // bajo tierra o en las ruinas: los monstruos NO te ven ni te dañan
 function pickTarget(from) {
   const cands = [];
-  if (!state.underground) cands.push(player.position);   // bajo tierra los monstruos NO te ven
+  if (!isPlayerHidden()) cands.push(player.position);   // escondido: los monstruos NO te ven
   if (dad.visible && !dad.userData.resting) cands.push(dad.position);   // descansando: los monstruos no lo ven
   for (const h of helpers) cands.push(h.position);
   if (!cands.length) return HOUSE;   // nada que atacar (todos escondidos): van hacia la casa
@@ -2505,6 +2513,7 @@ const state = {
   underground: false, groundY: 0, shelterHole: null,   // refugio subterráneo (cavar hondo con la pala)
   hasJetpack: false, jetOn: false,                     // tecnología alien de Platus: jetpack (volar)
   laserGun: false, hasShield: false, shieldHp: 0, shieldMax: 60, shieldCd: 0,   // pistola láser + escudo de energía
+  planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1, inRuins: false,   // rasgos del planeta actual + estar en las ruinas
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -2530,7 +2539,7 @@ function checkProgress() {
 }
 
 function damagePlayer(amount) {
-  if (state.creative || state.underground) return;   // bajo tierra estás a salvo
+  if (state.creative || isPlayerHidden()) return;   // bajo tierra / en las ruinas estás a salvo
   let dmg = amount * state.armorFactor;
   if (state.hasShield && state.shieldHp > 0) {   // el escudo de energía absorbe primero
     const absorbed = Math.min(state.shieldHp, dmg);
@@ -3038,7 +3047,8 @@ function startGame() {
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
   dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
   state.trips = 0; state.ngplus = false; state.bank = 0; state.debt = 0; state.cargo = {};
-  state.planetName = 'Platus'; state.planetGround = 0x9c4a2a;
+  state.planetName = 'Platus'; state.planetGround = 0x9c4a2a; state.planetHazard = 'cold'; state.planetGrav = 1; state.inRuins = false;
+  scene.fog.far = 160;   // niebla normal de la Tierra
   resetWeather();
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
   showIntro();   // la historia en 4 tarjetas (se pasa con un botón)
@@ -3091,6 +3101,7 @@ function saveGame() {
       hasSuits: !!state.hasSuits, usedRocket: !!state.usedRocket, meteorAt: state.meteorAt || METEOR_AT,   // viajes espaciales
       trips: state.trips || 0, ngplus: !!state.ngplus,
       planetName: state.planetName || null, planetGround: state.planetGround || null,   // planeta alienígena actual
+      planetSky: state.planetSky, planetHazard: state.planetHazard, planetGrav: state.planetGrav,   // rasgos del planeta
       cargo: state.cargo || {},   // cajones del cohete (viajan con vos)
       bank: state.bank || 0, debt: state.debt || 0,   // banco: ahorros y deudas
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
@@ -3282,7 +3293,7 @@ function updateWeather(dt) {
     if (state.weatherLeft <= 0) {
       if (state.weather === 'rain' && rainObj) rainObj.visible = false;
       if (state.weather === 'dust') { const dx = ui('coldfx'); if (dx) dx.style.opacity = '0'; toast('🌤️ Pasó la tormenta'); }
-      state.weather = 'clear'; weatherT = 120 + Math.random() * 160;
+      state.weather = 'clear'; weatherT = (state.planetHazard === 'heat' ? 30 : 120) + Math.random() * (state.planetHazard === 'heat' ? 40 : 160);   // OASIS-9: tormentas mucho más seguidas
     }
   }
 }
@@ -3574,13 +3585,14 @@ function loadGame() {
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
   (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
-  if (d.car) spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp, moto: d.car.moto });
+  if (d.car && state.planet !== 'platus') spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp, moto: d.car.moto });   // no hay autos/motos en Platus
   state.unlocked = d.unlocked || {};
   state.creative = !!d.creative;
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
   state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
   state.trips = d.trips || 0; state.ngplus = !!d.ngplus;
   state.planetName = d.planetName || 'Platus'; state.planetGround = d.planetGround || 0x9c4a2a;
+  state.planetSky = d.planetSky || 0xd98c5f; state.planetHazard = d.planetHazard || 'cold'; state.planetGrav = d.planetGrav || 1; state.inRuins = false;
   state.cargo = d.cargo || {};
   state.bank = d.bank || 0; state.debt = d.debt || 0;
   resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
@@ -3592,8 +3604,8 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); applySpaceSuit(true); }
-  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); }
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
+  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
@@ -4130,17 +4142,28 @@ function updateCinematic(dt) {
 }
 // Planetas alienígenas (todos hostiles: árboles muertos, carbón, frío). El cohete SOLO va
 // hacia adelante, a un planeta NUEVO cada vez — nunca de vuelta a la Tierra.
+// Cada planeta es DISTINTO: color de suelo/cielo, lunas, árboles, peligro nocturno, gravedad y niebla.
+// hazard: 'cold' (frío, fogata) · 'toxic' (aire venenoso, fogata) · 'dark' (niebla espesa) · 'heat' (tormentas) · 'lava' (meteoritos también de día)
 const PLANETS = [
-  { name: 'PLATUS',  ground: 0x9c4a2a },   // rojizo
-  { name: 'ZORVAX',  ground: 0x2f5d4a },   // verdoso oscuro
-  { name: 'KRYON',   ground: 0x3a2a5a },   // púrpura
-  { name: 'NEBULA',  ground: 0x5a3a55 },   // magenta apagado
-  { name: 'OASIS-9', ground: 0x6a5a2a },   // ocre
-  { name: 'HELIOS',  ground: 0x7a3a1a },   // naranja quemado
+  { name: 'PLATUS',  ground: 0x9c4a2a, sky: 0xd98c5f, moons: [0xd946ef, 0x38bdf8], trees: 0x4a3728, hazard: 'cold',  grav: 1.0,  fog: 160, desc: 'noches HELADAS 🥶 (haz FOGATAS con T)' },
+  { name: 'ZORVAX',  ground: 0x2f5d4a, sky: 0x24402e, moons: [0x84cc16, 0x22d3ee], trees: 0x1f3a24, hazard: 'toxic', grav: 1.0,  fog: 150, desc: 'aire TÓXICO ☠️ de noche (fogatas te protegen)' },
+  { name: 'KRYON',   ground: 0x3a2a5a, sky: 0x2a1f45, moons: [0xa855f7, 0xf472b6], trees: 0x3a2b52, hazard: 'cold',  grav: 0.5,  fog: 170, desc: 'gravedad SÚPER baja 🪶 (saltos enormes) y frío' },
+  { name: 'NEBULA',  ground: 0x5a3a55, sky: 0x3a2540, moons: [0xf472b6, 0x818cf8], trees: 0x4a2f48, hazard: 'dark',  grav: 0.85, fog: 90,  desc: 'NIEBLA espesa 🌫️ (poca visibilidad)' },
+  { name: 'OASIS-9', ground: 0x6a5a2a, sky: 0xcaa15a, moons: [0xfacc15, 0x38bdf8], trees: 0x6a5320, hazard: 'heat',  grav: 1.1,  fog: 150, desc: 'tormentas de arena 🌪️ frecuentes' },
+  { name: 'HELIOS',  ground: 0x7a3a1a, sky: 0xb5461a, moons: [0xf97316, 0xfde047], trees: 0x5a2a12, hazard: 'lava',  grav: 1.0,  fog: 140, desc: 'lluvia de METEORITOS ☄️ ¡también de día!' },
 ];
+// Aplica la "cara" del planeta: color de árboles, lunas, cielo y niebla
+function applyPlanetLook(P) {
+  if (platusTrunkMat) platusTrunkMat.color.setHex(P.trees);
+  if (platusBranchMat) platusBranchMat.color.setHex((P.trees & 0xfefefe) >> 1);
+  if (platusSky.children[0]) platusSky.children[0].material.color.setHex(P.moons[0]);
+  if (platusSky.children[1]) platusSky.children[1].material.color.setHex(P.moons[1]);
+  scene.fog.far = P.fog;
+}
 function goToPlanet() {
   const P = PLANETS[Math.max(0, (state.trips || 1) - 1) % PLANETS.length];   // planeta según cuántos viajes llevas
   state.planet = 'platus'; state.planetName = P.name; state.planetGround = P.ground;
+  state.planetSky = P.sky; state.planetHazard = P.hazard; state.planetGrav = P.grav;   // rasgos propios del planeta
   state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
@@ -4154,12 +4177,13 @@ function goToPlanet() {
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
   refillCrystals();                                                          // cada planeta nuevo trae cristales frescos
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
+  applyPlanetLook(P);                                                        // árboles, lunas, cielo y niebla propios del planeta
   groundMat.color.set(P.ground); decor.forEach(t => t.visible = false);     // color propio del planeta
   spawnRocketMesh(); state.rocket.position.set(10, 0, 10); if (state.rocket.userData.sign) state.rocket.userData.sign.position.set(10, 6, 10);   // el cohete queda estacionado (reutilizable)
   player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
   state.phase = 'DAY'; state.dayTime = 0;
   newMissions();
-  toast('🪐 Llegaste a ' + P.name + ': árboles muertos y noches HELADAS 🥶. Pica CARBÓN ⚫ a golpes 👊, haz FOGATAS (T) y pica CRISTALES 💎 brillantes (¡valen mucha plata, los morados son el jackpot!) y compra tecnología alien al VENDEDOR 👽 (Y). Junta 10 de carbón para viajar al SIGUIENTE planeta (R). No hay vuelta a la Tierra.');
+  toast('🪐 Llegaste a ' + P.name + ' — ' + P.desc + '. Pica CRISTALES 💎 y CARBÓN ⚫, explora las RUINAS ALIEN 🏛️, compra tecnología al VENDEDOR 👽 (Y). Junta 10 de carbón para viajar al SIGUIENTE planeta (R).');
   phaseText(P.name);
 }
 
@@ -4730,8 +4754,8 @@ function updateMovement(dt) {
   player.position.addScaledVector(rightV, ax * step);
   // salto (espacio / botón) y gravedad; agacharse baja la altura; bajo tierra el "suelo" es el fondo del refugio
   const standY = (crouch ? CROUCH_EYE : PLAYER_EYE) + (state.groundY || 0);
-  const lowG = state.planet === 'platus' && !state.underground;   // Platus: BAJA GRAVEDAD (saltas altísimo y flotas)
-  const grav = lowG ? 9 : 25, jumpV = lowG ? 12 : 8;
+  const lowG = state.planet === 'platus' && !state.underground;   // planetas alien: BAJA GRAVEDAD (saltas altísimo y flotas)
+  const grav = lowG ? 9 * (state.planetGrav || 1) : 25, jumpV = lowG ? 12 : 8;   // cada planeta tiene su gravedad (KRYON casi flotas)
   const jumpHeld = keys['Space'] || touch.jumpHeld;   // mantener saltar = empuje del jetpack
   if ((keys['Space'] || touch.jump) && grounded) { vy = jumpV; grounded = false; }
   // JETPACK alien (solo en Platus): mantén saltar en el aire y te elevas volando
@@ -4845,13 +4869,14 @@ function updateBillboards(dt) {
 }
 function updateSky(dt) {
   const night = state.phase === 'NIGHT';
-  let base = state.planet === 'platus' ? new THREE.Color(0xd98c5f) : SKY_DAY;
+  let base = state.planet === 'platus' ? new THREE.Color(state.planetSky || 0xd98c5f) : SKY_DAY;
   if (state.weather === 'rain') base = new THREE.Color(0x6b7f96);        // cielo gris de lluvia
   else if (state.weather === 'dust') base = new THREE.Color(0xc06a2e);   // cielo naranjo de tormenta
   const target = night ? SKY_NIGHT : base;
   scene.background.lerp(target, 0.04); scene.fog.color.copy(scene.background);
-  ambient.intensity += ((night ? 0.25 : 1.0) - ambient.intensity) * 0.04;
-  sun.intensity += ((night ? 0.15 : 1.0) - sun.intensity) * 0.04;
+  const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1.0;   // NEBULA: planeta oscuro y neblinoso
+  ambient.intensity += ((night ? 0.25 : 1.0 * dim) - ambient.intensity) * 0.04;
+  sun.intensity += ((night ? 0.15 : 1.0 * dim) - sun.intensity) * 0.04;
   for (const o of placed) if (o.light) o.light.intensity += (((night ? 1.6 : 0)) - o.light.intensity) * 0.05;
   if (state.planet === 'platus') {   // el cielo alien (2 lunas + auroras) sigue al jugador y titila
     platusSky.position.set(player.position.x, 0, player.position.z);

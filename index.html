@@ -2859,6 +2859,7 @@ const state = {
   contract: null,   // contrato activo del vendedor alien
   incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
+  coreClaimed: false, relics: 0,   // núcleo del planeta (1 por planeta) + reliquias juntadas
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -3420,7 +3421,7 @@ function startGame() {
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.contract = null;   // sin contratos al empezar
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
-  endEclipse();
+  endEclipse(); state.coreClaimed = false; state.relics = 0;
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
@@ -3502,6 +3503,7 @@ function saveGame() {
       contract: state.contract || null,   // contrato del vendedor alien
       eggPets: eggPets.map(p => ({ dmg: p.userData.dmg, col: p.userData.col, tier: p.userData.tier })),   // mascotas nacidas de huevos
       incubTime: state.incubTime || 0, eggQueue: state.eggQueue || 0,
+      coreClaimed: !!state.coreClaimed, relics: state.relics || 0,
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
       dadResting: !!dad.userData.resting,
       streak: state.streak || 0,   // racha de noches perfectas
@@ -4005,6 +4007,7 @@ function loadGame() {
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
   state.contract = d.contract || null;   // contrato del vendedor alien
   clearEggPets(); (d.eggPets || []).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
+  state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0;
   endEclipse();
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
@@ -4572,7 +4575,7 @@ function goToPlanet() {
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
-  clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150;
+  clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false;   // cada planeta tiene su propio núcleo
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
@@ -4759,15 +4762,28 @@ function digHole() {
   const wasEnterable = h && h.enterable;
   if (h) { if (h.depth < MAX_DIGS) h.depth++; renderHole(h); }   // profundizar el mismo hoyo
   else h = spawnHole(t.x, t.z, 1);                               // hoyo nuevo
-  if (h.enterable && !wasEnterable) { toast('🏠 ¡Cavaste un REFUGIO subterráneo! Acércate y pulsa E para METERTE (los monstruos no te encuentran)'); return; }
+  if (h.enterable && !wasEnterable) { toast('🏠 ¡Cavaste un REFUGIO subterráneo! Pulsa E para METERTE. Sigue cavando aquí (' + h.depth + '/' + MAX_DIGS + ') para llegar al NÚCLEO 🌋'); return; }
+  if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) { reachCore(h); return; }   // ¡llegaste al núcleo del planeta!
   const r = Math.random();
   if (r < (h.depth >= ENTER_DIGS ? 0.2 : 0.45)) {   // ¡topos! (viven bajo tierra); menos cuando ya es profundo
     const n = state.stage >= 5 ? 2 + Math.floor(Math.random() * 2) : 1;
     for (let k = 0; k < n; k++) spawnEnemy('mole', new THREE.Vector3(t.x + (Math.random() * 2 - 1), 0, t.z + (Math.random() * 2 - 1)));
     toast('🦣 ¡Salió ' + (n > 1 ? n + ' topos' : 'un topo') + ' del hoyo!');
   } else if (r < 0.7) { const m = 50 + Math.floor(Math.random() * 150); addMoney(m); toast('💰 Cavaste y encontraste $' + m); }
-  else if (h.enterable) toast('🕳️ Refugio listo — pulsa E para meterte');
+  else if (h.enterable) toast('🕳️ Sigue cavando aquí para el NÚCLEO 🌋 (' + h.depth + '/' + MAX_DIGS + ')');
   else toast('⛏️ El hoyo está más hondo (' + h.depth + '/' + ENTER_DIGS + ')… sigue cavando para hacer un refugio');
+}
+// NÚCLEO DEL PLANETA: cavar hasta el fondo (MAX_DIGS) rompe hacia el núcleo -> jackpot enorme + reliquia (1 por planeta)
+function reachCore(h) {
+  state.coreClaimed = true; state.relics = (state.relics || 0) + 1;
+  const jackpot = 3000 + 500 * state.stage;
+  addMoney(jackpot); coinBurst(player.position, 40);
+  floatText(player.position, '🌋 ¡NÚCLEO! +$' + jackpot, '#f97316', 26);
+  toast('🌋 ¡Cavaste hasta el NÚCLEO de ' + (state.planetName || 'el planeta') + '! +$' + jackpot + ' y una RELIQUIA 🏆 (llevas ' + state.relics + ')');
+  tone(440, .15, .06, 'sawtooth'); setTimeout(() => tone(660, .2, .06, 'sawtooth'), 140); vibr([50, 40, 100]);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 0), new THREE.MeshStandardMaterial({ color: 0xf97316, emissive: 0xf97316, emissiveIntensity: 1 }));
+  core.position.y = -h.depth * DEPTH_STEP + 1.1; h.group.add(core);
+  const cl = new THREE.PointLight(0xf97316, 1.6, 14); cl.position.y = -h.depth * DEPTH_STEP + 1.1; h.group.add(cl);
 }
 // Meterse / salir del refugio subterráneo (tecla E cerca del hoyo profundo)
 function tryShelter() {
@@ -5366,6 +5382,7 @@ function renderHUD() {
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));
   if (state.incubTime > 0) gear.push('🥚 incubando ' + Math.ceil(state.incubTime) + 's' + (state.eggQueue > 0 ? ' (+' + state.eggQueue + ')' : ''));
   if (eggPets.length) gear.push('🐣 ' + eggPets.length);
+  if (state.relics > 0) gear.push('🏆 ' + state.relics + ' reliquias');
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');

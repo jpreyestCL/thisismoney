@@ -1619,8 +1619,149 @@ function checkRuinsComplete() {   // saqueaste TODO -> bono + aviso
   state.ruinsCleared = true; const bonus = 500;
   addMoney(bonus); toast('🏛️ ¡Saqueaste TODAS las ruinas! +$' + bonus + ' de bono. Hay más en el próximo planeta.'); beep(880, 0.2, 0.05);
 }
+// ===================================================================
+//  CASTILLO ALIEN: laberinto lejano con tesoros, aliens buenos y malos
+// ===================================================================
+const CASTLE_C = new THREE.Vector3(800, 0, 800), CELL = 6, MAZE_N = 7;
+const castleMeshes = [], mazeWalls = [], castleLoot = [], castleFoes = [], castleFriends = [];
+let castleGate = null;
+const cellCenter = (x, y) => new THREE.Vector3(CASTLE_C.x - MAZE_N * CELL / 2 + x * CELL + CELL / 2, 0, CASTLE_C.z - MAZE_N * CELL / 2 + y * CELL + CELL / 2);
+function genMaze(n) {   // laberinto por backtracking recursivo
+  const cells = []; for (let i = 0; i < n * n; i++) cells.push({ v: false, w: [true, true, true, true] });
+  const id = (x, y) => y * n + x; const stack = []; let cx = 0, cy = 0; cells[0].v = true; let cnt = 1;
+  const dirs = [[0, -1, 0, 2], [1, 0, 1, 3], [0, 1, 2, 0], [-1, 0, 3, 1]];
+  while (cnt < n * n) {
+    const nb = [];
+    for (const [dx, dy, w, ow] of dirs) { const nx = cx + dx, ny = cy + dy; if (nx >= 0 && nx < n && ny >= 0 && ny < n && !cells[id(nx, ny)].v) nb.push([nx, ny, w, ow]); }
+    if (nb.length) { const [nx, ny, w, ow] = nb[Math.floor(Math.random() * nb.length)]; cells[id(cx, cy)].w[w] = false; cells[id(nx, ny)].w[ow] = false; cells[id(nx, ny)].v = true; stack.push([cx, cy]); cx = nx; cy = ny; cnt++; }
+    else if (stack.length) [cx, cy] = stack.pop(); else break;
+  }
+  return cells;
+}
+(function buildCastleInterior() {
+  const cells = genMaze(MAZE_N);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(MAZE_N * CELL + 4, 0.4, MAZE_N * CELL + 4), new THREE.MeshStandardMaterial({ color: 0x241f38, roughness: 1 })); floor.position.set(CASTLE_C.x, -0.2, CASTLE_C.z); floor.visible = false; scene.add(floor); castleMeshes.push(floor);
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a4370, roughness: .85, emissive: 0x1e1b4b, emissiveIntensity: .25 });
+  const addWall = (cx, cz, w, d) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 4, d), wallMat); m.position.set(cx, 2, cz); m.castShadow = true; m.visible = false; scene.add(m); castleMeshes.push(m); mazeWalls.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 }); };
+  const id = (x, y) => y * MAZE_N + x;
+  for (let y = 0; y < MAZE_N; y++) for (let x = 0; x < MAZE_N; x++) {
+    const c = cells[id(x, y)], p = cellCenter(x, y);
+    if (c.w[0]) addWall(p.x, p.z - CELL / 2, CELL + 0.5, 0.5);
+    if (c.w[3]) addWall(p.x - CELL / 2, p.z, 0.5, CELL + 0.5);
+    if (x === MAZE_N - 1 && c.w[1]) addWall(p.x + CELL / 2, p.z, 0.5, CELL + 0.5);
+    if (y === MAZE_N - 1 && c.w[2]) addWall(p.x, p.z + CELL / 2, CELL + 0.5, 0.5);
+  }
+  const light = new THREE.PointLight(0xc4b5fd, 2.2, 130); light.position.set(CASTLE_C.x, 6, CASTLE_C.z); light.visible = false; scene.add(light); castleMeshes.push(light);
+})();
+function makeCastleChest(vault) {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 0.9), mat(vault ? 0x92400e : 0x6d28d9)); base.position.y = 0.5; g.add(base);
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.9), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .45 })); lid.position.y = 1.05; g.add(lid);
+  g.add(new THREE.PointLight(0xfde047, 0.7, 7)); return g;
+}
+function makeCastleFoe() {   // alien MALO: rojo con cuernos y ojos brillantes
+  const g = makePerson(0x7f1d1d, 0x991b1b); g.scale.set(1.05, 1.1, 1.05);
+  for (const s of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 6), mat(0x450a0a)); horn.position.set(s * 0.18, 2.4, 0); horn.rotation.z = s * -0.3; g.add(horn); }
+  for (const s of [-0.13, 0.13]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshStandardMaterial({ color: 0xfca5a5, emissive: 0xef4444, emissiveIntensity: 1 })); eye.position.set(s, 2.08, 0.24); g.add(eye); }
+  return g;
+}
+function makeCastleFriend() {   // alien BUENO: celeste con antena y ojo amable
+  const g = makePerson(0x0e7490, 0x22d3ee); g.scale.set(0.9, 0.95, 0.9);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10), new THREE.MeshStandardMaterial({ color: 0xecfeff, emissive: 0xa5f3fc, emissiveIntensity: .6 })); eye.position.set(0, 2.1, 0.26); g.add(eye);
+  const ant = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xfde047, emissiveIntensity: .7 })); ant.position.set(0, 2.6, 0); g.add(ant);
+  return g;
+}
+(function buildCastleContents() {
+  for (let i = 0; i < 8; i++) { const vault = i === 7; const g = makeCastleChest(vault); g.visible = false; scene.add(g); castleLoot.push({ group: g, value: 0, ready: false, vault }); }
+  for (let i = 0; i < 5; i++) { const g = makeCastleFoe(); g.visible = false; scene.add(g); castleFoes.push({ mesh: g, hp: 0, maxhp: 60, atkCd: 0, alive: false }); }
+  for (let i = 0; i < 3; i++) { const g = makeCastleFriend(); g.visible = false; scene.add(g); castleFriends.push({ mesh: g, gave: true }); }
+})();
+(function buildCastleGate() {
+  castleGate = new THREE.Group();
+  for (const sx of [-4.5, 4.5]) {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.7, 11, 8), mat(0x4a4370)); t.position.set(sx, 5.5, 0); t.castShadow = true; castleGate.add(t);
+    const top = new THREE.Mesh(new THREE.ConeGeometry(1.9, 2.6, 8), new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x4c1d95, emissiveIntensity: .4 })); top.position.set(sx, 12.3, 0); castleGate.add(top);
+  }
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(11, 7.5, 1.5), mat(0x3a3358)); wall.position.set(0, 3.75, 0); wall.castShadow = true; castleGate.add(wall);
+  const gate = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 5.2), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: .5, side: THREE.DoubleSide })); gate.position.set(0, 2.6, 0.78); castleGate.add(gate);
+  castleGate.add(new THREE.PointLight(0x7c3aed, 1.1, 18));
+  const sign = makeSign('CASTILLO ALIEN (E)', 0xa78bfa); sign.scale.set(.6, .6, .6); sign.position.set(0, 14, 0); castleGate.add(sign);
+  castleGate.position.set(60, 0, -60); castleGate.visible = false; scene.add(castleGate);
+})();
+function setCastleVisible(v) { castleMeshes.forEach(m => m.visible = v); castleLoot.forEach(l => l.group.visible = v && l.ready); castleFoes.forEach(f => f.mesh.visible = v && f.alive); castleFriends.forEach(fr => fr.mesh.visible = v && !fr.gave); }
+function refillCastle() {   // reparte tesoros/aliens en celdas al azar y recoloca la puerta
+  const cs = []; for (let y = 0; y < MAZE_N; y++) for (let x = 0; x < MAZE_N; x++) if (!(x === 0 && y === 0)) cs.push([x, y]);
+  for (let i = cs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cs[i], cs[j]] = [cs[j], cs[i]]; }
+  let ci = 0;
+  castleLoot.forEach(l => { const [x, y] = cs[ci++]; const p = cellCenter(x, y); l.group.position.set(p.x, l.vault ? 0 : 0, p.z); l.group.scale.setScalar(l.vault ? 1.7 : 1); l.value = l.vault ? 2000 + 400 * state.stage : 200 + Math.floor(Math.random() * 320); l.ready = true; l.group.visible = state.inCastle; });
+  castleFoes.forEach(f => { const [x, y] = cs[ci++]; const p = cellCenter(x, y); f.mesh.position.set(p.x, 0, p.z); f.hp = f.maxhp; f.alive = true; f.atkCd = 0; f.mesh.visible = state.inCastle; });
+  castleFriends.forEach(fr => { const [x, y] = cs[ci++]; const p = cellCenter(x, y); fr.mesh.position.set(p.x, 0, p.z); fr.gave = false; fr.mesh.visible = state.inCastle; });
+  if (castleGate) { const a = Math.random() * Math.PI * 2, r = 40 + Math.random() * 95; castleGate.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); castleGate.visible = state.planet === 'platus'; }
+}
+function tryCastle() {
+  if (state.inCastle) {   // salir
+    state.inCastle = false; setCastleVisible(false);
+    const r = state.castleReturn || { x: player.position.x, z: player.position.z };
+    player.position.set(r.x, PLAYER_EYE, r.z); toast('⬆️ Saliste del castillo'); return true;
+  }
+  if (state.planet !== 'platus' || !castleGate || !castleGate.visible) return false;
+  if (dist2D(player.position, castleGate.position) > 5.5) return false;
+  state.castleReturn = { x: castleGate.position.x, z: castleGate.position.z + 4 };
+  state.inCastle = true; setCastleVisible(true);
+  const p = cellCenter(0, 0); player.position.set(p.x, PLAYER_EYE, p.z); beep(300, 0.15, 0.05);
+  toast('🏰 ¡Entraste al CASTILLO ALIEN! Recorre el laberinto: TESOROS 🎁, aliens BUENOS 😇 y MALOS 👹. Al fondo la BÓVEDA 🏆. E para salir.');
+  return true;
+}
+function resolveMazeCollisions() {
+  const R = 0.55;
+  for (const w of mazeWalls) {
+    if (player.position.x > w.minX - R && player.position.x < w.maxX + R && player.position.z > w.minZ - R && player.position.z < w.maxZ + R) {
+      const cx = (w.minX + w.maxX) / 2, cz = (w.minZ + w.maxZ) / 2;
+      const ox = (w.maxX - w.minX) / 2 + R - Math.abs(player.position.x - cx);
+      const oz = (w.maxZ - w.minZ) / 2 + R - Math.abs(player.position.z - cz);
+      if (ox < oz) player.position.x += (player.position.x < cx ? -ox : ox); else player.position.z += (player.position.z < cz ? -oz : oz);
+    }
+  }
+}
+function giveCastleGift(pos) {
+  const r = Math.random();
+  if (r < 0.4) { const m = 300 + Math.floor(Math.random() * 320); addMoney(m); floatText(pos, '😇 +$' + m, '#4ade80', 16); toast('😇 Un alien BUENO te regaló $' + m); }
+  else if (r < 0.7) { state.hp = Math.min(100, state.hp + 40); floatText(pos, '😇 +40 vida', '#22c55e', 16); toast('😇 Un alien BUENO te curó +40 de vida'); }
+  else { state.inv.carbon = (state.inv.carbon || 0) + 8; floatText(pos, '😇 +8 carbón', '#cbd5e1', 16); toast('😇 Un alien BUENO te dio 8 de carbón ⚫'); }
+  coinBurst(pos, 6); beep(760, 0.1, 0.05);
+}
+function attackCastleFoe() {   // pegarle a un alien malo del castillo (👊/clic o láser)
+  const p = player.position, dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const range = state.laserGun ? 30 : 5; let best = null, bd = range;
+  for (const f of castleFoes) { if (!f.alive) continue; const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
+  if (!best) return;
+  best.hp -= state.weaponDmg; floatText(best.mesh.position, '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
+  if (state.laserGun) shootBeam(best.mesh.position);
+  if (best.hp <= 0) { best.alive = false; best.mesh.visible = false; const m = 60 + 20 * state.stage; addMoney(m); coinBurst(best.mesh.position, 8); floatText(best.mesh.position, '👹 +$' + m, '#4ade80', 16); beep(500, 0.08, 0.05); }
+}
+function updateCastle(dt) {
+  if (!state.inCastle) return;
+  for (const l of castleLoot) {
+    if (!l.ready) continue;
+    l.group.rotation.y += dt * (l.vault ? 0.8 : 1.4);
+    if (dist2D(player.position, l.group.position) < 2) {
+      l.ready = false; l.group.visible = false; addMoney(l.value); coinBurst(l.group.position, l.vault ? 26 : 8);
+      floatText(l.group.position, (l.vault ? '🏆 ¡BÓVEDA! +$' : '🎁 +$') + l.value, l.vault ? '#fde047' : '#4ade80', l.vault ? 22 : 16); beep(l.vault ? 880 : 700, 0.1, 0.05);
+      if (l.vault) { toast('🏆 ¡Encontraste la BÓVEDA del castillo! +$' + l.value); vibr([40, 30, 90]); }
+    }
+  }
+  for (const fr of castleFriends) { if (fr.gave) continue; if (dist2D(player.position, fr.mesh.position) < 2.4) { fr.gave = true; fr.mesh.visible = false; giveCastleGift(fr.mesh.position); } }
+  for (const f of castleFoes) {
+    if (!f.alive) continue;
+    f.mesh.position.y = 0.5 + Math.sin(performance.now() * 0.004 + f.mesh.position.x) * 0.15;
+    const d = dist2D(f.mesh.position, player.position);
+    if (d > 1.4) { moveToward(f.mesh, player.position, 2.6 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
+    else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; if (!state.creative) state.hp -= 8 * state.armorFactor; } }
+    swingLimbs(f.mesh, dt);
+  }
+}
 function refillCrystals() { crystals.forEach(c => { c.gems = c.maxGems; c.group.children.forEach(o => { if (o.userData.shard) o.visible = true; }); c.group.visible = state.planet === 'platus'; }); mushrooms.forEach(m => { m.ready = true; m.regrow = 0; m.group.visible = state.planet === 'platus'; }); }
-function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); geodes.forEach(ge => ge.group.visible = v && ge.ready); eggs.forEach(e => e.group.visible = v && e.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; }
+function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); geodes.forEach(ge => ge.group.visible = v && ge.ready); eggs.forEach(e => e.group.visible = v && e.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; if (castleGate) castleGate.visible = v; }
 // GEODA GIGANTE: roca enorme; pégale muchas veces y al romperse EXPLOTA en un montón de gemas
 const geodes = [];
 (function buildGeodes() {
@@ -2502,7 +2643,7 @@ function launchBull(k) {
   const e = makeBull(); e.position.copy(k.position); e.rotation.y = Math.atan2(dx, dz);
   e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, dmg: (k.userData.dmg || 17), vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
 }
-function isPlayerHidden() { return state.underground || state.inRuins; }   // bajo tierra o en las ruinas: los monstruos NO te ven ni te dañan
+function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle; }   // bajo tierra / ruinas / castillo: los monstruos de la superficie NO te ven
 function pickTarget(from) {
   const cands = [];
   if (!isPlayerHidden()) cands.push(player.position);   // escondido: los monstruos NO te ven
@@ -2866,6 +3007,7 @@ const state = {
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
   coreClaimed: false, relics: 0,   // núcleo del planeta (1 por planeta) + reliquias juntadas
   riding: false,   // montando una criatura firma domada
+  inCastle: false,   // dentro del castillo alien (laberinto)
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -2999,7 +3141,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') tryLaunchRocket();
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { if (!tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: montura · auto · refugio · ruinas · cohete · banco · oro / robar / vender casa
+  if (e.code === 'KeyE') { if (!tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: montura · auto · refugio · ruinas · castillo · cohete · banco · oro / robar / vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -3354,7 +3496,7 @@ applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -3427,7 +3569,7 @@ function startGame() {
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.contract = null;   // sin contratos al empezar
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
-  endEclipse(); state.coreClaimed = false; state.relics = 0; removeMount();
+  endEclipse(); state.coreClaimed = false; state.relics = 0; removeMount(); state.inCastle = false; setCastleVisible(false);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
@@ -3487,8 +3629,8 @@ function saveGame() {
       weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel,
       dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet,
       houseTier: houseTier, inv: state.inv,
-      px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : player.position.x,   // en las ruinas guardamos el punto de salida (no la cámara lejana)
-      pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : player.position.z,
+      px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : (state.inCastle && state.castleReturn ? state.castleReturn.x : player.position.x),   // en ruinas/castillo guardamos el punto de salida (no la zona lejana)
+      pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : (state.inCastle && state.castleReturn ? state.castleReturn.z : player.position.z),
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
       car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto } : null,
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
@@ -4007,14 +4149,14 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillEggs(); refillRuins(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
   state.contract = d.contract || null;   // contrato del vendedor alien
   clearEggPets(); (d.eggPets || []).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
   state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0;
-  endEclipse(); removeMount();
+  endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false);
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
@@ -4053,7 +4195,7 @@ function resetAll() {
   clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
-  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse(); removeMount();
+  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false);
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -4639,6 +4781,7 @@ function goToPlanet() {
   refillGeodes();                                                            // geodas gigantes nuevas
   refillEggs();                                                              // huevos alien nuevos para recoger
   refillRuins();                                                             // ruinas alien con botín fresco (entrada en un punto nuevo)
+  state.inCastle = false; setCastleVisible(false); refillCastle();           // castillo laberinto con tesoros/aliens nuevos
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
   applyPlanetLook(P);                                                        // árboles, lunas, cielo y niebla propios del planeta
@@ -4728,6 +4871,7 @@ function updateUfoBoss(e, dt) {
 function attack() {
   if (state.buildMode) return;
   vmSwing = 1; beep(320, 0.05, 0.03);
+  if (state.inCastle) { attackCastleFoe(); return; }   // en el castillo, el golpe pega a los aliens malos
   const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const range = state.laserGun ? 30 : 5, dmg = state.weaponDmg;   // la pistola láser dispara LEJOS
   let best = null, bestD = range;
@@ -5113,6 +5257,7 @@ function loop() {
     updateShootingStar(dt);                // estrella fugaz: tócala para un deseo (Platus, noche)
     updateEggs(dt); updateEggPets(dt);     // huevos alien: recoger, incubar y mascotas nacidas
     updateEclipse(dt);                     // eclipse cósmico: evento raro (gravedad casi cero + lluvia de botín)
+    updateCastle(dt);                      // castillo alien: laberinto con tesoros y aliens buenos/malos
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -5188,7 +5333,14 @@ function drawMinimap() {
     for (const ge of geodes) if (ge.ready) icon(ge.group.position.x, ge.group.position.z, '💎', 12);
     for (const e of eggs) if (e.ready) icon(e.group.position.x, e.group.position.z, '🥚', 11);
     if (ruinsEntrance && ruinsEntrance.visible && !state.inRuins) icon(ruinsEntrance.position.x, ruinsEntrance.position.z, '🏛️', 13);
+    if (castleGate && castleGate.visible && !state.inCastle) icon(castleGate.position.x, castleGate.position.z, '🏰', 14);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
+  }
+  if (state.inCastle) {   // dentro del castillo: guía del laberinto (tesoros, aliens buenos/malos)
+    for (const w of mazeWalls) { g.fillStyle = '#4a4370'; g.fillRect(cx + w.minX * sc, cz + w.minZ * sc, Math.max(1, (w.maxX - w.minX) * sc), Math.max(1, (w.maxZ - w.minZ) * sc)); }
+    for (const l of castleLoot) if (l.ready) icon(l.group.position.x, l.group.position.z, l.vault ? '🏆' : '🎁', l.vault ? 13 : 10);
+    for (const fr of castleFriends) if (!fr.gave) icon(fr.mesh.position.x, fr.mesh.position.z, '😇', 11);
+    for (const f of castleFoes) if (f.alive) dot(f.mesh.position.x, f.mesh.position.z, '#ef4444', 2.5);
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
@@ -5239,9 +5391,9 @@ function updateMovement(dt) {
   player.position.addScaledVector(rightV, ax * step);
   // salto (espacio / botón) y gravedad; agacharse baja la altura; bajo tierra el "suelo" es el fondo del refugio
   const standY = (crouch ? CROUCH_EYE : PLAYER_EYE) + (state.groundY || 0);
-  const lowG = state.planet === 'platus' && !state.underground;   // planetas alien: BAJA GRAVEDAD (saltas altísimo y flotas)
+  const lowG = state.planet === 'platus' && !state.underground && !state.inCastle;   // planetas alien: BAJA GRAVEDAD (dentro del castillo caminas normal)
   let grav = lowG ? 9 * (state.planetGrav || 1) : 25; const jumpV = lowG ? 12 : 8;   // cada planeta tiene su gravedad (KRYON casi flotas)
-  if (state.eclipse > 0) grav *= 0.2;   // ECLIPSE: gravedad casi cero, flotas para atrapar el botín
+  if (state.eclipse > 0 && !state.inCastle) grav *= 0.2;   // ECLIPSE: gravedad casi cero, flotas para atrapar el botín
   const jumpHeld = keys['Space'] || touch.jumpHeld;   // mantener saltar = empuje del jetpack
   if ((keys['Space'] || touch.jump) && grounded) { vy = jumpV; grounded = false; }
   // JETPACK alien (solo en Platus): mantén saltar en el aire y te elevas volando
@@ -5260,6 +5412,13 @@ function updateMovement(dt) {
   if (state.inRuins) {   // caminar dentro de la cámara de las ruinas (lejos del mundo)
     player.position.x = THREE.MathUtils.clamp(player.position.x, RUINS_C.x - 11, RUINS_C.x + 11);
     player.position.z = THREE.MathUtils.clamp(player.position.z, RUINS_C.z - 11, RUINS_C.z + 11);
+    camera.rotation.y = yaw; camera.rotation.x = pitch; return;
+  }
+  if (state.inCastle) {   // caminar por el laberinto del castillo (choca con las paredes)
+    const H = MAZE_N * CELL / 2;
+    player.position.x = THREE.MathUtils.clamp(player.position.x, CASTLE_C.x - H, CASTLE_C.x + H);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, CASTLE_C.z - H, CASTLE_C.z + H);
+    resolveMazeCollisions();
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   player.position.x = THREE.MathUtils.clamp(player.position.x, -230, 230);
@@ -5437,6 +5596,7 @@ function renderHUD() {
   if (eggPets.length) gear.push('🐣 ' + eggPets.length);
   if (state.relics > 0) gear.push('🏆 ' + state.relics + ' reliquias');
   if (state.riding) gear.push('🐾 montando (E baja)');
+  if (state.inCastle) gear.push('🏰 castillo — bóveda 🏆 al fondo (E sale)');
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');

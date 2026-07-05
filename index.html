@@ -1518,7 +1518,7 @@ function updateMushrooms(dt) {
     m.group.children[1].scale.y = 0.7 + Math.sin(performance.now() * 0.003 + m.group.position.x) * 0.08;   // late suave
     if (dist2D(player.position, m.group.position) < 1.8) {   // recoger al pisarlo
       m.ready = false; m.regrow = 25; m.group.visible = false;
-      state.hp = Math.min(100, state.hp + 12); state.inv.food = (state.inv.food || 0) + 1;
+      state.hp = Math.min(100, state.hp + 12); state.inv.food = (state.inv.food || 0) + 1; contractProgress('mushroom');
       floatText(m.group.position, '🍄 +12 vida', '#a3e635', 15); beep(520, 0.08, 0.05);
     }
   }
@@ -1601,7 +1601,7 @@ function updateRuins(dt) {
     if (!o.ready) continue;
     o.group.rotation.y += dt * 1.5; o.group.position.y = 1.4 + Math.sin(performance.now() * 0.003 + o.wpos.x) * 0.15;
     if (dist2D(player.position, o.wpos) < 2.6) {   // radio generoso: basta pasar cerca
-      o.ready = false; o.group.visible = false; addMoney(o.value);
+      o.ready = false; o.group.visible = false; addMoney(o.value); contractProgress('ruins');
       const got = ruinsOrbs.filter(x => !x.ready).length;
       floatText(o.wpos, '💠 +$' + o.value, '#fde047', 16); toast('💠 Orbe ' + got + '/' + total + ' (+$' + o.value + ')'); beep(760, 0.08, 0.05);
       checkRuinsComplete();
@@ -1626,7 +1626,7 @@ function tryMineCrystal() {   // picar un CRISTAL: cada golpe cercano da plata; 
   for (const c of crystals) {
     if (c.gems <= 0) continue;
     if (dist2D(player.position, c.group.position) < 3.4) {
-      c.gems--; addMoney(c.value);
+      c.gems--; addMoney(c.value); contractProgress('crystal');
       floatText(c.group.position, (c.rare ? '💜' : '💎') + ' +$' + c.value, c.rare ? '#e879f9' : '#67e8f9', 16);
       beep(c.rare ? 900 : 640, 0.08, 0.05);
       const shards = c.group.children.filter(o => o.userData.shard && o.visible);
@@ -1641,7 +1641,7 @@ function tryMineCoal() {   // picar carbón: 1 golpe cerca de una roca negra = 1
   if (state.planet !== 'platus') return false;
   for (const r of coalRocks) {
     if (dist2D(player.position, r.position) < 3.2) {
-      state.inv.carbon = (state.inv.carbon || 0) + 1;
+      state.inv.carbon = (state.inv.carbon || 0) + 1; contractProgress('coal');
       floatText(r.position, '⚫ +1 carbón', '#cbd5e1', 15);
       r.rotation.y += 0.5; beep(220, 0.08, 0.05);
       return true;
@@ -2248,6 +2248,7 @@ function killLoot(e) {
   addMoney(m);
   recordKill(e);            // bestiario (colección de monstruos)
   missionProgress('kills');
+  if (['alien', 'alienBig'].includes(e.userData.type) || e.userData.type === state.planetCreature) contractProgress('alienkill');   // contrato del vendedor alien
 }
 // Piñata: un monstruo dorado por noche; matarlo suelta lluvia de monedas
 function makePinata(e) {
@@ -2668,6 +2669,7 @@ const state = {
   hasJetpack: false, jetOn: false,                     // tecnología alien de Platus: jetpack (volar)
   laserGun: false, hasShield: false, shieldHp: 0, shieldMax: 60, shieldCd: 0,   // pistola láser + escudo de energía
   planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1, planetCreature: 'yeti', inRuins: false, ruinsCleared: false,   // rasgos del planeta actual + ruinas
+  contract: null,   // contrato activo del vendedor alien
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -2846,6 +2848,41 @@ function closeShopInput() {
   ui('shopbox').style.display = 'none';
   ui('shopInput').blur();
 }
+// ===== CONTRATOS del vendedor alien (misiones de Platus): acepta uno, cúmplelo y cóbralo =====
+const CONTRACT_DEFS = [
+  { type: 'crystal',   icon: '💎',  txt: n => 'Pica ' + n + ' cristales',              min: 5, max: 8 },
+  { type: 'coal',      icon: '⚫',  txt: n => 'Junta ' + n + ' de carbón',             min: 8, max: 12 },
+  { type: 'alienkill', icon: '👽',  txt: n => 'Derrota ' + n + ' criaturas alien',     min: 5, max: 8 },
+  { type: 'ruins',     icon: '🏛️', txt: n => 'Saquea ' + n + ' tesoros de las ruinas', min: 4, max: 6 },
+  { type: 'mushroom',  icon: '🍄',  txt: n => 'Recoge ' + n + ' hongos brillantes',    min: 5, max: 8 },
+];
+function newContract() {
+  const d = CONTRACT_DEFS[Math.floor(Math.random() * CONTRACT_DEFS.length)];
+  const need = d.min + Math.floor(Math.random() * (d.max - d.min + 1));
+  state.contract = { type: d.type, icon: d.icon, txt: d.txt(need), need, have: 0, reward: 400 + 120 * state.stage, done: false };
+  toast('📋 Contrato aceptado: ' + state.contract.txt + ' — premio $' + state.contract.reward);
+}
+function contractProgress(type, n) {
+  const c = state.contract; if (!c || c.done || c.type !== type) return;
+  c.have = Math.min(c.need, c.have + (n || 1));
+  if (c.have >= c.need) { c.done = true; toast('📋 ¡Contrato LISTO! Vuelve al VENDEDOR 👽 (Y) para cobrar $' + c.reward); beep(700, 0.15, 0.05); }
+  if (typing && ui('shopbox').style.display === 'flex') renderShopList(ui('shopInput').value);
+}
+function claimContract() {
+  const c = state.contract; if (!c || !c.done) return;
+  addMoney(c.reward); coinBurst(player.position, 12); state.inv.carbon = (state.inv.carbon || 0) + 5;
+  toast('📋 ¡Contrato cobrado! +$' + c.reward + ' y +5 carbón ⚫'); beep(880, 0.2, 0.05);
+  state.contract = null;
+}
+function renderContractRow(list) {   // fila del contrato arriba de la tienda (solo Platus)
+  const c = state.contract;
+  const row = document.createElement('button'); row.className = 'shopRow';
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;text-align:left;cursor:pointer;pointer-events:all;border:none;border-radius:8px;padding:8px 10px;font-size:14px;font-weight:700;color:#fff;background:rgba(168,85,247,.22);';
+  if (!c) { row.innerHTML = '<span style="font-size:18px">📋</span><span style="flex:1">Pide un CONTRATO al vendedor</span><span style="color:#c4b5fd">Aceptar</span>'; row.onclick = () => { newContract(); renderShopList(ui('shopInput').value); }; }
+  else if (c.done) { row.innerHTML = '<span style="font-size:18px">📋</span><span style="flex:1">¡' + c.txt + ' LISTO!</span><span style="color:#4ade80">Cobrar $' + c.reward + '</span>'; row.onclick = () => { claimContract(); renderShopList(ui('shopInput').value); }; }
+  else { row.innerHTML = '<span style="font-size:18px">' + c.icon + '</span><span style="flex:1">' + c.txt + '</span><span style="color:#c4b5fd">' + c.have + '/' + c.need + '</span>'; row.onclick = () => toast('📋 ' + c.txt + ' (' + c.have + '/' + c.need + ')'); }
+  list.appendChild(row);
+}
 function shopIcon(item) {
   if (item.key === 'jetpack') return '🚀'; if (item.key === 'laserpistol') return '🔫';
   if (item.key === 'escudo') return '🛡️'; if (item.key === 'alienpet') return '👽';
@@ -2885,6 +2922,7 @@ function renderShopList(filter) {
     });
     return;
   }
+  if (state.planet === 'platus' && !f) renderContractRow(list);   // contrato del vendedor alien arriba de todo
   shopCatalog().filter(it => !f || it.name.toLowerCase().includes(f)).forEach(it => {
     const locked = !state.creative && it.unlockAt && state.totalEarned < it.unlockAt;   // en creativo no hay candados
     const can = !locked && state.money >= it.price;
@@ -3191,6 +3229,7 @@ function startGame() {
   state.dayTime = 0; state.hunger = 100; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
+  state.contract = null;   // sin contratos al empezar
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
@@ -3269,6 +3308,7 @@ function saveGame() {
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       helperWeapon: !!state.helperWeapon, helperArmor: !!state.helperArmor,   // arma/armadura de los hijos
+      contract: state.contract || null,   // contrato del vendedor alien
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
       dadResting: !!dad.userData.resting,
       streak: state.streak || 0,   // racha de noches perfectas
@@ -3770,6 +3810,7 @@ function loadGame() {
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
+  state.contract = d.contract || null;   // contrato del vendedor alien
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
@@ -5112,6 +5153,7 @@ function renderHUD() {
   if (state.creative) gear.unshift('🎨 CREATIVO');
   if (state.ngplus) gear.unshift('⭐ Partida+');
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
+  if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   if (state.dadGun) gear.push('🔫 papá');

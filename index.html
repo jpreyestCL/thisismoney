@@ -131,6 +131,45 @@
     body.touch #rotateHint { display: flex; position: fixed; inset: 0; z-index: 30; flex-direction: column;
       align-items: center; justify-content: center; text-align: center; background: rgba(2,6,23,.96); }
   }
+
+  /* ===== MODO RELOJ (smartwatch): pantalla diminuta, todo mini y lejos de las esquinas (pantallas redondas) ===== */
+  body.watch #rotateHint { display: none !important; }
+  body.watch .topbar { top: 3px; left: 3px; right: 3px; gap: 2px; }
+  body.watch .stat { padding: 1px 4px; border-radius: 6px; }
+  body.watch .stat b { font-size: 6px; letter-spacing: 0; }
+  body.watch .stat span { font-size: 10px; }
+  body.watch .bar { display: none; }
+  body.watch #helpBtn  { top: 28px; left: 4px;  width: 26px; height: 26px; font-size: 12px; }
+  body.watch #soundBtn { top: 28px; left: 32px; width: 26px; height: 26px; font-size: 12px; }
+  body.watch #exitBtn  { top: 28px; left: 60px; height: 26px; font-size: 8px; padding: 0 5px; }
+  body.watch #fotoBtn  { display: none; }
+  body.watch #minimap  { top: 28px !important; right: 4px !important; width: 60px !important; height: 60px !important; }
+  body.watch #objective { display: none; }
+  body.watch #missions { display: none; }   /* el panel de misiones ocupa mucho; el progreso igual avisa por toast */
+  body.watch #gearhud  { top: 92px; right: 4px; font-size: 8px; padding: 2px 4px; max-width: 52vw; }
+  body.watch #joystick { left: 8px; bottom: 44px; width: 76px; height: 76px; }
+  body.watch #joyKnob  { width: 34px; height: 34px; margin: -17px 0 0 -17px; }
+  /* botones de acción: una tira horizontal que se desliza (cabe en cualquier alto de reloj) */
+  body.watch #touchBtns { left: 92px; right: 6px; bottom: 6px; width: auto; height: 36px; gap: 4px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; justify-content: flex-start; align-items: center; -webkit-overflow-scrolling: touch; }
+  body.watch .tbtn { width: 32px; height: 32px; min-width: 32px; font-size: 14px; border-radius: 8px; }
+  body.watch .tbtn small { display: none; }
+  body.watch #moveBtns { left: 8px; right: auto; bottom: 126px; flex-direction: row; gap: 4px; }   /* correr/saltar/agachar: fila compacta arriba del joystick */
+  body.watch #buildbar { top: 56px; left: 4px; right: 68px; bottom: auto; transform: none; max-width: none; gap: 3px; padding: 2px; }
+  body.watch .slot { width: 30px; height: 30px; }
+  body.watch .slot .nm { display: none; }
+  body.watch .slot .ic { font-size: 14px; }
+  body.watch .slot .ct { font-size: 8px; }
+  /* Pantallas/menús en reloj: sin la tabla de teclas (inútil sin teclado), texto chico y que se desplace desde arriba */
+  body.watch .screen { padding: 10px 8px; justify-content: flex-start; }
+  body.watch .screen h1 { font-size: 20px !important; letter-spacing: 1px; margin: 2px 0 !important; }
+  body.watch .screen p { font-size: 9.5px !important; line-height: 1.25 !important; margin-bottom: 4px !important; max-width: 100% !important; }
+  body.watch .keys { display: none; }
+  body.watch .btn { font-size: 13px; padding: 8px 14px; }
+  body.watch #intro { align-items: flex-start; overflow-y: auto; }
+  body.watch #intro > div { padding: 12px 12px !important; max-height: 96vh; overflow-y: auto; width: 96vw !important; }
+  body.watch #introEmoji { font-size: 30px !important; }
+  body.watch #introTitle { font-size: 15px !important; margin: 4px 0 3px !important; }
+  body.watch #introText { font-size: 10px !important; line-height: 1.3 !important; margin: 0 0 8px !important; }
 </style>
 </head>
 <body>
@@ -199,6 +238,7 @@
         <button class="bankBtn" id="pauseHelp">📖 Ayuda</button>
         <button class="bankBtn" id="pauseCode">💾 Copiar código</button>
         <button class="bankBtn" id="pauseLoad">📥 Cargar código</button>
+        <button class="bankBtn" id="pauseWatch" style="grid-column:1 / span 2;">⌚ Modo reloj</button>
       </div>
       <button class="btn" id="pauseExit" style="width:100%; margin-top:12px; background:linear-gradient(90deg,#64748b,#475569);">💾 Guardar y salir</button>
     </div>
@@ -3435,6 +3475,16 @@ let touchForced = null; try { const v = localStorage.getItem('tim_touch'); if (v
 function applyTouchMode(on) { document.body.classList.toggle('touch', on); const b = ui('touchToggle'); if (b) b.textContent = on ? '📱 Controles táctiles: SÍ' : '📱 Controles táctiles: NO'; }
 function setTouchMode(on) { touchForced = on; try { localStorage.setItem('tim_touch', on ? '1' : '0'); } catch (e) {} applyTouchMode(on); }
 applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
+// ----- MODO RELOJ: pantallas diminutas (smartwatch). Encoge todo, evita las esquinas (pantallas redondas) y prende rendimiento -----
+const AUTO_WATCH = Math.min(innerWidth, innerHeight) <= 320;
+let watchForced = null; try { const v = localStorage.getItem('tim_watch'); if (v === '1') watchForced = true; else if (v === '0') watchForced = false; } catch (e) {}
+function applyWatchMode(on) {
+  document.body.classList.toggle('watch', on);
+  if (on) { document.body.classList.add('touch'); if (typeof perfMode !== 'undefined' && !perfMode) { perfMode = true; try { localStorage.setItem('tim_perf', '1'); } catch (e) {} if (typeof applyPerfMode === 'function') applyPerfMode(); } }
+  const b = ui('pauseWatch'); if (b) b.textContent = on ? '⌚ Modo reloj: ON' : '⌚ Modo reloj: OFF';
+  if (typeof resize === 'function') resize();
+}
+function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_watch', on ? '1' : '0'); } catch (e) {} applyWatchMode(on); }
 // Los controles táctiles SIEMPRE se enganchan (en PC no molestan: quedan ocultos sin la clase 'touch').
 {
   const TOUCH_LOOK_SENS = 0.0042;   // sensibilidad de mirar en celular (más bajo = más preciso)
@@ -3679,6 +3729,10 @@ function applyPerfMode() {   // modo rendimiento: sin sombras y resolución nati
   scene.traverse(o => { if (o.isMesh && o.material) o.material.needsUpdate = true; });
 }
 applyBtnScale(); if (perfMode) applyPerfMode();
+// Modo reloj: ahora que perfMode ya existe, aplicarlo (auto en pantallas diminutas) y engancharlo al botón + resize
+applyWatchMode(watchForced !== null ? watchForced : AUTO_WATCH);
+addEventListener('resize', () => { if (watchForced === null) applyWatchMode(Math.min(innerWidth, innerHeight) <= 320); });
+if (ui('pauseWatch')) ui('pauseWatch').onclick = () => setWatchMode(!document.body.classList.contains('watch'));
 // PWA: el juego se puede INSTALAR en el teléfono (ícono propio) y funciona OFFLINE
 try { if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js'); } catch (e) {}
 function togglePause(force) {

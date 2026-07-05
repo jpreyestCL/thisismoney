@@ -1700,6 +1700,23 @@ function tryMineCrater() {   // picar el cráter de un meteorito: botín grande 
   return false;
 }
 function clearMeteorShower() { meteors.forEach(g => scene.remove(g)); meteors.length = 0; craters.forEach(c => scene.remove(c.group)); craters.length = 0; meteorTimer = 0; }
+// RASTRO BIOLUMINISCENTE: el suelo de Platus se enciende bajo tus pasos y se apaga despacio
+const trailMarks = [];
+let trailTimer = 0;
+function clearTrail() { trailMarks.forEach(t => scene.remove(t.mesh)); trailMarks.length = 0; }
+function updateTrail(dt) {
+  if (state.planet === 'platus' && !state.inRuins && !state.underground) {
+    trailTimer -= dt;
+    const moving = Math.abs(touch.moveX) + Math.abs(touch.moveY) > 0.1 || keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
+    if (trailTimer <= 0 && moving && grounded) {
+      trailTimer = 0.11;
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.5, 12), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+      disc.rotation.x = -Math.PI / 2; disc.position.set(player.position.x, 0.05, player.position.z);
+      scene.add(disc); trailMarks.push({ mesh: disc, life: 1.6 });
+    }
+  }
+  for (let i = trailMarks.length - 1; i >= 0; i--) { const t = trailMarks[i]; t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / 1.6 * 0.55); t.mesh.scale.setScalar(1 + (1.6 - t.life) * 0.3); if (t.life <= 0) { scene.remove(t.mesh); trailMarks.splice(i, 1); } }
+}
 function spawnCampfire(x, z) {   // crea la fogata (usado al hacerla y al cargar partida)
   const g = new THREE.Group();
   for (let i = 0; i < 3; i++) { const log = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 1.1, 6), mat(0x4a3728)); log.rotation.z = Math.PI / 2; log.rotation.y = i * 1.05; log.position.y = 0.12; g.add(log); }
@@ -4376,6 +4393,7 @@ function goToPlanet() {
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
+  clearTrail();
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
@@ -4842,6 +4860,7 @@ function loop() {
     updateMeteorShower(dt);                // lluvia de meteoritos de noche en Platus (botín)
     updateMushrooms(dt);                   // hongos bioluminiscentes de Platus (curan al recogerlos)
     updateRuins(dt);                       // ruinas alien: recoger orbes/cofre estando adentro
+    updateTrail(dt);                       // rastro bioluminiscente bajo tus pasos (Platus)
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);

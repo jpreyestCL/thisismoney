@@ -1436,17 +1436,22 @@ function buildPlatus() {
     rock.position.set(Math.cos(a) * r, 0.55, Math.sin(a) * r); rock.castShadow = true;
     rock.visible = false; scene.add(rock); platusStuff.push(rock); coalRocks.push(rock);
   }
-  // VENDEDOR ZOMBI: cerca del punto de aterrizaje (10,16). No ataca; vende lo mismo que el vendedor de la Tierra.
+  // VENDEDOR ALIEN (nativo de Platus): cerca del punto de aterrizaje (10,16).
+  // No ataca; vende lo mismo que el vendedor de la Tierra. Aspecto de los aliens del planeta.
   const zx = 17, zz = 14;
-  const zombie = makePerson(0x334155, 0x6b8e23);   // ropa harapienta + piel verde zombi
-  zombie.position.set(zx, 0, zz);
-  zombie.rotation.y = -2.3;   // mirando hacia el aterrizaje
-  if (zombie.userData.limbs) { zombie.userData.limbs.armL.rotation.x = -1.4; zombie.userData.limbs.armR.rotation.x = -1.4; }   // brazos al frente estilo zombi
-  const stall = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1, 1.4), mat(0x3b2b1f));   // mesón del puesto
+  const seller = makePerson(0x6d28d9, 0x7c3aed);   // piel/ropa morada estilo alien de Platus
+  seller.scale.set(1.15, 1.2, 1.15);
+  seller.position.set(zx, 0, zz);
+  seller.rotation.y = -2.3;   // mirando hacia el aterrizaje
+  if (seller.userData.limbs) { seller.userData.limbs.armL.rotation.x = -1.2; seller.userData.limbs.armR.rotation.x = -1.2; }   // brazos al frente ofreciendo mercancía
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 0.7 }));
+  eye.position.set(0, 2.15, 0.34); seller.add(eye);   // ojo cíclope brillante (como los aliens)
+  for (const s of [-1, 1]) { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5), mat(0x4c1d95)); ant.position.set(s * 0.16, 2.5, 0); ant.rotation.z = s * 0.5; seller.add(ant); const tip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshStandardMaterial({ color: 0xd946ef, emissive: 0xd946ef, emissiveIntensity: 0.6 })); tip.position.set(s * 0.32, 2.72, 0); seller.add(tip); }   // antenas con puntas brillantes
+  const stall = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1, 1.4), new THREE.MeshStandardMaterial({ color: 0x3b2452, roughness: .9 }));   // mesón del puesto (roca morada)
   stall.position.set(zx, 0.5, zz - 1.4); stall.castShadow = true;
-  zombie.visible = false; stall.visible = false;
-  scene.add(zombie); scene.add(stall); platusStuff.push(zombie, stall);
-  const zt = makeSign('VENDEDOR ZOMBI (Y)', 0x84cc16); zt.scale.set(.45, .45, .45); zt.position.set(zx, 3.2, zz); zt.visible = false;
+  seller.visible = false; stall.visible = false;
+  scene.add(seller); scene.add(stall); platusStuff.push(seller, stall);
+  const zt = makeSign('VENDEDOR ALIEN (Y)', 0xa78bfa); zt.scale.set(.45, .45, .45); zt.position.set(zx, 3.4, zz); zt.visible = false;
   scene.add(zt); platusStuff.push(zt);
   platusKeepers.push(new THREE.Vector3(zx, 0, zz));
 }
@@ -2460,7 +2465,7 @@ function nearKeeper() {
 }
 function openShopInput() {
   if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
-  if (!nearKeeper()) { toast(state.planet === 'platus' ? '🧟 Acércate al VENDEDOR ZOMBI (cerca del cohete) y pulsa Y' : '🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
+  if (!nearKeeper()) { toast(state.planet === 'platus' ? '👽 Acércate al VENDEDOR ALIEN (cerca del cohete) y pulsa Y' : '🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
   closeMathBox(); closeRocket(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
@@ -3918,7 +3923,7 @@ function goToPlanet() {
   player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
   state.phase = 'DAY'; state.dayTime = 0;
   newMissions();
-  toast('🪐 Llegaste a ' + P.name + ': árboles muertos y noches HELADAS 🥶. Pica CARBÓN ⚫ a golpes 👊, haz FOGATAS (T) y compra materiales al VENDEDOR ZOMBI 🧟 (Y). Junta 10 de carbón para viajar al SIGUIENTE planeta (R). No hay vuelta a la Tierra.');
+  toast('🪐 Llegaste a ' + P.name + ': árboles muertos y noches HELADAS 🥶. Pica CARBÓN ⚫ a golpes 👊, haz FOGATAS (T) y compra materiales al VENDEDOR ALIEN 👽 (Y). Junta 10 de carbón para viajar al SIGUIENTE planeta (R). No hay vuelta a la Tierra.');
   phaseText(P.name);
 }
 
@@ -4389,7 +4394,7 @@ function drawMinimap() {
   } else {   // Platus: rocas de carbón, fogatas, el vendedor zombi y el cohete
     for (const r of coalRocks) dot(r.position.x, r.position.z, '#0f172a', 2.5);
     for (const f of campfires) icon(f.position.x, f.position.z, '🔥', 11);
-    for (const k of platusKeepers) icon(k.x, k.z, '🧟', 13);
+    for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)

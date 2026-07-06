@@ -3041,6 +3041,7 @@ function makeHelperAt(x, z) {   // crea un ayudante en (x,z) sin cobrar (usado p
 function clearHelpers() { helpers.forEach(h => scene.remove(h)); helpers.length = 0; }
 function spawnHelper() {   // puedes tener TODOS los hijos que quieras ($300 c/u)
   if (state.phase !== 'DAY') { toast('Solo puedes llamar ayudantes de día'); return; }
+  if (state.creative && !state.momUnlocked) { state.momUnlocked = true; if (!mom.visible) dadReturnsWithMom(); }   // creativo: la mamá está desbloqueada aunque no hayas ganado $20.000
   if (!state.momUnlocked) { toast('Necesitas conocer a la mamá (a las $20.000)'); return; }
   if (state.money < 300) { toast('Un ayudante cuesta $300'); return; }
   state.money -= 300;
@@ -3653,6 +3654,7 @@ ui('nameOk').onclick = () => {
   startGame();
   if (pendingMode === 'creative') {
     state.creative = true; state.money = 999999999;
+    state.momUnlocked = true; state.momEventPending = false; dadReturnsWithMom();   // creativo: la mamá ya está (sin esperar a los $20.000), así puedes crear hijos con H
     toast('🎨 MODO CREATIVO: plata infinita y todo desbloqueado. ¡Compra y construye lo que quieras!');
   }
 };

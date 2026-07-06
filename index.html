@@ -532,6 +532,17 @@ sun.shadow.camera.left = -90; sun.shadow.camera.right = 90;
 sun.shadow.camera.top = 90; sun.shadow.camera.bottom = -90;
 sun.shadow.bias = -0.0004;
 scene.add(sun);
+// Saca un objeto de la escena Y libera geometría/material de la GPU de él y de todos sus hijos
+// (evita fugas de VRAM que laguean el móvil). Sirve para Mesh sueltos y para Group con hijos.
+// OJO: no usar con objetos que comparten geometría/material (p.ej. las marcas del rastro usan TRAIL_GEO).
+function killMesh(m) {
+  if (!m) return;
+  scene.remove(m);
+  m.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) { if (Array.isArray(o.material)) o.material.forEach(x => x.dispose()); else o.material.dispose(); }
+  });
+}
 
 const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 });
 const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el plano
@@ -771,6 +782,9 @@ const ALIEN_TECH = [
   { key: 'laserpistol', name: 'Pistola láser',     price: 1800, color: 0xef4444, dmg: 22, alien: true },
   { key: 'escudo',      name: 'Escudo de energía', price: 1600, color: 0x38bdf8, alien: true },
   { key: 'alienpet',    name: 'Mascota alien',     price: 2200, color: 0x7c3aed, alien: true },
+  { key: 'baseespacial',  name: 'Base espacial',     price: 3000, color: 0xbfe3ff, alien: true },
+  { key: 'basetorreta',   name: 'Torreta de base',   price: 2000, color: 0x22d3ee, alien: true },
+  { key: 'basegenerador', name: 'Generador de base', price: 2500, color: 0xfacc15, alien: true },
 ];
 // El vendedor de Platus ofrece TODO lo de la Tierra (menos autos/motos) + la tecnología alien exclusiva
 function shopCatalog() { return state.planet === 'platus' ? SHOP.filter(it => !it.car && it.key !== 'moto').concat(ALIEN_TECH) : SHOP; }
@@ -1537,7 +1551,7 @@ function buildCrystals() {
       cr.position.set((Math.random() * 2 - 1) * 0.4, 0.75 + Math.random() * 0.3, (Math.random() * 2 - 1) * 0.4);
       cr.rotation.set(Math.random() * .5 - .25, Math.random() * 6, Math.random() * .5 - .25); cr.castShadow = true; cr.userData.shard = true; g.add(cr);
     }
-    const light = new THREE.PointLight(col, 0.5, 7); light.position.y = 1; g.add(light);
+    // (sin PointLight: los cristales brillan por material emisivo; muchas luces dinámicas laguean el móvil)
     g.visible = false; scene.add(g);
     const c = { group: g, gems: rare ? 2 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3), value: rare ? 400 + Math.floor(Math.random() * 300) : 80 + Math.floor(Math.random() * 90), rare };
     c.maxGems = c.gems; crystals.push(c);
@@ -1555,7 +1569,7 @@ function buildMushrooms() {
     g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 7), new THREE.MeshStandardMaterial({ color: 0xe5e7eb, emissive: 0x334155, emissiveIntensity: .2 })); stem.position.y = 0.3; g.add(stem);
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: .85, roughness: .4 })); cap.position.y = 0.6; cap.scale.y = 0.7; g.add(cap);
-    const li = new THREE.PointLight(col, 0.5, 5); li.position.y = 0.7; g.add(li);
+    // (sin PointLight: el hongo brilla por su material emisivo; evitamos decenas de luces dinámicas)
     g.visible = false; scene.add(g);
     mushrooms.push({ group: g, ready: true, regrow: 0, col });
   }
@@ -1819,7 +1833,7 @@ const geodes = [];
     const g = new THREE.Group();
     const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.8, 0), new THREE.MeshStandardMaterial({ color: 0x4a4658, roughness: .95 })); rock.castShadow = true; g.add(rock);
     const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({ color: 0x67e8f9, emissive: 0x22d3ee, emissiveIntensity: .7 })); g.add(core);   // cristal interior (se ve al agrietarse)
-    const light = new THREE.PointLight(0x22d3ee, 0.6, 8); light.position.y = 1; g.add(light);
+    // (sin PointLight: la geoda brilla por su núcleo emisivo)
     const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 160;
     g.position.set(Math.cos(a) * r, 1.4, Math.sin(a) * r); g.visible = false; scene.add(g);
     geodes.push({ group: g, rock, hp: 12, maxhp: 12, ready: true });
@@ -2023,7 +2037,7 @@ const floatIslands = [], geysers = [];
     const g = new THREE.Group(); g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad * 0.6, 1.6, 16), new THREE.MeshStandardMaterial({ color: 0x4a3b6a, roughness: .9 })); disc.position.y = y; disc.castShadow = true; g.add(disc);
     const top = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 0.3, 16), new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x4c1d95, emissiveIntensity: .25 })); top.position.y = y + 0.9; g.add(top);
-    const chest = new THREE.Group(); const base = new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 0.7), mat(0x92400e)); base.position.y = 0.35; chest.add(base); const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 0.7), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .5 })); lid.position.y = 0.8; chest.add(lid); chest.add(new THREE.PointLight(0xfde047, 0.6, 7)); chest.position.set(0, y + 1.05, 0); g.add(chest);
+    const chest = new THREE.Group(); const base = new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 0.7), mat(0x92400e)); base.position.y = 0.35; chest.add(base); const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 0.7), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .5 })); lid.position.y = 0.8; chest.add(lid); chest.position.set(0, y + 1.05, 0); g.add(chest);
     g.visible = false; scene.add(g);
     floatIslands.push({ x: g.position.x, z: g.position.z, top: y + 1.05, r: rad, group: g, chest, value: 0, ready: false });
   }
@@ -2032,7 +2046,6 @@ const floatIslands = [], geysers = [];
     const g = new THREE.Group(); g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     const col = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.7, 4, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: .35, side: THREE.DoubleSide })); col.position.y = 2; g.add(col);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.25, 8, 20), new THREE.MeshStandardMaterial({ color: 0x0891b2, emissive: 0x22d3ee, emissiveIntensity: .6 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.2; g.add(ring);
-    g.add(new THREE.PointLight(0x22d3ee, 0.6, 8));
     g.visible = false; scene.add(g);
     geysers.push({ x: g.position.x, z: g.position.z, group: g, col });
   }
@@ -2056,6 +2069,48 @@ function geyserBoost() {   // devuelve true si el jugador está sobre un géiser
   if (state.planet !== 'platus') return false;
   for (const ge of geysers) if (dist2D(player.position, { x: ge.x, z: ge.z }) < 2) return true;
   return false;
+}
+// BASE ESPACIAL PROPIA: cúpula + torretas láser (defienden de noche) + generador (plata por noche). Se arma en CADA planeta.
+const BASE_POS = new THREE.Vector3(22, 0, 22);
+let baseGroup = null;
+function removeBase() { if (baseGroup) { scene.remove(baseGroup); baseGroup = null; } }
+function buildBaseMesh() {
+  const g = new THREE.Group();
+  g.add(Object.assign(new THREE.Mesh(new THREE.CylinderGeometry(3.9, 4.2, 0.4, 20), mat(0x475569)), {}));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(3.6, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: .4, roughness: .1, metalness: .2 })); dome.position.y = 0.2; g.add(dome);
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.5), mat(0x94a3b8)); ant.position.y = 4.4; g.add(ant);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: .8 })); tip.position.y = 6.6; g.add(tip);
+  g.add(new THREE.PointLight(0x8bd0ff, 0.9, 16));
+  const turrets = [], nT = state.baseTurrets || 0;
+  for (let i = 0; i < nT; i++) {
+    const a = i / Math.max(1, nT) * Math.PI * 2, t = new THREE.Group();
+    const bs = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.8), mat(0x334155)); bs.position.y = 0.5; t.add(bs);
+    const br = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.9), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0891b2, emissiveIntensity: .5 })); br.rotation.x = Math.PI / 2; br.position.set(0, 0.6, 0.5); t.add(br);
+    t.position.set(Math.cos(a) * 3.5, 0, Math.sin(a) * 3.5); g.add(t); turrets.push({ group: t, cd: 0 });
+  }
+  if (state.baseGenerator) { const gen = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.2, 0.9), mat(0xca8a04)); gen.position.set(0, 0.6, -2.6); g.add(gen); const glow = new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xfde047, emissiveIntensity: .9 })); glow.position.set(0, 1.4, -2.6); g.add(glow); }
+  g.userData.turrets = turrets;
+  return g;
+}
+function spawnBase() { removeBase(); if (!state.baseLevel) return; baseGroup = buildBaseMesh(); baseGroup.position.copy(BASE_POS); scene.add(baseGroup); }
+function updateBaseDefense(dt) {
+  if (!baseGroup || state.phase !== 'NIGHT' || state.planet !== 'platus') return;
+  const wp = new THREE.Vector3();
+  for (const t of baseGroup.userData.turrets) {
+    t.cd -= dt; t.group.getWorldPosition(wp);
+    let near = null, nd = 26;
+    for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(e.position, wp); if (d < nd) { nd = d; near = e; } }
+    if (near) {
+      t.group.rotation.y = Math.atan2(near.position.x - wp.x, near.position.z - wp.z);
+      if (t.cd <= 0) {
+        t.cd = 0.5; hitEnemy(near, 18, wp);
+        const from = wp.clone().setY(1.2), to = near.position.clone().setY(1), dir = new THREE.Vector3().subVectors(to, from);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, dir.length() || 1, 6), new THREE.MeshBasicMaterial({ color: 0x22d3ee }));
+        beam.position.copy(from).addScaledVector(dir, 0.5); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+        scene.add(beam); setTimeout(() => killMesh(beam), 80); beep(700, 0.04, 0.03);
+      }
+    }
+  }
 }
 // HUEVOS ALIEN: recógelos por el planeta; incuban solos y eclosionan en una mascota de rareza al azar (gacha)
 const eggs = [], eggPets = [];
@@ -2165,7 +2220,7 @@ function spawnFallingMeteor() {
   scene.add(g); meteors.push(g); beep(120, 0.3, 0.04);
 }
 function landMeteor(g) {
-  const x = g.userData.tx, z = g.userData.tz; scene.remove(g);
+  const x = g.userData.tx, z = g.userData.tz; killMesh(g);
   const cg = new THREE.Group(); cg.position.set(x, 0, z);
   const mound = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.5, 8, 16), new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 1 })); mound.rotation.x = -Math.PI / 2; mound.position.y = 0.1; cg.add(mound);
   const core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7), new THREE.MeshStandardMaterial({ color: 0x1f2937, emissive: 0xff7733, emissiveIntensity: 0.6 })); core.position.y = 0.5; cg.add(core);
@@ -2181,7 +2236,7 @@ function updateMeteorShower(dt) {
     const g = meteors[i]; g.userData.vy += 40 * dt; g.position.y -= g.userData.vy * dt; g.rotation.x += 3 * dt; g.rotation.z += 2 * dt;
     if (g.position.y <= 0.5) { landMeteor(g); meteors.splice(i, 1); }
   }
-  for (let i = craters.length - 1; i >= 0; i--) { const c = craters[i]; c.life -= dt; if (c.life <= 0 || c.gems <= 0) { scene.remove(c.group); craters.splice(i, 1); } }
+  for (let i = craters.length - 1; i >= 0; i--) { const c = craters[i]; c.life -= dt; if (c.life <= 0 || c.gems <= 0) { killMesh(c.group); craters.splice(i, 1); } }
   const lava = state.planetHazard === 'lava';   // HELIOS: meteoritos también de día (bombardeo constante)
   if (state.planet === 'platus' && !state.cinematic && (state.phase === 'NIGHT' || (lava && state.phase === 'DAY'))) {
     meteorTimer -= dt;
@@ -2213,13 +2268,14 @@ function updateTrail(dt) {
     const moving = Math.abs(touch.moveX) + Math.abs(touch.moveY) > 0.1 || keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
     if (trailTimer <= 0 && moving && grounded) {
       trailTimer = 0.11;
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.5, 12), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+      const disc = new THREE.Mesh(TRAIL_GEO, new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));   // geometría compartida (no se crea una nueva cada 0.11s)
       disc.rotation.x = -Math.PI / 2; disc.position.set(player.position.x, 0.05, player.position.z);
       scene.add(disc); trailMarks.push({ mesh: disc, life: 1.6 });
     }
   }
-  for (let i = trailMarks.length - 1; i >= 0; i--) { const t = trailMarks[i]; t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / 1.6 * 0.55); t.mesh.scale.setScalar(1 + (1.6 - t.life) * 0.3); if (t.life <= 0) { scene.remove(t.mesh); trailMarks.splice(i, 1); } }
+  for (let i = trailMarks.length - 1; i >= 0; i--) { const t = trailMarks[i]; t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / 1.6 * 0.55); t.mesh.scale.setScalar(1 + (1.6 - t.life) * 0.3); if (t.life <= 0) { scene.remove(t.mesh); t.mesh.material.dispose(); trailMarks.splice(i, 1); } }   // geometría compartida: solo se libera el material
 }
+const TRAIL_GEO = new THREE.CircleGeometry(0.5, 12);   // geometría única reutilizada por todas las marcas del rastro
 // ESTRELLA FUGAZ (noches de Platus): cruza el cielo; vuela/salta y tócala para un DESEO (premio al azar)
 let shootStar = null, shootStarTimer = 22;
 function spawnShootingStar() {
@@ -2906,14 +2962,12 @@ function launchBull(k) {
 }
 function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena; }   // bajo tierra / ruinas / castillo / coliseo: los monstruos de la superficie NO te ven
 function pickTarget(from) {
-  const cands = [];
-  if (!isPlayerHidden()) cands.push(player.position);   // escondido: los monstruos NO te ven
-  if (dad.visible && !dad.userData.resting) cands.push(dad.position);   // descansando: los monstruos no lo ven
-  for (const h of helpers) cands.push(h.position);
-  if (!cands.length) return HOUSE;   // nada que atacar (todos escondidos): van hacia la casa
-  let best = cands[0], bd = dist2D(from, best);
-  for (const c of cands) { const d = dist2D(from, c); if (d < bd) { bd = d; best = c; } }
-  return best;
+  // Sin array temporal: se elige el más cercano sobre la marcha (esto se llama por enemigo por frame; evitar basura para el GC)
+  let best = null, bd = Infinity;
+  if (!isPlayerHidden()) { best = player.position; bd = dist2D(from, best); }   // escondido: los monstruos NO te ven
+  if (dad.visible && !dad.userData.resting) { const d = dist2D(from, dad.position); if (d < bd) { bd = d; best = dad.position; } }   // descansando: no lo ven
+  for (const h of helpers) { const d = dist2D(from, h.position); if (d < bd) { bd = d; best = h.position; } }
+  return best || HOUSE;   // nada que atacar (todos escondidos): van hacia la casa
 }
 function moveToward(e, target, step) {
   const dx = target.x - e.position.x, dz = target.z - e.position.z; const len = Math.hypot(dx, dz) || 1;
@@ -3270,6 +3324,7 @@ const state = {
   coreClaimed: false, relics: 0, trophies: 0,   // núcleo (reliquias) + trofeos de titanes
   riding: false,   // montando una criatura firma domada
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
+  baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -3486,6 +3541,7 @@ function renderContractRow(list) {   // fila del contrato arriba de la tienda (s
 function shopIcon(item) {
   if (item.key === 'jetpack') return '🚀'; if (item.key === 'laserpistol') return '🔫';
   if (item.key === 'escudo') return '🛡️'; if (item.key === 'alienpet') return '👽';
+  if (item.key === 'baseespacial') return '🏕️'; if (item.key === 'basetorreta') return '🔫'; if (item.key === 'basegenerador') return '⚡';
   if (item.car) return '🚗'; if (item.paint) return '🎨';
   if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
   if (item.factor) return '🛡️'; if (item.key === 'semillas') return '🌱';
@@ -3851,8 +3907,9 @@ function startGame() {
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
   state.mathLeft = 5; state.mathStreak = 0;
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
-  removePet(); removeAlienPet(); removeFloor2();
+  removePet(); removeAlienPet(); removeFloor2(); removeBase();
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;   // tecnología alien: se compra de nuevo
+  state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
   houseTier = 0;
   newMissions();
   checkDailyStreak();
@@ -3934,6 +3991,7 @@ function saveGame() {
       missions: state.missions || null,   // misiones del día con su progreso
       bestiary: state.bestiary || {},     // colección de monstruos
       album: state.album || {}, albumDone: !!state.albumDone,   // álbum de criaturas alien
+      baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
     };
     localStorage.setItem(saveKey(), JSON.stringify(data));
   } catch (e) {}
@@ -4461,8 +4519,9 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
-  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
+  state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); spawnBase(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
+  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
   state.contract = d.contract || null;   // contrato del vendedor alien
@@ -4505,8 +4564,9 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); removeBase(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
+  state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
@@ -4800,6 +4860,23 @@ function buyItem(item) {
     state.money -= item.price; state.laserGun = true;
     if (item.dmg > state.weaponDmg) { state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color); }
     toast('🔫 ¡Pistola láser! Dispara LEJOS con un rayo (👊 / clic)'); return;
+  }
+  if (item.key === 'baseespacial') {
+    if (state.baseLevel) { toast('🏕️ Ya tienes tu base espacial'); return; }
+    state.money -= item.price; state.baseLevel = 1; spawnBase();
+    toast('🏕️ ¡Base espacial! Queda armada en (22,22) en CADA planeta. Añade torretas y un generador'); return;
+  }
+  if (item.key === 'basetorreta') {
+    if (!state.baseLevel) { toast('🏕️ Primero compra la Base espacial'); return; }
+    if (state.baseTurrets >= 4) { toast('🔫 Ya tienes el máximo de torretas (4)'); return; }
+    state.money -= item.price; state.baseTurrets++; spawnBase();
+    toast('🔫 ¡Torreta de base! Dispara sola a los enemigos de noche (' + state.baseTurrets + '/4)'); return;
+  }
+  if (item.key === 'basegenerador') {
+    if (!state.baseLevel) { toast('🏕️ Primero compra la Base espacial'); return; }
+    if (state.baseGenerator) { toast('⚡ Ya tienes el generador'); return; }
+    state.money -= item.price; state.baseGenerator = true; spawnBase();
+    toast('⚡ ¡Generador! Te paga plata cada noche que sobrevivas en Platus'); return;
   }
   state.money -= item.price;
   tone(880, 0.06, 0.045, 'triangle'); setTimeout(() => tone(1175, 0.08, 0.045, 'triangle'), 70);   // sonido de compra
@@ -5099,6 +5176,7 @@ function goToPlanet() {
   state.inCastle = false; setCastleVisible(false); refillCastle();           // castillo laberinto con tesoros/aliens nuevos
   state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum();   // coliseo de oleadas
   refillFloatingWorld();   // islas flotantes con cofres nuevos
+  spawnBase();             // base espacial propia (se re-arma en cada planeta si la compraste)
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
   applyPlanetLook(P);                                                        // árboles, lunas, cielo y niebla propios del planeta
@@ -5211,7 +5289,7 @@ function shootBeam(target) {
   beam.position.copy(from).addScaledVector(dirv, 0.5);
   beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirv.clone().normalize());
   scene.add(beam); beep(760, 0.05, 0.045);
-  setTimeout(() => scene.remove(beam), 90);
+  setTimeout(() => killMesh(beam), 90);
 }
 
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
@@ -5428,6 +5506,10 @@ function surviveNight() {
   } else if (state.streak) { state.streak = 0; toast('💔 La casa recibió daño: se cortó la racha'); }
   reward = Math.round(reward * (1 + 0.1 * Math.min(10, state.streak || 0)));   // la racha paga hasta el doble
   addMoney(reward);
+  if (state.baseGenerator && state.planet === 'platus') {   // generador de la base espacial: renta pasiva por noche sobrevivida en Platus
+    const gen = 300 + 100 * state.stage; addMoney(gen);
+    setTimeout(() => toast('⚡ +$' + gen + ' del GENERADOR de tu base espacial'), 5000);
+  }
   state.hp = Math.min(100, state.hp + 40); state.dadHp = Math.min(100, state.dadHp + 30);
   state.poison = 0; state.dadPoison = 0;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
@@ -5585,6 +5667,7 @@ function loop() {
     updateTitanBoss(dt);                   // jefe TITÁN (kaiju gigante, raro)
     updateArena(dt);                       // coliseo alien: oleadas de enemigos
     updateFloatingWorld(dt);               // islas flotantes (cofres) + géiseres
+    updateBaseDefense(dt);                 // torretas de la base espacial disparan de noche
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -5665,6 +5748,7 @@ function drawMinimap() {
     if (coliGate && coliGate.visible && !state.inArena) icon(coliGate.position.x, coliGate.position.z, '🏟️', 14);
     for (const is of floatIslands) if (is.ready) icon(is.x, is.z, '🏝️', 11);
     for (const ge of geysers) dot(ge.x, ge.z, '#67e8f9', 2);
+    if (state.baseLevel) icon(BASE_POS.x, BASE_POS.z, '🏕️', 13);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }
   if (state.inCastle) {   // dentro del castillo: guía del laberinto (tesoros, aliens buenos/malos)
@@ -5942,6 +6026,7 @@ function renderHUD() {
   if (eggPets.length) gear.push('🐣 ' + eggPets.length);
   if (state.relics > 0) gear.push('🏆 ' + state.relics + ' reliquias');
   if (state.riding) gear.push('🐾 montando (E baja)');
+  if (state.baseLevel && state.planet === 'platus') gear.push('🏕️ base' + (state.baseTurrets ? ' 🔫' + state.baseTurrets : '') + (state.baseGenerator ? ' ⚡' : ''));
   if (state.inCastle) gear.push('🏰 castillo — bóveda 🏆 al fondo (E sale)');
   if (state.inArena) gear.push('🏟️ COLISEO oleada ' + arenaWave + ' · quedan ' + arenaFoes.length + ' (E sale)');
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);

@@ -1884,6 +1884,66 @@ function digUpTreasure(tx, tz) {   // llamado al cavar: si hay un tesoro enterra
   }
   return false;
 }
+// JEFE TITÁN (kaiju): criatura GIGANTE que aparece muy de vez en cuando; camina hacia ti, aguanta mucho y pisotea. Derrotarla = premio épico + trofeo
+let titan = null, titanTimer = 150 + Math.random() * 130;
+function makeTitanMesh() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(4, 6, 3), new THREE.MeshStandardMaterial({ color: 0x3b0764, emissive: 0x6d28d9, emissiveIntensity: .3, roughness: .8 })); body.position.y = 6; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2, 2.4), mat(0x4c1d95)); head.position.y = 10; g.add(head);
+  for (const s of [-0.7, 0.7]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfca5a5, emissive: 0xef4444, emissiveIntensity: 1 })); eye.position.set(s, 10.3, 1.25); g.add(eye); }
+  for (const s of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.7, 6), mat(0x7c3aed)); horn.position.set(s * 0.85, 11.4, 0); g.add(horn); }
+  for (const s of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(1.2, 5, 1.2), mat(0x3b0764)); arm.position.set(s * 2.9, 6, 0); g.add(arm); }
+  const legs = []; for (const s of [-1, 1]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(1.5, 4, 1.5), mat(0x2a0a4a)); leg.position.set(s, 2, 0); g.add(leg); legs.push(leg); }
+  g.add(new THREE.PointLight(0x7c3aed, 1.6, 34)); g.userData.legs = legs;
+  return g;
+}
+function spawnTitan() {
+  const g = makeTitanMesh(); const a = Math.random() * Math.PI * 2;
+  g.position.set(player.position.x + Math.cos(a) * 42, 0, player.position.z + Math.sin(a) * 42); scene.add(g);
+  const maxhp = 800 + 220 * state.stage;
+  const bar = new THREE.Group();
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.5), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+  const fg = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.5), new THREE.MeshBasicMaterial({ color: 0xef4444 })); fg.position.z = 0.01;
+  bar.add(bg); bar.add(fg); scene.add(bar);
+  titan = { mesh: g, hp: maxhp, maxhp, atkCd: 0, stepT: 0, bar: { g: bar, fg } };
+  toast('🐙 ¡APARECIÓ EL TITÁN DEL PLANETA! Enorme y peligroso. Derríbalo (láser 🔫 o de cerca) para un premio ÉPICO 🏆'); phaseText('🐙 ¡TITÁN!');
+  beep(60, 0.8, 0.07); setTimeout(() => beep(48, 0.9, 0.07), 420);
+}
+function clearTitan() { if (titan) { scene.remove(titan.mesh); scene.remove(titan.bar.g); titan = null; } }
+function defeatTitan() {
+  const reward = 4000 + 600 * state.stage;
+  addMoney(reward); coinBurst(titan.mesh.position.clone().setY(4), 40);
+  floatText(titan.mesh.position.clone().setY(6), '🏆 ¡TITÁN DERROTADO! +$' + reward, '#fde047', 26);
+  toast('🏆 ¡DERROTASTE AL TITÁN! +$' + reward + ' y un TROFEO 🏆'); state.trophies = (state.trophies || 0) + 1; discoverAlien('titan');
+  tone(440, .2, .06, 'sawtooth'); setTimeout(() => tone(660, .25, .06, 'sawtooth'), 160); vibr([60, 40, 120]);
+  clearTitan();
+}
+function hitTitan(dmg) {
+  if (!titan) return false;
+  const p = player.position, dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const range = state.laserGun ? 34 : 6;
+  if (dist2D(p, titan.mesh.position) > range) return false;
+  const to = new THREE.Vector3().subVectors(titan.mesh.position, p).normalize();
+  if (to.dot(dir) < 0.2) return false;
+  titan.hp -= dmg; floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15); beep(180, 0.05, 0.035);
+  if (state.laserGun) shootBeam(titan.mesh.position.clone().setY(8));
+  if (titan.hp <= 0) defeatTitan();
+  return true;
+}
+function updateTitan(dt) {
+  const t = titan; t.stepT += dt;
+  const d = dist2D(t.mesh.position, player.position);
+  if (d > 4.5) { moveToward(t.mesh, player.position, 2.3 * dt); t.mesh.rotation.y = Math.atan2(player.position.x - t.mesh.position.x, player.position.z - t.mesh.position.z); if (t.mesh.userData.legs) { t.mesh.userData.legs[0].rotation.x = Math.sin(t.stepT * 4) * 0.4; t.mesh.userData.legs[1].rotation.x = -Math.sin(t.stepT * 4) * 0.4; } }
+  else { t.atkCd -= dt; if (t.atkCd <= 0) { t.atkCd = 1.5; if (!state.creative && !isPlayerHidden()) state.hp -= 18 * state.armorFactor; floatText(player.position, '🐙 ¡PISOTÓN!', '#ef4444', 18); beep(70, 0.3, 0.06); } }
+  t.bar.g.position.set(t.mesh.position.x, 13, t.mesh.position.z); t.bar.g.quaternion.copy(camera.quaternion);
+  const f = Math.max(0, t.hp / t.maxhp); t.bar.fg.scale.x = f || 0.001;
+}
+function updateTitanBoss(dt) {
+  if (state.planet !== 'platus' || state.inRuins || state.inCastle || state.cinematic) return;
+  if (titan) { updateTitan(dt); return; }
+  titanTimer -= dt;
+  if (titanTimer <= 0) { titanTimer = 200 + Math.random() * 170; spawnTitan(); }
+}
 // HUEVOS ALIEN: recógelos por el planeta; incuban solos y eclosionan en una mascota de rareza al azar (gacha)
 const eggs = [], eggPets = [];
 const EGG_TIERS = [
@@ -3094,7 +3154,7 @@ const state = {
   incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
   album: {}, albumDone: false,   // álbum de criaturas alien (colección)
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
-  coreClaimed: false, relics: 0,   // núcleo del planeta (1 por planeta) + reliquias juntadas
+  coreClaimed: false, relics: 0, trophies: 0,   // núcleo (reliquias) + trofeos de titanes
   riding: false,   // montando una criatura firma domada
   inCastle: false,   // dentro del castillo alien (laberinto)
 };
@@ -3672,7 +3732,7 @@ function startGame() {
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.contract = null;   // sin contratos al empezar
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
-  endEclipse(); state.coreClaimed = false; state.relics = 0; removeMount(); state.inCastle = false; setCastleVisible(false);
+  endEclipse(); state.coreClaimed = false; state.relics = 0; state.trophies = 0; removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan();
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
@@ -3754,7 +3814,7 @@ function saveGame() {
       contract: state.contract || null,   // contrato del vendedor alien
       eggPets: eggPets.map(p => ({ dmg: p.userData.dmg, col: p.userData.col, tier: p.userData.tier })),   // mascotas nacidas de huevos
       incubTime: state.incubTime || 0, eggQueue: state.eggQueue || 0,
-      coreClaimed: !!state.coreClaimed, relics: state.relics || 0,
+      coreClaimed: !!state.coreClaimed, relics: state.relics || 0, trophies: state.trophies || 0,
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
       dadResting: !!dad.userData.resting,
       streak: state.streak || 0,   // racha de noches perfectas
@@ -4149,7 +4209,7 @@ function recordKill(e) {   // registra el kill en el bestiario; la 1ª vez de ca
   discoverAlien(t);
 }
 // ÁLBUM ALIEN: colección de las criaturas de los planetas; completarlo da un gran bono
-const ALIEN_ALBUM = ['alien', 'alienBig', 'ufo', 'yeti', 'sporeling', 'floater', 'fogGhost', 'sandCrawler', 'lavaWorm', 'eggpet', 'castleFoe', 'castleFriend'];
+const ALIEN_ALBUM = ['alien', 'alienBig', 'ufo', 'yeti', 'sporeling', 'floater', 'fogGhost', 'sandCrawler', 'lavaWorm', 'eggpet', 'castleFoe', 'castleFriend', 'titan'];
 const ALBUM_NAMES = Object.assign({}, ENEMY_NAMES, { eggpet: 'Mascota de huevo', castleFoe: 'Guardián del castillo', castleFriend: 'Alien bueno', titan: 'TITÁN del planeta' });
 function discoverAlien(key) {
   if (!ALIEN_ALBUM.includes(key)) return;
@@ -4294,8 +4354,8 @@ function loadGame() {
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
   state.contract = d.contract || null;   // contrato del vendedor alien
   clearEggPets(); (d.eggPets || []).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
-  state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0;
-  endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false);
+  state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0; state.trophies = d.trophies || 0;
+  endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan();
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
   player.position.set(d.px != null ? d.px : 10, PLAYER_EYE, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
@@ -4335,7 +4395,7 @@ function resetAll() {
   clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
-  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false);
+  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan();
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
@@ -4910,6 +4970,7 @@ function goToPlanet() {
   clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
   clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false; removeMount();   // cada planeta tiene su propio núcleo; la montura no viaja
+  clearTitan(); titanTimer = 150 + Math.random() * 130;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
   placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
@@ -5013,6 +5074,7 @@ function attack() {
   if (state.buildMode) return;
   vmSwing = 1; beep(320, 0.05, 0.03);
   if (state.inCastle) { attackCastleFoe(); return; }   // en el castillo, el golpe pega a los aliens malos
+  if (titan && hitTitan(state.weaponDmg)) return;      // golpear al TITÁN
   const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const range = state.laserGun ? 30 : 5, dmg = state.weaponDmg;   // la pistola láser dispara LEJOS
   let best = null, bestD = range;
@@ -5040,6 +5102,7 @@ function shootBeam(target) {
 function attackNPC() {
   if (state.buildMode) return;
   if (state.inCastle) { vmSwing = 1; beep(320, 0.05, 0.03); attackCastleFoe(); return; }   // en el castillo (de día también) el golpe pega a los aliens malos
+  if (titan && hitTitan(state.weaponDmg)) { vmSwing = 1; return; }   // golpear al TITÁN (de día también)
   if (state.planet === 'platus') { vmSwing = 1; if (!tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus el golpe de día: GEODA · CRISTAL · CARBÓN
   const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const range = 4;
@@ -5402,6 +5465,7 @@ function loop() {
     updateEclipse(dt);                     // eclipse cósmico: evento raro (gravedad casi cero + lluvia de botín)
     updateCastle(dt);                      // castillo alien: laberinto con tesoros y aliens buenos/malos
     updateDetector(dt);                    // detector de tesoros enterrados (pita caliente/frío)
+    updateTitanBoss(dt);                   // jefe TITÁN (kaiju gigante, raro)
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -5478,6 +5542,7 @@ function drawMinimap() {
     for (const e of eggs) if (e.ready) icon(e.group.position.x, e.group.position.z, '🥚', 11);
     if (ruinsEntrance && ruinsEntrance.visible && !state.inRuins) icon(ruinsEntrance.position.x, ruinsEntrance.position.z, '🏛️', 13);
     if (castleGate && castleGate.visible && !state.inCastle) icon(castleGate.position.x, castleGate.position.z, '🏰', 14);
+    if (titan) icon(titan.mesh.position.x, titan.mesh.position.z, '🐙', 16);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }
   if (state.inCastle) {   // dentro del castillo: guía del laberinto (tesoros, aliens buenos/malos)
@@ -5738,6 +5803,7 @@ function renderHUD() {
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));
   if (state.planet === 'platus' && !state.inRuins && !state.inCastle && hasShovelNow()) { const nb = nearestBuried(); if (nb) gear.push('🔎 ' + (nb.d < 6 ? '🔥 ¡CAVA AQUÍ!' : nb.d < 18 ? '🌡️ caliente' : nb.d < 40 ? '😐 tibio' : '❄️ frío')); }
   if (state.planet === 'platus') { const af = ALIEN_ALBUM.filter(k => (state.album || {})[k]).length; gear.push('🧬 ' + af + '/' + ALIEN_ALBUM.length); }
+  if (state.trophies > 0) gear.push('🏆 ' + state.trophies);
   if (state.incubTime > 0) gear.push('🥚 incubando ' + Math.ceil(state.incubTime) + 's' + (state.eggQueue > 0 ? ' (+' + state.eggQueue + ')' : ''));
   if (eggPets.length) gear.push('🐣 ' + eggPets.length);
   if (state.relics > 0) gear.push('🏆 ' + state.relics + ' reliquias');

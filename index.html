@@ -3535,7 +3535,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       lookId = null;
       if (!quickTap) return;
       if (typing) { closeShopInput(); closeMathBox(); return; }   // tocar fuera del recuadro cierra el vendedor / los desafíos
-      if (state.running && state.phase === 'NIGHT') attack();   // toque rápido de noche = golpear monstruo
+      if (state.running && state.inCastle) attackCastleFoe();    // en el castillo, toque rápido = pegar al alien malo
+      else if (state.running && state.phase === 'NIGHT') attack();   // toque rápido de noche = golpear monstruo
     }
   });
   look.addEventListener('touchcancel', () => { lookId = null; });
@@ -4952,6 +4953,7 @@ function shootBeam(target) {
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
 function attackNPC() {
   if (state.buildMode) return;
+  if (state.inCastle) { vmSwing = 1; beep(320, 0.05, 0.03); attackCastleFoe(); return; }   // en el castillo (de día también) el golpe pega a los aliens malos
   if (state.planet === 'platus') { vmSwing = 1; if (!tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus el golpe de día: GEODA · CRISTAL · CARBÓN
   const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
   const range = 4;

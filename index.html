@@ -1811,7 +1811,7 @@ function updateCastle(dt) {
   }
 }
 function refillCrystals() { crystals.forEach(c => { c.gems = c.maxGems; c.group.children.forEach(o => { if (o.userData.shard) o.visible = true; }); c.group.visible = state.planet === 'platus'; }); mushrooms.forEach(m => { m.ready = true; m.regrow = 0; m.group.visible = state.planet === 'platus'; }); }
-function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); geodes.forEach(ge => ge.group.visible = v && ge.ready); eggs.forEach(e => e.group.visible = v && e.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; if (castleGate) castleGate.visible = v; if (coliGate) coliGate.visible = v; }
+function setPlatusVisible(v) { platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); geodes.forEach(ge => ge.group.visible = v && ge.ready); eggs.forEach(e => e.group.visible = v && e.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; if (castleGate) castleGate.visible = v; if (coliGate) coliGate.visible = v; setFloatingVisible(v); }
 // GEODA GIGANTE: roca enorme; pégale muchas veces y al romperse EXPLOTA en un montón de gemas
 const geodes = [];
 (function buildGeodes() {
@@ -2014,6 +2014,48 @@ function updateArena(dt) {
   if (arenaWave > 0 && !arenaRewarded) { arenaRewarded = true; const reward = 150 * arenaWave + 50 * state.stage; addMoney(reward); coinBurst(player.position, 12); toast('✅ ¡Oleada ' + arenaWave + ' superada! +$' + reward + ' — viene la siguiente (E para salir)'); }
   arenaSpawnT -= dt;
   if (arenaSpawnT <= 0) { arenaSpawnT = 3; arenaRewarded = false; spawnArenaWave(); }
+}
+// ISLAS FLOTANTES + GÉISERES: plataformas en el cielo con cofres; los géiseres te LANZAN altísimo para alcanzarlas (baja gravedad)
+const floatIslands = [], geysers = [];
+(function buildFloatingWorld() {
+  for (let i = 0; i < 7; i++) {
+    const a = Math.random() * Math.PI * 2, r = 22 + Math.random() * 150, y = 9 + Math.random() * 13, rad = 4 + Math.random() * 2.5;
+    const g = new THREE.Group(); g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad * 0.6, 1.6, 16), new THREE.MeshStandardMaterial({ color: 0x4a3b6a, roughness: .9 })); disc.position.y = y; disc.castShadow = true; g.add(disc);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 0.3, 16), new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x4c1d95, emissiveIntensity: .25 })); top.position.y = y + 0.9; g.add(top);
+    const chest = new THREE.Group(); const base = new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 0.7), mat(0x92400e)); base.position.y = 0.35; chest.add(base); const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 0.7), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .5 })); lid.position.y = 0.8; chest.add(lid); chest.add(new THREE.PointLight(0xfde047, 0.6, 7)); chest.position.set(0, y + 1.05, 0); g.add(chest);
+    g.visible = false; scene.add(g);
+    floatIslands.push({ x: g.position.x, z: g.position.z, top: y + 1.05, r: rad, group: g, chest, value: 0, ready: false });
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 150;
+    const g = new THREE.Group(); g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.7, 4, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: .35, side: THREE.DoubleSide })); col.position.y = 2; g.add(col);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.25, 8, 20), new THREE.MeshStandardMaterial({ color: 0x0891b2, emissive: 0x22d3ee, emissiveIntensity: .6 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.2; g.add(ring);
+    g.add(new THREE.PointLight(0x22d3ee, 0.6, 8));
+    g.visible = false; scene.add(g);
+    geysers.push({ x: g.position.x, z: g.position.z, group: g, col });
+  }
+})();
+function setFloatingVisible(v) { floatIslands.forEach(is => is.group.visible = v); geysers.forEach(ge => ge.group.visible = v); }
+function refillFloatingWorld() { floatIslands.forEach(is => { is.ready = true; is.value = 500 + Math.floor(Math.random() * 700) + 100 * state.stage; is.chest.visible = true; }); }
+function updateFloatingWorld(dt) {
+  if (state.planet !== 'platus') return;
+  for (const ge of geysers) ge.col.scale.y = 1 + Math.abs(Math.sin(performance.now() * 0.006 + ge.x)) * 0.4;
+  for (const is of floatIslands) {
+    if (!is.ready) continue;
+    is.chest.rotation.y += dt;
+    if (dist2D(player.position, { x: is.x, z: is.z }) < is.r + 1 && Math.abs(player.position.y - (is.top + PLAYER_EYE)) < 3) {
+      is.ready = false; is.chest.visible = false; addMoney(is.value);
+      const p = new THREE.Vector3(is.x, is.top + 1, is.z); coinBurst(p, 18); floatText(p, '🎁 ¡ISLA! +$' + is.value, '#fde047', 20);
+      toast('🎁 ¡Cofre de la ISLA FLOTANTE! +$' + is.value); beep(820, 0.1, 0.05);
+    }
+  }
+}
+function geyserBoost() {   // devuelve true si el jugador está sobre un géiser (para lanzarlo)
+  if (state.planet !== 'platus') return false;
+  for (const ge of geysers) if (dist2D(player.position, { x: ge.x, z: ge.z }) < 2) return true;
+  return false;
 }
 // HUEVOS ALIEN: recógelos por el planeta; incuban solos y eclosionan en una mascota de rareza al azar (gacha)
 const eggs = [], eggPets = [];
@@ -4419,7 +4461,7 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
@@ -5056,6 +5098,7 @@ function goToPlanet() {
   refillRuins();                                                             // ruinas alien con botín fresco (entrada en un punto nuevo)
   state.inCastle = false; setCastleVisible(false); refillCastle();           // castillo laberinto con tesoros/aliens nuevos
   state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum();   // coliseo de oleadas
+  refillFloatingWorld();   // islas flotantes con cofres nuevos
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
   applyPlanetLook(P);                                                        // árboles, lunas, cielo y niebla propios del planeta
@@ -5541,6 +5584,7 @@ function loop() {
     updateDetector(dt);                    // detector de tesoros enterrados (pita caliente/frío)
     updateTitanBoss(dt);                   // jefe TITÁN (kaiju gigante, raro)
     updateArena(dt);                       // coliseo alien: oleadas de enemigos
+    updateFloatingWorld(dt);               // islas flotantes (cofres) + géiseres
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -5619,6 +5663,8 @@ function drawMinimap() {
     if (castleGate && castleGate.visible && !state.inCastle) icon(castleGate.position.x, castleGate.position.z, '🏰', 14);
     if (titan) icon(titan.mesh.position.x, titan.mesh.position.z, '🐙', 16);
     if (coliGate && coliGate.visible && !state.inArena) icon(coliGate.position.x, coliGate.position.z, '🏟️', 14);
+    for (const is of floatIslands) if (is.ready) icon(is.x, is.z, '🏝️', 11);
+    for (const ge of geysers) dot(ge.x, ge.z, '#67e8f9', 2);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }
   if (state.inCastle) {   // dentro del castillo: guía del laberinto (tesoros, aliens buenos/malos)
@@ -5687,7 +5733,14 @@ function updateMovement(dt) {
   } else state.jetOn = false;
   touch.jump = false;   // el salto (de piso) es de un solo toque
   vy -= grav * dt; player.position.y += vy * dt;
-  if (player.position.y <= standY) { player.position.y = standY; vy = 0; grounded = true; }
+  // suelo efectivo: el piso normal o el TOPE de una isla flotante debajo (para pararte encima)
+  let floorY = standY;
+  if (state.planet === 'platus' && !state.underground && !state.inCastle && !state.inArena && !state.inRuins) {
+    const eye = crouch ? CROUCH_EYE : PLAYER_EYE;
+    for (const is of floatIslands) { if (Math.hypot(player.position.x - is.x, player.position.z - is.z) < is.r) { const top = is.top + eye; if (player.position.y >= top - 0.7 && top > floorY) floorY = top; } }
+  }
+  if (player.position.y <= floorY) { player.position.y = floorY; vy = 0; grounded = true; }
+  if (grounded && geyserBoost()) { vy = 25; grounded = false; beep(400, 0.12, 0.05); floatText(player.position, '⛲ ¡GÉISER!', '#67e8f9', 16); }   // parado sobre un géiser: ¡te lanza altísimo!
   if (state.underground && state.shelterHole) {   // caminar dentro del cuartito del refugio
     const h = state.shelterHole;
     player.position.x = THREE.MathUtils.clamp(player.position.x, h.x - 2.6, h.x + 2.6);

@@ -314,6 +314,7 @@
     <div class="tbtn" data-act="plant">🌱<small>plantar</small></div>
     <div class="tbtn" data-act="more">⋯<small>más</small></div>
     <span id="moreBtns">
+      <div class="tbtn" data-act="closeMore" style="background:rgba(239,68,68,.6);border-color:rgba(255,120,120,.7)">✖️<small>cerrar</small></div>
       <div class="tbtn" data-act="rotate">🔄<small>girar</small></div>
       <div class="tbtn" data-act="delete">🗑️<small>borrar</small></div>
       <div class="tbtn" data-act="dadFollow">🚶<small>papá</small></div>
@@ -3523,6 +3524,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
   const look = ui('lookLayer');
   let lookId = null, lx = 0, ly = 0, lStartT = 0, lMoved = 0;
   look.addEventListener('touchstart', e => {
+    if (ui('moreBtns').classList.contains('open')) { closeMorePanel(); return; }   // tocar la pantalla cierra el panel "⋯ más"
     if (lookId !== null) return;
     const t = e.changedTouches[0]; lookId = t.identifier;
     lx = t.clientX; ly = t.clientY; lStartT = performance.now(); lMoved = 0;
@@ -3578,6 +3580,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'jump': touch.jump = true; break;
     }
   }
+  function closeMorePanel() { ui('moreBtns').classList.remove('open'); const m = document.querySelector('.tbtn[data-act="more"]'); if (m) m.classList.remove('on'); }
   function bindButtons(container) {
     container.addEventListener('pointerdown', e => {
       const el = e.target.closest('.tbtn'); if (!el) return;
@@ -3585,9 +3588,11 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       const act = el.dataset.act;
       if (act === 'run') { touch.run = !touch.run; el.classList.toggle('on', touch.run); return; }
       if (act === 'crouch') { touch.crouch = !touch.crouch; el.classList.toggle('on', touch.crouch); return; }
-      if (act === 'more') { ui('moreBtns').classList.toggle('open'); el.classList.toggle('on'); return; }
+      if (act === 'more') { ui('moreBtns').classList.toggle('open'); const m = document.querySelector('.tbtn[data-act="more"]'); if (m) m.classList.toggle('on', ui('moreBtns').classList.contains('open')); return; }
+      if (act === 'closeMore') { closeMorePanel(); return; }   // ✖️ cerrar el panel
       if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
       press(act);
+      if (el.closest('#moreBtns')) closeMorePanel();   // al usar cualquier acción del panel "⋯ más", ciérralo
     }, { passive: false });
     const release = e => { const el = e.target.closest && e.target.closest('.tbtn'); if (el && el.dataset.act === 'jump') touch.jumpHeld = false; };
     container.addEventListener('pointerup', release);

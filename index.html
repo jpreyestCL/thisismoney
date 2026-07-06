@@ -1778,7 +1778,7 @@ function giveCastleGift(pos) {
   if (r < 0.4) { const m = 300 + Math.floor(Math.random() * 320); addMoney(m); floatText(pos, '😇 +$' + m, '#4ade80', 16); toast('😇 Un alien BUENO te regaló $' + m); }
   else if (r < 0.7) { state.hp = Math.min(100, state.hp + 40); floatText(pos, '😇 +40 vida', '#22c55e', 16); toast('😇 Un alien BUENO te curó +40 de vida'); }
   else { state.inv.carbon = (state.inv.carbon || 0) + 8; floatText(pos, '😇 +8 carbón', '#cbd5e1', 16); toast('😇 Un alien BUENO te dio 8 de carbón ⚫'); }
-  coinBurst(pos, 6); beep(760, 0.1, 0.05);
+  coinBurst(pos, 6); beep(760, 0.1, 0.05); discoverAlien('castleFriend');
 }
 function attackCastleFoe() {   // pegarle a un alien malo del castillo (👊/clic o láser)
   const p = player.position, dir = new THREE.Vector3(); camera.getWorldDirection(dir);
@@ -1787,7 +1787,7 @@ function attackCastleFoe() {   // pegarle a un alien malo del castillo (👊/cli
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position, '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
   if (state.laserGun) shootBeam(best.mesh.position);
-  if (best.hp <= 0) { best.alive = false; best.mesh.visible = false; const m = 60 + 20 * state.stage; addMoney(m); coinBurst(best.mesh.position, 8); floatText(best.mesh.position, '👹 +$' + m, '#4ade80', 16); beep(500, 0.08, 0.05); }
+  if (best.hp <= 0) { best.alive = false; best.mesh.visible = false; const m = 60 + 20 * state.stage; addMoney(m); coinBurst(best.mesh.position, 8); floatText(best.mesh.position, '👹 +$' + m, '#4ade80', 16); beep(500, 0.08, 0.05); discoverAlien('castleFoe'); }
 }
 function updateCastle(dt) {
   if (!state.inCastle) return;
@@ -1934,6 +1934,7 @@ function hatchEgg() {
   toast('🐣 ¡Nació una mascota ' + t.tier + '! Te sigue y pelea de noche');
   beep(700, 0.12, 0.05); setTimeout(() => beep(1000, 0.14, 0.05), 110);
   if (t.tier === 'LEGENDARIA') { coinBurst(player.position, 22); floatText(player.position, '🌟 ¡LEGENDARIA!', '#fde047', 24); vibr([40, 30, 90]); }
+  discoverAlien('eggpet');
   if (state.eggQueue > 0) { state.eggQueue--; state.incubTime = 16; }
 }
 function updateEggs(dt) {
@@ -3091,6 +3092,7 @@ const state = {
   planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1, planetCreature: 'yeti', inRuins: false, ruinsCleared: false,   // rasgos del planeta actual + ruinas
   contract: null,   // contrato activo del vendedor alien
   incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
+  album: {}, albumDone: false,   // álbum de criaturas alien (colección)
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
   coreClaimed: false, relics: 0,   // núcleo del planeta (1 por planeta) + reliquias juntadas
   riding: false,   // montando una criatura firma domada
@@ -3673,7 +3675,7 @@ function startGame() {
   endEclipse(); state.coreClaimed = false; state.relics = 0; removeMount(); state.inCastle = false; setCastleVisible(false);
   state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
-  state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {};
+  state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
   state.mathLeft = 5; state.mathStreak = 0;
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
   removePet(); removeAlienPet(); removeFloor2();
@@ -3758,6 +3760,7 @@ function saveGame() {
       streak: state.streak || 0,   // racha de noches perfectas
       missions: state.missions || null,   // misiones del día con su progreso
       bestiary: state.bestiary || {},     // colección de monstruos
+      album: state.album || {}, albumDone: !!state.albumDone,   // álbum de criaturas alien
     };
     localStorage.setItem(saveKey(), JSON.stringify(data));
   } catch (e) {}
@@ -4143,13 +4146,32 @@ function recordKill(e) {   // registra el kill en el bestiario; la 1ª vez de ca
   if (!state.bestiary) state.bestiary = {};
   if (!state.bestiary[t]) { state.bestiary[t] = 0; addMoney(100); toast('📖 ¡Nuevo en el BESTIARIO: ' + ENEMY_NAMES[t] + '! +$100'); }
   state.bestiary[t]++;
+  discoverAlien(t);
+}
+// ÁLBUM ALIEN: colección de las criaturas de los planetas; completarlo da un gran bono
+const ALIEN_ALBUM = ['alien', 'alienBig', 'ufo', 'yeti', 'sporeling', 'floater', 'fogGhost', 'sandCrawler', 'lavaWorm', 'eggpet', 'castleFoe', 'castleFriend'];
+const ALBUM_NAMES = Object.assign({}, ENEMY_NAMES, { eggpet: 'Mascota de huevo', castleFoe: 'Guardián del castillo', castleFriend: 'Alien bueno', titan: 'TITÁN del planeta' });
+function discoverAlien(key) {
+  if (!ALIEN_ALBUM.includes(key)) return;
+  if (!state.album) state.album = {};
+  if (state.album[key]) return;
+  state.album[key] = true; addMoney(150);
+  const found = ALIEN_ALBUM.filter(k => state.album[k]).length;
+  toast('🧬 ¡Nueva en el ÁLBUM ALIEN: ' + (ALBUM_NAMES[key] || key) + '! (' + found + '/' + ALIEN_ALBUM.length + ') +$150'); beep(700, 0.1, 0.05);
+  if (found >= ALIEN_ALBUM.length && !state.albumDone) {
+    state.albumDone = true; const bonus = 5000; addMoney(bonus); coinBurst(player.position, 30);
+    toast('🏆 ¡COMPLETASTE EL ÁLBUM ALIEN! +$' + bonus + ' de bono'); floatText(player.position, '🏆 ¡ÁLBUM COMPLETO!', '#fde047', 26); vibr([50, 40, 100]);
+  }
 }
 function renderBestiary() {
   const el = ui('bestiary'); if (!el) return;
   const b = state.bestiary || {};
   const total = Object.keys(ENEMY_NAMES).length, found = Object.keys(b).length;
+  const al = state.album || {}, alFound = ALIEN_ALBUM.filter(k => al[k]).length;
   el.innerHTML = '<b style="color:#34d399">📖 BESTIARIO (' + found + '/' + total + ')</b><br>' +
-    Object.keys(ENEMY_NAMES).map(k => b[k] ? ENEMY_NAMES[k] + ' <b>×' + b[k] + '</b>' : '<span style="opacity:.4">???</span>').join(' · ');
+    Object.keys(ENEMY_NAMES).map(k => b[k] ? ENEMY_NAMES[k] + ' <b>×' + b[k] + '</b>' : '<span style="opacity:.4">???</span>').join(' · ') +
+    '<br><br><b style="color:#a78bfa">🧬 ÁLBUM ALIEN (' + alFound + '/' + ALIEN_ALBUM.length + ')' + (state.albumDone ? ' 🏆' : '') + '</b><br>' +
+    ALIEN_ALBUM.map(k => al[k] ? (ALBUM_NAMES[k] || k) : '<span style="opacity:.4">???</span>').join(' · ');
 }
 function getBest() { try { return JSON.parse(localStorage.getItem('tim_best')) || null; } catch (e) { return null; } }
 function updateBest() {   // guarda tu mejor partida y celebra cuando la superas en vivo
@@ -4284,6 +4306,7 @@ function loadGame() {
   applyDadArmor(state.dadArmor < 1);             // repone la armadura del papá si la compraste
   if (d.missions && d.missions.length) { state.missions = d.missions; renderMissions(); } else newMissions();
   state.bestiary = d.bestiary || {};
+  state.album = d.album || {}; state.albumDone = !!d.albumDone;
   state.recordShown = state.totalEarned >= ((getBest() || {}).total || 0);   // no re-celebrar el récord de esta misma partida
   return true;
 }
@@ -5714,6 +5737,7 @@ function renderHUD() {
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));
   if (state.planet === 'platus' && !state.inRuins && !state.inCastle && hasShovelNow()) { const nb = nearestBuried(); if (nb) gear.push('🔎 ' + (nb.d < 6 ? '🔥 ¡CAVA AQUÍ!' : nb.d < 18 ? '🌡️ caliente' : nb.d < 40 ? '😐 tibio' : '❄️ frío')); }
+  if (state.planet === 'platus') { const af = ALIEN_ALBUM.filter(k => (state.album || {})[k]).length; gear.push('🧬 ' + af + '/' + ALIEN_ALBUM.length); }
   if (state.incubTime > 0) gear.push('🥚 incubando ' + Math.ceil(state.incubTime) + 's' + (state.eggQueue > 0 ? ' (+' + state.eggQueue + ')' : ''));
   if (eggPets.length) gear.push('🐣 ' + eggPets.length);
   if (state.relics > 0) gear.push('🏆 ' + state.relics + ' reliquias');

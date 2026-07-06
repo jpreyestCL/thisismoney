@@ -532,6 +532,17 @@ sun.shadow.camera.left = -90; sun.shadow.camera.right = 90;
 sun.shadow.camera.top = 90; sun.shadow.camera.bottom = -90;
 sun.shadow.bias = -0.0004;
 scene.add(sun);
+// Saca un objeto de la escena Y libera geometría/material de la GPU de él y de todos sus hijos
+// (evita fugas de VRAM que laguean el móvil). Sirve para Mesh sueltos y para Group con hijos.
+// OJO: no usar con objetos que comparten geometría/material (p.ej. las marcas del rastro usan TRAIL_GEO).
+function killMesh(m) {
+  if (!m) return;
+  scene.remove(m);
+  m.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) { if (Array.isArray(o.material)) o.material.forEach(x => x.dispose()); else o.material.dispose(); }
+  });
+}
 
 const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 });
 const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el plano
@@ -1540,7 +1551,7 @@ function buildCrystals() {
       cr.position.set((Math.random() * 2 - 1) * 0.4, 0.75 + Math.random() * 0.3, (Math.random() * 2 - 1) * 0.4);
       cr.rotation.set(Math.random() * .5 - .25, Math.random() * 6, Math.random() * .5 - .25); cr.castShadow = true; cr.userData.shard = true; g.add(cr);
     }
-    const light = new THREE.PointLight(col, 0.5, 7); light.position.y = 1; g.add(light);
+    // (sin PointLight: los cristales brillan por material emisivo; muchas luces dinámicas laguean el móvil)
     g.visible = false; scene.add(g);
     const c = { group: g, gems: rare ? 2 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3), value: rare ? 400 + Math.floor(Math.random() * 300) : 80 + Math.floor(Math.random() * 90), rare };
     c.maxGems = c.gems; crystals.push(c);
@@ -1558,7 +1569,7 @@ function buildMushrooms() {
     g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 7), new THREE.MeshStandardMaterial({ color: 0xe5e7eb, emissive: 0x334155, emissiveIntensity: .2 })); stem.position.y = 0.3; g.add(stem);
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: .85, roughness: .4 })); cap.position.y = 0.6; cap.scale.y = 0.7; g.add(cap);
-    const li = new THREE.PointLight(col, 0.5, 5); li.position.y = 0.7; g.add(li);
+    // (sin PointLight: el hongo brilla por su material emisivo; evitamos decenas de luces dinámicas)
     g.visible = false; scene.add(g);
     mushrooms.push({ group: g, ready: true, regrow: 0, col });
   }
@@ -1822,7 +1833,7 @@ const geodes = [];
     const g = new THREE.Group();
     const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.8, 0), new THREE.MeshStandardMaterial({ color: 0x4a4658, roughness: .95 })); rock.castShadow = true; g.add(rock);
     const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({ color: 0x67e8f9, emissive: 0x22d3ee, emissiveIntensity: .7 })); g.add(core);   // cristal interior (se ve al agrietarse)
-    const light = new THREE.PointLight(0x22d3ee, 0.6, 8); light.position.y = 1; g.add(light);
+    // (sin PointLight: la geoda brilla por su núcleo emisivo)
     const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 160;
     g.position.set(Math.cos(a) * r, 1.4, Math.sin(a) * r); g.visible = false; scene.add(g);
     geodes.push({ group: g, rock, hp: 12, maxhp: 12, ready: true });
@@ -2026,7 +2037,7 @@ const floatIslands = [], geysers = [];
     const g = new THREE.Group(); g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad * 0.6, 1.6, 16), new THREE.MeshStandardMaterial({ color: 0x4a3b6a, roughness: .9 })); disc.position.y = y; disc.castShadow = true; g.add(disc);
     const top = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, 0.3, 16), new THREE.MeshStandardMaterial({ color: 0x7c3aed, emissive: 0x4c1d95, emissiveIntensity: .25 })); top.position.y = y + 0.9; g.add(top);
-    const chest = new THREE.Group(); const base = new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 0.7), mat(0x92400e)); base.position.y = 0.35; chest.add(base); const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 0.7), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .5 })); lid.position.y = 0.8; chest.add(lid); chest.add(new THREE.PointLight(0xfde047, 0.6, 7)); chest.position.set(0, y + 1.05, 0); g.add(chest);
+    const chest = new THREE.Group(); const base = new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 0.7), mat(0x92400e)); base.position.y = 0.35; chest.add(base); const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 0.7), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xf59e0b, emissiveIntensity: .5 })); lid.position.y = 0.8; chest.add(lid); chest.position.set(0, y + 1.05, 0); g.add(chest);
     g.visible = false; scene.add(g);
     floatIslands.push({ x: g.position.x, z: g.position.z, top: y + 1.05, r: rad, group: g, chest, value: 0, ready: false });
   }
@@ -2035,7 +2046,6 @@ const floatIslands = [], geysers = [];
     const g = new THREE.Group(); g.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     const col = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.7, 4, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: .35, side: THREE.DoubleSide })); col.position.y = 2; g.add(col);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.25, 8, 20), new THREE.MeshStandardMaterial({ color: 0x0891b2, emissive: 0x22d3ee, emissiveIntensity: .6 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.2; g.add(ring);
-    g.add(new THREE.PointLight(0x22d3ee, 0.6, 8));
     g.visible = false; scene.add(g);
     geysers.push({ x: g.position.x, z: g.position.z, group: g, col });
   }
@@ -2097,7 +2107,7 @@ function updateBaseDefense(dt) {
         const from = wp.clone().setY(1.2), to = near.position.clone().setY(1), dir = new THREE.Vector3().subVectors(to, from);
         const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, dir.length() || 1, 6), new THREE.MeshBasicMaterial({ color: 0x22d3ee }));
         beam.position.copy(from).addScaledVector(dir, 0.5); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
-        scene.add(beam); setTimeout(() => scene.remove(beam), 80); beep(700, 0.04, 0.03);
+        scene.add(beam); setTimeout(() => killMesh(beam), 80); beep(700, 0.04, 0.03);
       }
     }
   }
@@ -2210,7 +2220,7 @@ function spawnFallingMeteor() {
   scene.add(g); meteors.push(g); beep(120, 0.3, 0.04);
 }
 function landMeteor(g) {
-  const x = g.userData.tx, z = g.userData.tz; scene.remove(g);
+  const x = g.userData.tx, z = g.userData.tz; killMesh(g);
   const cg = new THREE.Group(); cg.position.set(x, 0, z);
   const mound = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.5, 8, 16), new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 1 })); mound.rotation.x = -Math.PI / 2; mound.position.y = 0.1; cg.add(mound);
   const core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7), new THREE.MeshStandardMaterial({ color: 0x1f2937, emissive: 0xff7733, emissiveIntensity: 0.6 })); core.position.y = 0.5; cg.add(core);
@@ -2226,7 +2236,7 @@ function updateMeteorShower(dt) {
     const g = meteors[i]; g.userData.vy += 40 * dt; g.position.y -= g.userData.vy * dt; g.rotation.x += 3 * dt; g.rotation.z += 2 * dt;
     if (g.position.y <= 0.5) { landMeteor(g); meteors.splice(i, 1); }
   }
-  for (let i = craters.length - 1; i >= 0; i--) { const c = craters[i]; c.life -= dt; if (c.life <= 0 || c.gems <= 0) { scene.remove(c.group); craters.splice(i, 1); } }
+  for (let i = craters.length - 1; i >= 0; i--) { const c = craters[i]; c.life -= dt; if (c.life <= 0 || c.gems <= 0) { killMesh(c.group); craters.splice(i, 1); } }
   const lava = state.planetHazard === 'lava';   // HELIOS: meteoritos también de día (bombardeo constante)
   if (state.planet === 'platus' && !state.cinematic && (state.phase === 'NIGHT' || (lava && state.phase === 'DAY'))) {
     meteorTimer -= dt;
@@ -2258,13 +2268,14 @@ function updateTrail(dt) {
     const moving = Math.abs(touch.moveX) + Math.abs(touch.moveY) > 0.1 || keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'];
     if (trailTimer <= 0 && moving && grounded) {
       trailTimer = 0.11;
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.5, 12), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));
+      const disc = new THREE.Mesh(TRAIL_GEO, new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }));   // geometría compartida (no se crea una nueva cada 0.11s)
       disc.rotation.x = -Math.PI / 2; disc.position.set(player.position.x, 0.05, player.position.z);
       scene.add(disc); trailMarks.push({ mesh: disc, life: 1.6 });
     }
   }
-  for (let i = trailMarks.length - 1; i >= 0; i--) { const t = trailMarks[i]; t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / 1.6 * 0.55); t.mesh.scale.setScalar(1 + (1.6 - t.life) * 0.3); if (t.life <= 0) { scene.remove(t.mesh); trailMarks.splice(i, 1); } }
+  for (let i = trailMarks.length - 1; i >= 0; i--) { const t = trailMarks[i]; t.life -= dt; t.mesh.material.opacity = Math.max(0, t.life / 1.6 * 0.55); t.mesh.scale.setScalar(1 + (1.6 - t.life) * 0.3); if (t.life <= 0) { scene.remove(t.mesh); t.mesh.material.dispose(); trailMarks.splice(i, 1); } }   // geometría compartida: solo se libera el material
 }
+const TRAIL_GEO = new THREE.CircleGeometry(0.5, 12);   // geometría única reutilizada por todas las marcas del rastro
 // ESTRELLA FUGAZ (noches de Platus): cruza el cielo; vuela/salta y tócala para un DESEO (premio al azar)
 let shootStar = null, shootStarTimer = 22;
 function spawnShootingStar() {
@@ -2951,14 +2962,12 @@ function launchBull(k) {
 }
 function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena; }   // bajo tierra / ruinas / castillo / coliseo: los monstruos de la superficie NO te ven
 function pickTarget(from) {
-  const cands = [];
-  if (!isPlayerHidden()) cands.push(player.position);   // escondido: los monstruos NO te ven
-  if (dad.visible && !dad.userData.resting) cands.push(dad.position);   // descansando: los monstruos no lo ven
-  for (const h of helpers) cands.push(h.position);
-  if (!cands.length) return HOUSE;   // nada que atacar (todos escondidos): van hacia la casa
-  let best = cands[0], bd = dist2D(from, best);
-  for (const c of cands) { const d = dist2D(from, c); if (d < bd) { bd = d; best = c; } }
-  return best;
+  // Sin array temporal: se elige el más cercano sobre la marcha (esto se llama por enemigo por frame; evitar basura para el GC)
+  let best = null, bd = Infinity;
+  if (!isPlayerHidden()) { best = player.position; bd = dist2D(from, best); }   // escondido: los monstruos NO te ven
+  if (dad.visible && !dad.userData.resting) { const d = dist2D(from, dad.position); if (d < bd) { bd = d; best = dad.position; } }   // descansando: no lo ven
+  for (const h of helpers) { const d = dist2D(from, h.position); if (d < bd) { bd = d; best = h.position; } }
+  return best || HOUSE;   // nada que atacar (todos escondidos): van hacia la casa
 }
 function moveToward(e, target, step) {
   const dx = target.x - e.position.x, dz = target.z - e.position.z; const len = Math.hypot(dx, dz) || 1;
@@ -5280,7 +5289,7 @@ function shootBeam(target) {
   beam.position.copy(from).addScaledVector(dirv, 0.5);
   beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirv.clone().normalize());
   scene.add(beam); beep(760, 0.05, 0.045);
-  setTimeout(() => scene.remove(beam), 90);
+  setTimeout(() => killMesh(beam), 90);
 }
 
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO

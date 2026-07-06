@@ -3475,8 +3475,7 @@ let touchForced = null; try { const v = localStorage.getItem('tim_touch'); if (v
 function applyTouchMode(on) { document.body.classList.toggle('touch', on); const b = ui('touchToggle'); if (b) b.textContent = on ? '📱 Controles táctiles: SÍ' : '📱 Controles táctiles: NO'; }
 function setTouchMode(on) { touchForced = on; try { localStorage.setItem('tim_touch', on ? '1' : '0'); } catch (e) {} applyTouchMode(on); }
 applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
-// ----- MODO RELOJ: pantallas diminutas (smartwatch). Encoge todo, evita las esquinas (pantallas redondas) y prende rendimiento -----
-const AUTO_WATCH = Math.min(innerWidth, innerHeight) <= 320;
+// ----- MODO RELOJ: solo a mano (botón ⌚ en pausa). Encoge todo para smartwatch. NO se auto-activa. -----
 let watchForced = null; try { const v = localStorage.getItem('tim_watch'); if (v === '1') watchForced = true; else if (v === '0') watchForced = false; } catch (e) {}
 function applyWatchMode(on) {
   document.body.classList.toggle('watch', on);
@@ -3730,8 +3729,9 @@ function applyPerfMode() {   // modo rendimiento: sin sombras y resolución nati
 }
 applyBtnScale(); if (perfMode) applyPerfMode();
 // Modo reloj: ahora que perfMode ya existe, aplicarlo (auto en pantallas diminutas) y engancharlo al botón + resize
-applyWatchMode(watchForced !== null ? watchForced : AUTO_WATCH);
-addEventListener('resize', () => { if (watchForced === null) applyWatchMode(Math.min(innerWidth, innerHeight) <= 320); });
+// El modo reloj NO se auto-activa (muchos celulares en horizontal miden ≤320 de alto y se activaba solo).
+// Solo se prende a mano con el botón ⌚ del menú de pausa; así el celular queda EXACTO como antes.
+applyWatchMode(watchForced === true);
 if (ui('pauseWatch')) ui('pauseWatch').onclick = () => setWatchMode(!document.body.classList.contains('watch'));
 // PWA: el juego se puede INSTALAR en el teléfono (ícono propio) y funciona OFFLINE
 try { if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js'); } catch (e) {}

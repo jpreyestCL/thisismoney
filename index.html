@@ -1847,6 +1847,43 @@ function crackGeode(ge) {
   contractProgress('crystal', 3);
   toast('💎 ¡Reventaste una GEODA gigante! +$' + total);
 }
+// DETECTOR DE TESOROS (caliente/frío): tesoros ENTERRADOS invisibles; el detector pita más rápido al acercarte; cava para sacarlos
+const buriedTreasures = [];
+let detectorBeepT = 0;
+function refillBuriedTreasures() {
+  buriedTreasures.length = 0;
+  for (let i = 0; i < 8; i++) {
+    const a = Math.random() * Math.PI * 2, r = 15 + Math.random() * 190;
+    buriedTreasures.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, value: 300 + Math.floor(Math.random() * 500) + 80 * state.stage, found: false });
+  }
+}
+function hasShovelNow() { return state.hasShovel || state.weaponName.toLowerCase().includes('pala'); }
+function nearestBuried() {
+  let best = null, bd = 1e9;
+  for (const b of buriedTreasures) { if (b.found) continue; const d = Math.hypot(player.position.x - b.x, player.position.z - b.z); if (d < bd) { bd = d; best = b; } }
+  return best ? { b: best, d: bd } : null;
+}
+function updateDetector(dt) {   // pita como buscador de metales: más rápido y agudo cuanto más cerca
+  if (state.planet !== 'platus' || state.inRuins || state.inCastle || state.underground || !hasShovelNow()) return;
+  const n = nearestBuried(); if (!n) return;
+  detectorBeepT -= dt;
+  if (detectorBeepT <= 0) {
+    detectorBeepT = Math.min(1.5, 0.18 + n.d * 0.03);
+    beep(n.d < 6 ? 950 : n.d < 18 ? 620 : 380, 0.04, 0.03);
+  }
+}
+function digUpTreasure(tx, tz) {   // llamado al cavar: si hay un tesoro enterrado cerca, lo desentierra
+  for (const b of buriedTreasures) {
+    if (!b.found && Math.hypot(tx - b.x, tz - b.z) < 3.5) {
+      b.found = true; addMoney(b.value);
+      const p = new THREE.Vector3(tx, 0.6, tz); coinBurst(p, 18); floatText(p, '💰 ¡TESORO ENTERRADO! +$' + b.value, '#fde047', 20);
+      toast('💰 ¡Desenterraste un TESORO! +$' + b.value + ' (el detector 🔎 te llevó ahí)'); beep(880, 0.16, 0.05); vibr([30, 20, 60]);
+      contractProgress('crystal', 1);
+      return true;
+    }
+  }
+  return false;
+}
 // HUEVOS ALIEN: recógelos por el planeta; incuban solos y eclosionan en una mascota de rareza al azar (gacha)
 const eggs = [], eggPets = [];
 const EGG_TIERS = [
@@ -4229,7 +4266,7 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   removeFloor2(); if (d.hasFloor2) buildFloor2();
-  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
+  if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); scene.fog.far = 160; }
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
@@ -4859,6 +4896,7 @@ function goToPlanet() {
   setPlatusVisible(true);                                                    // árboles muertos + rocas de carbón
   refillCrystals();                                                          // cada planeta nuevo trae cristales frescos
   refillGeodes();                                                            // geodas gigantes nuevas
+  refillBuriedTreasures();                                                   // tesoros enterrados nuevos (detector)
   refillEggs();                                                              // huevos alien nuevos para recoger
   refillRuins();                                                             // ruinas alien con botín fresco (entrada en un punto nuevo)
   state.inCastle = false; setCastleVisible(false); refillCastle();           // castillo laberinto con tesoros/aliens nuevos
@@ -5039,6 +5077,7 @@ function digHole() {
   const wasEnterable = h && h.enterable;
   if (h) { if (h.depth < MAX_DIGS) h.depth++; renderHole(h); }   // profundizar el mismo hoyo
   else h = spawnHole(t.x, t.z, 1);                               // hoyo nuevo
+  if (state.planet === 'platus' && digUpTreasure(t.x, t.z)) return;   // ¿había un tesoro enterrado aquí? (detector)
   if (h.enterable && !wasEnterable) { toast('🏠 ¡Cavaste un REFUGIO subterráneo! Pulsa E para METERTE. Sigue cavando aquí (' + h.depth + '/' + MAX_DIGS + ') para llegar al NÚCLEO 🌋'); return; }
   if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) { reachCore(h); return; }   // ¡llegaste al núcleo del planeta!
   const r = Math.random();
@@ -5339,6 +5378,7 @@ function loop() {
     updateEggs(dt); updateEggPets(dt);     // huevos alien: recoger, incubar y mascotas nacidas
     updateEclipse(dt);                     // eclipse cósmico: evento raro (gravedad casi cero + lluvia de botín)
     updateCastle(dt);                      // castillo alien: laberinto con tesoros y aliens buenos/malos
+    updateDetector(dt);                    // detector de tesoros enterrados (pita caliente/frío)
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -5673,6 +5713,7 @@ function renderHUD() {
   if (state.ngplus) gear.unshift('⭐ Partida+');
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));
+  if (state.planet === 'platus' && !state.inRuins && !state.inCastle && hasShovelNow()) { const nb = nearestBuried(); if (nb) gear.push('🔎 ' + (nb.d < 6 ? '🔥 ¡CAVA AQUÍ!' : nb.d < 18 ? '🌡️ caliente' : nb.d < 40 ? '😐 tibio' : '❄️ frío')); }
   if (state.incubTime > 0) gear.push('🥚 incubando ' + Math.ceil(state.incubTime) + 's' + (state.eggQueue > 0 ? ' (+' + state.eggQueue + ')' : ''));
   if (eggPets.length) gear.push('🐣 ' + eggPets.length);
   if (state.relics > 0) gear.push('🏆 ' + state.relics + ' reliquias');

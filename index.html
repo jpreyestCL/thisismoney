@@ -1333,6 +1333,14 @@ const roads = [
 roads.forEach(r => makeRoad(r.cx, r.cz, r.len, r.horizontal));
 
 const traffic = [], parkedCars = [];
+// Zonas por las que nunca debe circular el tráfico. El margen incluye el largo
+// del auto para que la carrocería tampoco atraviese las paredes del súper.
+const trafficExclusionZones = [
+  { minX: 40 - 13.5, maxX: 40 + 13.5, minZ: -22 - 13.5, maxZ: -22 + 13.5 },
+];
+function insideTrafficExclusion(x, z) {
+  return trafficExclusionZones.some(o => x > o.minX && x < o.maxX && z > o.minZ && z < o.maxZ);
+}
 function placeOnRoad(car, r, t, laneOff, dir) {
   if (r.horizontal) { car.position.set(r.cx - r.len / 2 + t * r.len, 0, r.cz + laneOff); car.userData.heading = dir > 0 ? Math.PI / 2 : -Math.PI / 2; }
   else { car.position.set(r.cx + laneOff, 0, r.cz - r.len / 2 + t * r.len); car.userData.heading = dir > 0 ? 0 : Math.PI; }
@@ -1344,6 +1352,11 @@ function spawnCars() {
       const car = makeCar(CAR_COLORS[(Math.random() * CAR_COLORS.length) | 0]);
       const dir = Math.random() < 0.5 ? 1 : -1;
       placeOnRoad(car, r, Math.random(), dir > 0 ? 2.2 : -2.2, dir);
+      // Evita que un auto aparezca inicialmente dentro del supermercado.
+      for (let tries = 0; insideTrafficExclusion(car.position.x, car.position.z) && tries < 12; tries++) {
+        placeOnRoad(car, r, Math.random(), dir > 0 ? 2.2 : -2.2, dir);
+      }
+      if (insideTrafficExclusion(car.position.x, car.position.z)) placeOnRoad(car, r, 0, dir > 0 ? 2.2 : -2.2, dir);
       car.userData.moving = true; car.userData.speed = 6 + Math.random() * 5;
       scene.add(car); traffic.push(car);
     }
@@ -1440,7 +1453,8 @@ function updateTraffic(dt) {
     if (r.horizontal) nx += dir * spd * dt; else nz += dir * spd * dt;
     // si va a ENTRAR a un edificio (y está afuera), se da la vuelta para esquivarlo.
     // si ya está adentro (p.ej. apareció ahí), sigue derecho hasta salir.
-    if (insideBuilding(nx, nz) && !insideBuilding(car.position.x, car.position.z)) {
+    if ((insideBuilding(nx, nz) && !insideBuilding(car.position.x, car.position.z)) ||
+        (insideTrafficExclusion(nx, nz) && !insideTrafficExclusion(car.position.x, car.position.z))) {
       dir = -dir; car.userData.dir = dir;
       car.userData.heading = r.horizontal ? (dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir > 0 ? 0 : Math.PI);
       car.rotation.y = car.userData.heading;

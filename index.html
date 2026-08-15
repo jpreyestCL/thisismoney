@@ -3109,6 +3109,8 @@ function updateDefenses(dt) {
 //  AYUDANTES (hijos) — se desbloquean con la mamá
 // ===================================================================
 const helpers = [];
+const HELPER_COLORS = [0xf472b6, 0x60a5fa, 0xfacc15, 0x4ade80, 0xc084fc, 0xfb923c];
+const helperTarget = new THREE.Vector3();
 function applyHelperGearTo(h) {   // pone/quita arma y armadura a UN hijo según el estado comprado
   if (state.helperWeapon && !h.userData.weapon) {   // espadita en la mano
     const w = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.05), mat(0xf59e0b)); w.position.set(0.55, 1.5, 0.3); h.add(w); h.userData.weapon = w;
@@ -3121,7 +3123,7 @@ function applyHelperGearTo(h) {   // pone/quita arma y armadura a UN hijo según
 }
 function applyHelperGear() { for (const h of helpers) applyHelperGearTo(h); }   // a TODOS los hijos (al comprar)
 function makeHelperAt(x, z) {   // crea un ayudante en (x,z) sin cobrar (usado por spawnHelper y loadGame)
-  const h = makePerson(0xf472b6, 0xf1c27d); h.scale.set(0.7, 0.7, 0.7);
+  const h = makePerson(HELPER_COLORS[helpers.length % HELPER_COLORS.length], 0xf1c27d); h.scale.set(0.7, 0.7, 0.7);
   h.position.set(x, 0, z); h.userData.atkCd = 0; scene.add(h); helpers.push(h);
   applyHelperGearTo(h);   // el hijo nuevo llega ya equipado si compraste arma/armadura
   return h;
@@ -3133,19 +3135,38 @@ function spawnHelper() {   // puedes tener TODOS los hijos que quieras ($300 c/u
   if (!state.momUnlocked) { toast('Necesitas conocer a la mamá (a las $20.000)'); return; }
   if (state.money < 300) { toast('Un ayudante cuesta $300'); return; }
   state.money -= 300;
-  makeHelperAt(HOUSE.x + (Math.random() * 4 - 2), HOUSE.z + 6);
+  const slot = helpers.length, angle = (slot % 8) / 8 * Math.PI * 2, radius = 3 + Math.floor(slot / 8) * 1.2;
+  makeHelperAt(HOUSE.x + Math.sin(angle) * radius, HOUSE.z + 6 + Math.cos(angle) * radius);
   toast('👧 ¡Nuevo hijo! Tienes ' + helpers.length + ' (cada uno cuesta $300)');
 }
 function updateHelpers(dt) {
   const dmg = state.helperWeapon ? 45 : 20;                 // con arma pegan mucho más fuerte
   const cd = state.helperArmor ? 0.4 : 0.6;                 // con armadura atacan más seguido
-  for (const h of helpers) {
+  const cols = Math.min(5, Math.max(3, Math.ceil(Math.sqrt(helpers.length))));
+  for (let hi = 0; hi < helpers.length; hi++) {
+    const h = helpers[hi];
     let near = null, nd = 14;
     if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(h.position, e.position); if (d < nd) { nd = d; near = e; } }
     if (near) {
-      if (nd > 1.5) { moveToward(h, near.position, 3 * dt); h.rotation.y = Math.atan2(near.position.x - h.position.x, near.position.z - h.position.z); }
+      // Cada hijo ocupa un punto distinto alrededor del enemigo para que no se apilen al atacar.
+      const ring = Math.floor(hi / 8), angle = (hi % 8) / 8 * Math.PI * 2;
+      const radius = 1.5 + ring * 0.8;
+      helperTarget.set(near.position.x + Math.sin(angle) * radius, 0, near.position.z + Math.cos(angle) * radius);
+      const slotDist = dist2D(h.position, helperTarget);
+      if (slotDist > 0.35) { moveToward(h, helperTarget, 3 * dt); h.rotation.y = Math.atan2(near.position.x - h.position.x, near.position.z - h.position.z); }
       else { h.userData.atkCd -= dt; if (h.userData.atkCd <= 0) { h.userData.atkCd = cd; hitEnemy(near, dmg, h.position); } }
-    } else { const d = dist2D(h.position, player.position); if (d > 4) { moveToward(h, player.position, 3 * dt); h.rotation.y = Math.atan2(player.position.x - h.position.x, player.position.z - h.position.z); } }
+    } else {
+      // Formación detrás del jugador: filas de hasta 5 hijos con separación visible.
+      const row = Math.floor(hi / cols), inRow = Math.min(cols, helpers.length - row * cols);
+      const localX = (hi % cols - (inRow - 1) / 2) * 1.7, localBack = 3.8 + row * 1.7;
+      helperTarget.set(
+        player.position.x + Math.cos(yaw) * localX + Math.sin(yaw) * localBack,
+        0,
+        player.position.z - Math.sin(yaw) * localX + Math.cos(yaw) * localBack
+      );
+      const d = dist2D(h.position, helperTarget);
+      if (d > 0.35) { moveToward(h, helperTarget, 3 * dt); h.rotation.y = Math.atan2(helperTarget.x - h.position.x, helperTarget.z - h.position.z); }
+    }
     swingLimbs(h, dt);
   }
 }

@@ -174,9 +174,49 @@
   body.watch #introEmoji { font-size: 30px !important; }
   body.watch #introTitle { font-size: 15px !important; margin: 4px 0 3px !important; }
   body.watch #introText { font-size: 10px !important; line-height: 1.3 !important; margin: 0 0 8px !important; }
+
+  /* ===== LOOK VOXEL / MINECRAFT ===== */
+  body.minecraft-look { font-family: "Courier New", ui-monospace, monospace; image-rendering: pixelated; }
+  body.minecraft-look .stat,
+  body.minecraft-look #objective,
+  body.minecraft-look #toast,
+  body.minecraft-look #dadhud,
+  body.minecraft-look #gearhud,
+  body.minecraft-look #missions,
+  body.minecraft-look #shopbox,
+  body.minecraft-look #bankbox,
+  body.minecraft-look #rocketbox,
+  body.minecraft-look #mathbox,
+  body.minecraft-look #pause > div,
+  body.minecraft-look #help > div,
+  body.minecraft-look .screen > div {
+    border-radius: 2px !important;
+    border: 3px solid #171717 !important;
+    box-shadow: inset 2px 2px 0 rgba(255,255,255,.2), inset -2px -2px 0 rgba(0,0,0,.55), 4px 4px 0 rgba(0,0,0,.45) !important;
+    backdrop-filter: none !important;
+  }
+  body.minecraft-look .stat { background: rgba(35,35,35,.88); }
+  body.minecraft-look .slot { border-radius: 0; border: 3px solid #373737; background: rgba(45,45,45,.92); box-shadow: inset 2px 2px #8b8b8b, inset -2px -2px #171717; }
+  body.minecraft-look .slot.sel { border-color: #fff; background: #676767; box-shadow: inset 2px 2px #c6c6c6, inset -2px -2px #292929, 0 0 0 2px #111; }
+  body.minecraft-look .btn,
+  body.minecraft-look .bankBtn,
+  body.minecraft-look #rotateBtn,
+  body.minecraft-look #deleteBtn {
+    border-radius: 0 !important; border: 3px solid #171717 !important;
+    box-shadow: inset 2px 2px rgba(255,255,255,.35), inset -2px -2px rgba(0,0,0,.5), 3px 3px 0 rgba(0,0,0,.5) !important;
+    text-transform: uppercase;
+  }
+  body.minecraft-look .bar { border-radius: 0; border: 2px solid #111; height: 13px; }
+  body.minecraft-look .bar > div { transition: none; }
+  body.minecraft-look #crosshair { width: 18px; height: 18px; margin: -9px 0 0 -9px; background: transparent; border-radius: 0; }
+  body.minecraft-look #crosshair::before,
+  body.minecraft-look #crosshair::after { content:""; position:absolute; background:#fff; filter:drop-shadow(1px 1px #000); }
+  body.minecraft-look #crosshair::before { width:18px; height:2px; top:8px; left:0; }
+  body.minecraft-look #crosshair::after { width:2px; height:18px; top:0; left:8px; }
+  body.minecraft-look #minimap { border-radius: 0 !important; border: 3px solid #171717; image-rendering: pixelated; }
 </style>
 </head>
-<body>
+<body class="minecraft-look">
 <canvas id="game"></canvas>
 
 <div id="hud" style="display:none">
@@ -487,6 +527,19 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+function pixelateModel(root) {
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.receiveShadow = true;
+    const materials = Array.isArray(o.material) ? o.material : [o.material];
+    materials.forEach(m => {
+      if (!m) return;
+      m.roughness = 1; m.metalness = 0; m.flatShading = true;
+      if (m.map) { m.map.magFilter = THREE.NearestFilter; m.map.minFilter = THREE.NearestMipmapNearestFilter; m.map.needsUpdate = true; }
+      m.needsUpdate = true;
+    });
+  });
+}
 
 // ===================================================================
 //  THIS IS MONEY  —  prototipo grande (un solo archivo)
@@ -496,7 +549,7 @@ const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
 const SKY_DAY = new THREE.Color(0x87ceeb);
@@ -544,11 +597,32 @@ function killMesh(m) {
   });
 }
 
-const mat = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 });
+const pixelTextureCache = new Map();
+function makePixelTexture(color, neutral = false) {
+  const key = `${color}-${neutral}`;
+  if (pixelTextureCache.has(key)) return pixelTextureCache.get(key);
+  const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+  const cx = cv.getContext('2d'), base = new THREE.Color(color);
+  for (let y = 0; y < 16; y += 4) {
+    for (let x = 0; x < 16; x += 4) {
+      const n = (((x * 17 + y * 31 + color) % 9) - 4) * 0.025;
+      const c = neutral ? new THREE.Color(0.82 + n, 0.82 + n, 0.82 + n) : base.clone().offsetHSL(0, 0, n);
+      cx.fillStyle = `#${c.getHexString()}`; cx.fillRect(x, y, 4, 4);
+    }
+  }
+  cx.strokeStyle = 'rgba(0,0,0,.12)'; cx.strokeRect(.5, .5, 15, 15);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestMipmapNearestFilter;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  pixelTextureCache.set(key, tex); return tex;
+}
+const mat = c => new THREE.MeshStandardMaterial({ map: makePixelTexture(c), color: 0xffffff, roughness: 1, metalness: 0, flatShading: true });
 const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el plano
 
 // Suelo (cambia de color al viajar de planeta)
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a7c3a });
+const groundTex = makePixelTexture(0xffffff, true);
+groundTex.repeat.set(130, 130);
+const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, color: 0x4a7c3a, roughness: 1, flatShading: true });
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground);
@@ -668,7 +742,7 @@ dadTag.scale.set(.5, .5, .5); dadTag.position.set(0, 3, 0); dad.add(dadTag);
 let dadMixer = null, dadWalkAction = null;
 gltfLoader.load('assets/papa_anim.glb', (gltf) => {
   const model = gltf.scene;
-  model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  pixelateModel(model);
   model.updateMatrixWorld(true);
   let box = new THREE.Box3().setFromObject(model); const size = box.getSize(new THREE.Vector3());
   model.scale.setScalar(2.0 / size.y);                 // alto ~2.0 (un poco más chico que las personas)
@@ -982,7 +1056,7 @@ buildNeighborhood(18, -92, 9, 5);     // 10 sur
 function loadBuilding(path, x, z, targetH) {
   gltfLoader.load(path, (gltf) => {
     const m = gltf.scene;
-    m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    pixelateModel(m);
     m.updateMatrixWorld(true);
     let box = new THREE.Box3().setFromObject(m);
     m.scale.setScalar(targetH / (box.max.y - box.min.y)); m.updateMatrixWorld(true);
@@ -1250,13 +1324,13 @@ function buildTrees() {   // árboles INSTANCIADOS: ~100 árboles en solo 2 draw
   };
   for (let i = 0; i < 36; i++) plant(28, 88);     // anillo cercano (como antes)
   for (let i = 0; i < 70; i++) plant(95, 220);    // afueras: bosque del mapa agrandado
-  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.4, .5, 3), mat(0x6b4423), spots.length);
-  const leaves = new THREE.InstancedMesh(new THREE.ConeGeometry(2, 4, 8), mat(0x2d5016), spots.length);
+  const trunks = new THREE.InstancedMesh(new THREE.BoxGeometry(.8, 3, .8), mat(0x6b4423), spots.length);
+  const leaves = new THREE.InstancedMesh(new THREE.BoxGeometry(3.6, 3.6, 3.6), mat(0x2d5016), spots.length);
   trunks.castShadow = true; leaves.castShadow = true;
   const m4 = new THREE.Matrix4();
   spots.forEach(([x, z], i) => {
     m4.makeTranslation(x, 1.5, z); trunks.setMatrixAt(i, m4);
-    m4.makeTranslation(x, 4.5, z); leaves.setMatrixAt(i, m4);
+    m4.makeTranslation(x, 4.2, z); leaves.setMatrixAt(i, m4);
   });
   scene.add(trunks); scene.add(leaves); decor.push(trunks, leaves);
 }

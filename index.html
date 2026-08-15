@@ -4088,7 +4088,7 @@ function saveGame() {
       cargo: state.cargo || {},   // cajones del cohete (viajan con vos)
       bank: state.bank || 0, debt: state.debt || 0,   // banco: ahorros y deudas
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
-      holes: holes.map(h => ({ x: h.x, z: h.z, depth: h.depth })),   // hoyos/refugios cavados con la pala
+      holes: holes.map(h => ({ x: h.x, z: h.z, depth: h.depth, tunnels: [...h.tunnels].map(k => k.split(',').map(Number)) })),   // minas voxel + túneles laterales
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       helperWeapon: !!state.helperWeapon, helperArmor: !!state.helperArmor,   // arma/armadura de los hijos
@@ -4623,7 +4623,7 @@ function loadGame() {
   state.bank = d.bank || 0; state.debt = d.debt || 0;
   resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
-  clearHoles(); (d.holes || []).forEach(o => spawnHole(o.x, o.z, o.depth)); state.underground = false; state.groundY = 0; state.shelterHole = null;   // hoyos/refugios (nunca cargas bajo tierra)
+  clearHoles(); (d.holes || []).forEach(o => spawnHole(o.x, o.z, o.depth, o.tunnels)); state.underground = false; state.groundY = 0; state.shelterHole = null;   // minas voxel (nunca cargas bajo tierra)
   if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
   removeAlienPet(); if (d.petAlien) spawnAlienPet();
@@ -5426,29 +5426,40 @@ function attackNPC() {
 }
 
 // ===================================================================
-//  HOYOS: cavar el MISMO lugar lo hace más hondo; a las 4 cavadas es un
-//  REFUGIO subterráneo en el que te puedes METER (seguro de los monstruos)
+//  MINAS VOXEL: pozos cuadrados hacia abajo y túneles excavables a los lados
 // ===================================================================
 const holes = [];
-const DEPTH_STEP = 1.35, ENTER_DIGS = 4, MAX_DIGS = 8, HOLE_FIND = 2.8;
+const DEPTH_STEP = 1.35, ENTER_DIGS = 1, MAX_DIGS = 8, HOLE_FIND = 2.8, MINE_CELL = 3;
+const tunnelKey = (x, z) => x + ',' + z;
 function renderHole(h) {   // (re)construye la malla del hoyo según su profundidad
   while (h.group.children.length) h.group.remove(h.group.children[0]);
-  const dy = h.depth * DEPTH_STEP, R = 1.6;
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(R, R, dy, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0x3a2817, side: THREE.DoubleSide, roughness: 1 }));
-  shaft.position.y = -dy / 2; h.group.add(shaft);
-  const rim = new THREE.Mesh(new THREE.RingGeometry(R * 0.82, R * 1.15, 20), new THREE.MeshBasicMaterial({ color: 0x1a1109, side: THREE.DoubleSide }));
-  rim.rotation.x = -Math.PI / 2; rim.position.y = 0.06; h.group.add(rim);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(R, 20), new THREE.MeshStandardMaterial({ color: 0x2a1c0f })); floor.rotation.x = -Math.PI / 2; floor.position.y = -dy + 0.02; h.group.add(floor);
-  h.enterable = h.depth >= ENTER_DIGS;
-  if (h.enterable) {   // cuartito subterráneo (piso + paredes) al fondo + letrero
-    const room = new THREE.Mesh(new THREE.BoxGeometry(6, 0.25, 6), mat(0x6b4a2a)); room.position.y = -dy - 0.12; h.group.add(room);
-    for (const [wx, wz, ww, wd] of [[0, -3, 6.3, 0.3], [0, 3, 6.3, 0.3], [-3, 0, 0.3, 6], [3, 0, 0.3, 6]]) { const w = new THREE.Mesh(new THREE.BoxGeometry(ww, 2.4, wd), mat(0x5a3f22)); w.position.set(wx, -dy + 1.1, wz); h.group.add(w); }
-    const sign = makeSign('REFUGIO (E)', 0x8b5a2b); sign.scale.set(.45, .45, .45); sign.position.y = 1.7; sign.userData.billboard = true; h.group.add(sign);
+  const dy = h.depth * DEPTH_STEP, half = MINE_CELL / 2, wallT = 0.18;
+  const dirt = mat(0x5b3a1e), darkDirt = mat(0x382315), floorMat = mat(0x6b4423);
+  // Boca cuadrada y paredes verticales hechas de bloques, no un cilindro.
+  const rimParts = [[0, -half - .25, MINE_CELL + 1, .5], [0, half + .25, MINE_CELL + 1, .5], [-half - .25, 0, .5, MINE_CELL], [half + .25, 0, .5, MINE_CELL]];
+  for (const [x, z, w, d] of rimParts) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, .22, d), dirt); b.position.set(x, .04, z); h.group.add(b); }
+  const shaftOpenH = Math.max(0, dy - 2.4);
+  if (shaftOpenH > 0) for (const [x, z, w, d] of [[0,-half,MINE_CELL,wallT],[0,half,MINE_CELL,wallT],[-half,0,wallT,MINE_CELL],[half,0,wallT,MINE_CELL]]) {
+    const wmesh = new THREE.Mesh(new THREE.BoxGeometry(w, shaftOpenH, d), darkDirt); wmesh.position.set(x, -shaftOpenH / 2, z); h.group.add(wmesh);
   }
+  // Cada celda excavada tiene piso/techo; solo conserva paredes en bordes no excavados.
+  for (const key of h.tunnels) {
+    const [cx, cz] = key.split(',').map(Number), x = cx * MINE_CELL, z = cz * MINE_CELL;
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .2, MINE_CELL), floorMat); floor.position.set(x, -dy - .1, z); h.group.add(floor);
+    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .18, MINE_CELL), darkDirt); ceiling.position.set(x, -dy + 2.55, z); h.group.add(ceiling);
+    for (const [dx, dz, wx, wz] of [[0,-1,MINE_CELL,wallT],[0,1,MINE_CELL,wallT],[-1,0,wallT,MINE_CELL],[1,0,wallT,MINE_CELL]]) {
+      if (h.tunnels.has(tunnelKey(cx + dx, cz + dz))) continue;
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(wx, 2.55, wz), dirt);
+      wall.position.set(x + dx * half, -dy + 1.275, z + dz * half); h.group.add(wall);
+    }
+  }
+  h.enterable = h.depth >= ENTER_DIGS;
+  const sign = makeSign('MINA (E)', 0x8b5a2b); sign.scale.set(.45, .45, .45); sign.position.y = 1.7; sign.userData.billboard = true; h.group.add(sign);
 }
-function spawnHole(x, z, depth) {
+function spawnHole(x, z, depth, tunnels) {
   const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
-  const h = { x, z, depth, group: g, enterable: false };
+  const cells = tunnels && tunnels.length ? tunnels.map(c => tunnelKey(c[0], c[1])) : [tunnelKey(0, 0)];
+  const h = { x, z, depth, group: g, enterable: false, tunnels: new Set(cells) };
   holes.push(h); renderHole(h); return h;
 }
 function clearHoles() { holes.forEach(h => scene.remove(h.group)); holes.length = 0; }
@@ -5458,11 +5469,31 @@ function nearEnterableHole() { for (const h of holes) if (h.enterable && Math.hy
 // Cavar con la PALA (tecla T): profundiza el mismo hoyo y a veces salen topos/plata
 function digHole() {
   if (state.phase !== 'DAY' && state.phase !== 'NIGHT') return;
-  if (state.underground) { toast('🕳️ Ya estás bajo tierra (E para salir)'); return; }
   if (!state.hasShovel && !state.weaponName.toLowerCase().includes('pala')) { toast(state.planet === 'platus' ? '🪏 Necesitas una PALA para cavar (cómprala al VENDEDOR alien, Y)' : '🪏 Necesitas una PALA para cavar (cómprala en la ARMERÍA)'); return; }
   if (state.digCd > 0) return;
   state.digCd = 0.8; vmSwing = 1; beep(140, 0.1, 0.04);
   missionProgress('dig');
+  if (state.underground && state.shelterHole) {
+    const h = state.shelterHole;
+    if (pitch < -0.45) {   // mirando hacia abajo: baja toda la mina un nivel
+      if (h.depth >= MAX_DIGS) { toast('🪨 Llegaste a la máxima profundidad'); return; }
+      h.depth++; state.groundY = -h.depth * DEPTH_STEP;
+      player.position.y = PLAYER_EYE + state.groundY; renderHole(h);
+      if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) reachCore(h);
+      else toast('⬇️ Cavaste un bloque hacia abajo (' + h.depth + '/' + MAX_DIGS + ')');
+      return;
+    }
+    // Mirando al frente: elimina el bloque vecino cardinal y abre un túnel transitable.
+    const cx = Math.round((player.position.x - h.x) / MINE_CELL), cz = Math.round((player.position.z - h.z) / MINE_CELL);
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    const dx = Math.abs(fx) > Math.abs(fz) ? Math.sign(fx) : 0, dz = dx ? 0 : Math.sign(fz);
+    const nx = cx + dx, nz = cz + dz, key = tunnelKey(nx, nz);
+    if (Math.abs(nx) > 8 || Math.abs(nz) > 8) { toast('🪨 No puedes extender más esta mina'); return; }
+    if (h.tunnels.has(key)) { toast('🕳️ Ese bloque ya está excavado'); return; }
+    h.tunnels.add(key); renderHole(h);
+    toast('⛏️ Abriste un bloque lateral — la mina tiene ' + h.tunnels.size + ' espacios');
+    return;
+  }
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const t = player.position.clone().addScaledVector(fwd, 3); t.y = 0;
   let h = findHole(t.x, t.z);
@@ -5470,7 +5501,7 @@ function digHole() {
   if (h) { if (h.depth < MAX_DIGS) h.depth++; renderHole(h); }   // profundizar el mismo hoyo
   else h = spawnHole(t.x, t.z, 1);                               // hoyo nuevo
   if (state.planet === 'platus' && digUpTreasure(t.x, t.z)) return;   // ¿había un tesoro enterrado aquí? (detector)
-  if (h.enterable && !wasEnterable) { toast('🏠 ¡Cavaste un REFUGIO subterráneo! Pulsa E para METERTE. Sigue cavando aquí (' + h.depth + '/' + MAX_DIGS + ') para llegar al NÚCLEO 🌋'); return; }
+  if (h.enterable && !wasEnterable) { toast('⛏️ ¡Abriste una MINA cuadrada! Pulsa E para bajar. Adentro mira al frente para cavar lados o hacia abajo para profundizar.'); return; }
   if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) { reachCore(h); return; }   // ¡llegaste al núcleo del planeta!
   const r = Math.random();
   if (r < (h.depth >= ENTER_DIGS ? 0.2 : 0.45)) {   // ¡topos! (viven bajo tierra); menos cuando ya es profundo
@@ -5478,8 +5509,7 @@ function digHole() {
     for (let k = 0; k < n; k++) spawnEnemy('mole', new THREE.Vector3(t.x + (Math.random() * 2 - 1), 0, t.z + (Math.random() * 2 - 1)));
     toast('🦣 ¡Salió ' + (n > 1 ? n + ' topos' : 'un topo') + ' del hoyo!');
   } else if (r < 0.7) { const m = 50 + Math.floor(Math.random() * 150); addMoney(m); toast('💰 Cavaste y encontraste $' + m); }
-  else if (h.enterable) toast('🕳️ Sigue cavando aquí para el NÚCLEO 🌋 (' + h.depth + '/' + MAX_DIGS + ')');
-  else toast('⛏️ El hoyo está más hondo (' + h.depth + '/' + ENTER_DIGS + ')… sigue cavando para hacer un refugio');
+  else toast('🕳️ La mina está más honda (' + h.depth + '/' + MAX_DIGS + '). Pulsa E para bajar');
 }
 // NÚCLEO DEL PLANETA: cavar hasta el fondo (MAX_DIGS) rompe hacia el núcleo -> jackpot enorme + reliquia (1 por planeta)
 function reachCore(h) {
@@ -5506,7 +5536,7 @@ function tryShelter() {
   state.underground = true; state.shelterHole = h; state.groundY = -h.depth * DEPTH_STEP;
   player.position.set(h.x, PLAYER_EYE + state.groundY, h.z);
   beep(200, 0.15, 0.05);
-  toast('🕳️ Estás en tu REFUGIO bajo tierra: los monstruos NO te encuentran. Pulsa E para salir.');
+  toast('⛏️ Estás en tu MINA: T cava al frente; mira abajo + T para profundizar; E sale.');
   return true;
 }
 
@@ -5890,6 +5920,7 @@ function updateMovement(dt) {
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
   if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
   if (state.riding && mount) { updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
+  const moveStartX = player.position.x, moveStartZ = player.position.z;
   const fwd = keys['KeyW'], back = keys['KeyS'];
   const left = keys['KeyA'], right = keys['KeyD'];
   // Flechas = mirar (mover la cámara), WASD = caminar
@@ -5936,10 +5967,10 @@ function updateMovement(dt) {
   }
   if (player.position.y <= floorY) { player.position.y = floorY; vy = 0; grounded = true; }
   if (grounded && geyserBoost()) { vy = 25; grounded = false; beep(400, 0.12, 0.05); floatText(player.position, '⛲ ¡GÉISER!', '#67e8f9', 16); }   // parado sobre un géiser: ¡te lanza altísimo!
-  if (state.underground && state.shelterHole) {   // caminar dentro del cuartito del refugio
+  if (state.underground && state.shelterHole) {   // caminar por las celdas voxel que ya fueron excavadas
     const h = state.shelterHole;
-    player.position.x = THREE.MathUtils.clamp(player.position.x, h.x - 2.6, h.x + 2.6);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, h.z - 2.6, h.z + 2.6);
+    const cx = Math.round((player.position.x - h.x) / MINE_CELL), cz = Math.round((player.position.z - h.z) / MINE_CELL);
+    if (!h.tunnels.has(tunnelKey(cx, cz))) { player.position.x = moveStartX; player.position.z = moveStartZ; }
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;   // sin colisiones de la superficie bajo tierra
   }
   if (state.inRuins) {   // caminar dentro de la cámara de las ruinas (lejos del mundo)

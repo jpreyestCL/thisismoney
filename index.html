@@ -4836,7 +4836,17 @@ function eatFood() {
   state.inv.food--; state.hunger = Math.min(100, state.hunger + 45); state.hp = Math.min(100, state.hp + 8);
   toast('🍖 Comiste (+45 hambre)'); beep(440, 0.08, 0.04);
 }
-addEventListener('keyup', e => { if (!typing) keys[e.code] = false; });
+// OJO: soltar una tecla SIEMPRE la limpia, aunque en ese momento haya un menú abierto
+// (antes, si abrías el vendedor caminando con W, el keyup se ignoraba y el personaje
+// seguía caminando solo al cerrar el menú).
+addEventListener('keyup', e => { keys[e.code] = false; });
+// Soltar TODAS las entradas: al perder el foco (alt+tab, cambiar de pestaña, abrir un menú)
+// no llega el keyup/touchend y el personaje se quedaba "caminando solo".
+function clearInput() {
+  for (const k in keys) keys[k] = false;
+  touch.moveX = touch.moveY = 0; touch.jump = false; touch.jumpHeld = false; touch.heliDown = false;
+  state.blocking = false;
+}
 
 // ----- Vendedor por texto (tecla Y cerca de un vendedor) -----
 function nearKeeper() {
@@ -4983,7 +4993,7 @@ canvas.addEventListener('mouseup', e => {
   if (sportAction()) return; if (state.phase === 'NIGHT') attack(power); else attackNPC();
 });
 addEventListener('mouseup', e => { if (e.button === 2) state.blocking = false; });
-addEventListener('blur', () => { state.blocking = false; });
+addEventListener('blur', clearInput);   // alt+tab / clic fuera: soltar todo
 // En PC el clic captura el mouse (pointer lock): la cámara gira sin que el cursor se escape; Esc lo suelta
 canvas.addEventListener('click', () => {
   if (document.body.classList.contains('touch')) return;
@@ -5091,7 +5101,7 @@ showBestLine();   // récord personal en la pantalla de inicio
 ui('jailBtn').onclick = () => hideScreens();
 ui('overBtn').onclick = recoverFamily;
 // Autoguardado: al ocultar la pestaña, al cerrar y cada 15 s
-document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { clearInput(); saveGame(); } });
 addEventListener('pagehide', saveGame);
 setInterval(() => { if (state.running && state.phase !== 'OVER') saveGame(); }, 15000);
 // Menú de ayuda: botón ❓ y tecla I
@@ -7579,6 +7589,7 @@ function drawMinimap() {
 
 function updateMovement(dt) {
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
+  if (typing) clearInput();   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
   if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
   if (state.riding && mount) { updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
   const moveStartX = player.position.x, moveStartZ = player.position.z;

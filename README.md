@@ -4,7 +4,7 @@ A single-file 3D survival-and-money game that runs in any modern browser. No bui
 
 > **Note / Nota:** the game itself (menus, dialogue, shop, help screen) is entirely **in Spanish**. This README is bilingual — English first, Spanish below. · **El juego está en español**; este README está en inglés y español.
 
-**Play / Jugar:** https://tim.strivexlatam.com · **License / Licencia:** [MIT](LICENSE)
+**Play / Jugar:** https://tim.rlz.cl · **License / Licencia:** [MIT](LICENSE)
 
 ---
 
@@ -92,7 +92,7 @@ There is also a **game code**: the save can be copied/pasted as base64 from the 
 
 ### Deployment
 
-Every push to `main` triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which runs on a self-hosted runner and `rsync`s the static files into the nginx webroot of https://tim.strivexlatam.com, then verifies the site returns HTTP 200.
+Every push to `main` triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which runs on a self-hosted runner and `rsync`s the static files into the nginx webroot serving https://tim.rlz.cl, then verifies the site returns HTTP 200.
 
 ### Contributing
 
@@ -197,7 +197,7 @@ También existe el **código de partida**: desde el menú de pausa puedes copiar
 
 ### Despliegue
 
-Cada push a `main` dispara [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), que corre en un runner self-hosted, hace `rsync` de los archivos estáticos al webroot de nginx de https://tim.strivexlatam.com y verifica que el sitio responda HTTP 200.
+Cada push a `main` dispara [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), que corre en un runner self-hosted, hace `rsync` de los archivos estáticos al webroot de nginx que sirve https://tim.rlz.cl y verifica que el sitio responda HTTP 200.
 
 ### Cómo contribuir
 

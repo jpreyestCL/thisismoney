@@ -1,6 +1,7 @@
 export const GAME_RULES = Object.freeze({
   saveVersion: 3,
-  daySeconds: 240,
+  firstDaySeconds: 300,
+  daySeconds: 180,
   nightSeconds: 180,
   firstNightSeconds: 90,
   finalHordeSeconds: 35,
@@ -44,6 +45,11 @@ export const HOUSE_VALUES = Object.freeze({
   heladera: { comfort: 5, production: 10, energy: -3 },
   laser: { protection: 15, energy: -5 }, torreta: { protection: 12 }, ballesta: { protection: 9 },
 });
+
+// El primer día dura 5 minutos (da tiempo a construir la casa); el resto, 3 minutos.
+export function dayDuration(nightNumber) {
+  return nightNumber === 0 ? GAME_RULES.firstDaySeconds : GAME_RULES.daySeconds;
+}
 
 export function nightDuration(nightNumber) {
   return nightNumber <= 1 ? GAME_RULES.firstNightSeconds : GAME_RULES.nightSeconds;

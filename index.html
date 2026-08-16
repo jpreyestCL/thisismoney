@@ -743,7 +743,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
-import { CHAPTERS, GAME_RULES, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=4';
+import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -3497,8 +3497,8 @@ function spawnPlaced(key, x, z, rot, hp, variantId) {
     handle.position.set(0.35, 0.2, 0.44); m.add(handle);
   }
   if (key === 'lamp') {
-    const light = new THREE.PointLight(0xfff1a8, 0, 18); light.position.set(m.position.x, 2.6, m.position.z); scene.add(light); obj.light = light;
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xfde047, emissiveIntensity: 1 }));
+    const light = new THREE.PointLight(0xfff1a8, 0, 38); light.position.set(m.position.x, 2.6, m.position.z); scene.add(light); obj.light = light;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfff1a8, emissive: 0xfde047, emissiveIntensity: 2.2 }));
     bulb.position.set(m.position.x, 2.5, m.position.z); scene.add(bulb); obj.bulb = bulb;
   }
   if (key === 'wallWood' || key === 'wallRock') {
@@ -4466,11 +4466,12 @@ function dadWipe(dt) {
 //  ESTADO
 // ===================================================================
 const START_MONEY = 1000;
-const DAY_LENGTH = GAME_RULES.daySeconds;
 const NIGHT_LENGTH = GAME_RULES.nightSeconds;
 const METEOR_AT = GAME_RULES.meteorAt;
 const MOM_AT = GAME_RULES.momAt;
 function currentNightLength() { return nightDuration(state.night); }
+// Largo del día actual: el primero dura 5 min, del segundo en adelante 3 min
+function currentDayLength() { return dayDuration(state.night); }
 const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
   hp: 100, dadHp: 100,
@@ -6825,7 +6826,7 @@ function goToPlanet() {
 function tryStartNight() {
   if (state.phase !== 'DAY') return;
   if (!houseStats().ready) { toast('Construye al menos 4 paredes cerca de tu casa (B para construir)'); return; }
-  if (state.dayTime < DAY_LENGTH - 60) {   // prepararse con tiempo paga un pequeño bono
+  if (state.dayTime < currentDayLength() - 60) {   // prepararse con tiempo paga un pequeño bono
     addMoney(100); floatText(player.position, '+$100 madrugador', '#4ade80', 16);
   }
   startNight();
@@ -7665,7 +7666,7 @@ function updateArrow() {
 function updateDayNight(dt) {
   if (state.phase === 'DAY') {
     state.dayTime += dt;
-    if (state.dayTime >= DAY_LENGTH) startNight();   // al acabarse el día SIEMPRE viene la noche
+    if (state.dayTime >= currentDayLength()) startNight();   // al acabarse el día SIEMPRE viene la noche
   }
 }
 
@@ -7764,7 +7765,7 @@ function updateSky(dt) {
   const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1.0;   // NEBULA: planeta oscuro y neblinoso
   ambient.intensity += ((night ? 0.25 : 1.0 * dim) - ambient.intensity) * 0.04;
   sun.intensity += ((night ? 0.15 : 1.0 * dim) - sun.intensity) * 0.04;
-  for (const o of placed) if (o.light) { const desired = state.worldEvent && state.worldEvent.id === 'blackout' ? 0 : (night ? 1.6 : 0); o.light.intensity += (desired - o.light.intensity) * 0.05; }
+  for (const o of placed) if (o.light) { const desired = state.worldEvent && state.worldEvent.id === 'blackout' ? 0 : (night ? 4.5 : 0); o.light.intensity += (desired - o.light.intensity) * 0.05; }
   if (state.eclipse > 0) {   // ECLIPSE: todo se oscurece de golpe
     scene.background.lerp(SKY_ECLIPSE, 0.12); scene.fog.color.copy(scene.background);
     ambient.intensity += (0.18 - ambient.intensity) * 0.1; sun.intensity += (0.1 - sun.intensity) * 0.1;
@@ -7840,7 +7841,7 @@ function renderHUD() {
   ui('ui-stamina-stat').style.display = combatIsActive() ? '' : 'none';
   ui('ui-stamina-label').textContent = state.blocking ? 'BLOQUEANDO' : (state.dodgeCd > 0 ? 'RECARGANDO' : 'RESISTENCIA');
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
-  ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(currentNightLength() - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(DAY_LENGTH - state.dayTime) : '--');
+  ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(currentNightLength() - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(currentDayLength() - state.dayTime) : '--');
   const speedometer = ui('speedometer'), showingSpeed = !!(state.driving && car);
   speedometer.style.display = showingSpeed ? 'flex' : 'none';
   if (showingSpeed) {

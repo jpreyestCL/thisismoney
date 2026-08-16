@@ -1560,6 +1560,7 @@ function updateSoccer(dt) {
   if (Math.abs(b.z - soccer.cz) < 2 && (b.x <= soccer.cx - 9 + 0.3 || b.x >= soccer.cx + 9 - 0.3)) {
     if (b.x >= soccer.cx + 9 - 0.3) soccer.scoreRed++; else soccer.scoreBlue++;   // arco derecho = gol rojo; izquierdo = gol azul
     updateScoreboard();
+    if (state.sportGame && state.sportGame.type === 'futbol' && state.sportGame.lastTouch > 0) { state.sportGame.score += 3; toast('⚽ ¡GOL DEL JUGADOR! +3'); }
     b.set(soccer.cx, 0.35, soccer.cz); soccer.vel.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
   }
 }
@@ -1636,6 +1637,7 @@ function updateBasketball(dt) {
     if (Math.abs(b.ball.position.x - targetX) < .42 && Math.abs(b.ball.position.z - b.cz) < .62 && b.ball.position.y > 2.35 && b.ball.position.y < 3.25) {
       if (b.shotTeam === 0) b.scoreRed += 2; else b.scoreBlue += 2;
       drawTeamScore(b.board, 'BASQUET', b.scoreRed, b.scoreBlue, 'CANASTA DE 2'); resetBasketball(b.shotTeam ? 0 : 1);
+      if (state.sportGame && state.sportGame.type === 'basket' && state.sportGame.lastTouch > 0) { state.sportGame.score += 3; toast('🏀 ¡CANASTA! +3'); }
     } else if (b.ball.position.y < .3 || Math.abs(b.ball.position.x - b.cx) > 10 || Math.abs(b.ball.position.z - b.cz) > 7) resetBasketball(b.shotTeam ? 0 : 1);
   }
   for (const p of b.players) {
@@ -1671,6 +1673,7 @@ function tennisPoint(winner) {
   else if (tennis.points[0] >= 4 && tennis.points[1] >= 4) { tennis.points[0]--; tennis.points[1]--; }   // vuelve a deuce
   tennis.server = 1 - tennis.server; tennis.serveIn = 1.1; tennis.vel.set(0, 0, 0); tennis.bounces = 0; tennis.bounceSide = null;
   drawTennisScore();
+  if (state.sportGame && state.sportGame.type === 'tenis' && state.sportGame.lastTouch > 0) { state.sportGame.score += 2; toast('🎾 Punto jugado +2'); }
 }
 function serveTennis() {
   const t = tennis, p = t.players[t.server], dir = t.server === 0 ? 1 : -1;
@@ -1719,9 +1722,9 @@ function nearestSport(maxD = 13) {
   return best;
 }
 function trySportInteract() {
-  if (state.sportGame) { finishSportGame(true); return true; }
+  if (state.sportGame) return sportSecondaryAction();
   const sport = nearestSport(); if (!sport || state.phase !== 'DAY') return false;
-  state.sportGame = { type: sport.type, name: sport.name, time: 45, score: 0, actions: 0 };
+  state.sportGame = { type: sport.type, name: sport.name, time: 60, score: 0, actions: 0, lastTouch: 0 };
   player.position.set(sport.center.x, PLAYER_EYE, sport.center.z + 4.5);
   toast('🏟️ Entraste a ' + sport.name + ' · acércate a la pelota y usa la acción principal · E abandona');
   return true;
@@ -1730,7 +1733,7 @@ function sportAction() {
   const game = state.sportGame; if (!game) return false;
   const sport = SPORT_INFO.find(s => s.type === game.type), ball = sport && sport.ball();
   if (!ball || dist2D(player.position, ball.position) > 2.2) { toast('🏃 Acércate a la pelota'); return true; }
-  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); game.actions++;
+  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); game.actions++; game.lastTouch = 3;
   if (game.type === 'futbol') soccer.vel.set(dir.x * 11, 0, dir.z * 11);
   else if (game.type === 'basket') {
     basketball.holder = null; basketball.shotTeam = 0;
@@ -1742,9 +1745,19 @@ function sportAction() {
   }
   game.score++; beep(620, .07, .04); return true;
 }
+function sportSecondaryAction() {
+  const game = state.sportGame; if (!game) return false;
+  const sport = SPORT_INFO.find(s => s.type === game.type), ball = sport && sport.ball(); if (!ball) return true;
+  if (dist2D(player.position, ball.position) > 3) { toast('🏃 Acércate a la pelota para usar la técnica'); return true; }
+  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); game.lastTouch = 2;
+  if (game.type === 'futbol') { ball.position.set(player.position.x + dir.x, .35, player.position.z + dir.z); soccer.vel.set(dir.x * 4, 0, dir.z * 4); toast('⚽ Control y pase corto'); }
+  else if (game.type === 'basket') { basketball.holder = null; basketball.vel.set(dir.x * 4, 2.5, dir.z * 4); ball.position.set(player.position.x + dir.x * .7, 1, player.position.z + dir.z * .7); toast('🏀 Drible y pase'); }
+  else { tennis.vel.z *= -1.25; tennis.vel.y = Math.max(6.2, tennis.vel.y); toast('🎾 Golpe con efecto'); }
+  game.actions++; beep(480, .06, .035); return true;
+}
 function updateSportGame(dt) {
   const game = state.sportGame; if (!game) return;
-  game.time -= dt;
+  game.time -= dt; game.lastTouch = Math.max(0, game.lastTouch - dt);
   if (game.time <= 0) finishSportGame(false);
 }
 function finishSportGame(abandoned) {
@@ -4273,6 +4286,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
   if (e.code === 'Escape' && ui('rocketbox').style.display === 'flex') { closeRocket(); return; }  // Esc cierra los cajones del cohete
   if (e.code === 'Escape' && ui('businessbox').style.display === 'block') { closeBusiness(); return; }
+  if (e.code === 'Escape' && state.sportGame) { finishSportGame(true); return; }
   if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
   if (e.code === 'F5' && state.running && !typing) { e.preventDefault(); cycleCameraMode(); return; }
   if (state.paused) return;   // en pausa el teclado no hace nada (solo Esc, arriba)
@@ -4299,7 +4313,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyE') { if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
-  if (e.code === 'KeyQ') eatFood();   // comer
+  if (e.code === 'KeyQ') { if (!sportSecondaryAction()) eatFood(); }
   if (e.code === 'KeyI') toggleHelp();   // abrir/cerrar el menú de ayuda
   if (e.code === 'KeyK') { if (e.shiftKey) cycleCrop(1); else plantSeed(); }
   if (e.code === 'BracketRight') cycleCrop(1);
@@ -7102,7 +7116,7 @@ function updateContextPrompt() {
       let owned = null;
       for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
       if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
-      else if (state.sportGame) action = { key: 'CLIC', touch: '⚽', text: state.sportGame.name + ' · juega la pelota · ' + Math.ceil(state.sportGame.time) + 's' };
+      else if (state.sportGame) action = { key: 'CLIC/Q', touch: '⚽', text: state.sportGame.name + ' · acción / técnica · ' + state.sportGame.score + ' pts · ' + Math.ceil(state.sportGame.time) + 's' };
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
       else if (nearKeeper()) action = { key: 'Y', touch: '🛒', text: 'Abrir catálogo del vendedor' };

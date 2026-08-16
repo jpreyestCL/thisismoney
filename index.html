@@ -4863,9 +4863,10 @@ function updateDriving(dt) {
   car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -230, 230);
   car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, -230, 230);
   if (car.helicopter) {
-    const rise = (keys['Space'] || touch.jumpHeld ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] || touch.crouch ? 1 : 0);
+    const rise = (keys['Space'] || touch.jump || touch.jumpHeld ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] || touch.crouch ? 1 : 0);
     car.group.position.y = THREE.MathUtils.clamp(car.group.position.y + rise * 12 * dt, 0, 45);
     for (const rotor of car.rotors) rotor.rotation.y += dt * (state.driving ? 22 : 5);
+    touch.jump = false;   // cada toque del botón ⬆️ da impulso de ascenso también en celular
   }
   // chocar con paredes / edificios cuando el vehículo está cerca del suelo
   const R = 1.5;

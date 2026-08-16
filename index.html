@@ -1429,7 +1429,7 @@ function giveCitizenJobReward(job) {
   else if (job === 'entrenador') state.sportBonus = (state.sportBonus || 0) + 1;
   else state.inv.food = (state.inv.food || 0) + 1;
 }
-function communityDiscount() { return Math.min(.15, Math.floor((state.reputation || 0) / 3) * .03); }
+function communityDiscount() { return Math.min(.30, Math.floor((state.reputation || 0) / 3) * .03 + (state.worldEvent && state.worldEvent.id === 'market' ? .15 : 0)); }
 function effectivePrice(item) { return Math.max(1, Math.round(item.price * (1 - communityDiscount()))); }
 
 // ===================================================================
@@ -1763,7 +1763,7 @@ function updateSportGame(dt) {
 function finishSportGame(abandoned) {
   const game = state.sportGame; if (!game) return;
   if (!abandoned) {
-    const reward = 200 + game.score * 40; addMoney(reward);
+    const reward = (200 + game.score * 40) * (state.worldEvent && state.worldEvent.id === 'tournament' ? 2 : 1); addMoney(reward);
     state.medals[game.type] = Math.max(state.medals[game.type] || 0, game.score);
     state.reputation = (state.reputation || 0) + 1;
     missionProgress('sport', 1);
@@ -4115,6 +4115,7 @@ const state = {
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
   tutorial: { step: 0, complete: false }, chapter: 0, chapterFlags: {}, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
   business: null, businessOrders: 0,
+  worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -4187,7 +4188,7 @@ function upgradeBusiness() {
   state.money -= cost; b.level++; renderBusiness(); toast('⬆️ Negocio nivel ' + b.level + ': pedidos más rápidos y valiosos');
 }
 function updateBusiness(dt) {
-  const b = state.business; if (!b || state.phase !== 'DAY') return; b.next -= dt;
+  const b = state.business; if (!b || state.phase !== 'DAY') return; b.next -= dt * (state.worldEvent && state.worldEvent.id === 'harvest' ? 2 : 1);
   if (b.next > 0) return; const d = BUSINESS_TYPES[b.type];
   if (b.stock > 0) { b.stock--; state.businessOrders++; const pay = d.base * b.level; addMoney(pay); toast('🧾 Pedido de ' + d.name + ' completado · +$' + pay); }
   else toast('📦 ' + d.name + ' necesita suministros');
@@ -4195,6 +4196,28 @@ function updateBusiness(dt) {
 }
 ui('businessChoices').addEventListener('click', e => { const b = e.target.closest('[data-business]'); if (b) chooseBusiness(b.dataset.business); });
 ui('businessSupply').onclick = supplyBusiness; ui('businessUpgrade').onclick = upgradeBusiness; ui('businessClose').onclick = closeBusiness;
+
+const WORLD_EVENTS = [
+  { id: 'market', icon: '🛍️', name: 'Mercado barrial', text: 'Las tiendas ofrecen 15% extra de descuento.', duration: 75 },
+  { id: 'tournament', icon: '🏆', name: 'Torneo de la ciudad', text: 'Los partidos pagan el doble.', duration: 90 },
+  { id: 'harvest', icon: '🌻', name: 'Festival de cosecha', text: 'Los cultivos y pedidos avanzan al doble.', duration: 80 },
+  { id: 'blackout', icon: '🔦', name: 'Apagón', text: 'Las lámparas se apagaron. Mantente cerca de casa.', duration: 55 },
+  { id: 'search', icon: '🔎', name: 'Búsqueda vecinal', text: 'Encuentra al vecino cerca del parque y ayúdalo con E.', duration: 100, target: new THREE.Vector3(-18, 0, 28) },
+];
+function startWorldEvent() {
+  const pool = WORLD_EVENTS.filter(e => !state.worldEvent || e.id !== state.worldEvent.id), event = pool[(Math.random() * pool.length) | 0];
+  state.worldEvent = event; state.worldEventTime = event.duration; toast(event.icon + ' EVENTO · ' + event.name + ': ' + event.text); phaseText(event.name.toUpperCase());
+}
+function updateWorldEvents(dt) {
+  if (state.phase !== 'DAY' || state.planet !== 'tierra') return;
+  if (!state.worldEvent) { state.nextWorldEvent -= dt; if (state.nextWorldEvent <= 0) startWorldEvent(); return; }
+  state.worldEventTime -= dt;
+  if (state.worldEventTime <= 0) { toast('⏱️ Terminó ' + state.worldEvent.name); state.worldEvent = null; state.nextWorldEvent = 130 + Math.random() * 90; }
+}
+function tryWorldEvent() {
+  const event = state.worldEvent; if (!event || event.id !== 'search' || dist2D(player.position, event.target) > 5) return false;
+  addMoney(650); state.reputation = (state.reputation || 0) + 2; toast('🤝 Encontraste al vecino · +$650 · confianza +2'); state.worldEvent = null; state.nextWorldEvent = 150; return true;
+}
 
 function damagePlayer(amount) {
   if (state.creative || isPlayerHidden()) return;   // bajo tierra / en las ruinas estás a salvo
@@ -4310,7 +4333,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { if (state.buildMode) cycleBuildVariant(1); else tryLaunchRocket(); }
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && new URLSearchParams(location.search).has('debug') && !state.meteorTriggered) triggerMeteor();
-  if (e.code === 'KeyE') { if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryHarvest() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') { if (!sportSecondaryAction()) eatFood(); }
@@ -4697,7 +4720,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryHarvest() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -4782,7 +4805,7 @@ function startGame() {
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
-  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0;
+  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.worldEvent = null; state.nextWorldEvent = 45;
   state.mathLeft = 5; state.mathStreak = 0;
   soccer.scoreRed = soccer.scoreBlue = 0; updateScoreboard();
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
@@ -6720,6 +6743,7 @@ function loop() {
     updateTennis(dt);
     updateSportGame(dt);
     updateBusiness(dt);
+    updateWorldEvents(dt);
     swingLimbs(mom, dt);
     updateArrow();
     updateTutorial();
@@ -6733,7 +6757,7 @@ function loop() {
     updateTrafficLights(dt);               // semáforos del cruce central
     updateTraffic(dt);                     // autos andando por las calles
     updateCar(dt);                         // vida del auto (los monstruos lo dañan)
-    updatePlants(state.weather === 'rain' ? dt * 2 : dt);   // huerto (la lluvia lo hace crecer al doble)
+    updatePlants(dt * (state.weather === 'rain' ? 2 : 1) * (state.worldEvent && state.worldEvent.id === 'harvest' ? 2 : 1));
     updateMeteorVisual(dt);                // el meteorito que se ve caer del cielo
     if (state.cinematic) updateCinematic(dt);
     updatePolice(dt);                      // policía persigue si estás buscado
@@ -6984,7 +7008,8 @@ function updateMovement(dt) {
 function updateArrow() {
   const ready = houseStats().ready;
   let target = HOUSE;
-  if (state.meteorTriggered && state.rocket) target = state.rocket.position;
+  if (state.worldEvent && state.worldEvent.id === 'search') target = state.worldEvent.target;
+  else if (state.meteorTriggered && state.rocket) target = state.rocket.position;
   else if (state.phase === 'NIGHT') target = HOUSE;
   else if (!ready) target = SUPER_POS;
   arrow.position.copy(player.position);
@@ -7082,7 +7107,7 @@ function updateSky(dt) {
   const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1.0;   // NEBULA: planeta oscuro y neblinoso
   ambient.intensity += ((night ? 0.25 : 1.0 * dim) - ambient.intensity) * 0.04;
   sun.intensity += ((night ? 0.15 : 1.0 * dim) - sun.intensity) * 0.04;
-  for (const o of placed) if (o.light) o.light.intensity += (((night ? 1.6 : 0)) - o.light.intensity) * 0.05;
+  for (const o of placed) if (o.light) { const desired = state.worldEvent && state.worldEvent.id === 'blackout' ? 0 : (night ? 1.6 : 0); o.light.intensity += (desired - o.light.intensity) * 0.05; }
   if (state.eclipse > 0) {   // ECLIPSE: todo se oscurece de golpe
     scene.background.lerp(SKY_ECLIPSE, 0.12); scene.fog.color.copy(scene.background);
     ambient.intensity += (0.18 - ambient.intensity) * 0.1; sun.intensity += (0.1 - sun.intensity) * 0.1;
@@ -7122,6 +7147,7 @@ function updateContextPrompt() {
       else if (nearKeeper()) action = { key: 'Y', touch: '🛒', text: 'Abrir catálogo del vendedor' };
       else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
       else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };
+      else if (state.worldEvent && state.worldEvent.id === 'search' && dist2D(player.position, state.worldEvent.target) < 5) action = { key: 'E', touch: '🤝', text: 'Ayudar al vecino perdido' };
       else if (nearestSport()) action = { key: 'E', touch: '🏟️', text: 'Unirte al partido · sesión de 45 segundos' };
       else if (dist2D(player.position, HOUSE) < 8 && houseStats().full) action = { key: 'E', touch: '🏪', text: state.business ? 'Administrar ' + BUSINESS_TYPES[state.business.type].name : 'Abrir un negocio familiar' };
       else if (nearestCitizen() || (dad.visible && dist2D(dad.position, player.position) < 3.4)) action = { key: 'E', touch: '💬', text: 'Hablar o ayudar' };
@@ -7230,6 +7256,7 @@ function renderHUD() {
   let obj = '';
   if (state.sportGame) obj = '🏟️ ' + state.sportGame.name + ' · ' + state.sportGame.score + ' jugadas · ' + fmt(state.sportGame.time);
   else if (state.tutorial && !state.tutorial.complete) obj = '📍 PASO ' + (state.tutorial.step + 1) + '/' + TUTORIAL_STEPS.length + ' · ' + TUTORIAL_STEPS[state.tutorial.step].text;
+  else if (state.worldEvent) obj = state.worldEvent.icon + ' ' + state.worldEvent.name + ' · ' + state.worldEvent.text + ' · ' + fmt(state.worldEventTime);
   else if (state.chapter < CHAPTERS.length) { const ch = currentChapter(); obj = '📖 CAP. ' + (state.chapter + 1) + ' · ' + ch.title + ' · ' + ch.goal; }
   else if (state.phase === 'DAY') {
     if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);

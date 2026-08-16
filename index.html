@@ -50,6 +50,11 @@
   #dadhud { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; }
   #dadhud b { color: #38bdf8; }
   #gearhud { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; text-align: right; }
+  #speedometer { position:absolute; left:50%; bottom:18px; transform:translateX(-50%); display:none; align-items:flex-end; gap:7px;
+    min-width:124px; padding:7px 11px 8px; background:var(--panel, oklch(19% .025 235 / .94)); border:1px solid var(--line, oklch(85% .01 230 / .22)); border-radius:6px; color:var(--ink, oklch(96% .012 110)); }
+  #speedometer .speed-main { font:900 30px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
+  #speedometer .speed-meta { padding-bottom:2px; color:var(--muted, oklch(76% .018 220)); font:800 9px/1.25 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing:.08em; text-transform:uppercase; }
+  #speedometer.turbo .speed-meta { color:var(--warning, oklch(75% .17 72)); }
 
   /* inventario estilo Minecraft (hotbar) */
   #buildbar { position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%); display: none; gap: 5px; flex-wrap: wrap; justify-content: center; max-width: 94vw; }
@@ -128,6 +133,8 @@
   body.touch #objective { top: 84px; font-size: 12px; padding: 4px 10px; max-width: 58%; }
   body.touch #gearhud { top: 150px; right: 6px; left: auto; bottom: auto; font-size: 10px; padding: 3px 6px; max-width: 40vw; text-align: right; }
   body.touch #dadhud { display: none; }
+  body.touch #speedometer { top:150px; left:6px; bottom:auto; transform:none; min-width:104px; padding:5px 8px 6px; }
+  body.touch #speedometer .speed-main { font-size:24px; }
   /* hotbar: fila compacta con scroll horizontal; solo aparece en modo construir (lo pone el JS) */
   body.touch #buildbar { left: 214px; right: 166px; transform: none; max-width: none; bottom: 12px; gap: 4px; padding: 3px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
   body.touch .slot { width: 46px; height: 46px; }
@@ -174,6 +181,9 @@
   body.watch #objective { display: none; }
   body.watch #missions { display: none; }   /* el panel de misiones ocupa mucho; el progreso igual avisa por toast */
   body.watch #gearhud  { top: 92px; right: 4px; font-size: 8px; padding: 2px 4px; max-width: 52vw; }
+  body.watch #speedometer { top:92px; left:4px; bottom:auto; transform:none; min-width:76px; padding:3px 5px; gap:4px; }
+  body.watch #speedometer .speed-main { font-size:17px; }
+  body.watch #speedometer .speed-meta { font-size:6px; }
   body.watch #joystick { left: 8px; bottom: 44px; width: 76px; height: 76px; }
   body.watch #joyKnob  { width: 34px; height: 34px; margin: -17px 0 0 -17px; }
   /* botones de acción: una tira horizontal que se desliza (cabe en cualquier alto de reloj) */
@@ -394,6 +404,7 @@
   <div id="toast"></div>
   <div id="dadhud"></div>
   <div id="gearhud"></div>
+  <div id="speedometer" role="status" aria-label="Velocidad del vehículo"><span class="speed-main" id="speedValue">0</span><span class="speed-meta"><span id="speedMode">VELOCIDAD</span><br>KM/H</span></div>
   <div id="buildbar"></div>
   <button id="rotateBtn">🔄 Girar</button>
   <button id="deleteBtn">🗑️ Quitar</button>
@@ -5759,7 +5770,7 @@ function updateDriving(dt) {
   const sm = car.speedMult || 1;                                        // la moto es más rápida
   const baseSpeed = car.helicopter ? 30 : (turbo ? 44 : 24);
   const move = throttle * baseSpeed * sm * dt;
-  car.speed = Math.abs(throttle) * baseSpeed * sm;   // para el velocímetro
+  car.reverse = throttle < -0.05; car.turbo = !!turbo;
   const prevX = car.group.position.x, prevZ = car.group.position.z;
   car.group.position.addScaledVector(fwd, move);
   car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -230, 230);
@@ -5777,6 +5788,8 @@ function updateDriving(dt) {
       car.group.position.x = prevX; car.group.position.z = prevZ; break;
     }
   }
+  // El velocímetro usa desplazamiento real, así marca 0 si una pared detuvo el vehículo.
+  car.speed = Math.hypot(car.group.position.x - prevX, car.group.position.z - prevZ) / Math.max(dt, .001);
   car.group.rotation.y = car.heading;
   for (const w of car.wheels) w.rotation.x += move * 2.2;
   // atropellar monstruos si vas con algo de velocidad
@@ -7300,6 +7313,13 @@ function renderHUD() {
   ui('ui-stamina-label').textContent = state.blocking ? 'BLOQUEANDO' : (state.dodgeCd > 0 ? 'RECARGANDO' : 'RESISTENCIA');
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
   ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(currentNightLength() - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(DAY_LENGTH - state.dayTime) : '--');
+  const speedometer = ui('speedometer'), showingSpeed = !!(state.driving && car);
+  speedometer.style.display = showingSpeed ? 'flex' : 'none';
+  if (showingSpeed) {
+    ui('speedValue').textContent = Math.round((car.speed || 0) * 3.6);
+    ui('speedMode').textContent = car.helicopter ? 'VELOCIDAD AÉREA' : (car.reverse ? 'REVERSA' : (car.turbo ? 'TURBO' : 'VELOCIDAD'));
+    speedometer.classList.toggle('turbo', !!car.turbo);
+  }
   document.body.classList.toggle('building', !!state.buildMode); document.body.classList.toggle('vehicle', !!state.driving);
   const heliDownBtn = ui('heliDownBtn');
   if (heliDownBtn) heliDownBtn.style.display = state.driving && car && car.helicopter ? 'flex' : 'none';
@@ -7370,7 +7390,7 @@ function renderHUD() {
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
   if (vehicles.length > 1) gear.push('🚘 ' + vehicles.length + ' vehículos');
-  if (car) gear.push((car.helicopter ? '🚁 ' : '🚗 ') + Math.max(0, Math.round(car.hp)) + (state.driving ? ' · ' + (car.helicopter ? '⬆️ ' + Math.round(car.group.position.y) + ' m · ' : '🏎️ ') + Math.round((car.speed || 0) * 3.6) + ' km/h' : ''));
+  if (car) gear.push((car.helicopter ? '🚁 ' : '🚗 ') + Math.max(0, Math.round(car.hp)) + (state.driving && car.helicopter ? ' · ⬆️ ' + Math.round(car.group.position.y) + ' m' : ''));
   if (state.poison > 0) gear.push('🟢 veneno ' + Math.ceil(state.poison) + 's');
   if (state.hasShield) gear.push('🛡️ escudo ' + Math.round(state.shieldHp) + '/' + state.shieldMax);
   if (state.hasJetpack) gear.push('🚀 jetpack' + (state.jetOn ? ' 🔥' : ''));

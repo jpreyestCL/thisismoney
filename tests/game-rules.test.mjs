@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { GAME_RULES, houseRatings, nightDuration, roadmapFor } from '../src/game-config.js';
+import { CHAPTERS, GAME_RULES, houseRatings, nightDuration, roadmapFor } from '../src/game-config.js';
 
 assert.equal(nightDuration(1), 90, 'la primera noche debe ser breve');
 assert.equal(nightDuration(2), 180, 'las noches normales deben durar tres minutos');
@@ -15,5 +15,7 @@ assert.ok(sturdyHome.protection >= 60);
 assert.ok(sturdyHome.comfort > 0);
 assert.ok(sturdyHome.production > 0);
 assert.ok(sturdyHome.score > sturdyHome.protection);
+assert.equal(CHAPTERS.length, 8);
+assert.ok(CHAPTERS.every(chapter => chapter.goal && chapter.reward > 0 && chapter.blueprint));
 
 console.log('game rules: ok');

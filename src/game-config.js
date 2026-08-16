@@ -20,6 +20,17 @@ export const PROGRESSION = Object.freeze([
   { at: 75000, icon: '🚀', name: 'Horizonte espacial', detail: 'Comienza la misión del cohete.' },
 ]);
 
+export const CHAPTERS = Object.freeze([
+  { id: 'home', title: 'Un techo para los dos', goal: 'Completa el entrenamiento y termina tu primer hogar.', reward: 600, blueprint: 'familyWorkshop' },
+  { id: 'neighbors', title: 'El barrio recuerda', goal: 'Alcanza 3 puntos de confianza ayudando a habitantes.', reward: 900, blueprint: 'communityBoard' },
+  { id: 'resistance', title: 'Tres amaneceres', goal: 'Supera 3 noches y logra 45 de protección en la casa.', reward: 1400, blueprint: 'reinforcedWalls' },
+  { id: 'team', title: 'Jugar en equipo', goal: 'Obtén medallas en 2 deportes distintos.', reward: 1800, blueprint: 'trophyRoom' },
+  { id: 'enterprise', title: 'El negocio familiar', goal: 'Abre un negocio y completa 3 pedidos.', reward: 2400, blueprint: 'marketStall' },
+  { id: 'secrets', title: 'Bajo la ciudad', goal: 'Encuentra 3 secretos o reliquias del mundo.', reward: 3200, blueprint: 'treasureMap' },
+  { id: 'guardian', title: 'La noche del guardián', goal: 'Derrota un jefe y conserva la casa en pie.', reward: 4500, blueprint: 'guardianCore' },
+  { id: 'horizon', title: 'Horizonte espacial', goal: 'Prepara el cohete y escapa con tu familia.', reward: 7500, blueprint: 'starHome' },
+]);
+
 export const HOUSE_VALUES = Object.freeze({
   wallWood: { protection: 8, comfort: 1 },
   wallRock: { protection: 14 },

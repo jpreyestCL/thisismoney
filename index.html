@@ -673,7 +673,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
-import { GAME_RULES, houseRatings, nightDuration, roadmapFor } from './src/game-config.js';
+import { CHAPTERS, GAME_RULES, houseRatings, nightDuration, roadmapFor } from './src/game-config.js';
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 function pixelateModel(root) {
@@ -3292,6 +3292,22 @@ function updateTutorial() {
   const t = state.tutorial; if (!t || t.complete) return;
   const step = TUTORIAL_STEPS[t.step]; if (step && step.test && step.test()) advanceTutorial();
 }
+function chapterRequirement(index) {
+  const hs = houseStats(), medals = Object.keys(state.medals || {}).length;
+  return [
+    !!(state.tutorial && state.tutorial.complete && hs.ready), (state.reputation || 0) >= 3,
+    (state.night || 0) >= 3 && hs.protection >= 45, medals >= 2,
+    (state.businessOrders || 0) >= 3 && !!state.business, (state.secretsFound || 0) >= 3,
+    !!(state.chapterFlags && state.chapterFlags.bossDefeated), !!state.usedRocket,
+  ][index];
+}
+function updateChapters() {
+  if (!state.running || state.chapter >= CHAPTERS.length || !chapterRequirement(state.chapter)) return;
+  const completed = CHAPTERS[state.chapter]; state.chapter++;
+  addMoney(completed.reward); state.blueprints[completed.blueprint] = true;
+  phaseText('CAPÍTULO COMPLETADO'); toast('📖 ' + completed.title + ' · +$' + completed.reward + ' · plano nuevo'); saveGame();
+}
+function currentChapter() { return CHAPTERS[Math.min(state.chapter || 0, CHAPTERS.length - 1)]; }
 // Bono por construir: casa simple (4 paredes + techo) = $300 ; casa completa (4 paredes + puerta + techo + lámpara + horno) = $1000
 let houseTier = 0;   // 0 = nada cobrado, 1 = simple cobrada, 2 = completa cobrada
 function checkConstructionBonus() {
@@ -3596,7 +3612,7 @@ function killLoot(e) {
   m = Math.round(m * (1 + Math.min(0.5, (c - 1) * 0.1)));   // el combo paga hasta +50%
   const golden = Math.random() < 0.10;
   if (golden) m *= 5;
-  if (e.userData.bossKill) { m += 500; toast('⚔️ ¡Derrotaste al JEFE! +$500 extra'); coinBurst(e.position, 16); }
+  if (e.userData.bossKill) { m += 500; state.chapterFlags.bossDefeated = true; toast('⚔️ ¡Derrotaste al JEFE! +$500 extra'); coinBurst(e.position, 16); }
   if (e.userData.ufoKill) { m += 900; toast('🛸 ¡DERRIBASTE EL OVNI JEFE! +$900 extra'); coinBurst(e.position, 24); }
   if (e.userData.pinata) {
     m += 300 + 60 * state.stage;
@@ -4060,7 +4076,7 @@ const state = {
   riding: false,   // montando una criatura firma domada
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
-  tutorial: { step: 0, complete: false }, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
+  tutorial: { step: 0, complete: false }, chapter: 0, chapterFlags: {}, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -4672,7 +4688,7 @@ function startGame() {
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
-  state.tutorial = { step: 0, complete: false }; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null;
+  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null;
   state.mathLeft = 5; state.mathStreak = 0;
   soccer.scoreRed = soccer.scoreBlue = 0; updateScoreboard();
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
@@ -4771,7 +4787,7 @@ function saveGame() {
       bestiary: state.bestiary || {},     // colección de monstruos
       album: state.album || {}, albumDone: !!state.albumDone,   // álbum de criaturas alien
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
-      tutorial: state.tutorial || { step: 0, complete: false }, reputation: state.reputation || 0,
+      tutorial: state.tutorial || { step: 0, complete: false }, chapter: state.chapter || 0, chapterFlags: state.chapterFlags || {}, reputation: state.reputation || 0,
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
     };
     localStorage.setItem(saveKey(), JSON.stringify(data));
@@ -5296,6 +5312,7 @@ function loadGame() {
   }
   state.unlocked = d.unlocked || {};
   state.tutorial = d.tutorial || { step: d.night > 0 ? 6 : 0, complete: d.night > 0 };
+  state.chapter = d.chapter || 0; state.chapterFlags = d.chapterFlags || {};
   state.reputation = d.reputation || 0; state.medals = d.medals || {}; state.blueprints = d.blueprints || {}; state.citizenFavors = d.citizenFavors || {};
   state.creative = !!d.creative;
   cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
@@ -6609,6 +6626,7 @@ function loop() {
     swingLimbs(mom, dt);
     updateArrow();
     updateTutorial();
+    updateChapters();
     updateDayNight(dt);
     updateEscape(dt);
     updateHunger(dt);
@@ -7113,6 +7131,7 @@ function renderHUD() {
   let obj = '';
   if (state.sportGame) obj = '🏟️ ' + state.sportGame.name + ' · ' + state.sportGame.score + ' jugadas · ' + fmt(state.sportGame.time);
   else if (state.tutorial && !state.tutorial.complete) obj = '📍 PASO ' + (state.tutorial.step + 1) + '/' + TUTORIAL_STEPS.length + ' · ' + TUTORIAL_STEPS[state.tutorial.step].text;
+  else if (state.chapter < CHAPTERS.length) { const ch = currentChapter(); obj = '📖 CAP. ' + (state.chapter + 1) + ' · ' + ch.title + ' · ' + ch.goal; }
   else if (state.phase === 'DAY') {
     if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);
     else if (!houseStats().ready) obj = '🛒 Compra en el súper (mantén E) y construye 4 paredes (B)';

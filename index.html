@@ -672,7 +672,7 @@
           <div class="guide-item"><b>Huerto diverso</b><span>Combina dos o más cultivos cercanos para que crezcan 25% más rápido. Cosecha con E.</span></div>
           <div class="guide-item"><b>Variantes y planos</b><span>Madera, roca, techos y ventanas tienen acabados con R. Pulsa G al construir para levantar estructuras completas de una vez.</span></div>
           <div class="guide-item"><b>Ciudad viva</b><span>Los habitantes deciden si pasean, conversan, compran, buscan refugio o vuelven a casa. En los estadios se disputan partidos completos.</span></div>
-          <div class="guide-item"><b>Medio juego</b><span>Perro, láser, segundo piso, moto y heladera se desbloquean con el total ganado.</span></div>
+          <div class="guide-item"><b>Medio juego</b><span>Perro, láser, segundo piso transitable, moto y heladera se desbloquean con el total ganado. Sube caminando por la escalera exterior.</span></div>
           <div class="guide-item"><b>Otros planetas · $75.000</b><span>La misión del cohete empieza en una etapa alcanzable. Lleva provisiones en los cajones antes de despegar.</span></div>
         </div>
       </section>
@@ -4239,7 +4239,7 @@ function updatePetAlien(dt) {
 // ===================================================================
 //  SEGUNDO PISO (desbloqueo a los $150.000): visual + $300/noche extra
 // ===================================================================
-let floor2Group = null;
+let floor2Group = null, floor2Data = null, playerOnFloor2 = false;
 function buildFloor2() {
   state.hasFloor2 = true;
   if (floor2Group) scene.remove(floor2Group);
@@ -4257,18 +4257,38 @@ function buildFloor2() {
   const mk = (w, h, d, x, y, z, color) => { const m2 = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m2.position.set(x, y, z); m2.castShadow = true; g.add(m2); };
   const baseY = 3;   // el primer piso mide ~3 de alto: el 2º va justo encima
   mk(hw * 2, 2.4, 0.3, 0, baseY + 1.4, -hd, 0xd6a35c); mk(hw * 2, 2.4, 0.3, 0, baseY + 1.4, hd, 0xd6a35c);   // paredes del piso 2
-  mk(0.3, 2.4, hd * 2, -hw, baseY + 1.4, 0, 0xd6a35c);  mk(0.3, 2.4, hd * 2, hw, baseY + 1.4, 0, 0xd6a35c);
+  mk(0.3, 2.4, hd * 2, -hw, baseY + 1.4, 0, 0xd6a35c);
+  const accessGap = Math.min(1.6, hd * .7), sideWallLen = Math.max(.8, hd * 2 - accessGap);   // abertura donde termina la escalera
+  mk(0.3, 2.4, sideWallLen, hw, baseY + 1.4, -accessGap / 2, 0xd6a35c);
   mk(hw * 2 + 0.6, 0.35, hd * 2 + 0.6, 0, baseY + 2.8, 0, 0x7c3f21);                   // techo del piso 2
   mk(1.2, 1, 0.12, 0, baseY + 1.5, -hd - 0.12, 0x9fd0ff);                              // ventanita
   mk(hw * 2, 0.25, hd * 2, 0, baseY, 0, 0xa87c4a);                                     // piso/loza del 2º nivel
   // ESCALERAS: escalones que suben por el lado +x hasta el segundo piso
   const steps = 8, sh = baseY / steps;
   for (let i = 0; i < steps; i++) mk(1.4, sh, 0.55, hw + 0.7, (i + 0.5) * sh, -hd + 0.6 + i * ((hd * 2 - 1.2) / steps), 0x8b5a2b);
+  mk(1.7, 0.24, 1.35, hw + .42, baseY, hd - .62, 0xa87c4a);                              // descanso de llegada
   const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, hd * 2), mat(0x5a3a1e)); rail.position.set(hw + 1.35, baseY - 0.4, 0); rail.rotation.x = -Math.atan2(baseY, hd * 2 - 1.2); g.add(rail);   // baranda
   g.position.set(bx, 0, bz);
-  scene.add(g); floor2Group = g;
+  scene.add(g); floor2Group = g; floor2Data = { bx, bz, hw, hd, baseY, stairX: hw + .7, z0: -hd + .3, z1: hd - .58 }; playerOnFloor2 = false;
 }
-function removeFloor2() { state.hasFloor2 = false; if (floor2Group) { scene.remove(floor2Group); floor2Group = null; } }
+function removeFloor2() { state.hasFloor2 = false; floor2Data = null; playerOnFloor2 = false; if (floor2Group) { scene.remove(floor2Group); floor2Group = null; } }
+
+// Altura transitable de la escalera y de la loza. El estado evita "teletransportarse" al piso superior saltando desde abajo.
+function secondFloorSupportY(eye) {
+  if (!state.hasFloor2 || !floor2Data || state.underground || state.inCastle || state.inArena || state.inRuins) { playerOnFloor2 = false; return null; }
+  const f = floor2Data, lx = player.position.x - f.bx, lz = player.position.z - f.bz;
+  const onStairs = Math.abs(lx - f.stairX) <= .9 && lz >= f.z0 - .35 && lz <= f.z1 + .35;
+  if (onStairs) {
+    const t = THREE.MathUtils.clamp((lz - f.z0) / Math.max(.1, f.z1 - f.z0), 0, 1);
+    if (t >= .82) playerOnFloor2 = true; else if (t <= .12) playerOnFloor2 = false;
+    return eye + f.baseY * t;
+  }
+  const onLanding = lx >= f.hw - .55 && lx <= f.hw + 1.35 && lz >= f.hd - 1.45 && lz <= f.hd + .18;
+  const insideUpper = Math.abs(lx) <= f.hw - .12 && Math.abs(lz) <= f.hd - .12;
+  if (playerOnFloor2 && (insideUpper || onLanding)) return eye + f.baseY;
+  if (playerOnFloor2) playerOnFloor2 = false;   // salió por un borde: cae de forma normal
+  return null;
+}
 
 // ===================================================================
 //  LIMPIEZA (si el papá no limpia, salen zombis dentro de la casa)
@@ -6277,7 +6297,7 @@ function buyItem(item) {
   if (item.key === 'piso2') {
     if (state.hasFloor2) { toast('🏠 Ya tienes segundo piso'); return; }
     if (!houseStats().ready) { toast('🏠 Primero construye tu casa (4 paredes)'); return; }
-    state.money -= item.price; buildFloor2(); toast('🏠 ¡Segundo piso construido! +$300 extra cada noche'); return;
+    state.money -= item.price; buildFloor2(); toast('🏠 ¡Segundo piso construido! Sube por la escalera exterior · +$300 cada noche'); return;
   }
   if (item.key === 'moto') {
     state.money -= item.price; spawnCar({ moto: true });
@@ -7475,6 +7495,8 @@ function updateMovement(dt) {
     const eye = crouch ? CROUCH_EYE : PLAYER_EYE;
     for (const is of floatIslands) { if (Math.hypot(player.position.x - is.x, player.position.z - is.z) < is.r) { const top = is.top + eye; if (player.position.y >= top - 0.7 && top > floorY) floorY = top; } }
   }
+  const floor2Y = secondFloorSupportY(crouch ? CROUCH_EYE : PLAYER_EYE);
+  if (floor2Y != null) { floorY = Math.max(floorY, floor2Y); if (grounded && vy <= 0) player.position.y = floorY; }
   if (player.position.y <= floorY) { player.position.y = floorY; vy = 0; grounded = true; }
   if (grounded && geyserBoost()) { vy = 25; grounded = false; beep(400, 0.12, 0.05); floatText(player.position, '⛲ ¡GÉISER!', '#67e8f9', 16); }   // parado sobre un géiser: ¡te lanza altísimo!
   if (state.underground && state.shelterHole) {   // caminar por las celdas voxel que ya fueron excavadas

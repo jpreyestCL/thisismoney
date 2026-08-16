@@ -2540,7 +2540,8 @@ homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
 // ===================================================================
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
-let car = null;             // el auto (feature): { group, wheels, hp, maxHp, heading, dmgCd, bar }
+let car = null;             // vehículo seleccionado (el último usado o comprado)
+const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
   'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera'];
 // Categorías del hotbar en celular (18 slots no caben en pantalla chica)
@@ -4117,7 +4118,8 @@ function saveGame() {
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
-      car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto, helicopter: !!car.helicopter } : null,
+      vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, moto: !!v.moto, helicopter: !!v.helicopter })),
+      car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
       petAlien: !!petAlien, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
@@ -4651,7 +4653,10 @@ function loadGame() {
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
   (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
-  if (d.car && state.planet !== 'platus') spawnCar({ x: d.car.x, y: d.car.y, z: d.car.z, heading: d.car.heading, hp: d.car.hp, moto: d.car.moto, helicopter: d.car.helicopter });   // vehículos de la Tierra
+  if (state.planet !== 'platus') {
+    const savedVehicles = Array.isArray(d.vehicles) ? d.vehicles : (d.car ? [d.car] : []);
+    savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, moto: v.moto, helicopter: v.helicopter, restoring: true }));
+  }
   state.unlocked = d.unlocked || {};
   state.creative = !!d.creative;
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
@@ -4787,7 +4792,17 @@ function spawnCar(opts) {
   if (moto) g.scale.set(0.45, 0.9, 0.85);   // moto: angosta y un poco más baja (y más rápida al conducir)
   let hx, hz, heading;
   if (opts && opts.x != null) { hx = opts.x; hz = opts.z; heading = opts.heading || 0; }
-  else { const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); const p = player.position.clone().addScaledVector(fwd, 6); hx = p.x; hz = p.z; heading = yaw; }
+  else {
+    const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const sideOffsets = [0, 4.5, -4.5, 9, -9];
+    let p = player.position.clone().addScaledVector(fwd, 6);
+    outer: for (let row = 0; row < 5; row++) for (const offset of sideOffsets) {
+      const candidate = player.position.clone().addScaledVector(fwd, 6 + row * 5).addScaledVector(side, offset);
+      if (vehicles.every(v => dist2D(candidate, v.group.position) > 4)) { p = candidate; break outer; }
+    }
+    hx = p.x; hz = p.z; heading = yaw;
+  }
   g.position.set(hx, (opts && opts.y != null) ? opts.y : 0, hz); g.rotation.y = heading; scene.add(g);
   // barra de vida flotante
   const barG = new THREE.Group(); barG.userData.billboard = true;
@@ -4795,7 +4810,8 @@ function spawnCar(opts) {
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
   car = { group: g, wheels, rotors, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, helicopter, speedMult: moto ? 1.45 : 1 };
-  if (!opts) toast('🚗 ¡Auto comprado! Acércate y pulsa E para subir y conducir');
+  vehicles.push(car);
+  if (!opts || !opts.restoring) toast((helicopter ? '🚁 ¡Helicóptero comprado!' : moto ? '🏍️ ¡Moto comprada!' : '🚗 ¡Auto comprado!') + ' Tienes ' + vehicles.length + ' vehículos. Acércate y pulsa E');
 }
 // Auto más cercano de la CALLE (tráfico o estacionado) para robar
 function nearestStreetCar(maxD) {
@@ -4818,7 +4834,8 @@ function stealCar(g) {
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
-  car = { group: g, wheels: [], hp: 100, maxHp: 100, heading: (g.userData.heading != null ? g.userData.heading : g.rotation.y), dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
+  car = { group: g, wheels: [], rotors: [], hp: 100, maxHp: 100, heading: (g.userData.heading != null ? g.userData.heading : g.rotation.y), dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
+  vehicles.push(car);
   state.driving = true; yaw = car.heading; state.buildMode = false;
   becomeWanted(18, 2);
   toast('🚗 ¡Auto robado! La policía viene… ¡huye en TURBO (correr)! E para bajar');
@@ -4833,16 +4850,16 @@ function toggleCar() {
     grounded = !car.helicopter || car.group.position.y <= .1; vy = car.helicopter ? -1 : 0;
     toast(car.helicopter ? '🪂 Bajaste del helicóptero' : '🚶 Bajaste del auto'); return true;
   }
-  if (car && dist2D(player.position, car.group.position) < 4.5) {   // subir a TU auto (comprado/robado): tiene prioridad si estás pegado a él
+  let nearestOwned = null, nearestOwnedD = 4.5;
+  for (const v of vehicles) { const d = dist2D(player.position, v.group.position); if (d < nearestOwnedD) { nearestOwnedD = d; nearestOwned = v; } }
+  if (nearestOwned) {   // subir al vehículo propio más cercano
+    car = nearestOwned;
     state.driving = true; yaw = car.heading; state.buildMode = false;
     toast(car.helicopter ? '🚁 Pilotando: W/S avanzar · A/D girar · Espacio subir · Ctrl bajar · E salir' : '🚗 Conduces: W/S avanzar · A/D girar · Shift/correr TURBO · 👊/Espacio bocina · E bajar'); return true;
   }
   // robar un auto de la CALLE: si hay uno cerca, róbalo — aunque ya tengas uno (abandonas el actual y te llevas el nuevo)
   const street = nearestStreetCar(6);
-  if (street && !(car && street === car.group)) {
-    if (car) removeCar();   // suelta el auto actual
-    stealCar(street); return true;
-  }
+  if (street) { stealCar(street); return true; }
   return false;
 }
 // Conducir: reemplaza el caminar mientras state.driving
@@ -4912,27 +4929,31 @@ function updateDriving(dt) {
 }
 // Vida del auto: los monstruos cercanos lo dañan; si llega a 0 se destruye
 function updateCar(dt) {
-  if (!car) return;
-  car.bar.g.position.set(car.group.position.x, car.group.position.y + 3.3, car.group.position.z);
-  const f = Math.max(0, car.hp / car.maxHp); car.bar.fg.scale.x = f || 0.001;
-  car.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : f > 0.25 ? 0xf59e0b : 0xef4444);
-  car.bar.g.visible = car.hp < car.maxHp || state.driving;
+  if (!vehicles.length) return;
   if (!state.driving && engineGain) engineGain.gain.value = 0;   // apagar motor al bajarse
-  car.dmgCd -= dt;
-  let near = false;
-  for (const e of enemies) { if (e.userData.type === 'bull') continue; if ((!car.helicopter || car.group.position.y < 3.5) && dist2D(e.position, car.group.position) < 3) { near = true; break; } }
-  if (near && car.dmgCd <= 0) { car.hp -= 8; car.dmgCd = 0.8; car.bar.g.visible = true; }
-  if (car.hp <= 0) destroyCar();
+  for (const v of vehicles.slice()) {
+    v.bar.g.position.set(v.group.position.x, v.group.position.y + 3.3, v.group.position.z);
+    const f = Math.max(0, v.hp / v.maxHp); v.bar.fg.scale.x = f || 0.001;
+    v.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : f > 0.25 ? 0xf59e0b : 0xef4444);
+    v.bar.g.visible = v.hp < v.maxHp || (state.driving && v === car);
+    v.dmgCd -= dt;
+    let near = false;
+    for (const e of enemies) { if (e.userData.type === 'bull') continue; if ((!v.helicopter || v.group.position.y < 3.5) && dist2D(e.position, v.group.position) < 3) { near = true; break; } }
+    if (near && v.dmgCd <= 0) { v.hp -= 8; v.dmgCd = 0.8; v.bar.g.visible = true; }
+    if (v.hp <= 0) destroyCar(v);
+  }
 }
-function destroyCar() {
-  if (!car) return;
-  if (state.driving) { state.driving = false; player.position.set(car.group.position.x + 2, PLAYER_EYE, car.group.position.z); }
-  scene.remove(car.group); scene.remove(car.bar.g); car = null;
+function destroyCar(target = car) {
+  if (!target) return;
+  if (state.driving && car === target) { state.driving = false; player.position.set(target.group.position.x + 2, PLAYER_EYE, target.group.position.z); }
+  scene.remove(target.group); scene.remove(target.bar.g);
+  const i = vehicles.indexOf(target); if (i >= 0) vehicles.splice(i, 1);
+  if (car === target) car = vehicles[vehicles.length - 1] || null;
   toast('💥 ¡Los monstruos destruyeron tu auto!'); beep(80, 0.3, 0.07);
 }
 function removeCar() {   // al reiniciar
-  if (!car) return;
-  scene.remove(car.group); scene.remove(car.bar.g); car = null; state.driving = false;
+  for (const v of vehicles) { scene.remove(v.group); scene.remove(v.bar.g); }
+  vehicles.length = 0; car = null; state.driving = false;
 }
 
 // ===================================================================
@@ -5005,13 +5026,11 @@ function buyItem(item) {
     state.money -= item.price; paintHouse(item.paint, item.name); return;
   }
   if (item.car) {
-    if (car) { toast('🚗 Ya tienes un auto'); return; }
     state.money -= item.price; spawnCar(); return;
   }
   if (item.helicopter) {
-    if (car) { toast('🚁 Ya tienes un vehículo. Debes perderlo o reiniciar antes de comprar otro.'); return; }
     state.money -= item.price; spawnCar({ helicopter: true });
-    toast('🚁 ¡Helicóptero voxel comprado! E para subir · Espacio sube · Ctrl baja'); return;
+    return;
   }
   if (item.key === 'perro') {
     if (pet) { toast('🐶 Ya tienes a tu perro'); return; }
@@ -5023,8 +5042,8 @@ function buyItem(item) {
     state.money -= item.price; buildFloor2(); toast('🏠 ¡Segundo piso construido! +$300 extra cada noche'); return;
   }
   if (item.key === 'moto') {
-    state.money -= item.price; removeCar(); spawnCar({ moto: true });
-    toast('🏍️ ¡Moto comprada! Más rápida que el auto (E para subir)'); return;
+    state.money -= item.price; spawnCar({ moto: true });
+    return;
   }
   if (item.key === 'jetpack') {
     if (state.hasJetpack) { toast('🚀 Ya tienes jetpack'); return; }
@@ -6307,6 +6326,7 @@ function renderHUD() {
   if (state.dadArmor < 1) gear.push('🛡️ papá');
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
+  if (vehicles.length > 1) gear.push('🚘 ' + vehicles.length + ' vehículos');
   if (car) gear.push((car.helicopter ? '🚁 ' : '🚗 ') + Math.max(0, Math.round(car.hp)) + (state.driving ? ' · ' + (car.helicopter ? '⬆️ ' + Math.round(car.group.position.y) + ' m · ' : '🏎️ ') + Math.round((car.speed || 0) * 3.6) + ' km/h' : ''));
   if (state.poison > 0) gear.push('🟢 veneno ' + Math.ceil(state.poison) + 's');
   if (state.hasShield) gear.push('🛡️ escudo ' + Math.round(state.shieldHp) + '/' + state.shieldMax);

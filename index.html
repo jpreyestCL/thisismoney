@@ -5450,6 +5450,10 @@ function renderHole(h) {   // (re)construye la malla del hoyo según su profundi
   // Boca cuadrada y paredes verticales hechas de bloques, no un cilindro.
   const rimParts = [[0, -half - .25, MINE_CELL + 1, .5], [0, half + .25, MINE_CELL + 1, .5], [-half - .25, 0, .5, MINE_CELL], [half + .25, 0, .5, MINE_CELL]];
   for (const [x, z, w, d] of rimParts) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, .22, d), dirt); b.position.set(x, .04, z); h.group.add(b); }
+  // Tapa visual negra solo vista desde arriba: simula el terreno realmente recortado.
+  // Al caer, su cara trasera desaparece y deja ver el cielo por el conducto.
+  const opening = new THREE.Mesh(new THREE.PlaneGeometry(MINE_CELL - .12, MINE_CELL - .12), new THREE.MeshBasicMaterial({ color: 0x090705, side: THREE.FrontSide }));
+  opening.rotation.x = -Math.PI / 2; opening.position.y = .065; h.group.add(opening);
   const shaftOpenH = Math.max(0, dy - 2.4);
   if (shaftOpenH > 0) for (const [x, z, w, d] of [[0,-half,MINE_CELL,wallT],[0,half,MINE_CELL,wallT],[-half,0,wallT,MINE_CELL],[half,0,wallT,MINE_CELL]]) {
     const wmesh = new THREE.Mesh(new THREE.BoxGeometry(w, shaftOpenH, d), darkDirt); wmesh.position.set(x, -shaftOpenH / 2, z); h.group.add(wmesh);
@@ -5473,7 +5477,7 @@ function renderHole(h) {   // (re)construye la malla del hoyo según su profundi
     }
   }
   h.enterable = h.depth >= ENTER_DIGS;
-  const sign = makeSign('MINA (E)', 0x8b5a2b); sign.scale.set(.45, .45, .45); sign.position.y = 1.7; sign.userData.billboard = true; h.group.add(sign);
+  const sign = makeSign('MINA ↓', 0x8b5a2b); sign.scale.set(.45, .45, .45); sign.position.y = 1.7; sign.userData.billboard = true; h.group.add(sign);
 }
 function spawnHole(x, z, depth, tunnels) {
   const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
@@ -5497,7 +5501,7 @@ function digHole() {
     if (pitch < -0.45) {   // mirando hacia abajo: baja toda la mina un nivel
       if (h.depth >= MAX_DIGS) { toast('🪨 Llegaste a la máxima profundidad'); return; }
       h.depth++; state.groundY = -h.depth * DEPTH_STEP;
-      player.position.y = PLAYER_EYE + state.groundY; renderHole(h);
+      grounded = false; vy = 0; renderHole(h);   // el piso desaparece y caes un bloque; no hay teletransporte
       if (awakenMineMoles(h, true)) return;
       if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) reachCore(h);
       else toast('⬇️ Cavaste un bloque hacia abajo (' + h.depth + '/' + MAX_DIGS + ')');
@@ -5508,7 +5512,6 @@ function digHole() {
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
     const dx = Math.abs(fx) > Math.abs(fz) ? Math.sign(fx) : 0, dz = dx ? 0 : Math.sign(fz);
     const nx = cx + dx, nz = cz + dz, key = tunnelKey(nx, nz);
-    if (Math.abs(nx) > 8 || Math.abs(nz) > 8) { toast('🪨 No puedes extender más esta mina'); return; }
     if (h.tunnels.has(key)) { toast('🕳️ Ese bloque ya está excavado'); return; }
     h.tunnels.add(key); renderHole(h);
     toast('⛏️ Abriste un bloque lateral — la mina tiene ' + h.tunnels.size + ' espacios');
@@ -5521,12 +5524,12 @@ function digHole() {
   if (h) { if (h.depth < MAX_DIGS) h.depth++; renderHole(h); }   // profundizar el mismo hoyo
   else h = spawnHole(t.x, t.z, 1);                               // hoyo nuevo
   if (state.planet === 'platus' && digUpTreasure(t.x, t.z)) return;   // ¿había un tesoro enterrado aquí? (detector)
-  if (h.enterable && !wasEnterable) { toast('⛏️ ¡Abriste una MINA cuadrada! Pulsa E para bajar. Adentro mira al frente para cavar lados o hacia abajo para profundizar.'); return; }
+  if (h.enterable && !wasEnterable) { toast('⛏️ ¡Abriste una MINA! Camina sobre el hoyo para caer. Adentro puedes expandirla sin límite.'); return; }
   if (awakenMineMoles(h, false)) return;
   if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) { reachCore(h); return; }   // ¡llegaste al núcleo del planeta!
   const r = Math.random();
   if (r < 0.5) { const m = 50 + Math.floor(Math.random() * 150); addMoney(m); toast('💰 Cavaste y encontraste $' + m); }
-  else toast('🕳️ La mina está más honda (' + h.depth + '/' + MAX_DIGS + '). Pulsa E para bajar');
+  else toast('🕳️ La mina está más honda (' + h.depth + '/' + MAX_DIGS + '). Camina sobre la abertura para bajar');
 }
 // NÚCLEO DEL PLANETA: cavar hasta el fondo (MAX_DIGS) rompe hacia el núcleo -> jackpot enorme + reliquia (1 por planeta)
 function reachCore(h) {
@@ -5540,21 +5543,15 @@ function reachCore(h) {
   core.position.y = -h.depth * DEPTH_STEP + 1.1; h.group.add(core);
   const cl = new THREE.PointLight(0xf97316, 1.6, 14); cl.position.y = -h.depth * DEPTH_STEP + 1.1; h.group.add(cl);
 }
-// Meterse / salir del refugio subterráneo (tecla E cerca del hoyo profundo)
+// Salida de emergencia de la mina (para entrar simplemente caminas y caes por el hoyo)
 function tryShelter() {
   if (state.underground) {   // salir
     const h = state.shelterHole;
     state.underground = false; state.groundY = 0; state.shelterHole = null;
     player.position.set(h ? h.x : player.position.x, PLAYER_EYE, (h ? h.z : player.position.z) + 2.3);
-    toast('⬆️ Saliste del refugio'); return true;
+    toast('⬆️ Saliste de la mina'); return true;
   }
-  const h = nearEnterableHole();
-  if (!h) return false;
-  state.underground = true; state.shelterHole = h; state.groundY = -h.depth * DEPTH_STEP;
-  player.position.set(h.x, PLAYER_EYE + state.groundY, h.z);
-  beep(200, 0.15, 0.05);
-  toast('⛏️ Estás en tu MINA: T cava al frente; mira abajo + T para profundizar; E sale.');
-  return true;
+  return false;
 }
 
 // Los topos se mueven y atacan siempre (de día o de noche), porque salen al cavar
@@ -5966,6 +5963,15 @@ function updateMovement(dt) {
   const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }   // no ir más rápido en diagonal
   player.position.addScaledVector(forward, az * step);
   player.position.addScaledVector(rightV, ax * step);
+  // Entrada física: al pisar la abertura, el suelo deja de sostenerte y caes con gravedad.
+  if (!state.underground && grounded && player.position.y <= PLAYER_EYE + .25) {
+    const fallHole = holes.find(h => h.enterable && Math.hypot(player.position.x - h.x, player.position.z - h.z) < MINE_CELL * .42);
+    if (fallHole) {
+      state.underground = true; state.shelterHole = fallHole; state.groundY = -fallHole.depth * DEPTH_STEP;
+      grounded = false; vy = 0; beep(170, .12, .04);
+      toast('⬇️ ¡Caíste en la mina! T cava bloques; E es la salida de emergencia.');
+    }
+  }
   // salto (espacio / botón) y gravedad; agacharse baja la altura; bajo tierra el "suelo" es el fondo del refugio
   const standY = (crouch ? CROUCH_EYE : PLAYER_EYE) + (state.groundY || 0);
   const lowG = state.planet === 'platus' && !state.underground && !state.inCastle;   // planetas alien: BAJA GRAVEDAD (dentro del castillo caminas normal)

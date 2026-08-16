@@ -2748,7 +2748,10 @@ function digUpTreasure(tx, tz) {   // llamado al cavar: si hay un tesoro enterra
   }
   return false;
 }
-// JEFE TITÁN (kaiju): criatura GIGANTE que aparece muy de vez en cuando; camina hacia ti, aguanta mucho y pisotea. Derrotarla = premio épico + trofeo
+// JEFE TITÁN (kaiju): criatura GIGANTE que camina hacia ti, aguanta mucho y pisotea.
+// DESACTIVADO: en Platus (el único lugar donde salía) ya no aparecen titanes.
+// Se deja el código listo por si algún día se vuelven a activar (poner TITANS_ON = true).
+const TITANS_ON = false;
 let titan = null, titanTimer = 150 + Math.random() * 130;
 function makeTitanMesh() {
   const g = new THREE.Group();
@@ -2803,6 +2806,7 @@ function updateTitan(dt) {
   const f = Math.max(0, t.hp / t.maxhp); t.bar.fg.scale.x = f || 0.001;
 }
 function updateTitanBoss(dt) {
+  if (!TITANS_ON) { if (titan) clearTitan(); return; }   // en Platus no aparecen titanes
   if (state.planet !== 'platus' || state.inRuins || state.inCastle || state.cinematic) return;
   if (titan) { updateTitan(dt); return; }
   titanTimer -= dt;
@@ -5800,7 +5804,8 @@ function recordKill(e) {   // registra el kill en el bestiario; la 1ª vez de ca
   discoverAlien(t);
 }
 // ÁLBUM ALIEN: colección de las criaturas de los planetas; completarlo da un gran bono
-const ALIEN_ALBUM = ['alien', 'alienBig', 'ufo', 'yeti', 'sporeling', 'floater', 'fogGhost', 'sandCrawler', 'lavaWorm', 'eggpet', 'castleFoe', 'castleFriend', 'titan'];
+// (sin 'titan': ya no aparecen, así el álbum se puede completar igual)
+const ALIEN_ALBUM = ['alien', 'alienBig', 'ufo', 'yeti', 'sporeling', 'floater', 'fogGhost', 'sandCrawler', 'lavaWorm', 'eggpet', 'castleFoe', 'castleFriend'];
 const ALBUM_NAMES = Object.assign({}, ENEMY_NAMES, { eggpet: 'Mascota de huevo', castleFoe: 'Guardián del castillo', castleFriend: 'Alien bueno', titan: 'TITÁN del planeta' });
 function discoverAlien(key) {
   if (!ALIEN_ALBUM.includes(key)) return;

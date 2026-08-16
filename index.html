@@ -5454,11 +5454,18 @@ function renderHole(h) {   // (re)construye la malla del hoyo según su profundi
   if (shaftOpenH > 0) for (const [x, z, w, d] of [[0,-half,MINE_CELL,wallT],[0,half,MINE_CELL,wallT],[-half,0,wallT,MINE_CELL],[half,0,wallT,MINE_CELL]]) {
     const wmesh = new THREE.Mesh(new THREE.BoxGeometry(w, shaftOpenH, d), darkDirt); wmesh.position.set(x, -shaftOpenH / 2, z); h.group.add(wmesh);
   }
+  // La boca queda abierta al cielo y proyecta claridad hasta el fondo del pozo.
+  const shaftLight = new THREE.PointLight(0xfff4d6, 2.2, dy + 12, 1.2);
+  shaftLight.position.set(0, .7, 0); h.group.add(shaftLight);
+  const reflectedLight = new THREE.PointLight(0xbfe3ff, 1.1, 11, 1.5);
+  reflectedLight.position.set(0, -dy + 2.2, 0); h.group.add(reflectedLight);
   // Cada celda excavada tiene piso/techo; solo conserva paredes en bordes no excavados.
   for (const key of h.tunnels) {
     const [cx, cz] = key.split(',').map(Number), x = cx * MINE_CELL, z = cz * MINE_CELL;
     const floor = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .2, MINE_CELL), floorMat); floor.position.set(x, -dy - .1, z); h.group.add(floor);
-    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .18, MINE_CELL), darkDirt); ceiling.position.set(x, -dy + 2.55, z); h.group.add(ceiling);
+    if (cx !== 0 || cz !== 0) {   // la celda central es el conducto vertical: desde abajo se ve la luz exterior
+      const ceiling = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .18, MINE_CELL), darkDirt); ceiling.position.set(x, -dy + 2.55, z); h.group.add(ceiling);
+    }
     for (const [dx, dz, wx, wz] of [[0,-1,MINE_CELL,wallT],[0,1,MINE_CELL,wallT],[-1,0,wallT,MINE_CELL],[1,0,wallT,MINE_CELL]]) {
       if (h.tunnels.has(tunnelKey(cx + dx, cz + dz))) continue;
       const wall = new THREE.Mesh(new THREE.BoxGeometry(wx, 2.55, wz), dirt);

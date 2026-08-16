@@ -107,8 +107,7 @@ The whole game is one file, split into sections by `// =====` banners (`grep -n 
 ### Credits and license
 
 - Built with [Three.js](https://threejs.org) (MIT).
-- The code is released under the **MIT License** — see [`LICENSE`](LICENSE).
-- The 3D models and images in `assets/` are bundled with the project. Check their provenance before reusing them on their own; the MIT grant is meant for the game code.
+- Code and assets are released under the **MIT License** — see [`LICENSE`](LICENSE).
 
 ---
 
@@ -213,5 +212,4 @@ En [`CLAUDE.md`](CLAUDE.md) hay notas de desarrollo mucho más detalladas de cad
 ### Créditos y licencia
 
 - Hecho con [Three.js](https://threejs.org) (MIT).
-- El código se publica bajo la **licencia MIT** — ver [`LICENSE`](LICENSE).
-- Los modelos 3D e imágenes de `assets/` vienen con el proyecto. Revisa su procedencia antes de reutilizarlos por separado; la licencia MIT está pensada para el código del juego.
+- El código y los assets se publican bajo la **licencia MIT** — ver [`LICENSE`](LICENSE).

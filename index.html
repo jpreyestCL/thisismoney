@@ -3267,6 +3267,17 @@ homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
 // ===================================================================
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
+// Centro de TU CASA. En la Tierra es el marcador verde fijo; en los planetas NO hay marcador,
+// así que es el centro de las piezas que construiste (si no, el segundo piso, la pintura y la
+// defensa nocturna miraban un punto vacío del mapa y nunca encontraban tu casa).
+const HOUSE_PIECES = ['wallWood', 'wallRock', 'door', 'roof'];
+const houseAnchor = new THREE.Vector3(HOUSE.x, 0, HOUSE.z);
+function updateHouseAnchor() {
+  if (state.planet !== 'platus') { houseAnchor.set(HOUSE.x, 0, HOUSE.z); return; }
+  let sx = 0, sz = 0, n = 0;
+  for (const o of placed) if (HOUSE_PIECES.includes(o.key)) { sx += o.mesh.position.x; sz += o.mesh.position.z; n++; }
+  if (n) houseAnchor.set(sx / n, 0, sz / n); else houseAnchor.set(HOUSE.x, 0, HOUSE.z);
+}
 let car = null;             // vehículo seleccionado (el último usado o comprado)
 const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
@@ -3518,6 +3529,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId) {
     obstacles.push(obj.aabb);
   }
   placed.push(obj);
+  updateHouseAnchor();   // tu casa puede haber crecido/moverse (en los planetas no hay marcador fijo)
   return obj;
 }
 function placeObject() {
@@ -3563,6 +3575,7 @@ function removePlaced(o) {
   if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
   const i = placed.indexOf(o); if (i >= 0) placed.splice(i, 1);
   if (['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'].includes(o.key)) houseTier = 0;  // se rompió: puedes volver a ganar el bono
+  updateHouseAnchor();
 }
 
 // ¿Cómo es la casa? (para pagar más por mansiones y permitir la noche)
@@ -3570,7 +3583,7 @@ function houseStats() {
   let walls = 0, roofs = 0, lamps = 0, doors = 0, ovens = 0;
   const counts = {};
   for (const o of placed) {
-    if (dist2D(o.mesh.position, HOUSE) >= 18) continue;
+    if (dist2D(o.mesh.position, houseAnchor) >= 18) continue;
     counts[o.key] = (counts[o.key] || 0) + 1;
     if (o.key === 'wallWood' || o.key === 'wallRock') walls++;
     else if (o.key === 'door') doors++;
@@ -4010,7 +4023,7 @@ function spawnChest() {
   const base = new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 0.7), mat(0x92400e)); base.position.y = 0.35; g.add(base);
   const lid = new THREE.Mesh(new THREE.BoxGeometry(1, 0.25, 0.7), mat(0xfde047)); lid.position.y = 0.82; g.add(lid);
   const glow = new THREE.PointLight(0xfde047, 1.4, 9); glow.position.y = 1.4; g.add(glow);
-  g.position.set(HOUSE.x + Math.cos(a) * r, 0, HOUSE.z + Math.sin(a) * r);
+  g.position.set(houseAnchor.x + Math.cos(a) * r, 0, houseAnchor.z + Math.sin(a) * r);
   g.userData.life = 30; scene.add(g); chest = g;
   toast('🎁 ¡Apareció un COFRE cerca de tu casa! Tienes 30 s…'); beep(700, 0.15, 0.05);
 }
@@ -4065,7 +4078,7 @@ function pickTarget(from, attacker) {
   if (!isPlayerHidden()) { best = player.position; bd = dist2D(from, best); }   // escondido: los monstruos NO te ven
   if (dad.visible && !dad.userData.resting) { const d = dist2D(from, dad.position); if (d < bd) { bd = d; best = dad.position; } }   // descansando: no lo ven
   for (const h of helpers) { const d = dist2D(from, h.position); if (d < bd) { bd = d; best = h.position; } }
-  return best || HOUSE;   // nada que atacar (todos escondidos): van hacia la casa
+  return best || houseAnchor;   // nada que atacar (todos escondidos): van hacia la casa
 }
 function moveToward(e, target, step) {
   const dx = target.x - e.position.x, dz = target.z - e.position.z; const len = Math.hypot(dx, dz) || 1;
@@ -4146,7 +4159,7 @@ function spawnHelper() {   // puedes tener TODOS los hijos que quieras ($300 c/u
   if (state.money < 300) { toast('Un ayudante cuesta $300'); return; }
   state.money -= 300;
   const slot = helpers.length, angle = (slot % 8) / 8 * Math.PI * 2, radius = 3 + Math.floor(slot / 8) * 1.2;
-  makeHelperAt(HOUSE.x + Math.sin(angle) * radius, HOUSE.z + 6 + Math.cos(angle) * radius);
+  makeHelperAt(houseAnchor.x + Math.sin(angle) * radius, houseAnchor.z + 6 + Math.cos(angle) * radius);
   toast('👧 ¡Nuevo hijo! Tienes ' + helpers.length + ' (cada uno cuesta $300)');
 }
 function updateHelpers(dt) {
@@ -4258,13 +4271,13 @@ function buildFloor2() {
   // Footprint REAL de tu casa: centroide y tamaño de las paredes/puertas que construiste (no el marcador verde)
   let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9, sx = 0, sz = 0, n = 0;
   for (const o of placed) {
-    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'door') && dist2D(o.mesh.position, HOUSE) < 20) {
+    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'door') && dist2D(o.mesh.position, houseAnchor) < 20) {
       const p = o.mesh.position; minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); sx += p.x; sz += p.z; n++;
     }
   }
   let bx, bz, hw, hd;
   if (n > 0) { bx = sx / n; bz = sz / n; hw = Math.max(2.2, (maxX - minX) / 2 + 1); hd = Math.max(2.2, (maxZ - minZ) / 2 + 1); }
-  else { bx = HOUSE.x; bz = HOUSE.z; hw = 2.8; hd = 2.8; }   // sin casa detectada: encima del marcador
+  else { bx = houseAnchor.x; bz = houseAnchor.z; hw = 2.8; hd = 2.8; }   // sin casa detectada: encima del marcador
   const g = new THREE.Group();
   const mk = (w, h, d, x, y, z, color) => { const m2 = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m2.position.set(x, y, z); m2.castShadow = true; g.add(m2); };
   const baseY = 3;   // el primer piso mide ~3 de alto: el 2º va justo encima
@@ -4307,7 +4320,7 @@ function secondFloorSupportY(eye) {
 // ===================================================================
 const dirt = []; let dirtTimer = 6;
 function spawnDirt() {
-  const x = HOUSE.x + (Math.random() * 6 - 3), z = HOUSE.z + (Math.random() * 6 - 3);
+  const x = houseAnchor.x + (Math.random() * 6 - 3), z = houseAnchor.z + (Math.random() * 6 - 3);
   const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), new THREE.MeshStandardMaterial({ color: 0x4d7c0f }));
   mesh.rotation.x = -Math.PI / 2; mesh.position.set(x, 0.08, z); scene.add(mesh);
   dirt.push({ mesh, pos: new THREE.Vector3(x, 0, z), infection: 0 });
@@ -5308,6 +5321,7 @@ function startGame() {
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPlants(); clearHelpers();
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
+  updateHouseAnchor();   // vuelve al marcador verde de la Tierra
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
@@ -5977,6 +5991,7 @@ function loadGame() {
   removeAlienPet(); if (d.petAlien) spawnAlienPet();
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
+  updateHouseAnchor();   // recalcula dónde está tu casa (en los planetas la construyes donde quieras)
   removeFloor2(); if (d.hasFloor2) buildFloor2();
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); spawnBase(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
@@ -6344,12 +6359,12 @@ function updateRiding(dt) {
 //  PINTAR LA CASA: un tarro pinta toda la casa del color elegido
 // ===================================================================
 function hasHouseToPaint() {
-  return placed.some(o => ['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, HOUSE) < 20);
+  return placed.some(o => ['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 20);
 }
 function paintHouse(color, label) {
   let n = 0;
   for (const o of placed) {
-    if (['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, HOUSE) < 20) {
+    if (['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 20) {
       o.mesh.material = mat(color); n++;
     }
   }
@@ -6469,7 +6484,7 @@ function sellHouse() {
   addMoney(price); beep(720, 0.18, 0.05);
   for (let i = placed.length - 1; i >= 0; i--) {   // el aldeano se queda la casa: quitamos las piezas
     const o = placed[i];
-    if (['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'].includes(o.key) && dist2D(o.mesh.position, HOUSE) < 18) removePlaced(o);
+    if (['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 18) removePlaced(o);
   }
   houseTier = 0;
   toast('🤝 ¡Le vendiste tu casa a un aldeano por $' + price + '! Construye otra y véndela de nuevo 🤑');
@@ -7572,7 +7587,7 @@ function drawMinimap() {
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
   if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); }   // súper / armería / banco
   if (state.planet === 'tierra' && state.blueprints.treasureMap) for (const s of worldSecrets) if (s.visible) icon(s.position.x, s.position.z, '❓', 11);
-  icon(HOUSE.x, HOUSE.z, '🏠', 15);
+  icon(houseAnchor.x, houseAnchor.z, '🏠', 15);
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
   if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
   if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.ufo) icon(e.position.x, e.position.z, '🛸', 14); else dot(e.position.x, e.position.z, '#ef4444', 2); }
@@ -7693,10 +7708,10 @@ function updateMovement(dt) {
 
 function updateArrow() {
   const ready = houseStats().ready;
-  let target = HOUSE;
+  let target = houseAnchor;
   if (state.worldEvent && state.worldEvent.id === 'search') target = state.worldEvent.target;
   else if (state.meteorTriggered && state.rocket) target = state.rocket.position;
-  else if (state.phase === 'NIGHT') target = HOUSE;
+  else if (state.phase === 'NIGHT') target = houseAnchor;
   else if (!ready) target = SUPER_POS;
   arrow.position.copy(player.position);
   arrow.position.y = PLAYER_EYE + 2.2 + Math.sin(performance.now() / 300) * 0.15;

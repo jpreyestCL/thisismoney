@@ -341,6 +341,7 @@
   <div id="moveBtns">
     <div class="tbtn" data-act="run">🏃<small>correr</small></div>
     <div class="tbtn" data-act="jump">⬆️<small>saltar</small></div>
+    <div class="tbtn" id="heliDownBtn" data-act="heliDown" style="display:none;background:rgba(14,116,144,.72);border-color:#67e8f9">⬇️<small>bajar</small></div>
     <div class="tbtn" data-act="crouch">🧎<small>agachar</small></div>
   </div>
   <div id="touchBtns">
@@ -3579,7 +3580,7 @@ function toggleSound() {
 const keys = {};
 let typing = false;   // true mientras el input del vendedor está abierto (bloquea controles del juego)
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
-const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false };
+const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
 addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
@@ -4006,16 +4007,17 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       const act = el.dataset.act;
       if (act === 'run') { touch.run = !touch.run; el.classList.toggle('on', touch.run); return; }
       if (act === 'crouch') { touch.crouch = !touch.crouch; el.classList.toggle('on', touch.crouch); return; }
+      if (act === 'heliDown') { touch.heliDown = true; el.classList.add('on'); return; }
       if (act === 'more') { ui('moreBtns').classList.toggle('open'); const m = document.querySelector('.tbtn[data-act="more"]'); if (m) m.classList.toggle('on', ui('moreBtns').classList.contains('open')); return; }
       if (act === 'closeMore') { closeMorePanel(); return; }   // ✖️ cerrar el panel
       if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
       press(act);
       if (el.closest('#moreBtns')) closeMorePanel();   // al usar cualquier acción del panel "⋯ más", ciérralo
     }, { passive: false });
-    const release = e => { const el = e.target.closest && e.target.closest('.tbtn'); if (el && el.dataset.act === 'jump') touch.jumpHeld = false; };
+    const release = e => { const el = e.target.closest && e.target.closest('.tbtn'); if (!el) return; if (el.dataset.act === 'jump') touch.jumpHeld = false; if (el.dataset.act === 'heliDown') { touch.heliDown = false; el.classList.remove('on'); } };
     container.addEventListener('pointerup', release);
     container.addEventListener('pointercancel', release);
-    container.addEventListener('pointerleave', () => { touch.jumpHeld = false; });
+    container.addEventListener('pointerleave', () => { touch.jumpHeld = false; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
   }
   bindButtons(ui('touchBtns'));
   bindButtons(ui('moveBtns'));
@@ -4863,7 +4865,7 @@ function updateDriving(dt) {
   car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -230, 230);
   car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, -230, 230);
   if (car.helicopter) {
-    const rise = (keys['Space'] || touch.jump || touch.jumpHeld ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] || touch.crouch ? 1 : 0);
+    const rise = (keys['Space'] || touch.jump || touch.jumpHeld ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] || touch.crouch || touch.heliDown ? 1 : 0);
     car.group.position.y = THREE.MathUtils.clamp(car.group.position.y + rise * 12 * dt, 0, 45);
     for (const rotor of car.rotors) rotor.rotation.y += dt * (state.driving ? 22 : 5);
     touch.jump = false;   // cada toque del botón ⬆️ da impulso de ascenso también en celular
@@ -4899,8 +4901,14 @@ function updateDriving(dt) {
   car.enginePow = Math.abs(throttle);
   ensureEngine(); if (engineGain) { engineGain.gain.value = 0.03 + 0.05 * car.enginePow; engineOsc.frequency.value = 55 + car.enginePow * 150; }
   yaw = car.heading;
-  player.position.set(car.group.position.x, car.group.position.y + (car.helicopter ? 2.2 : 2.1), car.group.position.z);
-  camera.rotation.y = yaw; camera.rotation.x = pitch;
+  if (car.helicopter) {
+    // Cámara elevada detrás del helicóptero: deja ver la nave y mucho más terreno al volar.
+    player.position.set(car.group.position.x + Math.sin(yaw) * 9, car.group.position.y + 6.5, car.group.position.z + Math.cos(yaw) * 9);
+    camera.rotation.y = yaw; camera.rotation.x = Math.min(pitch, -0.2);
+  } else {
+    player.position.set(car.group.position.x, car.group.position.y + 2.1, car.group.position.z);
+    camera.rotation.y = yaw; camera.rotation.x = pitch;
+  }
 }
 // Vida del auto: los monstruos cercanos lo dañan; si llega a 0 se destruye
 function updateCar(dt) {
@@ -6246,6 +6254,8 @@ function renderHUD() {
   ui('ui-air-stat').style.display = state.inWater || state.air < 100 ? '' : 'none';
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
   ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(NIGHT_LENGTH - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(DAY_LENGTH - state.dayTime) : '--');
+  const heliDownBtn = ui('heliDownBtn');
+  if (heliDownBtn) heliDownBtn.style.display = state.driving && car && car.helicopter ? 'flex' : 'none';
 
   // barra de construcción. En celular solo aparece en modo construir (para no tapar la pantalla).
   const bb = ui('buildbar');

@@ -93,6 +93,7 @@
     width: 50px; height: 50px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); background: rgba(0,0,0,.5);
     color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(3px);
     line-height: 1; text-align: center; flex: 0 0 auto; }
+  .tbtn:focus-visible, #minimap:focus-visible { outline: 3px solid #facc15; outline-offset: 3px; }
   .tbtn small { position: absolute; font-size: 9px; opacity: .8; margin-top: 30px; font-weight: 700; }
   .tbtn:active { background: rgba(255,255,255,.28); transform: scale(.94); }
   .tbtn.on { background: rgba(34,197,94,.7); border-color: #4ade80; }
@@ -114,6 +115,7 @@
   body.touch #soundBtn { top: 46px; left: 44px; width: 34px; height: 34px; font-size: 15px; }
   body.touch #exitBtn  { top: 46px; left: 82px; height: 34px; font-size: 10px; padding: 0 8px; }
   body.touch #minimap  { top: 46px !important; right: 6px !important; width: 100px !important; height: 100px !important; }
+  #minimap.expanded { width:min(72vw,360px) !important; height:min(72vw,360px) !important; background:rgba(2,6,23,.88) !important; border:2px solid #facc15; z-index:15; }
   body.touch #objective { top: 84px; font-size: 12px; padding: 4px 10px; max-width: 58%; }
   body.touch #gearhud { top: 150px; right: 6px; left: auto; bottom: auto; font-size: 10px; padding: 3px 6px; max-width: 40vw; text-align: right; }
   body.touch #dadhud { display: none; }
@@ -130,10 +132,22 @@
   body.touch #moveBtns { left: 158px; }
   body.touch .tbtn small { margin-top: 27px; font-size: 8px; }
 
-  #rotateHint { display: none; }
+  /* En móvil solo aparecen las acciones útiles para el contexto actual. */
+  body.touch #touchBtns > .tbtn { display: none; }
+  body.touch #touchBtns > [data-act="hit"], body.touch #touchBtns > [data-act="interact"],
+  body.touch #touchBtns > [data-act="build"], body.touch #touchBtns > [data-act="more"] { display: flex; }
+  body.touch.building #touchBtns > [data-act="hit"], body.touch.building #touchBtns > [data-act="interact"] { display: none; }
+  body.touch.building #touchBtns > [data-act="place"] { display: flex; }
+  body.touch.vehicle #touchBtns > [data-act="hit"], body.touch.vehicle #touchBtns > [data-act="build"] { display: none; }
+  body.touch #moveBtns > [data-act="run"], body.touch #moveBtns > [data-act="crouch"] { display: none; }
+
+  #rotateHint { display: none; pointer-events: none; }
   @media (orientation: portrait) {
-    body.touch #rotateHint { display: flex; position: fixed; inset: 0; z-index: 30; flex-direction: column;
-      align-items: center; justify-content: center; text-align: center; background: rgba(2,6,23,.96); }
+    body.touch #rotateHint { display: block; position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 3;
+      background: rgba(2,6,23,.78); border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 6px 12px;
+      font-size: 11px; opacity: .8; white-space: nowrap; }
+    body.touch #rotateHint > div:first-child { display:none; }
+    body.touch #rotateHint > div { display:inline; margin:0 !important; font-size:11px !important; }
   }
 
   /* ===== MODO RELOJ (smartwatch): pantalla diminuta, todo mini y lejos de las esquinas (pantallas redondas) ===== */
@@ -352,7 +366,7 @@
       <div class="stat"><b>PAPÁ</b><div class="bar dad"><div id="ui-dad" style="width:100%"></div></div></div>
     </div>
   </div>
-  <canvas id="minimap" width="150" height="150" style="position:absolute;top:96px;right:12px;background:rgba(0,0,0,.4);border-radius:10px"></canvas>
+  <canvas id="minimap" width="150" height="150" tabindex="0" role="button" aria-label="Ampliar minimapa" aria-expanded="false" style="position:absolute;top:96px;right:12px;z-index:4;background:rgba(0,0,0,.4);border-radius:10px;pointer-events:all;cursor:pointer"></canvas>
   <div id="hurt" style="position:absolute;inset:0;box-shadow:inset 0 0 120px 30px rgba(239,68,68,.9);opacity:0;transition:opacity .15s"></div>
   <div id="poisonfx" style="position:absolute;inset:0;box-shadow:inset 0 0 130px 40px rgba(34,197,94,.8);opacity:0;transition:opacity .3s;pointer-events:none"></div>
   <div id="coldfx" style="position:absolute;inset:0;box-shadow:inset 0 0 140px 50px rgba(59,130,246,.85);opacity:0;transition:opacity .4s;pointer-events:none"></div>
@@ -457,39 +471,39 @@
   <!-- ===== Controles táctiles (celular) ===== -->
   <div id="joystick"><div id="joyKnob"></div></div>
   <div id="moveBtns">
-    <div class="tbtn" data-act="run">🏃<small>correr</small></div>
-    <div class="tbtn" data-act="jump">⬆️<small>saltar</small></div>
-    <div class="tbtn" id="heliDownBtn" data-act="heliDown" style="display:none;background:rgba(14,116,144,.72);border-color:#67e8f9">⬇️<small>bajar</small></div>
-    <div class="tbtn" data-act="crouch">🧎<small>agachar</small></div>
+    <button type="button" class="tbtn" data-act="run" aria-label="Correr">🏃<small>correr</small></button>
+    <button type="button" class="tbtn" data-act="jump" aria-label="Saltar">⬆️<small>saltar</small></button>
+    <button type="button" class="tbtn" id="heliDownBtn" data-act="heliDown" aria-label="Bajar helicóptero" style="display:none;background:rgba(14,116,144,.72);border-color:#67e8f9">⬇️<small>bajar</small></button>
+    <button type="button" class="tbtn" data-act="crouch" aria-label="Agacharse">🧎<small>agachar</small></button>
   </div>
   <div id="touchBtns">
-    <div class="tbtn big" data-act="hit">👊<small>pegar</small></div>
-    <div class="tbtn" data-act="interact">🤝<small>usar</small></div>
-    <div class="tbtn" data-act="shop">🛒<small>tienda</small></div>
-    <div class="tbtn" data-act="eat">🍖<small>comer</small></div>
-    <div class="tbtn" data-act="night">🌙<small>noche</small></div>
-    <div class="tbtn" data-act="build">🔨<small>construir</small></div>
-    <div class="tbtn" data-act="place">✋<small>poner</small></div>
-    <div class="tbtn" data-act="dig">🪏<small>cavar</small></div>
-    <div class="tbtn" data-act="fogata">🔥<small>fogata</small></div>
-    <div class="tbtn" data-act="plant">🌱<small>plantar</small></div>
-    <div class="tbtn" data-act="more">⋯<small>más</small></div>
+    <button type="button" class="tbtn big" data-act="hit" aria-label="Acción principal">👊<small>acción</small></button>
+    <button type="button" class="tbtn" data-act="interact" aria-label="Usar o hablar">🤝<small>usar</small></button>
+    <button type="button" class="tbtn" data-act="shop" aria-label="Abrir tienda">🛒<small>tienda</small></button>
+    <button type="button" class="tbtn" data-act="eat" aria-label="Comer">🍖<small>comer</small></button>
+    <button type="button" class="tbtn" data-act="night" aria-label="Empezar noche">🌙<small>noche</small></button>
+    <button type="button" class="tbtn" data-act="build" aria-label="Alternar construcción">🔨<small>construir</small></button>
+    <button type="button" class="tbtn" data-act="place" aria-label="Colocar pieza">✋<small>poner</small></button>
+    <button type="button" class="tbtn" data-act="dig" aria-label="Cavar">🪏<small>cavar</small></button>
+    <button type="button" class="tbtn" data-act="fogata" aria-label="Hacer fogata">🔥<small>fogata</small></button>
+    <button type="button" class="tbtn" data-act="plant" aria-label="Plantar">🌱<small>plantar</small></button>
+    <button type="button" class="tbtn" data-act="more" aria-label="Más acciones" aria-expanded="false">⋯<small>más</small></button>
     <span id="moreBtns">
-      <div class="tbtn" data-act="closeMore" style="background:rgba(239,68,68,.6);border-color:rgba(255,120,120,.7)">✖️<small>cerrar</small></div>
-      <div class="tbtn" data-act="rotate">🔄<small>girar</small></div>
-      <div class="tbtn" data-act="variant">🎛️<small>variante</small></div>
-      <div class="tbtn" data-act="delete">🗑️<small>borrar</small></div>
-      <div class="tbtn" data-act="crop">🌾<small>semilla</small></div>
-      <div class="tbtn" data-act="camera">📷<small>vista</small></div>
-      <div class="tbtn" data-act="dadFollow">🚶<small>papá</small></div>
-      <div class="tbtn" data-act="dadStay">🧍<small>quieto</small></div>
-      <div class="tbtn" data-act="dadClean">🧹<small>limpia</small></div>
-      <div class="tbtn" data-act="dadArm">🔫<small>arma</small></div>
-      <div class="tbtn" data-act="dadRest">😴<small>dormir</small></div>
-      <div class="tbtn" data-act="math">🧮<small>mates</small></div>
-      <div class="tbtn" data-act="helper">🧒<small>hijo</small></div>
-      <div class="tbtn" data-act="rocket">🚀<small>cohete</small></div>
-      <div class="tbtn" data-act="help">❓<small>ayuda</small></div>
+      <button type="button" class="tbtn" data-act="closeMore" aria-label="Cerrar más acciones" style="background:rgba(239,68,68,.6);border-color:rgba(255,120,120,.7)">✖️<small>cerrar</small></button>
+      <button type="button" class="tbtn" data-act="rotate" aria-label="Girar pieza">🔄<small>girar</small></button>
+      <button type="button" class="tbtn" data-act="variant" aria-label="Cambiar variante">🎛️<small>variante</small></button>
+      <button type="button" class="tbtn" data-act="delete" aria-label="Quitar pieza">🗑️<small>borrar</small></button>
+      <button type="button" class="tbtn" data-act="crop" aria-label="Cambiar semilla">🌾<small>semilla</small></button>
+      <button type="button" class="tbtn" data-act="camera" aria-label="Cambiar cámara">📷<small>vista</small></button>
+      <button type="button" class="tbtn" data-act="dadFollow" aria-label="Papá seguir">🚶<small>papá</small></button>
+      <button type="button" class="tbtn" data-act="dadStay" aria-label="Papá esperar">🧍<small>quieto</small></button>
+      <button type="button" class="tbtn" data-act="dadClean" aria-label="Papá limpiar">🧹<small>limpia</small></button>
+      <button type="button" class="tbtn" data-act="dadArm" aria-label="Armar a papá">🔫<small>arma</small></button>
+      <button type="button" class="tbtn" data-act="dadRest" aria-label="Papá descansar">😴<small>dormir</small></button>
+      <button type="button" class="tbtn" data-act="math" aria-label="Desafío de matemáticas">🧮<small>mates</small></button>
+      <button type="button" class="tbtn" data-act="helper" aria-label="Llamar ayudante">🧒<small>hijo</small></button>
+      <button type="button" class="tbtn" data-act="rocket" aria-label="Usar cohete">🚀<small>cohete</small></button>
+      <button type="button" class="tbtn" data-act="help" aria-label="Abrir ayuda">❓<small>ayuda</small></button>
     </span>
   </div>
 </div>
@@ -526,23 +540,23 @@
 </div>
 
 <div class="screen hidden" id="jail">
-  <h1 style="background:linear-gradient(90deg,#f87171,#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent">CÁRCEL</h1>
-  <p>Te atraparon. Perdiste tu dinero… pero tu casa sigue en pie.</p>
+  <h1 style="color:#fbbf24">CÁRCEL</h1>
+  <p>Te atraparon. Pagaste una multa del 20%, pero tu casa y tu progreso siguen en pie.</p>
   <button class="btn" id="jailBtn">SALIR Y SEGUIR</button>
 </div>
 
 <div class="screen hidden" id="over">
-  <h1 style="background:linear-gradient(90deg,#ef4444,#7f1d1d);-webkit-background-clip:text;-webkit-text-fill-color:transparent">PERDISTE A TU PAPÁ</h1>
-  <p>Lo perdiste todo. Empiezas desde cero.</p>
+  <h1 style="color:#f87171">EMERGENCIA FAMILIAR</h1>
+  <p>Tu papá quedó herido. El hospital descontará un 10% para atenderlo; la familia conserva la casa y podrá reconstruir.</p>
   <p class="big" id="over-score"></p>
-  <button class="btn" id="overBtn">EMPEZAR DE NUEVO</button>
+  <button class="btn" id="overBtn">VOLVER A CASA</button>
 </div>
 
 <!-- Botón ❓ y menú de AYUDA con todas las teclas (se abre con I o con el botón) -->
-<button id="helpBtn" style="position:fixed; top:58px; left:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">❓</button>
-<button id="soundBtn" style="position:fixed; top:58px; left:58px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">🔊</button>
+<button id="helpBtn" aria-label="Abrir guía" style="position:fixed; top:58px; left:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">❓</button>
+<button id="soundBtn" aria-label="Silenciar sonido" style="position:fixed; top:58px; left:58px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">🔊</button>
 <button id="exitBtn" style="position:fixed; top:58px; left:104px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:12px; font-weight:700; height:40px; padding:0 10px; display:none;">💾 Salir</button>
-<button id="fotoBtn" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
+<button id="fotoBtn" aria-label="Guardar captura" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
 <div id="help">
   <div class="guide-shell" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
     <nav class="guide-nav" aria-label="Secciones de la guía">
@@ -582,6 +596,7 @@
       <section class="guide-panel" data-guide-panel="progress">
         <h3>Cómo crecer</h3>
         <p>El juego recompensa combinar construcción, exploración y buenas decisiones financieras.</p>
+        <div id="roadmap" class="guide-grid" aria-live="polite"></div>
         <div class="guide-grid">
           <div class="guide-item"><b>Casa simple · $300</b><span>Cuatro paredes y techo. Es tu primera fuente estable de ingresos.</span></div>
           <div class="guide-item"><b>Casa completa · $1.000</b><span>Añade puerta, lámpara y horno para subir el pago nocturno.</span></div>
@@ -591,7 +606,7 @@
           <div class="guide-item"><b>Construcción con variantes</b><span>Madera, roca, techos y ventanas tienen acabados. Selecciona la pieza y pulsa R.</span></div>
           <div class="guide-item"><b>Ciudad viva</b><span>Los habitantes deciden si pasean, conversan, compran, buscan refugio o vuelven a casa. En los estadios se disputan partidos completos.</span></div>
           <div class="guide-item"><b>Medio juego</b><span>Perro, láser, segundo piso, moto y heladera se desbloquean con el total ganado.</span></div>
-          <div class="guide-item"><b>Otros planetas</b><span>Compra trajes y cohete. Lleva provisiones en los cajones antes de despegar.</span></div>
+          <div class="guide-item"><b>Otros planetas · $75.000</b><span>La misión del cohete empieza en una etapa alcanzable. Lleva provisiones en los cajones antes de despegar.</span></div>
         </div>
       </section>
       <section class="guide-panel" data-guide-panel="codex">
@@ -658,6 +673,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
+import { GAME_RULES, houseRatings, nightDuration, roadmapFor } from './src/game-config.js';
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 function pixelateModel(root) {
@@ -687,6 +703,7 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
 const SKY_DAY = new THREE.Color(0x87ceeb);
 const SKY_NIGHT = new THREE.Color(0x0a1026);
+const SKY_RAIN = new THREE.Color(0x6b7f96), SKY_DUST = new THREE.Color(0xc06a2e), SKY_ECLIPSE = new THREE.Color(0x05060a), _skyBase = new THREE.Color();
 scene.background = SKY_DAY.clone();
 scene.fog = new THREE.Fog(SKY_DAY.getHex(), 40, 160);
 
@@ -999,7 +1016,7 @@ const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'hijoarma',     name: 'Arma para hijos',     price: 600, color: 0xf59e0b },
   { key: 'hijoarmadura', name: 'Armadura para hijos', price: 700, color: 0x94a3b8 },
   { key: 'traje',    name: 'Trajes espaciales', price: 2000, color: 0xe5e7eb },
-  { key: 'rocket',   name: 'Cohete',       price: 1000000, color: 0xf97316 },
+  { key: 'rocket',   name: 'Cohete',       price: 15000, color: 0xf97316 },
 ];
 const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
   { key: 'pala_madera',    name: 'Pala madera',    price: 200, color: 0x8b5a2b, dmg: 1 },
@@ -1037,11 +1054,11 @@ const PAINT_COLORS = [
 const PAINTS = PAINT_COLORS.map(([n, c]) => ({ key: 'paint_' + n, name: 'Pintura ' + n, price: 400, color: c, paint: c }));
 // Desbloqueos del medio juego: aparecen en la tienda al superar cierto total ganado
 const UNLOCK_ITEMS = [
-  { key: 'perro',    name: 'Perro guardián', price: 2500, color: 0x92400e, unlockAt: 50000 },
-  { key: 'laser',    name: 'Torreta láser',  price: 3000, color: 0x22d3ee, unlockAt: 100000, value: 120, build: true, defense: true },
-  { key: 'piso2',    name: 'Segundo piso',   price: 8000, color: 0xf59e0b, unlockAt: 150000 },
-  { key: 'moto',     name: 'Moto',           price: 3500, color: 0xef4444, unlockAt: 200000 },
-  { key: 'heladera', name: 'Heladera',       price: 2000, color: 0xe5e7eb, unlockAt: 250000, value: 60, build: true, deco: true },
+  { key: 'perro',    name: 'Perro guardián', price: 2500, color: 0x92400e, unlockAt: 2500 },
+  { key: 'moto',     name: 'Moto',           price: 3500, color: 0xef4444, unlockAt: 10000 },
+  { key: 'piso2',    name: 'Segundo piso',   price: 8000, color: 0xf59e0b, unlockAt: 35000 },
+  { key: 'laser',    name: 'Torreta láser',  price: 3000, color: 0x22d3ee, unlockAt: 50000, value: 120, build: true, defense: true },
+  { key: 'heladera', name: 'Heladera',       price: 2000, color: 0xe5e7eb, unlockAt: 50000, value: 60, build: true, deco: true },
 ];
 // Catálogo completo del vendedor (todo lo comprable escribiendo con Y)
 const SHOP = [...STORE_A, ...STORE_B, ...DECOR_ITEMS, ...PAINTS, ...UNLOCK_ITEMS];
@@ -1168,6 +1185,9 @@ makeStore(40, -22, STORE_A, 'SUPER', 0xdc2626);
 //  LA CIUDAD (casas que no se entran + gente que no te ataca)
 // ===================================================================
 const npcs = [];
+const CITIZEN_NAMES = ['Sofía', 'Mateo', 'Valentina', 'Benjamín', 'Emma', 'Lucas', 'Isidora', 'Tomás', 'Mía', 'Vicente'];
+const CITIZEN_JOBS = ['panadera', 'carpintero', 'hortelana', 'mecánico', 'enfermera', 'entrenador'];
+let citizenSerial = 0;
 let goldenHouse = null, goldenCollectedToday = false;
 function makeCityHouse(x, z, golden) {
   const g = new THREE.Group();
@@ -1275,10 +1295,12 @@ loadBuilding('assets/edificio.glb', -30, 20, 12);
 loadBuilding('assets/tienda.glb', -30, 58, 6);
 loadBuilding('assets/tienda.glb', -52, 16, 6);
 function initCitizenBrain(n, center, radius) {
+  const id = citizenSerial++;
   n.userData.brain = {
     home: center.clone(), radius: radius || 18, goal: n.position.clone(), activity: 'idle',
     thinkIn: Math.random() * 2, wait: Math.random() * 1.5, speed: .9 + Math.random() * .45,
     sociable: Math.random() > .25, targetPerson: null,
+    id: 'citizen-' + id, name: CITIZEN_NAMES[id % CITIZEN_NAMES.length], job: CITIZEN_JOBS[id % CITIZEN_JOBS.length], trust: 0,
   };
 }
 function citizenPointBlocked(x, z) {
@@ -1357,6 +1379,33 @@ function updateNPCs(dt) {
     if (moved) swingLimbs(n, dt); else swingLimbs(n, 0);
     n.userData.activity = b.activity;
   }
+}
+
+function nearestCitizen(maxD = 3.2) {
+  let best = null, bd = maxD;
+  for (const n of npcs) if (n.visible) { const d = dist2D(n.position, player.position); if (d < bd) { best = n; bd = d; } }
+  return best;
+}
+function tryFamilyOrCitizenInteract() {
+  if (dad.visible && dist2D(dad.position, player.position) < 3.4) {
+    tutorialEvent('talkDad');
+    const hs = houseStats();
+    say('👨 Papá', hs.ready ? 'La casa va tomando forma. Protección ' + hs.protection + ', confort ' + hs.comfort + '. ¿Preparamos la noche?' : 'Estoy contigo. Cuatro paredes y un techo nos darán una base segura.');
+    return true;
+  }
+  const n = nearestCitizen(); if (!n) return false;
+  const b = n.userData.brain; const favors = state.citizenFavors || (state.citizenFavors = {}); const favor = favors[b.id];
+  if (!favor) {
+    favors[b.id] = { active: true, done: false };
+    say('👋 ' + b.name + ' · ' + b.job, '¿Me ayudas con 1 comida? Te devolveré el favor y la ciudad confiará más en tu familia.');
+  } else if (!favor.done && (state.inv.food || 0) > 0) {
+    state.inv.food--; favor.done = true; b.trust++; state.reputation = (state.reputation || 0) + 1; addMoney(200 + state.reputation * 25);
+    if (state.reputation === 3) { state.blueprints.huerto = true; toast('📐 Plano comunitario: HUERTO FÉRTIL desbloqueado'); }
+    say('💚 ' + b.name, '¡Gracias! Confianza de la ciudad +' + 1 + '. Toma tu recompensa.');
+    missionProgress('help', 1);
+  } else if (!favor.done) say('💬 ' + b.name, 'Todavía necesito 1 comida. Puedes comprarla o cosecharla.');
+  else say('💬 ' + b.name, 'Qué gusto verte. La ciudad recuerda que ayudaste.');
+  return true;
 }
 
 // ===================================================================
@@ -1634,6 +1683,57 @@ function buildStadiums() {
   makeStadium(-70, -10, 0x1d4ed8, 'TENIS');
 }
 buildStadiums();
+
+const SPORT_INFO = [
+  { type: 'futbol', name: 'Fútbol', center: new THREE.Vector3(70, 0, 25), ball: () => soccer.ball },
+  { type: 'basket', name: 'Básquet', center: new THREE.Vector3(20, 0, 58), ball: () => basketball.ball },
+  { type: 'tenis', name: 'Tenis', center: new THREE.Vector3(-70, 0, -10), ball: () => tennis.ball },
+];
+function nearestSport(maxD = 13) {
+  let best = null, bd = maxD;
+  for (const s of SPORT_INFO) { const d = dist2D(player.position, s.center); if (d < bd) { best = s; bd = d; } }
+  return best;
+}
+function trySportInteract() {
+  if (state.sportGame) { finishSportGame(true); return true; }
+  const sport = nearestSport(); if (!sport || state.phase !== 'DAY') return false;
+  state.sportGame = { type: sport.type, name: sport.name, time: 45, score: 0, actions: 0 };
+  player.position.set(sport.center.x, PLAYER_EYE, sport.center.z + 4.5);
+  toast('🏟️ Entraste a ' + sport.name + ' · acércate a la pelota y usa la acción principal · E abandona');
+  return true;
+}
+function sportAction() {
+  const game = state.sportGame; if (!game) return false;
+  const sport = SPORT_INFO.find(s => s.type === game.type), ball = sport && sport.ball();
+  if (!ball || dist2D(player.position, ball.position) > 2.2) { toast('🏃 Acércate a la pelota'); return true; }
+  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); game.actions++;
+  if (game.type === 'futbol') soccer.vel.set(dir.x * 11, 0, dir.z * 11);
+  else if (game.type === 'basket') {
+    basketball.holder = null; basketball.shotTeam = 0;
+    const target = new THREE.Vector3(basketball.cx + 8, 2.8, basketball.cz), dx = target.x - ball.position.x, dz = target.z - ball.position.z, flight = 1;
+    basketball.vel.set(dx / flight, 7.1, dz / flight);
+  } else {
+    const side = ball.position.x < tennis.cx ? 0 : 1, toward = side === 0 ? 1 : -1;
+    tennis.vel.set(toward * 8.8, 5.8, dir.z * 3.5); tennis.lastHit = side; tennis.bounces = 0; tennis.bounceSide = null;
+  }
+  game.score++; beep(620, .07, .04); return true;
+}
+function updateSportGame(dt) {
+  const game = state.sportGame; if (!game) return;
+  game.time -= dt;
+  if (game.time <= 0) finishSportGame(false);
+}
+function finishSportGame(abandoned) {
+  const game = state.sportGame; if (!game) return;
+  if (!abandoned) {
+    const reward = 200 + game.score * 40; addMoney(reward);
+    state.medals[game.type] = Math.max(state.medals[game.type] || 0, game.score);
+    state.reputation = (state.reputation || 0) + 1;
+    missionProgress('sport', 1);
+    toast('🏅 ' + game.name + ' terminado · ' + game.score + ' jugadas · +$' + reward);
+  } else toast('Saliste del partido. Puedes volver cuando quieras.');
+  state.sportGame = null;
+}
 
 // ---- BANCO (educativo): ahorra y gana 5% de interés por noche; préstamos al 10% ----
 const BANK_POS = new THREE.Vector3(58, 0, -24);
@@ -3153,9 +3253,12 @@ function removePlaced(o) {
 // ¿Cómo es la casa? (para pagar más por mansiones y permitir la noche)
 function houseStats() {
   let walls = 0, roofs = 0, lamps = 0, doors = 0, ovens = 0;
+  const counts = {};
   for (const o of placed) {
-    if ((o.key === 'wallWood' || o.key === 'wallRock') && dist2D(o.mesh.position, HOUSE) < 18) walls++;
-    else if (o.key === 'door' && dist2D(o.mesh.position, HOUSE) < 18) doors++;
+    if (dist2D(o.mesh.position, HOUSE) >= 18) continue;
+    counts[o.key] = (counts[o.key] || 0) + 1;
+    if (o.key === 'wallWood' || o.key === 'wallRock') walls++;
+    else if (o.key === 'door') doors++;
     else if (o.key === 'roof') roofs++;
     else if (o.key === 'lamp') lamps++;
     else if (o.key === 'oven') ovens++;
@@ -3164,7 +3267,30 @@ function houseStats() {
   const simple = walls >= 4 && roofs >= 1;                              // casa simple
   const full = walls >= 4 && doors >= 1 && roofs >= 1 && lamps >= 1 && ovens >= 1;  // casa completa
   const mansion = full;
-  return { walls, roofs, lamps, doors, ovens, ready, simple, full, mansion };
+  return { walls, roofs, lamps, doors, ovens, ready, simple, full, mansion, counts, ...houseRatings(counts) };
+}
+const TUTORIAL_STEPS = [
+  { text: 'Sigue la flecha hasta el supermercado', test: () => dist2D(player.position, SUPER_POS) < 11 },
+  { text: 'Compra al menos una pieza de construcción', test: () => BUILD_KEYS.some(k => (state.inv[k] || 0) > 0) },
+  { text: 'Pulsa B y construye cuatro paredes cerca de casa', test: () => houseStats().ready },
+  { text: 'Planta una semilla con K', test: () => plants.length > 0 },
+  { text: 'Habla con papá acercándote y pulsando E', event: 'talkDad' },
+  { text: 'Cuando estés preparado, inicia la primera noche con N', event: 'nightStarted' },
+  { text: 'Defiende la casa hasta el amanecer', event: 'nightSurvived' },
+];
+function tutorialEvent(type) {
+  const t = state.tutorial; if (!t || t.complete) return;
+  const step = TUTORIAL_STEPS[t.step]; if (step && step.event === type) advanceTutorial();
+}
+function advanceTutorial() {
+  const t = state.tutorial; if (!t || t.complete) return;
+  t.step++;
+  if (t.step >= TUTORIAL_STEPS.length) { t.complete = true; addMoney(500); state.blueprints.primerHogar = true; toast('🎓 Tutorial completo · +$500 y plano PRIMER HOGAR'); return; }
+  addMoney(75); toast('✅ Paso completado · +$75 · ' + TUTORIAL_STEPS[t.step].text);
+}
+function updateTutorial() {
+  const t = state.tutorial; if (!t || t.complete) return;
+  const step = TUTORIAL_STEPS[t.step]; if (step && step.test && step.test()) advanceTutorial();
 }
 // Bono por construir: casa simple (4 paredes + techo) = $300 ; casa completa (4 paredes + puerta + techo + lámpara + horno) = $1000
 let houseTier = 0;   // 0 = nada cobrado, 1 = simple cobrada, 2 = completa cobrada
@@ -3903,10 +4029,11 @@ function dadWipe(dt) {
 //  ESTADO
 // ===================================================================
 const START_MONEY = 1000;
-const DAY_LENGTH = 600;     // 10 minutos de día
-const NIGHT_LENGTH = 600;   // 10 minutos de noche
-const METEOR_AT = 1000000;  // el "millón": cae el meteorito (también con tecla M para probar)
-const MOM_AT = 20000;
+const DAY_LENGTH = GAME_RULES.daySeconds;
+const NIGHT_LENGTH = GAME_RULES.nightSeconds;
+const METEOR_AT = GAME_RULES.meteorAt;
+const MOM_AT = GAME_RULES.momAt;
+function currentNightLength() { return nightDuration(state.night); }
 const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
   hp: 100, dadHp: 100,
@@ -3916,7 +4043,7 @@ const state = {
   hunger: 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: 0,
   momUnlocked: false, momEventPending: false,
   planet: 'tierra', meteorTriggered: false, rocket: null, escapeTimer: 0, cinematic: false, meteor: null, cine: null,
-  hasSuits: false, usedRocket: false, meteorAt: 1000000, coldWarned: false,
+  hasSuits: false, usedRocket: false, meteorAt: METEOR_AT, coldWarned: false,
   bank: 0, debt: 0, weather: 'clear', weatherLeft: 0, trips: 0, ngplus: false, nextDest: null, paused: false,
   planetName: 'Platus', planetGround: 0x9c4a2a, cargo: {},
   buildMode: false,
@@ -3933,6 +4060,7 @@ const state = {
   riding: false,   // montando una criatura firma domada
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
+  tutorial: { step: 0, complete: false }, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -3941,10 +4069,14 @@ function addMoney(n) {
   if (n > 0) { state.totalEarned += n; checkProgress(); }
 }
 function checkProgress() {
-  const newStage = 1 + Math.floor(state.totalEarned / 1000);
+  const newStage = 1 + Math.floor(state.totalEarned / 2500);
   if (newStage > state.stage) { state.stage = newStage; toast('⭐ ¡ETAPA ' + state.stage + '! El juego se pone más difícil'); phaseText('ETAPA ' + state.stage); }
   if (!state.momUnlocked && state.totalEarned >= MOM_AT) { state.momUnlocked = true; state.momEventPending = true; toast('💃 A las $20.000: ¡esta noche el papá irá a una fiesta!'); }
   if (!state.meteorTriggered && state.planet === 'tierra' && state.totalEarned >= (state.meteorAt || METEOR_AT)) triggerMeteor();
+  if (state.totalEarned >= 5000 && !(state.blueprints && state.blueprints.agriculture)) {
+    if (!state.blueprints) state.blueprints = {}; state.blueprints.agriculture = true;
+    toast('🌾 Agricultura avanzada: la biodiversidad ahora acelera 50% el crecimiento');
+  }
   for (const u of UNLOCK_ITEMS) {   // desbloqueos del medio juego (cada ~50k)
     if (state.totalEarned >= u.unlockAt && !(state.unlocked && state.unlocked[u.key])) {
       if (!state.unlocked) state.unlocked = {};
@@ -4068,8 +4200,8 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyH') spawnHelper();
   if (e.code === 'KeyR') { if (state.buildMode) cycleBuildVariant(1); else tryLaunchRocket(); }
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
-  if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: cosecha · montura · auto · refugio · ruinas · castillo · coliseo · cohete · banco · oro / robar / vender casa
+  if (e.code === 'KeyM' && new URLSearchParams(location.search).has('debug') && !state.meteorTriggered) triggerMeteor();
+  if (e.code === 'KeyE') { if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -4293,18 +4425,23 @@ function openProfilebox() {
 }
 ui('profileCancel').onclick = () => { ui('profilebox').style.display = 'none'; };
 // Código de partida: copia/pega tu save entre dispositivos (sin internet ni cuentas)
-ui('pauseCode').onclick = () => {
+ui('pauseCode').onclick = async () => {
   try {
     const data = localStorage.getItem(saveKey());
     if (!data) { toast('💾 Aún no hay partida guardada'); return; }
-    prompt('📋 Copia este CÓDIGO DE PARTIDA y pégalo en otro dispositivo (menú pausa → Cargar código):', btoa(unescape(encodeURIComponent(data))));
+    const bytes = new TextEncoder().encode(data);
+    let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte);
+    const code = btoa(binary);
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(code); toast('📋 Código copiado al portapapeles'); }
+    else prompt('📋 Copia este CÓDIGO DE PARTIDA:', code);
   } catch (e) { toast('No se pudo generar el código'); }
 };
 ui('pauseLoad').onclick = () => {
   try {
     const code = prompt('📥 Pega aquí tu código de partida:');
     if (!code) return;
-    const json = decodeURIComponent(escape(atob(code.trim())));
+    const binary = atob(code.trim()), bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
     JSON.parse(json);   // valida que sea un save real
     localStorage.setItem(saveKey(), json);
     togglePause(false);
@@ -4316,7 +4453,7 @@ ui('continueBtn').onclick = () => openProfilebox();   // elige QUIÉN juega (si 
 if (hasSave()) { ui('continueBtn').style.display = ''; ui('start').classList.add('has-save'); }   // mostrar "Continuar" si hay partida guardada
 showBestLine();   // récord personal en la pantalla de inicio
 ui('jailBtn').onclick = () => hideScreens();
-ui('overBtn').onclick = () => { resetAll(); startGame(); };
+ui('overBtn').onclick = recoverFamily;
 // Autoguardado: al ocultar la pestaña, al cerrar y cada 15 s
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
 addEventListener('pagehide', saveGame);
@@ -4449,8 +4586,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
   function press(act) {
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
-      case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
+      case 'interact': if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -4476,7 +4613,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'jump': touch.jump = true; break;
     }
   }
-  function closeMorePanel() { ui('moreBtns').classList.remove('open'); const m = document.querySelector('.tbtn[data-act="more"]'); if (m) m.classList.remove('on'); }
+  function closeMorePanel() { ui('moreBtns').classList.remove('open'); const m = document.querySelector('.tbtn[data-act="more"]'); if (m) { m.classList.remove('on'); m.setAttribute('aria-expanded', 'false'); } }
   function bindButtons(container) {
     container.addEventListener('pointerdown', e => {
       const el = e.target.closest('.tbtn'); if (!el) return;
@@ -4485,7 +4622,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (act === 'run') { touch.run = !touch.run; el.classList.toggle('on', touch.run); return; }
       if (act === 'crouch') { touch.crouch = !touch.crouch; el.classList.toggle('on', touch.crouch); return; }
       if (act === 'heliDown') { touch.heliDown = true; el.classList.add('on'); return; }
-      if (act === 'more') { ui('moreBtns').classList.toggle('open'); const m = document.querySelector('.tbtn[data-act="more"]'); if (m) m.classList.toggle('on', ui('moreBtns').classList.contains('open')); return; }
+      if (act === 'more') { ui('moreBtns').classList.toggle('open'); const m = document.querySelector('.tbtn[data-act="more"]'), open = ui('moreBtns').classList.contains('open'); if (m) { m.classList.toggle('on', open); m.setAttribute('aria-expanded', String(open)); } return; }
       if (act === 'closeMore') { closeMorePanel(); return; }   // ✖️ cerrar el panel
       if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
       press(act);
@@ -4535,6 +4672,7 @@ function startGame() {
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
+  state.tutorial = { step: 0, complete: false }; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null;
   state.mathLeft = 5; state.mathStreak = 0;
   soccer.scoreRed = soccer.scoreBlue = 0; updateScoreboard();
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
@@ -4554,7 +4692,7 @@ function startGame() {
   scene.fog.far = 160;   // niebla normal de la Tierra
   resetWeather();
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
-  showIntro();   // la historia en 4 tarjetas (se pasa con un botón)
+  toast('📍 PRIMER PASO · Sigue la flecha hasta el súper');
 }
 // Guardado / carga de la partida (localStorage)
 // ===================================================================
@@ -4590,6 +4728,7 @@ function saveGame() {
   try {
     const wc = (viewmodel.children[2] && viewmodel.children[2].material) ? viewmodel.children[2].material.color.getHex() : 0x94a3b8;
     const data = {
+      saveVersion: GAME_RULES.saveVersion,
       money: state.money, totalEarned: state.totalEarned, stage: state.stage,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
       weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel,
@@ -4632,6 +4771,8 @@ function saveGame() {
       bestiary: state.bestiary || {},     // colección de monstruos
       album: state.album || {}, albumDone: !!state.albumDone,   // álbum de criaturas alien
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
+      tutorial: state.tutorial || { step: 0, complete: false }, reputation: state.reputation || 0,
+      medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
     };
     localStorage.setItem(saveKey(), JSON.stringify(data));
   } catch (e) {}
@@ -5072,7 +5213,8 @@ const MISSION_DEFS = [
   { type: 'harvest', icon: '🌾', need: () => 3, txt: n => 'Cosecha ' + n + ' productos del huerto' },
   { type: 'dig',     icon: '🪏', need: () => 3, txt: n => 'Cava ' + n + ' hoyos' },
   { type: 'plant',   icon: '🌱', need: () => 2, txt: n => 'Planta ' + n + ' semillas' },
-  { type: 'rob',     icon: '🕶️', need: () => 1, txt: () => 'Roba sin que te vean' },
+  { type: 'help',    icon: '🤝', need: () => 1, txt: () => 'Ayuda a una persona de la ciudad' },
+  { type: 'sport',   icon: '🏅', need: () => 1, txt: () => 'Completa un partido corto' },
   { type: 'runover', icon: '🚗', need: () => 4, txt: n => 'Atropella ' + n + ' monstruos' },
   { type: 'math',    icon: '🧮', need: () => 3, txt: n => 'Resuelve ' + n + ' desafíos de mates (U)' },
 ];
@@ -5103,9 +5245,18 @@ function missionProgress(type, n) {
 function renderMissions() {
   const el = ui('missions'); if (!el) return;
   if (!state.missions || !state.missions.length) { el.style.display = 'none'; return; }
+  const active = state.missions.find(m => !m.done);
+  if (!active) { el.style.display = 'none'; return; }
   el.style.display = '';
-  el.innerHTML = '<b style="font-size:10px; opacity:.7">🎯 MISIONES DEL DÍA</b><br>' + state.missions.map(m =>
-    '<div style="opacity:' + (m.done ? '.45' : '1') + '">' + (m.done ? '✅' : m.icon) + ' ' + m.txt + ' <b>' + Math.min(m.got, m.need) + '/' + m.need + '</b></div>').join('');
+  el.innerHTML = '<b style="font-size:10px; opacity:.7">🎯 MISIÓN ACTIVA</b><br><div>' + active.icon + ' ' + active.txt + ' <b>' + Math.min(active.got, active.need) + '/' + active.need + '</b></div>';
+}
+let roadmapSignature = '';
+function renderRoadmap() {
+  const el = ui('roadmap'); if (!el) return;
+  const road = roadmapFor(state.totalEarned || 0), sig = [road.now && road.now.at, road.next && road.next.at, road.later && road.later.at].join(':');
+  if (sig === roadmapSignature) return; roadmapSignature = sig;
+  const card = (label, item) => item ? `<div class="guide-item"><b>${label} · ${item.icon} ${item.name}</b><span>${item.detail}${item.at ? ' · $' + item.at.toLocaleString('es-CL') : ''}</span></div>` : '';
+  el.innerHTML = card('AHORA', road.now) + card('PRÓXIMO', road.next) + card('DESPUÉS', road.later);
 }
 // Racha DIARIA (calendario real): jugar días seguidos da bono al empezar (una vez al día)
 function checkDailyStreak() {
@@ -5144,6 +5295,8 @@ function loadGame() {
     savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, moto: v.moto, helicopter: v.helicopter, restoring: true }));
   }
   state.unlocked = d.unlocked || {};
+  state.tutorial = d.tutorial || { step: d.night > 0 ? 6 : 0, complete: d.night > 0 };
+  state.reputation = d.reputation || 0; state.medals = d.medals || {}; state.blueprints = d.blueprints || {}; state.citizenFavors = d.citizenFavors || {};
   state.creative = !!d.creative;
   cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
   const savedSports = d.sports || {};
@@ -5725,7 +5878,7 @@ function updatePlants(dt) {
   for (const pl of plants) {
     const def = CROP_DEFS[pl.crop] || CROP_DEFS.apple;
     if (pl.grow < 1) {
-      const diversityBoost = cropDiversity(pl) >= 2 ? 1.25 : 1;
+      const diversityBoost = cropDiversity(pl) >= 2 ? (state.blueprints.agriculture ? 1.5 : 1.25) : 1;
       pl.grow = Math.min(1, pl.grow + dt * diversityBoost / def.growTime);
       pl.mesh.scale.setScalar(0.25 + pl.grow * 0.75);
     } else if (pl.produce < def.max && Math.random() < dt / def.regrow) addCropProduce(pl);
@@ -5943,7 +6096,7 @@ function goToPlanet() {
 function tryStartNight() {
   if (state.phase !== 'DAY') return;
   if (!houseStats().ready) { toast('Construye al menos 4 paredes cerca de tu casa (B para construir)'); return; }
-  if (state.dayTime < DAY_LENGTH - 120) {   // madrugar: empezar la noche con >2 min de día restante paga bono
+  if (state.dayTime < DAY_LENGTH - 60) {   // prepararse con tiempo paga un pequeño bono
     addMoney(100); floatText(player.position, '+$100 madrugador', '#4ade80', 16);
   }
   startNight();
@@ -5951,7 +6104,9 @@ function tryStartNight() {
 function startNight() {
   state.phase = 'NIGHT'; state.nightTime = 0; state.spawnTimer = 0; state.buildMode = false;
   state.night++;
-  state.chestAt = [20 + Math.random() * 220, 320 + Math.random() * 230];   // 2 cofres por noche, en momentos al azar
+  tutorialEvent('nightStarted');
+  const duration = currentNightLength();
+  state.chestAt = [Math.min(duration * .28, 25), Math.min(duration * .65, 95)];
   state.pinataDone = false;                                                 // habrá 1 monstruo dorado (piñata)
   state.hordeOn = false;                                                    // horda final del último minuto
   state.nightDamage = false;                                                // si la casa termina sin daño, sube la RACHA
@@ -6218,17 +6373,18 @@ function updateMoles(dt) {
 
 function updateNight(dt) {
   state.nightTime += dt;
+  const duration = currentNightLength();
   state.spawnTimer -= dt;
   const aliveCount = enemies.filter(e => e.userData.type !== 'bull').length;
-  if (!state.hordeOn && state.nightTime >= NIGHT_LENGTH - 60) {   // último minuto: ¡HORDA FINAL!
+  if (!state.hordeOn && state.nightTime >= duration - GAME_RULES.finalHordeSeconds) {
     state.hordeOn = true;
     toast('🚨 ¡HORDA FINAL! Aguanta el último minuto…'); phaseText('¡HORDA FINAL!');
     beep(200, 0.3, 0.07); setTimeout(() => beep(160, 0.3, 0.07), 350);
   }
   const maxEnemies = Math.round(enemiesForNight(state.night) * (state.hordeOn ? 1.5 : 1));
-  if (state.spawnTimer <= 0 && aliveCount < maxEnemies && state.nightTime < NIGHT_LENGTH - 8) {
+  if (state.spawnTimer <= 0 && aliveCount < maxEnemies && state.nightTime < duration - 8) {
     const ne = spawnEnemy(pickEnemyType()); state.spawnTimer = Math.max(1.0, 3.5 - state.stage * 0.15) * (state.hordeOn ? 0.5 : 1);   // los monstruos dependen de la ETAPA; la horda spawnea al doble
-    if (!state.pinataDone && (Math.random() < 0.12 || state.nightTime > NIGHT_LENGTH * 0.5)) makePinata(ne);
+    if (!state.pinataDone && (Math.random() < 0.12 || state.nightTime > duration * 0.5)) makePinata(ne);
   }
   if (state.chestAt && state.chestAt.length && state.nightTime >= state.chestAt[0]) { state.chestAt.shift(); spawnChest(); }
   updateChest(dt);
@@ -6267,10 +6423,10 @@ function updateNight(dt) {
     if (ud.breaksAir && ud.attackCd <= 0) {
       let roof = null, rd = 4;
       for (const o of placed) { if (o.key === 'roof' && o.hp > 0) { const dd = dist2D(e.position, o.mesh.position); if (dd < rd) { rd = dd; roof = o; } } }
-      if (roof) { roof.hp -= ud.dmg; ud.attackCd = 1; state.nightDamage = true; if (roof.hp <= 0) removePlaced(roof); }
+      if (roof) { roof.hp -= ud.dmg * (1 - Math.min(.5, houseStats().protection / 200)); ud.attackCd = 1; state.nightDamage = true; if (roof.hp <= 0) removePlaced(roof); }
     }
     if (blocked) {
-      if (ud.attackCd <= 0) { blocked.hp -= ud.opensDoors ? 30 : (ud.dmg || 10); ud.attackCd = 1; state.nightDamage = true; if (blocked.hp <= 0) removePlaced(blocked); }
+      if (ud.attackCd <= 0) { const fortify = 1 - Math.min(.5, houseStats().protection / 200); blocked.hp -= (ud.opensDoors ? 30 : (ud.dmg || 10)) * fortify; ud.attackCd = 1; state.nightDamage = true; if (blocked.hp <= 0) removePlaced(blocked); }
     } else if (d > 1.4) {
       moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
     } else if (ud.attackCd <= 0) {
@@ -6282,13 +6438,14 @@ function updateNight(dt) {
   }
   updateDefenses(dt);
   updateProjectiles(dt);
-  if (state.nightTime >= NIGHT_LENGTH) surviveNight();
+  if (state.nightTime >= duration) surviveNight();
 }
 
 function surviveNight() {
   clearWaves();
+  tutorialEvent('nightSurvived');
   const hs = houseStats();
-  let reward = 100 * state.stage + (hs.mansion ? 800 : (hs.ready ? 200 : 0));
+  let reward = 100 * state.stage + (hs.ready ? 150 : 0) + Math.min(1200, hs.score * 8);
   if (state.hasFloor2) reward += 300;                          // segundo piso: renta extra
   if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
   if (state.planet === 'platus') reward = Math.round(reward * 1.5);   // Platus paga más (es más difícil)
@@ -6305,7 +6462,8 @@ function surviveNight() {
     const gen = 300 + 100 * state.stage; addMoney(gen);
     setTimeout(() => toast('⚡ +$' + gen + ' del GENERADOR de tu base espacial'), 5000);
   }
-  state.hp = Math.min(100, state.hp + 40); state.dadHp = Math.min(100, state.dadHp + 30);
+  state.hp = Math.min(100, state.hp + 25 + Math.min(25, hs.comfort / 3)); state.dadHp = Math.min(100, state.dadHp + 20 + Math.min(25, hs.comfort / 3));
+  const producedFood = Math.floor(hs.production / 20); if (producedFood > 0) { state.inv.food += producedFood; setTimeout(() => toast('🍲 La casa produjo ' + producedFood + ' comida'), 1800); }
   state.poison = 0; state.dadPoison = 0;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
@@ -6322,7 +6480,8 @@ function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
   state.driving = false; removeMount();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
-  clearWaves(); state.money = 0; state.hp = 100; state.phase = 'JAIL';   // ir a la cárcel te quita TODO el dinero (castigo)
+  const fine = Math.round(state.money * GAME_RULES.jailMoneyLoss);
+  clearWaves(); state.money = Math.max(0, state.money - fine); state.hp = 100; state.phase = 'JAIL';
   ui('hud').style.display = 'none'; ui('jail').classList.remove('hidden');
   setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(10, PLAYER_EYE, 16); }, 0);
 }
@@ -6332,6 +6491,14 @@ function gameOver() {
   ui('hud').style.display = 'none';
   ui('over-score').textContent = 'Etapa ' + state.stage + ' · $' + state.totalEarned + ' ganados';
   ui('over').classList.remove('hidden');
+}
+function recoverFamily() {
+  const cost = Math.round(state.money * .10);
+  state.money = Math.max(0, state.money - cost); state.hp = 70; state.dadHp = 55;
+  state.phase = 'DAY'; state.dayTime = 0; state.nightTime = 0; state.running = true;
+  dad.visible = true; dad.position.set(HOUSE.x + 2, 0, HOUSE.z + 2); player.position.set(HOUSE.x, PLAYER_EYE, HOUSE.z + 4);
+  hideScreens(); clearWaves(); saveGame();
+  toast('🏥 Familia recuperada · tratamiento $' + cost + ' · repara la casa y sigue adelante');
 }
 
 // ===================================================================
@@ -6419,6 +6586,7 @@ function updateCombo(dt) {
 //  BUCLE PRINCIPAL
 // ===================================================================
 const clock = new THREE.Clock();
+let billboardTick = 0, hudTick = 0, minimapTick = 0;
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -6437,8 +6605,10 @@ function loop() {
     updateSoccer(dt);
     updateBasketball(dt);
     updateTennis(dt);
+    updateSportGame(dt);
     swingLimbs(mom, dt);
     updateArrow();
+    updateTutorial();
     updateDayNight(dt);
     updateEscape(dt);
     updateHunger(dt);
@@ -6478,11 +6648,11 @@ function loop() {
   }
   for (const e of enemies) swingLimbs(e, dt);
   if (state.running) updatePlayerCamera(dt);
-  updateBillboards(dt);
+  billboardTick += dt; if (billboardTick >= .05) { updateBillboards(billboardTick); billboardTick = 0; }
   updateFloats(dt); updateCoins(dt); updateCombo(dt);   // "juice": textos, monedas, combo
   updateSky(dt);
-  renderHUD();
-  drawMinimap();
+  hudTick += dt; if (hudTick >= .067) { renderHUD(); hudTick = 0; }
+  minimapTick += dt; if (minimapTick >= .1) { drawMinimap(); minimapTick = 0; }
   renderer.render(scene, camera);
 }
 
@@ -6538,8 +6708,16 @@ function hurtFeedback() {
   const pf = ui('poisonfx'); if (pf) pf.style.opacity = state.poison > 0 ? String(0.35 + 0.35 * Math.abs(Math.sin(performance.now() / 250))) : '0';
 }
 // Mini-mapa: tu casa, los súper y la ciudad
+const minimapEl = ui('minimap');
+const minimapCtx = minimapEl.getContext('2d');
+function toggleMinimap() {
+  const expanded = minimapEl.classList.toggle('expanded');
+  minimapEl.setAttribute('aria-expanded', String(expanded)); minimapEl.setAttribute('aria-label', expanded ? 'Reducir minimapa' : 'Ampliar minimapa');
+}
+minimapEl.addEventListener('click', toggleMinimap);
+minimapEl.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); toggleMinimap(); } });
 function drawMinimap() {
-  const c = ui('minimap'); if (!c) return; const g = c.getContext('2d');
+  const c = minimapEl, g = minimapCtx; if (!c || !g) return;
   g.clearRect(0, 0, 150, 150);
   const sc = 0.6, cx = 75 - player.position.x * sc, cz = 75 - player.position.z * sc;
   const dot = (x, z, col, r) => { g.fillStyle = col; g.beginPath(); g.arc(cx + x * sc, cz + z * sc, r, 0, 7); g.fill(); };
@@ -6780,9 +6958,10 @@ function updateBillboards(dt) {
 }
 function updateSky(dt) {
   const night = state.phase === 'NIGHT';
-  let base = state.planet === 'platus' ? new THREE.Color(state.planetSky || 0xd98c5f) : SKY_DAY;
-  if (state.weather === 'rain') base = new THREE.Color(0x6b7f96);        // cielo gris de lluvia
-  else if (state.weather === 'dust') base = new THREE.Color(0xc06a2e);   // cielo naranjo de tormenta
+  _skyBase.setHex(state.planet === 'platus' ? (state.planetSky || 0xd98c5f) : SKY_DAY.getHex());
+  let base = _skyBase;
+  if (state.weather === 'rain') base = SKY_RAIN;
+  else if (state.weather === 'dust') base = SKY_DUST;
   const target = night ? SKY_NIGHT : base;
   scene.background.lerp(target, 0.04); scene.fog.color.copy(scene.background);
   const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1.0;   // NEBULA: planeta oscuro y neblinoso
@@ -6790,7 +6969,7 @@ function updateSky(dt) {
   sun.intensity += ((night ? 0.15 : 1.0 * dim) - sun.intensity) * 0.04;
   for (const o of placed) if (o.light) o.light.intensity += (((night ? 1.6 : 0)) - o.light.intensity) * 0.05;
   if (state.eclipse > 0) {   // ECLIPSE: todo se oscurece de golpe
-    scene.background.lerp(new THREE.Color(0x05060a), 0.12); scene.fog.color.copy(scene.background);
+    scene.background.lerp(SKY_ECLIPSE, 0.12); scene.fog.color.copy(scene.background);
     ambient.intensity += (0.18 - ambient.intensity) * 0.1; sun.intensity += (0.1 - sun.intensity) * 0.1;
   }
   if (state.planet === 'platus') {   // el cielo alien (2 lunas + auroras) sigue al jugador y titila
@@ -6806,6 +6985,8 @@ function updateTimers(dt) {
 }
 
 function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+function setHTMLIfChanged(el, html) { if (el._renderHTML === html) return false; el._renderHTML = html; el.innerHTML = html; return true; }
+function setTextIfChanged(el, value) { if (el.textContent !== value) el.textContent = value; }
 let shownMoney = 0;   // el contador de dinero "rueda" hacia el valor real
 function updateContextPrompt() {
   const box = ui('contextPrompt'), key = ui('contextKey'), txt = ui('contextText');
@@ -6820,11 +7001,14 @@ function updateContextPrompt() {
       let owned = null;
       for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
       if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
+      else if (state.sportGame) action = { key: 'CLIC', touch: '⚽', text: state.sportGame.name + ' · juega la pelota · ' + Math.ceil(state.sportGame.time) + 's' };
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
       else if (nearKeeper()) action = { key: 'Y', touch: '🛒', text: 'Abrir catálogo del vendedor' };
       else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
       else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };
+      else if (nearestSport()) action = { key: 'E', touch: '🏟️', text: 'Unirte al partido · sesión de 45 segundos' };
+      else if (nearestCitizen() || (dad.visible && dist2D(dad.position, player.position) < 3.4)) action = { key: 'E', touch: '💬', text: 'Hablar o ayudar' };
       else if (state.phase === 'DAY') {
         let product = null;
         for (const it of shopStands) if (dist2D(player.position, it.pos) < 2.8) { product = it; break; }
@@ -6849,7 +7033,8 @@ function renderHUD() {
   ui('ui-air').style.width = Math.max(0, state.air) + '%';
   ui('ui-air-stat').style.display = state.inWater || state.air < 100 ? '' : 'none';
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
-  ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(NIGHT_LENGTH - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(DAY_LENGTH - state.dayTime) : '--');
+  ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(currentNightLength() - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(DAY_LENGTH - state.dayTime) : '--');
+  document.body.classList.toggle('building', !!state.buildMode); document.body.classList.toggle('vehicle', !!state.driving);
   const heliDownBtn = ui('heliDownBtn');
   if (heliDownBtn) heliDownBtn.style.display = state.driving && car && car.helicopter ? 'flex' : 'none';
   updateContextPrompt();
@@ -6857,7 +7042,7 @@ function renderHUD() {
   // barra de construcción. En celular solo aparece en modo construir (para no tapar la pantalla).
   const bb = ui('buildbar');
   const isTouch = document.body.classList.contains('touch');
-  const showBar = (state.phase === 'DAY' || state.phase === 'NIGHT') && (!isTouch || state.buildMode);
+  const showBar = (state.phase === 'DAY' || state.phase === 'NIGHT') && state.buildMode;
   if (showBar) {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
@@ -6873,7 +7058,7 @@ function renderHUD() {
       if (isTouch && state.buildMode && !BUILD_CATS[buildCat].includes(k)) return;   // solo la categoría activa
       html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}" data-slot="${i + 2}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`;
     });
-    bb.innerHTML = html;
+    setHTMLIfChanged(bb, html);
     if (!isTouch) {
       const selectedSlot = bb.querySelector('.slot.sel');
       if (selectedSlot) {
@@ -6887,7 +7072,7 @@ function renderHUD() {
 
   // papá
   const modeTxt = { follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '';
-  ui('dadhud').innerHTML = `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}<br><span style="opacity:.7;font-size:11px">C seguir · V quieto · O limpiar · G arma · Z dormir</span>`;
+  setHTMLIfChanged(ui('dadhud'), `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}`);
   // equipo
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
@@ -6907,6 +7092,10 @@ function renderHUD() {
   if (state.inArena) gear.push('🏟️ COLISEO oleada ' + arenaWave + ' · quedan ' + arenaFoes.length + ' (E sale)');
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
+  const hsNow = houseStats();
+  if (state.buildMode) gear.unshift('🏠 Protección ' + hsNow.protection + ' · Confort ' + hsNow.comfort + ' · Producción ' + hsNow.production + ' · Energía ' + hsNow.energy);
+  if (state.reputation > 0) gear.push('🤝 confianza ' + state.reputation);
+  const medalCount = Object.keys(state.medals || {}).length; if (medalCount) gear.push('🏅 ' + medalCount + '/3 deportes');
   if (state.dadGun) gear.push('🔫 papá');
   if (state.dadArmor < 1) gear.push('🛡️ papá');
   if (state.momUnlocked) gear.push('👩 H');
@@ -6918,17 +7107,20 @@ function renderHUD() {
   if (state.hasJetpack) gear.push('🚀 jetpack' + (state.jetOn ? ' 🔥' : ''));
   if (state.laserGun) gear.push('🔫 láser');
   if (petAlien) gear.push('👽 mascota');
-  ui('gearhud').innerHTML = gear.join(' · ');
+  setHTMLIfChanged(ui('gearhud'), gear.join(' · '));
 
   // objetivo
   let obj = '';
-  if (state.phase === 'DAY') {
+  if (state.sportGame) obj = '🏟️ ' + state.sportGame.name + ' · ' + state.sportGame.score + ' jugadas · ' + fmt(state.sportGame.time);
+  else if (state.tutorial && !state.tutorial.complete) obj = '📍 PASO ' + (state.tutorial.step + 1) + '/' + TUTORIAL_STEPS.length + ' · ' + TUTORIAL_STEPS[state.tutorial.step].text;
+  else if (state.phase === 'DAY') {
     if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);
     else if (!houseStats().ready) obj = '🛒 Compra en el súper (mantén E) y construye 4 paredes (B)';
     else obj = '⏩ Pulsa N: empieza la noche YA (+$100 por madrugar) · 🏆 casa dorada en la ciudad';
-  } else if (state.phase === 'NIGHT') obj = (state.hordeOn ? '🚨 ¡HORDA FINAL! ' : (state.bossNight ? '⚔️ NOCHE JEFE (paga x3) · ' : '🗡️ ¡Defiende! ')) + 'Quedan ' + fmt(NIGHT_LENGTH - state.nightTime);
+  } else if (state.phase === 'NIGHT') obj = (state.hordeOn ? '🚨 ¡HORDA FINAL! ' : (state.bossNight ? '⚔️ NOCHE JEFE (paga x3) · ' : '🗡️ ¡Defiende! ')) + 'Quedan ' + fmt(currentNightLength() - state.nightTime);
   if (state.wanted > 0) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';
-  ui('objective').textContent = obj;
+  setTextIfChanged(ui('objective'), obj);
+  renderRoadmap();
 }
 
 // (el ajuste de tamaño se maneja arriba con la función resize())

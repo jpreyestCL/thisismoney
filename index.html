@@ -5429,8 +5429,20 @@ function attackNPC() {
 //  MINAS VOXEL: pozos cuadrados hacia abajo y túneles excavables a los lados
 // ===================================================================
 const holes = [];
-const DEPTH_STEP = 1.35, ENTER_DIGS = 1, MAX_DIGS = 8, HOLE_FIND = 2.8, MINE_CELL = 3;
+const DEPTH_STEP = 1.35, ENTER_DIGS = 1, MOLE_DEPTH = 10, MAX_DIGS = 64, HOLE_FIND = 2.8, MINE_CELL = 3;
 const tunnelKey = (x, z) => x + ',' + z;
+function awakenMineMoles(h, underground) {
+  if (h.depth !== MOLE_DEPTH) return false;
+  const n = state.stage >= 5 ? 2 + Math.floor(Math.random() * 2) : 1;
+  for (let k = 0; k < n; k++) {
+    const e = spawnEnemy('mole', new THREE.Vector3(
+      h.x + (Math.random() * 2 - 1), underground ? state.groundY : 0, h.z + (Math.random() * 2 - 1)
+    ));
+    if (underground) e.userData.mineHole = h;
+  }
+  toast('🦣 ¡Al romper el bloque 10 despertaste ' + (n > 1 ? n + ' topos' : 'un topo') + '!');
+  return true;
+}
 function renderHole(h) {   // (re)construye la malla del hoyo según su profundidad
   while (h.group.children.length) h.group.remove(h.group.children[0]);
   const dy = h.depth * DEPTH_STEP, half = MINE_CELL / 2, wallT = 0.18;
@@ -5479,6 +5491,7 @@ function digHole() {
       if (h.depth >= MAX_DIGS) { toast('🪨 Llegaste a la máxima profundidad'); return; }
       h.depth++; state.groundY = -h.depth * DEPTH_STEP;
       player.position.y = PLAYER_EYE + state.groundY; renderHole(h);
+      if (awakenMineMoles(h, true)) return;
       if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) reachCore(h);
       else toast('⬇️ Cavaste un bloque hacia abajo (' + h.depth + '/' + MAX_DIGS + ')');
       return;
@@ -5502,13 +5515,10 @@ function digHole() {
   else h = spawnHole(t.x, t.z, 1);                               // hoyo nuevo
   if (state.planet === 'platus' && digUpTreasure(t.x, t.z)) return;   // ¿había un tesoro enterrado aquí? (detector)
   if (h.enterable && !wasEnterable) { toast('⛏️ ¡Abriste una MINA cuadrada! Pulsa E para bajar. Adentro mira al frente para cavar lados o hacia abajo para profundizar.'); return; }
+  if (awakenMineMoles(h, false)) return;
   if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) { reachCore(h); return; }   // ¡llegaste al núcleo del planeta!
   const r = Math.random();
-  if (r < (h.depth >= ENTER_DIGS ? 0.2 : 0.45)) {   // ¡topos! (viven bajo tierra); menos cuando ya es profundo
-    const n = state.stage >= 5 ? 2 + Math.floor(Math.random() * 2) : 1;
-    for (let k = 0; k < n; k++) spawnEnemy('mole', new THREE.Vector3(t.x + (Math.random() * 2 - 1), 0, t.z + (Math.random() * 2 - 1)));
-    toast('🦣 ¡Salió ' + (n > 1 ? n + ' topos' : 'un topo') + ' del hoyo!');
-  } else if (r < 0.7) { const m = 50 + Math.floor(Math.random() * 150); addMoney(m); toast('💰 Cavaste y encontraste $' + m); }
+  if (r < 0.5) { const m = 50 + Math.floor(Math.random() * 150); addMoney(m); toast('💰 Cavaste y encontraste $' + m); }
   else toast('🕳️ La mina está más honda (' + h.depth + '/' + MAX_DIGS + '). Pulsa E para bajar');
 }
 // NÚCLEO DEL PLANETA: cavar hasta el fondo (MAX_DIGS) rompe hacia el núcleo -> jackpot enorme + reliquia (1 por planeta)
@@ -5545,6 +5555,8 @@ function updateMoles(dt) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
     if (!ud.mole) continue;   // topo normal o topo jefe
+    const inSameMine = state.underground && ud.mineHole && state.shelterHole === ud.mineHole;
+    if (ud.mineHole && !inSameMine) continue;   // los topos de mina esperan abajo hasta que vuelvas a entrar
     ud.attackCd -= dt;
     if (ud.boss) {   // el topo jefe te huele y manda a sus topitos a atacarte
       ud.summonCd -= dt;
@@ -5554,7 +5566,8 @@ function updateMoles(dt) {
         ud.summonCd = 5; toast('🕳️ ¡El TOPO JEFE mandó a sus topitos a atacarte!');
       }
     }
-    const tgt = pickTarget(e.position);
+    const tgt = inSameMine ? player.position : pickTarget(e.position);
+    if (!tgt) continue;
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
     if (d > 1.4) { moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }

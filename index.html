@@ -4022,6 +4022,7 @@ function updateChest(dt) {
 function updateEnemyFX(dt) {
   for (const e of enemies) {
     const ud = e.userData;
+    if (ud.tauntDad > 0) ud.tauntDad = Math.max(0, ud.tauntDad - dt);
     if (ud.flash > 0) { ud.flash -= dt; flashEnemy(e, ud.flash > 0); }
     if (ud.levelHalo) ud.levelHalo.rotation.z += dt * (.8 + (ud.level || 1) * .12);
     if (ud.hitPulse > 0) { ud.hitPulse = Math.max(0, ud.hitPulse - dt); const pulse = 1 + Math.sin((ud.hitPulse / .2) * Math.PI) * .11; if (ud.baseScale) e.scale.copy(ud.baseScale).multiplyScalar(pulse); }
@@ -4035,19 +4036,20 @@ function updateEnemyFX(dt) {
   }
 }
 function shootSword(k) {
-  const t = pickTarget(k.position); const dx = t.x - k.position.x, dz = t.z - k.position.z; const len = Math.hypot(dx, dz) || 1;
+  const t = pickTarget(k.position, k); const dx = t.x - k.position.x, dz = t.z - k.position.z; const len = Math.hypot(dx, dz) || 1;
   const s = new THREE.Mesh(new THREE.BoxGeometry(.15, .15, 1.2), mat(0xcbd5e1)); s.position.copy(k.position); s.position.y = 1.2; s.rotation.y = Math.atan2(dx, dz);
   s.userData = { vel: new THREE.Vector3(dx / len * 16, 0, dz / len * 16), dmg: 8, life: 4 }; scene.add(s); projectiles.push(s);
 }
 function launchBull(k) {
-  const t = pickTarget(k.position); const dx = t.x - k.position.x, dz = t.z - k.position.z; const len = Math.hypot(dx, dz) || 1;
+  const t = pickTarget(k.position, k); const dx = t.x - k.position.x, dz = t.z - k.position.z; const len = Math.hypot(dx, dz) || 1;
   const e = makeBull(); e.position.copy(k.position); e.rotation.y = Math.atan2(dx, dz);
   e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, dmg: (k.userData.dmg || 17), vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
 }
 function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena; }   // bajo tierra / ruinas / castillo / coliseo: los monstruos de la superficie NO te ven
-function pickTarget(from) {
+function pickTarget(from, attacker) {
   // Sin array temporal: se elige el más cercano sobre la marcha (esto se llama por enemigo por frame; evitar basura para el GC)
   let best = null, bd = Infinity;
+  if (attacker && attacker.userData.tauntDad > 0 && dad.visible && !dad.userData.resting) return dad.position;   // papá se interpuso y atrajo al monstruo
   if (!isPlayerHidden()) { best = player.position; bd = dist2D(from, best); }   // escondido: los monstruos NO te ven
   if (dad.visible && !dad.userData.resting) { const d = dist2D(from, dad.position); if (d < bd) { bd = d; best = dad.position; } }   // descansando: no lo ven
   for (const h of helpers) { const d = dist2D(from, h.position); if (d < bd) { bd = d; best = h.position; } }
@@ -4068,8 +4070,8 @@ function updateProjectiles(dt) {
     if (ud.friendly) {                                  // dardo de ballesta/torreta: pega a los monstruos
       for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (e.userData.type === 'bull') continue; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
     } else {                                            // proyectil enemigo: te pega a ti o al papá
-      if (dist2D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg); hit = true; }
-      else if (dad.visible && !dad.userData.resting && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg); hit = true; }
+      if (dist2D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
+      else if (dad.visible && !dad.userData.resting && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg, p.position); hit = true; }
     }
     if (hit || ud.life <= 0) { scene.remove(p); projectiles.splice(i, 1); }
   }
@@ -4366,8 +4368,10 @@ function toggleDadArm() {
   applyDadArmed(!dad.userData.armed);
   toast(dad.userData.armed ? '🔫 Papá armado: peleará de noche' : 'Papá desarmado');
 }
+const dadIntercept = new THREE.Vector3();
 function updateDad(dt) {
   if (!dad.visible) return;
+  dad.userData.coverCd = Math.max(0, (dad.userData.coverCd || 0) - dt);
   const attackAnim = Math.max(0, (dad.userData.attackAnim || 0) - dt), defendAnim = Math.max(0, (dad.userData.defendAnim || 0) - dt);
   dad.userData.attackAnim = attackAnim; dad.userData.defendAnim = defendAnim;
   if (dad.userData.weapon) {
@@ -4382,21 +4386,34 @@ function updateDad(dt) {
   }
   // el papá se cura de a poco (0.5/s); descansando en el sofá/la cama se cura 4 veces más rápido (2/s)
   if (state.dadHp > 0 && state.dadHp < 100) state.dadHp = Math.min(100, state.dadHp + (dad.userData.resting ? 2 : 0.5) * dt);
-  if (dad.userData.resting) return;   // descansando en sofá/cama: no se mueve ni pelea
-  // si está armado y es de noche, ataca al enemigo más cercano
+  if (dad.userData.resting) { dad.userData.guarding = false; dad.userData.protecting = false; if (dad.userData.shield) dad.userData.shield.visible = false; return; }   // descansando: no se mueve ni pelea
+  // Protector: prioriza al monstruo que amenaza al jugador, se interpone y atrae su atención.
   if (state.phase === 'NIGHT' && dad.userData.armed) {
     dad.userData.atkCd -= dt;
-    let near = null, nd = 6;
-    for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(dad.position, e.position); if (d < nd) { nd = d; near = e; } }
+    let near = null, nd = Infinity, playerThreat = Infinity, bestScore = Infinity;
+    const protectRange = state.dadArmor < 1 ? (state.hp <= 45 ? 15 : 11) : 7;
+    for (const e of enemies) {
+      if (e.userData.type === 'bull') continue;
+      const dDad = dist2D(dad.position, e.position), dPlayer = dist2D(player.position, e.position);
+      if (dDad > protectRange && dPlayer > protectRange) continue;
+      const score = dDad - (dPlayer < 5 ? 6 : (dPlayer < 9 ? 2.5 : 0)) - (state.hp <= 45 ? 2 : 0);
+      if (score < bestScore) { bestScore = score; near = e; nd = dDad; playerThreat = dPlayer; }
+    }
     if (near) {
-      dad.userData.guarding = nd < 4.2;
+      const protecting = state.dadArmor < 1 && (playerThreat < 8 || state.hp <= 45);
+      dad.userData.protecting = protecting; dad.userData.guarding = nd < 4.5 || protecting;
+      if (protecting) near.userData.tauntDad = 1.25;
       dad.rotation.y = Math.atan2(near.position.x - dad.position.x, near.position.z - dad.position.z);
-      if (nd > 3) moveToward(dad, near.position, 2 * dt);
+      if (nd > 3) {
+        if (protecting && playerThreat < 6) {   // busca quedar entre el monstruo y el jugador
+          dadIntercept.lerpVectors(player.position, near.position, .58); moveToward(dad, dadIntercept, 3.1 * dt);
+        } else moveToward(dad, near.position, (protecting ? 3 : 2) * dt);
+      }
       else if (dad.userData.atkCd <= 0) { dad.userData.atkCd = 0.7; dad.userData.attackAnim = .34; hitEnemy(near, 30, dad.position); }
       swingLimbs(dad, dt); return;
     }
   }
-  dad.userData.guarding = false;
+  dad.userData.guarding = false; dad.userData.protecting = false;
   const m = dad.userData.mode;
   if (m === 'follow') {
     const d = dist2D(dad.position, player.position);
@@ -4593,6 +4610,13 @@ function syncWorldSecrets() { for (const s of worldSecrets) s.visible = state.pl
 
 function damagePlayer(amount, fromPos) {
   if (isPlayerHidden() || state.invulnerable > 0) return;
+  const rawAmount = amount;
+  const coveredByDad = !!(fromPos && dad.visible && !dad.userData.resting && dad.userData.armed && state.dadArmor < 1 && state.dadHp > 0 && dist2D(dad.position, player.position) < 4.8 && dist2D(dad.position, fromPos) < 6.5);
+  if (coveredByDad) {
+    amount *= .35; dad.userData.protecting = true; dad.userData.guarding = true; dad.userData.defendAnim = .3;
+    damageDad(rawAmount * .45, fromPos);
+    if (dad.userData.coverCd <= 0) { dad.userData.coverCd = 1.1; floatText(player.position.clone().setY(1.3), '🛡️ PAPÁ TE CUBRE', '#38bdf8', 15); beep(240, .08, .04); }
+  }
   let dmg = amount * state.armorFactor;
   const blocked = state.blocking && state.stamina >= 8;
   if (blocked) { dmg *= .3; state.stamina -= 8; beep(180, .05, .03); }
@@ -4601,7 +4625,7 @@ function damagePlayer(amount, fromPos) {
     state.shieldHp -= absorbed; dmg -= absorbed; state.shieldCd = 3;   // 3s sin recargar tras un golpe
     if (state.shieldHp <= 0) toast('🛡️ ¡Escudo agotado! Se recarga solo si no te pegan');
   }
-  showPlayerImpact(blocked); voxelImpact(player.position.clone().setY(player.position.y - .45), blocked ? 0x38bdf8 : 0xef4444, blocked ? 5 : 8);
+  showPlayerImpact(blocked || coveredByDad); voxelImpact(player.position.clone().setY(player.position.y - .45), blocked || coveredByDad ? 0x38bdf8 : 0xef4444, blocked || coveredByDad ? 5 : 8);
   if (!state.creative) state.hp -= dmg;
 }
 function combatIsActive() { return state.phase === 'NIGHT' || state.inCastle || state.inArena; }
@@ -4632,11 +4656,11 @@ function updateShield(dt) {
   if (state.shieldHp < state.shieldMax) state.shieldHp = Math.min(state.shieldMax, state.shieldHp + 8 * dt);
 }
 function damageDad(amount, fromPos) {
-  const defended = state.dadArmor < 1;
+  const defended = state.dadArmor < 1, activeGuard = defended;
   dad.userData.defendAnim = .3; dad.userData.guarding = true; if (defended) ensureDadShield();
   voxelImpact(dad.position.clone().setY(1.35), defended ? 0x38bdf8 : 0xef4444, defended ? 6 : 8);
   floatText(dad.position.clone().setY(1.5), defended ? '🛡️ BLOQUEA' : '-' + Math.round(amount), defended ? '#38bdf8' : '#ef4444', 13);
-  if (!state.creative) state.dadHp -= amount * state.dadArmor;
+  if (!state.creative) state.dadHp -= amount * state.dadArmor * (activeGuard ? .55 : 1);
 }   // el papá recibe menos daño si compraste su armadura
 
 // Sonido corto (bip) con WebAudio
@@ -6729,7 +6753,7 @@ function updateUfoBoss(e, dt) {
     const n = 1 + (state.stage >= 3 ? 1 : 0);
     for (let k = 0; k < n; k++) spawnEnemy(Math.random() < 0.5 ? 'alienBig' : 'alien', new THREE.Vector3(e.position.x + (Math.random() * 4 - 2), 0, e.position.z + (Math.random() * 4 - 2)));
     floatText(e.position, '🛸 ¡suelta aliens!', '#22d3ee', 16); beep(300, 0.2, 0.05);
-    if (dist2D(e.position, player.position) < 6) damagePlayer(ud.dmg || 22);   // rayo si estás justo debajo
+    if (dist2D(e.position, player.position) < 6) damagePlayer(ud.dmg || 22, e.position);   // rayo si estás justo debajo
   }
 }
 function attack(multiplier = 1) {
@@ -6924,12 +6948,12 @@ function updateMoles(dt) {
     if (ud.boss) {   // el topo jefe te huele y manda a sus topitos a atacarte
       ud.summonCd -= dt;
       if (ud.summonCd <= 0 && enemies.filter(x => x.userData.type === 'mole').length < 12) {
-        const t = pickTarget(e.position), n = 1 + Math.floor(Math.random() * 2);
+        const t = pickTarget(e.position, e), n = 1 + Math.floor(Math.random() * 2);
         for (let k = 0; k < n; k++) spawnEnemy('mole', new THREE.Vector3(t.x + (Math.random() * 4 - 2), 0, t.z + (Math.random() * 4 - 2)));
         ud.summonCd = 5; toast('🕳️ ¡El TOPO JEFE mandó a sus topitos a atacarte!');
       }
     }
-    const tgt = inSameMine ? player.position : pickTarget(e.position);
+    const tgt = inSameMine ? player.position : pickTarget(e.position, e);
     if (!tgt) continue;
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
@@ -6959,14 +6983,14 @@ function updateNight(dt) {
     const e = enemies[i], ud = e.userData;
     if (ud.type === 'bull') {
       e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
-      if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17); removeEnemy(i); continue; }
-      if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8); removeEnemy(i); continue; }
+      if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
+      if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8, e.position); removeEnemy(i); continue; }
       if (ud.life <= 0) removeEnemy(i); continue;
     }
     if (ud.ufo) { updateUfoBoss(e, dt); continue; }   // OVNI jefe: flota alto y suelta aliens (no camina)
     if (ud.mole) continue;   // topos / topo jefe: los maneja updateMoles (día y noche)
     ud.attackCd -= dt;
-    const tgt = pickTarget(e.position);
+    const tgt = pickTarget(e.position, e);
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
     if (ud.commander) {   // toro / toro con armadura: comandante que manda embestidas
@@ -7727,7 +7751,7 @@ function renderHUD() {
   ui('blueprintBtn').style.display = showBuildBtns; ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;
 
   // papá
-  const modeTxt = { follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '';
+  const modeTxt = dad.userData.protecting ? '🛡️ Protegiéndote' : ({ follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '');
   setHTMLIfChanged(ui('dadhud'), `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}`);
   // equipo
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];

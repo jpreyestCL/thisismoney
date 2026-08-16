@@ -832,6 +832,7 @@ const DECOR_ITEMS = [
   { key: 'tele',   name: 'Televisor', price: 400,  value: 150, color: 0x1f2937, build: true, deco: true },
   { key: 'planta', name: 'Planta',    price: 120,  value: 45,  color: 0x22c55e, build: true, deco: true },
   { key: 'auto',   name: 'Auto',      price: 2000, color: 0xdc2626, car: true },
+  { key: 'helicoptero', name: 'Helicóptero voxel', price: 4000, color: 0x16a34a, helicopter: true },
 ];
 // Pintura: un tarro pinta la casa entera del color elegido. Todos los colores, $400 c/u.
 const PAINT_COLORS = [
@@ -861,7 +862,7 @@ const ALIEN_TECH = [
   { key: 'basegenerador', name: 'Generador de base', price: 2500, color: 0xfacc15, alien: true },
 ];
 // El vendedor de Platus ofrece TODO lo de la Tierra (menos autos/motos) + la tecnología alien exclusiva
-function shopCatalog() { return state.planet === 'platus' ? SHOP.filter(it => !it.car && it.key !== 'moto').concat(ALIEN_TECH) : SHOP; }
+function shopCatalog() { return state.planet === 'platus' ? SHOP.filter(it => !it.car && !it.helicopter && it.key !== 'moto').concat(ALIEN_TECH) : SHOP; }
 
 // Dibuja un producto que se parece a lo que es
 function makeProductMesh(key, color) {
@@ -915,6 +916,10 @@ function makeProductMesh(key, color) {
   } else if (key === 'rocket') {
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.9), mat(0xe5e7eb)); body.position.y = 0.6; g.add(body);
     const nose = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.4, 16), mat(color)); nose.position.y = 1.2; g.add(nose);
+  } else if (key === 'helicoptero') {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(.8, .55, 1.2), mat(color)); body.position.y = .55; g.add(body);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(.22, .2, .9), mat(color)); tail.position.set(0, .65, -.95); g.add(tail);
+    const rotor = new THREE.Mesh(new THREE.BoxGeometry(1.8, .05, .12), mat(0x1f2937)); rotor.position.y = 1.05; g.add(rotor);
   } else if (key === 'ballesta' || key === 'torreta') {
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.7), mat(color)); base.position.y = 0.4; base.castShadow = true; g.add(base);
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.7), mat(0x1f2937)); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.5, 0.4); g.add(barrel);
@@ -3649,6 +3654,7 @@ function renderContractRow(list) {   // fila del contrato arriba de la tienda (s
   list.appendChild(row);
 }
 function shopIcon(item) {
+  if (item.key === 'helicoptero') return '🚁';
   if (item.key === 'jetpack') return '🚀'; if (item.key === 'laserpistol') return '🔫';
   if (item.key === 'escudo') return '🛡️'; if (item.key === 'alienpet') return '👽';
   if (item.key === 'baseespacial') return '🏕️'; if (item.key === 'basetorreta') return '🔫'; if (item.key === 'basegenerador') return '⚡';
@@ -4076,7 +4082,7 @@ function saveGame() {
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
       placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
-      car: car ? { x: car.group.position.x, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto } : null,
+      car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto, helicopter: !!car.helicopter } : null,
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
       petAlien: !!petAlien, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
@@ -4610,7 +4616,7 @@ function loadGame() {
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
   (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
-  if (d.car && state.planet !== 'platus') spawnCar({ x: d.car.x, z: d.car.z, heading: d.car.heading, hp: d.car.hp, moto: d.car.moto });   // no hay autos/motos en Platus
+  if (d.car && state.planet !== 'platus') spawnCar({ x: d.car.x, y: d.car.y, z: d.car.z, heading: d.car.heading, hp: d.car.hp, moto: d.car.moto, helicopter: d.car.helicopter });   // vehículos de la Tierra
   state.unlocked = d.unlocked || {};
   state.creative = !!d.creative;
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
@@ -4715,31 +4721,45 @@ function updateBuying(dt) {
 // ===================================================================
 function spawnCar(opts) {
   const g = new THREE.Group();
-  const bodyMat = mat(0xdc2626);
+  const helicopter = !!(opts && opts.helicopter), bodyMat = mat(helicopter ? 0x16a34a : 0xdc2626);
   const glass = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.4, roughness: 0.1 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.7, 4), bodyMat); body.position.y = 0.95; body.castShadow = true; g.add(body);      // cuerpo rectangular
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 2), glass); cabin.position.set(0, 1.55, -0.2); g.add(cabin);                    // cabina con vidrios
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.7), mat(0x374151)); seat.position.set(0.4, 1.25, 0.35); g.add(seat);          // asiento
-  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.06, 8, 20), mat(0x111827)); wheel.position.set(0.4, 1.45, 0.75); wheel.rotation.x = 1.1; g.add(wheel);  // manubrio (volante)
-  const wheels = [];
-  const wgeo = new THREE.CylinderGeometry(0.55, 0.55, 0.4, 20); wgeo.rotateZ(Math.PI / 2);   // ruedas redondas
-  const wm = mat(0x111827);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const w = new THREE.Mesh(wgeo, wm); w.position.set(sx * 1.15, 0.55, sz * 1.35); w.castShadow = true; g.add(w); wheels.push(w);
+  const wheels = [], rotors = [];
+  if (helicopter) {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 3.4), bodyMat); body.position.y = 1.45; body.castShadow = true; g.add(body);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.85, .9, 1.5), glass); cabin.position.set(0, 1.65, 1.15); g.add(cabin);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(.55, .55, 3.5), bodyMat); tail.position.set(0, 1.65, -3.1); g.add(tail);
+    const tailTip = new THREE.Mesh(new THREE.BoxGeometry(.8, 1.5, .35), bodyMat); tailTip.position.set(0, 2.1, -4.75); g.add(tailTip);
+    const mast = new THREE.Mesh(new THREE.BoxGeometry(.22, .7, .22), mat(0x374151)); mast.position.y = 2.45; g.add(mast);
+    const rotor = new THREE.Group(); rotor.position.y = 2.82;
+    const bladeA = new THREE.Mesh(new THREE.BoxGeometry(7.5, .1, .22), mat(0x1f2937));
+    const bladeB = new THREE.Mesh(new THREE.BoxGeometry(.22, .1, 7.5), mat(0x1f2937)); rotor.add(bladeA, bladeB); g.add(rotor); rotors.push(rotor);
+    const tailRotor = new THREE.Group(); tailRotor.position.set(.48, 2.2, -4.82); tailRotor.rotation.z = Math.PI / 2;
+    tailRotor.add(new THREE.Mesh(new THREE.BoxGeometry(2, .08, .18), mat(0x111827)), new THREE.Mesh(new THREE.BoxGeometry(.18, .08, 2), mat(0x111827))); g.add(tailRotor); rotors.push(tailRotor);
+    for (const sx of [-.9, .9]) { const skid = new THREE.Mesh(new THREE.BoxGeometry(.18, .18, 3.5), mat(0x334155)); skid.position.set(sx, .55, 0); g.add(skid); }
+  } else {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.7, 4), bodyMat); body.position.y = 0.95; body.castShadow = true; g.add(body);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 2), glass); cabin.position.set(0, 1.55, -0.2); g.add(cabin);
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.7), mat(0x374151)); seat.position.set(0.4, 1.25, 0.35); g.add(seat);
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.06, 8, 20), mat(0x111827)); wheel.position.set(0.4, 1.45, 0.75); wheel.rotation.x = 1.1; g.add(wheel);
+    const wgeo = new THREE.CylinderGeometry(0.55, 0.55, 0.4, 20); wgeo.rotateZ(Math.PI / 2);
+    const wm = mat(0x111827);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const w = new THREE.Mesh(wgeo, wm); w.position.set(sx * 1.15, 0.55, sz * 1.35); w.castShadow = true; g.add(w); wheels.push(w);
+    }
+    for (const sx of [-1, 1]) { const f = new THREE.Mesh(new THREE.CircleGeometry(0.18, 12), new THREE.MeshStandardMaterial({ color: 0xfff7c2, emissive: 0xfff7c2, emissiveIntensity: 0.6 })); f.position.set(sx * 0.7, 0.95, 2.01); g.add(f); }
   }
-  for (const sx of [-1, 1]) { const f = new THREE.Mesh(new THREE.CircleGeometry(0.18, 12), new THREE.MeshStandardMaterial({ color: 0xfff7c2, emissive: 0xfff7c2, emissiveIntensity: 0.6 })); f.position.set(sx * 0.7, 0.95, 2.01); g.add(f); }  // faros
   const moto = !!(opts && opts.moto);
   if (moto) g.scale.set(0.45, 0.9, 0.85);   // moto: angosta y un poco más baja (y más rápida al conducir)
   let hx, hz, heading;
   if (opts && opts.x != null) { hx = opts.x; hz = opts.z; heading = opts.heading || 0; }
   else { const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); const p = player.position.clone().addScaledVector(fwd, 6); hx = p.x; hz = p.z; heading = yaw; }
-  g.position.set(hx, 0, hz); g.rotation.y = heading; scene.add(g);
+  g.position.set(hx, (opts && opts.y != null) ? opts.y : 0, hz); g.rotation.y = heading; scene.add(g);
   // barra de vida flotante
   const barG = new THREE.Group(); barG.userData.billboard = true;
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
-  car = { group: g, wheels, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, speedMult: moto ? 1.45 : 1 };
+  car = { group: g, wheels, rotors, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, helicopter, speedMult: moto ? 1.45 : 1 };
   if (!opts) toast('🚗 ¡Auto comprado! Acércate y pulsa E para subir y conducir');
 }
 // Auto más cercano de la CALLE (tráfico o estacionado) para robar
@@ -4774,12 +4794,13 @@ function toggleCar() {
     state.driving = false;
     const side = new THREE.Vector3(Math.cos(car.heading), 0, -Math.sin(car.heading));
     const p = car.group.position.clone().addScaledVector(side, 2.4);
-    player.position.set(p.x, PLAYER_EYE, p.z);
-    toast('🚶 Bajaste del auto'); return true;
+    player.position.set(p.x, car.helicopter ? car.group.position.y + PLAYER_EYE : PLAYER_EYE, p.z);
+    grounded = !car.helicopter || car.group.position.y <= .1; vy = car.helicopter ? -1 : 0;
+    toast(car.helicopter ? '🪂 Bajaste del helicóptero' : '🚶 Bajaste del auto'); return true;
   }
   if (car && dist2D(player.position, car.group.position) < 4.5) {   // subir a TU auto (comprado/robado): tiene prioridad si estás pegado a él
     state.driving = true; yaw = car.heading; state.buildMode = false;
-    toast('🚗 Conduces: W/S avanzar · A/D girar · Shift/correr TURBO · 👊/Espacio bocina · E bajar'); return true;
+    toast(car.helicopter ? '🚁 Pilotando: W/S avanzar · A/D girar · Espacio subir · Ctrl bajar · E salir' : '🚗 Conduces: W/S avanzar · A/D girar · Shift/correr TURBO · 👊/Espacio bocina · E bajar'); return true;
   }
   // robar un auto de la CALLE: si hay uno cerca, róbalo — aunque ya tengas uno (abandonas el actual y te llevas el nuevo)
   const street = nearestStreetCar(6);
@@ -4796,20 +4817,26 @@ function updateDriving(dt) {
   // mirar arriba/abajo con las flechas o el arrastre (pitch); el yaw sigue al auto
   if (keys['ArrowUp']) pitch += 1.8 * dt; if (keys['ArrowDown']) pitch -= 1.8 * dt;
   pitch = Math.max(-1.2, Math.min(1.2, pitch));
-  if (keys['Space']) honk();   // bocina (también el botón 👊 en móvil)
+  if (keys['Space'] && !car.helicopter) honk();   // el helicóptero usa Espacio para ascender
   car.heading += steer * 1.9 * dt * (Math.abs(throttle) > 0.05 ? 1 : 0.55);
   const fwd = new THREE.Vector3(-Math.sin(car.heading), 0, -Math.cos(car.heading));
   const turbo = keys['ShiftLeft'] || keys['ShiftRight'] || touch.run;   // TURBO al conducir
   const sm = car.speedMult || 1;                                        // la moto es más rápida
-  const move = throttle * (turbo ? 44 : 24) * sm * dt;
-  car.speed = Math.abs(throttle) * (turbo ? 44 : 24) * sm;   // para el velocímetro
+  const baseSpeed = car.helicopter ? 30 : (turbo ? 44 : 24);
+  const move = throttle * baseSpeed * sm * dt;
+  car.speed = Math.abs(throttle) * baseSpeed * sm;   // para el velocímetro
   const prevX = car.group.position.x, prevZ = car.group.position.z;
   car.group.position.addScaledVector(fwd, move);
   car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -230, 230);
   car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, -230, 230);
-  // chocar con paredes / edificios (no atraviesa)
+  if (car.helicopter) {
+    const rise = (keys['Space'] || touch.jumpHeld ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] || touch.crouch ? 1 : 0);
+    car.group.position.y = THREE.MathUtils.clamp(car.group.position.y + rise * 12 * dt, 0, 45);
+    for (const rotor of car.rotors) rotor.rotation.y += dt * (state.driving ? 22 : 5);
+  }
+  // chocar con paredes / edificios cuando el vehículo está cerca del suelo
   const R = 1.5;
-  for (const o of obstacles) {
+  for (const o of (car.helicopter && car.group.position.y > 5 ? [] : obstacles)) {
     if (car.group.position.x > o.minX - R && car.group.position.x < o.maxX + R && car.group.position.z > o.minZ - R && car.group.position.z < o.maxZ + R) {
       car.group.position.x = prevX; car.group.position.z = prevZ; break;
     }
@@ -4817,7 +4844,7 @@ function updateDriving(dt) {
   car.group.rotation.y = car.heading;
   for (const w of car.wheels) w.rotation.x += move * 2.2;
   // atropellar monstruos si vas con algo de velocidad
-  if (Math.abs(move) > 0.06) {
+  if (Math.abs(move) > 0.06 && (!car.helicopter || car.group.position.y < 2.5)) {
     for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 2.3 && hitEnemy(e, 40, car.group.position)) missionProgress('runover'); }
     // atropellar a un PEATÓN te vuelve buscado (empújalo)
     for (const n of npcs) {
@@ -4838,20 +4865,20 @@ function updateDriving(dt) {
   car.enginePow = Math.abs(throttle);
   ensureEngine(); if (engineGain) { engineGain.gain.value = 0.03 + 0.05 * car.enginePow; engineOsc.frequency.value = 55 + car.enginePow * 150; }
   yaw = car.heading;
-  player.position.set(car.group.position.x, 2.1, car.group.position.z);
+  player.position.set(car.group.position.x, car.group.position.y + (car.helicopter ? 2.2 : 2.1), car.group.position.z);
   camera.rotation.y = yaw; camera.rotation.x = pitch;
 }
 // Vida del auto: los monstruos cercanos lo dañan; si llega a 0 se destruye
 function updateCar(dt) {
   if (!car) return;
-  car.bar.g.position.set(car.group.position.x, 3.3, car.group.position.z);
+  car.bar.g.position.set(car.group.position.x, car.group.position.y + 3.3, car.group.position.z);
   const f = Math.max(0, car.hp / car.maxHp); car.bar.fg.scale.x = f || 0.001;
   car.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : f > 0.25 ? 0xf59e0b : 0xef4444);
   car.bar.g.visible = car.hp < car.maxHp || state.driving;
   if (!state.driving && engineGain) engineGain.gain.value = 0;   // apagar motor al bajarse
   car.dmgCd -= dt;
   let near = false;
-  for (const e of enemies) { if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 3) { near = true; break; } }
+  for (const e of enemies) { if (e.userData.type === 'bull') continue; if ((!car.helicopter || car.group.position.y < 3.5) && dist2D(e.position, car.group.position) < 3) { near = true; break; } }
   if (near && car.dmgCd <= 0) { car.hp -= 8; car.dmgCd = 0.8; car.bar.g.visible = true; }
   if (car.hp <= 0) destroyCar();
 }
@@ -4938,6 +4965,11 @@ function buyItem(item) {
   if (item.car) {
     if (car) { toast('🚗 Ya tienes un auto'); return; }
     state.money -= item.price; spawnCar(); return;
+  }
+  if (item.helicopter) {
+    if (car) { toast('🚁 Ya tienes un vehículo. Debes perderlo o reiniciar antes de comprar otro.'); return; }
+    state.money -= item.price; spawnCar({ helicopter: true });
+    toast('🚁 ¡Helicóptero voxel comprado! E para subir · Espacio sube · Ctrl baja'); return;
   }
   if (item.key === 'perro') {
     if (pet) { toast('🐶 Ya tienes a tu perro'); return; }
@@ -6203,7 +6235,7 @@ function renderHUD() {
   if (state.dadArmor < 1) gear.push('🛡️ papá');
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
-  if (car) gear.push('🚗 ' + Math.max(0, Math.round(car.hp)) + (state.driving ? ' · 🏎️ ' + Math.round((car.speed || 0) * 3.6) + ' km/h' : ''));
+  if (car) gear.push((car.helicopter ? '🚁 ' : '🚗 ') + Math.max(0, Math.round(car.hp)) + (state.driving ? ' · ' + (car.helicopter ? '⬆️ ' + Math.round(car.group.position.y) + ' m · ' : '🏎️ ') + Math.round((car.speed || 0) * 3.6) + ' km/h' : ''));
   if (state.poison > 0) gear.push('🟢 veneno ' + Math.ceil(state.poison) + 's');
   if (state.hasShield) gear.push('🛡️ escudo ' + Math.round(state.shieldHp) + '/' + state.shieldMax);
   if (state.hasJetpack) gear.push('🚀 jetpack' + (state.jetOn ? ' 🔥' : ''));

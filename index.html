@@ -4116,6 +4116,7 @@ const state = {
   tutorial: { step: 0, complete: false }, chapter: 0, chapterFlags: {}, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
   business: null, businessOrders: 0,
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
+  foundSecrets: {}, secretsFound: 0,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -4218,6 +4219,33 @@ function tryWorldEvent() {
   const event = state.worldEvent; if (!event || event.id !== 'search' || dist2D(player.position, event.target) > 5) return false;
   addMoney(650); state.reputation = (state.reputation || 0) + 2; toast('🤝 Encontraste al vecino · +$650 · confianza +2'); state.worldEvent = null; state.nextWorldEvent = 150; return true;
 }
+
+const SECRET_DEFS = [
+  { id: 'station', name: 'Maleta de la estación', lore: 'Papá guardó aquí el primer plano de la familia.', x: -112, z: 68, reward: 450 },
+  { id: 'tunnel', name: 'Caja del túnel', lore: 'Los constructores dejaron marcas bajo la ciudad.', x: -38, z: -112, reward: 600 },
+  { id: 'grove', name: 'Santuario del bosque', lore: 'Una semilla antigua todavía conserva calor.', x: 118, z: 106, reward: 500 },
+  { id: 'coast', name: 'Cofre de la costa', lore: 'Alguien soñaba con cruzar el cielo desde aquí.', x: 142, z: -96, reward: 700 },
+  { id: 'hill', name: 'Radio de la colina', lore: 'La señal repite unas coordenadas desconocidas.', x: -142, z: -104, reward: 750 },
+  { id: 'park', name: 'Cápsula del parque', lore: 'La ciudad enterró recuerdos para el futuro.', x: -18, z: 34, reward: 400 },
+];
+const worldSecrets = [];
+function initWorldSecrets() {
+  for (const def of SECRET_DEFS) {
+    const group = new THREE.Group(), base = new THREE.Mesh(new THREE.BoxGeometry(1.1, .65, .8), mat(0x713f12)); base.position.y = .35; group.add(base);
+    const glow = new THREE.Mesh(new THREE.OctahedronGeometry(.28), new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0x854d0e, emissiveIntensity: .8 })); glow.position.y = 1.05; group.add(glow);
+    group.position.set(def.x, 0, def.z); group.userData.secret = def; scene.add(group); worldSecrets.push(group);
+  }
+}
+initWorldSecrets();
+function nearestWorldSecret(maxD = 3.2) {
+  let best = null, bd = maxD; for (const s of worldSecrets) if (s.visible) { const d = dist2D(player.position, s.position); if (d < bd) { best = s; bd = d; } } return best;
+}
+function tryDiscoverSecret() {
+  const secret = nearestWorldSecret(); if (!secret) return false; const def = secret.userData.secret;
+  state.foundSecrets[def.id] = true; state.secretsFound = Object.keys(state.foundSecrets).length; secret.visible = false; addMoney(def.reward); state.relics = (state.relics || 0) + 1;
+  say('🗺️ ' + def.name, def.lore + ' · +$' + def.reward); toast('✨ Secreto ' + state.secretsFound + '/' + SECRET_DEFS.length); saveGame(); return true;
+}
+function syncWorldSecrets() { for (const s of worldSecrets) s.visible = state.planet === 'tierra' && !state.foundSecrets[s.userData.secret.id]; }
 
 function damagePlayer(amount) {
   if (state.creative || isPlayerHidden()) return;   // bajo tierra / en las ruinas estás a salvo
@@ -4333,7 +4361,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { if (state.buildMode) cycleBuildVariant(1); else tryLaunchRocket(); }
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && new URLSearchParams(location.search).has('debug') && !state.meteorTriggered) triggerMeteor();
-  if (e.code === 'KeyE') { if (!tryHarvest() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') { if (!sportSecondaryAction()) eatFood(); }
@@ -4720,7 +4748,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryHarvest() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -4805,7 +4833,7 @@ function startGame() {
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
-  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.worldEvent = null; state.nextWorldEvent = 45;
+  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.worldEvent = null; state.nextWorldEvent = 45; state.foundSecrets = {}; state.secretsFound = 0; syncWorldSecrets();
   state.mathLeft = 5; state.mathStreak = 0;
   soccer.scoreRed = soccer.scoreBlue = 0; updateScoreboard();
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
@@ -4907,6 +4935,7 @@ function saveGame() {
       tutorial: state.tutorial || { step: 0, complete: false }, chapter: state.chapter || 0, chapterFlags: state.chapterFlags || {}, reputation: state.reputation || 0,
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
       business: state.business || null, businessOrders: state.businessOrders || 0,
+      foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
     };
     localStorage.setItem(saveKey(), JSON.stringify(data));
   } catch (e) {}
@@ -5432,6 +5461,7 @@ function loadGame() {
   state.tutorial = d.tutorial || { step: d.night > 0 ? 6 : 0, complete: d.night > 0 };
   state.chapter = d.chapter || 0; state.chapterFlags = d.chapterFlags || {};
   state.business = d.business || null; state.businessOrders = d.businessOrders || 0;
+  state.foundSecrets = d.foundSecrets || {}; state.secretsFound = d.secretsFound || Object.keys(state.foundSecrets).length; syncWorldSecrets();
   state.reputation = d.reputation || 0; state.medals = d.medals || {}; state.blueprints = d.blueprints || {}; state.citizenFavors = d.citizenFavors || {};
   state.creative = !!d.creative;
   cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
@@ -6889,6 +6919,7 @@ function drawMinimap() {
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
   if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); }   // súper / armería / banco
+  if (state.planet === 'tierra' && state.blueprints.treasureMap) for (const s of worldSecrets) if (s.visible) icon(s.position.x, s.position.z, '❓', 11);
   icon(HOUSE.x, HOUSE.z, '🏠', 15);
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
   if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
@@ -7148,6 +7179,7 @@ function updateContextPrompt() {
       else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
       else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };
       else if (state.worldEvent && state.worldEvent.id === 'search' && dist2D(player.position, state.worldEvent.target) < 5) action = { key: 'E', touch: '🤝', text: 'Ayudar al vecino perdido' };
+      else if (nearestWorldSecret()) action = { key: 'E', touch: '🗺️', text: 'Descubrir secreto del mundo' };
       else if (nearestSport()) action = { key: 'E', touch: '🏟️', text: 'Unirte al partido · sesión de 45 segundos' };
       else if (dist2D(player.position, HOUSE) < 8 && houseStats().full) action = { key: 'E', touch: '🏪', text: state.business ? 'Administrar ' + BUSINESS_TYPES[state.business.type].name : 'Abrir un negocio familiar' };
       else if (nearestCitizen() || (dad.visible && dist2D(dad.position, player.position) < 3.4)) action = { key: 'E', touch: '💬', text: 'Hablar o ayudar' };
@@ -7237,6 +7269,7 @@ function renderHUD() {
   const hsNow = houseStats();
   if (state.buildMode) gear.unshift('🏠 Protección ' + hsNow.protection + ' · Confort ' + hsNow.comfort + ' · Producción ' + hsNow.production + ' · Energía ' + hsNow.energy);
   if (state.reputation > 0) gear.push('🤝 confianza ' + state.reputation);
+  if (state.secretsFound > 0) gear.push('🗺️ secretos ' + state.secretsFound + '/' + SECRET_DEFS.length);
   if (state.business) gear.push(BUSINESS_TYPES[state.business.type].icon + ' negocio nv.' + state.business.level + ' · 📦' + state.business.stock);
   const medalCount = Object.keys(state.medals || {}).length; if (medalCount) gear.push('🏅 ' + medalCount + '/3 deportes');
   if (state.dadGun) gear.push('🔫 papá');

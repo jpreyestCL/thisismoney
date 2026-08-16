@@ -468,6 +468,12 @@
     <div id="mathFeedback" style="font-size:14px; font-weight:800; min-height:20px; margin-top:8px"></div>
     <button id="mathCloseBtn" style="margin-top:6px; pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
   </div>
+  <div id="businessbox" role="dialog" aria-modal="true" aria-labelledby="businessTitle" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;pointer-events:all;z-index:9;background:rgba(6,18,26,.97);border:1px solid rgba(190,242,100,.55);padding:18px;border-radius:10px;width:min(92vw,520px);">
+    <h2 id="businessTitle" style="font-size:20px;margin-bottom:6px;color:#bef264">NEGOCIO FAMILIAR</h2>
+    <p id="businessInfo" style="font-size:13px;line-height:1.5;color:#cbd5e1;margin-bottom:12px"></p>
+    <div id="businessChoices" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bankBtn" id="businessSupply">ABASTECER</button><button class="bankBtn" id="businessUpgrade">MEJORAR</button><button class="bankBtn" id="businessClose">CERRAR</button></div>
+  </div>
   <!-- ===== Controles táctiles (celular) ===== -->
   <div id="joystick"><div id="joyKnob"></div></div>
   <div id="moveBtns">
@@ -4077,6 +4083,7 @@ const state = {
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
   tutorial: { step: 0, complete: false }, chapter: 0, chapterFlags: {}, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
+  business: null, businessOrders: 0,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -4104,6 +4111,59 @@ function checkProgress() {
   }
   updateBest();   // ¿superaste tu récord personal?
 }
+
+const BUSINESS_TYPES = {
+  farm: { icon: '🌾', name: 'Granja familiar', resource: 'semillas', unit: 'semillas', base: 260 },
+  restaurant: { icon: '🍲', name: 'Restaurante', resource: 'food', unit: 'comida', base: 340 },
+  workshop: { icon: '🔧', name: 'Taller mecánico', resource: 'carbon', unit: 'carbón', base: 420 },
+  builder: { icon: '🏗️', name: 'Constructora', resource: 'wallWood', unit: 'paredes', base: 500 },
+};
+function openBusiness() {
+  if (!houseStats().full) { toast('🏠 Completa la casa con puerta, techo, lámpara y horno para abrir un negocio'); return true; }
+  releaseLock(); typing = true; ui('businessbox').style.display = 'block'; renderBusiness(); return true;
+}
+function closeBusiness() { typing = false; ui('businessbox').style.display = 'none'; }
+function tryBusiness() { return state.planet === 'tierra' && dist2D(player.position, HOUSE) < 8 ? openBusiness() : false; }
+function renderBusiness() {
+  const choices = ui('businessChoices'), b = state.business;
+  if (!b) {
+    ui('businessInfo').textContent = 'Elige un oficio. Cada pedido consume un suministro y paga según el nivel del negocio.';
+    choices.innerHTML = Object.entries(BUSINESS_TYPES).map(([key, d]) => `<button class="bankBtn" data-business="${key}">${d.icon} ${d.name}<br><small>abrir por $1.000</small></button>`).join('');
+    ui('businessSupply').style.display = ui('businessUpgrade').style.display = 'none'; return;
+  }
+  const d = BUSINESS_TYPES[b.type]; choices.innerHTML = '';
+  ui('businessInfo').textContent = d.icon + ' ' + d.name + ' · nivel ' + b.level + ' · suministros ' + b.stock + ' · pedidos completados ' + state.businessOrders + ' · próximo pedido en ' + Math.ceil(b.next) + 's';
+  ui('businessSupply').style.display = ui('businessUpgrade').style.display = '';
+  ui('businessSupply').textContent = 'ABASTECER CON ' + d.unit.toUpperCase(); ui('businessUpgrade').textContent = 'MEJORAR $' + (b.level * 2000);
+}
+function chooseBusiness(type) {
+  if (state.business || !BUSINESS_TYPES[type]) return;
+  if (state.money < 1000) { toast('Necesitas $1.000 para abrir el negocio'); return; }
+  state.money -= 1000; state.business = { type, level: 1, stock: 0, next: 35 }; renderBusiness(); toast('🏪 Negocio abierto: ' + BUSINESS_TYPES[type].name);
+}
+function supplyBusiness() {
+  const b = state.business; if (!b) return; const d = BUSINESS_TYPES[b.type];
+  let available = state.inv[d.resource] || 0;
+  if (b.type === 'builder') available += state.inv.wallRock || 0;
+  const amount = Math.min(5, available); if (!amount) { toast('No tienes ' + d.unit + ' para abastecer'); return; }
+  let left = amount, take = Math.min(left, state.inv[d.resource] || 0); state.inv[d.resource] -= take; left -= take;
+  if (left && b.type === 'builder') state.inv.wallRock -= left;
+  b.stock += amount; renderBusiness(); toast('📦 +' + amount + ' suministros para ' + d.name);
+}
+function upgradeBusiness() {
+  const b = state.business; if (!b || b.level >= 5) { toast('El negocio ya está al máximo'); return; }
+  const cost = b.level * 2000; if (state.money < cost) { toast('Necesitas $' + cost); return; }
+  state.money -= cost; b.level++; renderBusiness(); toast('⬆️ Negocio nivel ' + b.level + ': pedidos más rápidos y valiosos');
+}
+function updateBusiness(dt) {
+  const b = state.business; if (!b || state.phase !== 'DAY') return; b.next -= dt;
+  if (b.next > 0) return; const d = BUSINESS_TYPES[b.type];
+  if (b.stock > 0) { b.stock--; state.businessOrders++; const pay = d.base * b.level; addMoney(pay); toast('🧾 Pedido de ' + d.name + ' completado · +$' + pay); }
+  else toast('📦 ' + d.name + ' necesita suministros');
+  b.next = Math.max(28, 75 - b.level * 9);
+}
+ui('businessChoices').addEventListener('click', e => { const b = e.target.closest('[data-business]'); if (b) chooseBusiness(b.dataset.business); });
+ui('businessSupply').onclick = supplyBusiness; ui('businessUpgrade').onclick = upgradeBusiness; ui('businessClose').onclick = closeBusiness;
 
 function damagePlayer(amount) {
   if (state.creative || isPlayerHidden()) return;   // bajo tierra / en las ruinas estás a salvo
@@ -4194,6 +4254,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
   if (e.code === 'Escape' && ui('rocketbox').style.display === 'flex') { closeRocket(); return; }  // Esc cierra los cajones del cohete
+  if (e.code === 'Escape' && ui('businessbox').style.display === 'block') { closeBusiness(); return; }
   if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
   if (e.code === 'F5' && state.running && !typing) { e.preventDefault(); cycleCameraMode(); return; }
   if (state.paused) return;   // en pausa el teclado no hace nada (solo Esc, arriba)
@@ -4217,7 +4278,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { if (state.buildMode) cycleBuildVariant(1); else tryLaunchRocket(); }
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && new URLSearchParams(location.search).has('debug') && !state.meteorTriggered) triggerMeteor();
-  if (e.code === 'KeyE') { if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
@@ -4603,7 +4664,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -4688,7 +4749,7 @@ function startGame() {
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
-  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null;
+  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0;
   state.mathLeft = 5; state.mathStreak = 0;
   soccer.scoreRed = soccer.scoreBlue = 0; updateScoreboard();
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
@@ -4789,6 +4850,7 @@ function saveGame() {
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
       tutorial: state.tutorial || { step: 0, complete: false }, chapter: state.chapter || 0, chapterFlags: state.chapterFlags || {}, reputation: state.reputation || 0,
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
+      business: state.business || null, businessOrders: state.businessOrders || 0,
     };
     localStorage.setItem(saveKey(), JSON.stringify(data));
   } catch (e) {}
@@ -5313,6 +5375,7 @@ function loadGame() {
   state.unlocked = d.unlocked || {};
   state.tutorial = d.tutorial || { step: d.night > 0 ? 6 : 0, complete: d.night > 0 };
   state.chapter = d.chapter || 0; state.chapterFlags = d.chapterFlags || {};
+  state.business = d.business || null; state.businessOrders = d.businessOrders || 0;
   state.reputation = d.reputation || 0; state.medals = d.medals || {}; state.blueprints = d.blueprints || {}; state.citizenFavors = d.citizenFavors || {};
   state.creative = !!d.creative;
   cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
@@ -6623,6 +6686,7 @@ function loop() {
     updateBasketball(dt);
     updateTennis(dt);
     updateSportGame(dt);
+    updateBusiness(dt);
     swingLimbs(mom, dt);
     updateArrow();
     updateTutorial();
@@ -7026,6 +7090,7 @@ function updateContextPrompt() {
       else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
       else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };
       else if (nearestSport()) action = { key: 'E', touch: '🏟️', text: 'Unirte al partido · sesión de 45 segundos' };
+      else if (dist2D(player.position, HOUSE) < 8 && houseStats().full) action = { key: 'E', touch: '🏪', text: state.business ? 'Administrar ' + BUSINESS_TYPES[state.business.type].name : 'Abrir un negocio familiar' };
       else if (nearestCitizen() || (dad.visible && dist2D(dad.position, player.position) < 3.4)) action = { key: 'E', touch: '💬', text: 'Hablar o ayudar' };
       else if (state.phase === 'DAY') {
         let product = null;
@@ -7113,6 +7178,7 @@ function renderHUD() {
   const hsNow = houseStats();
   if (state.buildMode) gear.unshift('🏠 Protección ' + hsNow.protection + ' · Confort ' + hsNow.comfort + ' · Producción ' + hsNow.production + ' · Energía ' + hsNow.energy);
   if (state.reputation > 0) gear.push('🤝 confianza ' + state.reputation);
+  if (state.business) gear.push(BUSINESS_TYPES[state.business.type].icon + ' negocio nv.' + state.business.level + ' · 📦' + state.business.stock);
   const medalCount = Object.keys(state.medals || {}).length; if (medalCount) gear.push('🏅 ' + medalCount + '/3 deportes');
   if (state.dadGun) gear.push('🔫 papá');
   if (state.dadArmor < 1) gear.push('🛡️ papá');

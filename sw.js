@@ -1,7 +1,7 @@
 // Service worker de This is Money: el juego funciona OFFLINE una vez visitado.
 // - index.html: red primero (para recibir las actualizaciones del deploy), caché de respaldo
 // - assets y CDN de three.js: caché primero (no cambian casi nunca)
-const VERSION = 'tim-v3';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
+const VERSION = 'tim-v4';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg',
   './src/game-config.js', './assets/img_58.png', './assets/edificio.glb', './assets/tienda.glb', './assets/papa_anim.glb'];
 
@@ -13,10 +13,11 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  const isIndex = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname === '/';
-  if (isIndex) {   // red primero: siempre la última versión si hay internet
-    e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(VERSION).then(c => c.put('./index.html', cp)); return r; })
-      .catch(() => caches.match('./index.html')));
+  const needsFreshCode = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname === '/' || url.pathname.endsWith('.js');
+  if (needsFreshCode) {   // red primero: HTML y módulos siempre coordinados
+    const cacheKey = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname === '/' ? './index.html' : e.request;
+    e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(VERSION).then(c => c.put(cacheKey, cp)); return r; })
+      .catch(() => caches.match(cacheKey)));
     return;
   }
   // resto (assets, three.js del CDN): caché primero

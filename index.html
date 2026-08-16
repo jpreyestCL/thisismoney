@@ -5293,7 +5293,9 @@ function spawnCar(opts) {
       const candidate = player.position.clone().addScaledVector(fwd, 6 + row * 5).addScaledVector(side, offset);
       if (vehicles.every(v => dist2D(candidate, v.group.position) > 4)) { p = candidate; break outer; }
     }
-    hx = p.x; hz = p.z; heading = yaw;
+    // El modelo del vehículo tiene el frente en su eje local +Z, mientras que
+    // la cámara del jugador mira hacia -Z cuando yaw=0.
+    hx = p.x; hz = p.z; heading = yaw + Math.PI;
   }
   g.position.set(hx, (opts && opts.y != null) ? opts.y : 0, hz); g.rotation.y = heading; scene.add(g);
   // barra de vida flotante
@@ -5328,7 +5330,7 @@ function stealCar(g) {
   barG.add(bbg); barG.add(bfg); scene.add(barG);
   car = { group: g, wheels: [], rotors: [], hp: 100, maxHp: 100, heading: (g.userData.heading != null ? g.userData.heading : g.rotation.y), dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
   vehicles.push(car);
-  state.driving = true; yaw = car.heading; state.buildMode = false;
+  state.driving = true; yaw = car.heading + Math.PI; state.buildMode = false;
   becomeWanted(18, 2);
   toast('🚗 ¡Auto robado! La policía viene… ¡huye en TURBO (correr)! E para bajar');
 }
@@ -5346,7 +5348,7 @@ function toggleCar() {
   for (const v of vehicles) { const d = dist2D(player.position, v.group.position); if (d < nearestOwnedD) { nearestOwnedD = d; nearestOwned = v; } }
   if (nearestOwned) {   // subir al vehículo propio más cercano
     car = nearestOwned;
-    state.driving = true; yaw = car.heading; state.buildMode = false;
+    state.driving = true; yaw = car.heading + Math.PI; state.buildMode = false;
     toast(car.helicopter ? '🚁 Pilotando: W/S avanzar · A/D girar · Espacio subir · Ctrl bajar · E salir' : '🚗 Conduces: W/S avanzar · A/D girar · Shift/correr TURBO · 👊/Espacio bocina · E bajar'); return true;
   }
   // robar un auto de la CALLE: si hay uno cerca, róbalo — aunque ya tengas uno (abandonas el actual y te llevas el nuevo)
@@ -5362,8 +5364,10 @@ function updateDriving(dt) {
   if (keys['ArrowUp']) pitch += 1.8 * dt; if (keys['ArrowDown']) pitch -= 1.8 * dt;
   pitch = Math.max(-1.2, Math.min(1.2, pitch));
   if (keys['Space'] && !car.helicopter) honk();   // el helicóptero usa Espacio para ascender
-  car.heading += steer * 1.9 * dt * (Math.abs(throttle) > 0.05 ? 1 : 0.55);
-  const fwd = new THREE.Vector3(-Math.sin(car.heading), 0, -Math.cos(car.heading));
+  // El frente visual del auto es +Z: W avanza hacia allí y S retrocede.
+  // A resta ángulo para girar a la izquierda visto desde el asiento.
+  car.heading -= steer * 1.9 * dt * (Math.abs(throttle) > 0.05 ? 1 : 0.55);
+  const fwd = new THREE.Vector3(Math.sin(car.heading), 0, Math.cos(car.heading));
   const turbo = keys['ShiftLeft'] || keys['ShiftRight'] || touch.run;   // TURBO al conducir
   const sm = car.speedMult || 1;                                        // la moto es más rápida
   const baseSpeed = car.helicopter ? 30 : (turbo ? 44 : 24);
@@ -5409,7 +5413,7 @@ function updateDriving(dt) {
   // sonido de motor (frecuencia según acelerador)
   car.enginePow = Math.abs(throttle);
   ensureEngine(); if (engineGain) { engineGain.gain.value = 0.03 + 0.05 * car.enginePow; engineOsc.frequency.value = 55 + car.enginePow * 150; }
-  yaw = car.heading;
+  yaw = car.heading + Math.PI;
   if (car.helicopter) {
     player.position.set(car.group.position.x, car.group.position.y + 2.1, car.group.position.z);
   } else {

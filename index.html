@@ -44,7 +44,7 @@
     background: rgba(0,0,0,.72); padding: 11px 22px; border-radius: 10px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: center; max-width: 86vw; }
   #toastStack { position: absolute; top: calc(50% - 34px); left: 50%; transform: translate(-50%,-100%); z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; pointer-events: none; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
+  body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
   .bankBtn { pointer-events: all; cursor: pointer; background: rgba(250,204,21,.18); border: 1px solid #facc15; color: #fff; padding: 10px 6px; font-size: 13px; font-weight: 800; border-radius: 9px; }
   #dadhud { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; }
@@ -72,12 +72,23 @@
   .slot .nm { font-size: 8px; opacity: .75; margin-top: 1px; }
   .slot .ct { position: absolute; bottom: 1px; right: 4px; font-size: 12px; font-weight: 800; text-shadow: 0 1px 2px #000; }
   .slot .kk { position: absolute; top: 1px; left: 4px; font-size: 9px; opacity: .5; }
-  #rotateBtn, #deleteBtn { position: absolute; right: 18px; left: auto; bottom: auto; display: none; pointer-events: all; cursor: pointer;
+  #rotateBtn, #deleteBtn, #blueprintBtn { position: absolute; right: 18px; left: auto; bottom: auto; display: none; pointer-events: all; cursor: pointer;
     color: #042; border: none; padding: 10px 20px; font-size: 15px; font-weight: 800; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  #blueprintBtn { top:calc(50% - 116px); background:oklch(76% .12 224); color:oklch(19% .025 235); }
   #rotateBtn { top: calc(50% - 56px); transform: none; background: rgba(34,197,94,.85); }
   #rotateBtn:hover { background: #22c55e; }
   #deleteBtn { top: calc(50% + 4px); transform: none; background: rgba(239,68,68,.85); color: #fff; }
   #deleteBtn:hover { background: #ef4444; }
+  #blueprintPanel { position:absolute; top:92px; left:12px; z-index:11; display:none; width:min(340px,calc(100vw - 24px)); max-height:calc(100vh - 180px); overflow:auto;
+    pointer-events:all; background:var(--panel,oklch(19% .025 235 / .97)); border:1px solid var(--line,oklch(85% .01 230 / .22)); border-radius:10px; padding:12px; }
+  #blueprintPanel h2 { margin:0; color:var(--ink,oklch(96% .012 110)); font-size:17px; }
+  #blueprintPanel > p { margin:3px 0 10px; color:var(--muted,oklch(76% .018 220)); font-size:12px; line-height:1.4; }
+  #blueprintList { display:flex; flex-direction:column; gap:6px; }
+  .blueprint-option { width:100%; min-height:52px; padding:8px 10px; border:1px solid var(--line,oklch(85% .01 230 / .22)); border-radius:6px; background:var(--panel-soft,oklch(25% .028 230 / .84)); color:var(--ink,oklch(96% .012 110)); text-align:left; cursor:pointer; }
+  .blueprint-option:hover, .blueprint-option:focus-visible { border-color:var(--info,oklch(76% .12 224)); outline:none; }
+  .blueprint-option.active { border-color:var(--action,oklch(78% .19 132)); color:var(--action,oklch(78% .19 132)); }
+  .blueprint-option:disabled { opacity:.52; cursor:not-allowed; }
+  .blueprint-option b, .blueprint-option small { display:block; } .blueprint-option small { margin-top:3px; color:var(--muted,oklch(76% .018 220)); font-size:10px; }
 
   /* círculo de compra (mantener apretado) */
   #buyring { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 90px; height: 90px; display: none; }
@@ -150,7 +161,8 @@
   body.touch .slot .ic { font-size: 17px; }
   body.touch .slot .nm { font-size: 7px; }
   body.touch .slot .ct { font-size: 10px; }
-  body.touch #rotateBtn, body.touch #deleteBtn { display: none !important; }
+  body.touch #rotateBtn, body.touch #deleteBtn, body.touch #blueprintBtn { display: none !important; }
+  body.touch #blueprintPanel { top:84px; left:6px; max-height:calc(100vh - 170px); }
   /* botones táctiles un poco más chicos para que quepan todos (incluido el panel "más") */
   body.touch .tbtn { width: calc(46px * var(--btnscale, 1)); height: calc(46px * var(--btnscale, 1)); font-size: calc(19px * var(--btnscale, 1)); }
   body.touch #touchBtns { width: 150px; }
@@ -420,8 +432,10 @@
   <div id="speedometer" role="status" aria-label="Velocidad del vehículo"><span class="speed-main" id="speedValue">0</span><span class="speed-meta"><span id="speedMode">VELOCIDAD</span><br>KM/H</span></div>
   <div id="sportHud" role="status" aria-live="polite"><div class="sport-head" id="sportHead">PARTIDO</div><div class="sport-score"><span class="sport-red" id="sportRed">0</span> : <span class="sport-blue" id="sportBlue">0</span> <small id="sportTime">1:30</small></div><div class="sport-help" id="sportHelp"></div></div>
   <div id="buildbar"></div>
+  <button id="blueprintBtn">📐 Planos</button>
   <button id="rotateBtn">🔄 Girar</button>
   <button id="deleteBtn">🗑️ Quitar</button>
+  <aside id="blueprintPanel" aria-label="Planos de construcción"><h2>📐 PLANOS</h2><p>Elige una estructura. Verás el conjunto antes de gastar materiales.</p><div id="blueprintList"></div><button class="bankBtn" id="blueprintClose" style="width:100%;margin-top:9px">Cerrar</button></aside>
   <div id="buyring">
     <svg width="90" height="90"><circle cx="45" cy="45" r="38" stroke="rgba(255,255,255,.2)" stroke-width="7" fill="none"/>
       <circle id="ring-fg" cx="45" cy="45" r="38" stroke="#4ade80" stroke-width="7" fill="none" stroke-dasharray="239" stroke-dashoffset="239" stroke-linecap="round"/></svg>
@@ -535,6 +549,7 @@
       <button type="button" class="tbtn" data-act="closeMore" aria-label="Cerrar más acciones" style="background:rgba(239,68,68,.6);border-color:rgba(255,120,120,.7)">✖️<small>cerrar</small></button>
       <button type="button" class="tbtn" data-act="rotate" aria-label="Girar pieza">🔄<small>girar</small></button>
       <button type="button" class="tbtn" data-act="variant" aria-label="Cambiar variante">🎛️<small>variante</small></button>
+      <button type="button" class="tbtn" data-act="blueprints" aria-label="Abrir planos">📐<small>planos</small></button>
       <button type="button" class="tbtn" data-act="delete" aria-label="Quitar pieza">🗑️<small>borrar</small></button>
       <button type="button" class="tbtn" data-act="crop" aria-label="Cambiar semilla">🌾<small>semilla</small></button>
       <button type="button" class="tbtn" data-act="camera" aria-label="Cambiar cámara">📷<small>vista</small></button>
@@ -629,7 +644,7 @@
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
-          <kbd>B</kbd><span>Activar construcción. F coloca, X quita, P/L gira.</span>
+          <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
           <kbd>1–9</kbd><span>Elegir herramienta o pieza. La rueda recorre todo el inventario.</span>
           <kbd>Q / K</kbd><span>Comer o plantar. Shift+K cambia entre manzana, zanahoria, trigo y tomate.</span>
           <kbd>C/V/O</kbd><span>Ordenar a papá: seguir, esperar o limpiar. G lo arma y Z lo deja descansar.</span>
@@ -648,7 +663,7 @@
           <div class="guide-item"><b>Banco</b><span>Los ahorros ganan 5% por noche. Las deudas crecen 10%.</span></div>
           <div class="guide-item"><b>Misiones y mates</b><span>Tres misiones diarias y cinco desafíos de mates financian tus mejoras.</span></div>
           <div class="guide-item"><b>Huerto diverso</b><span>Combina dos o más cultivos cercanos para que crezcan 25% más rápido. Cosecha con E.</span></div>
-          <div class="guide-item"><b>Construcción con variantes</b><span>Madera, roca, techos y ventanas tienen acabados. Selecciona la pieza y pulsa R.</span></div>
+          <div class="guide-item"><b>Variantes y planos</b><span>Madera, roca, techos y ventanas tienen acabados con R. Pulsa G al construir para levantar estructuras completas de una vez.</span></div>
           <div class="guide-item"><b>Ciudad viva</b><span>Los habitantes deciden si pasean, conversan, compran, buscan refugio o vuelven a casa. En los estadios se disputan partidos completos.</span></div>
           <div class="guide-item"><b>Medio juego</b><span>Perro, láser, segundo piso, moto y heladera se desbloquean con el total ganado.</span></div>
           <div class="guide-item"><b>Otros planetas · $75.000</b><span>La misión del cohete empieza en una etapa alcanzable. Lleva provisiones en los cajones antes de despegar.</span></div>
@@ -3227,6 +3242,69 @@ const BUILD_VARIANTS = {
     { id: 'dorada', name: 'Marco dorado', color: 0xb8daf0, frame: 0xc8912e },
   ],
 };
+const bpPart = (key, x, z, rot = 0, variant = null) => ({ key, x, z, rot, variant });
+const BUILD_BLUEPRINTS = [
+  { id: 'refugio', icon: '⛺', name: 'Refugio básico', unlock: null, desc: 'Protección inicial lista para ampliar.', parts: [
+    bpPart('wallWood', 0, -2, 0, 'roble'), bpPart('wallWood', -2, 0, Math.PI / 2, 'roble'), bpPart('wallWood', 2, 0, Math.PI / 2, 'roble'), bpPart('door', 0, 2), bpPart('roof', 0, 0, 0, 'plano'), bpPart('lamp', 0, 0),
+  ] },
+  { id: 'primerHogar', icon: '🏠', name: 'Primer hogar', unlock: 'primerHogar', desc: 'Casa amueblada para recuperar confort.', parts: [
+    bpPart('wallWood', 0, -2, 0, 'roble'), bpPart('wallWood', -2, 0, Math.PI / 2, 'roble'), bpPart('wallWood', 2, 0, Math.PI / 2, 'roble'), bpPart('door', 0, 2), bpPart('roof', 0, 0, 0, 'piramide'), bpPart('lamp', 0, 0), bpPart('oven', -1, -.6), bpPart('cama', 1, -.6, Math.PI / 2),
+  ] },
+  { id: 'huerto', icon: '🌿', name: 'Huerto fértil', unlock: 'huerto', altUnlock: 'agriculture', desc: 'Rincón verde que mejora la vida familiar.', parts: [
+    bpPart('wallWood', 0, -3, 0, 'troncos'), bpPart('wallWood', -3, 0, Math.PI / 2, 'troncos'), bpPart('planta', -1.6, -1), bpPart('planta', 0, -1), bpPart('planta', 1.6, -1), bpPart('planta', -1.6, 1), bpPart('planta', 0, 1), bpPart('planta', 1.6, 1), bpPart('lamp', 0, 0),
+  ] },
+  { id: 'familyWorkshop', icon: '🛠️', name: 'Taller familiar', unlock: 'familyWorkshop', desc: 'Espacio productivo con mesa y cocina.', parts: [
+    bpPart('wallWood', 0, -2, 0, 'nogal'), bpPart('wallWood', -2, 0, Math.PI / 2, 'nogal'), bpPart('wallWood', 2, 0, Math.PI / 2, 'nogal'), bpPart('door', 0, 2), bpPart('roof', 0, 0, 0, 'plano'), bpPart('mesa', 0, 0), bpPart('silla', 0, 1), bpPart('oven', -1.2, -.7), bpPart('heladera', 1.2, -.7), bpPart('lamp', 0, 0),
+  ] },
+  { id: 'communityBoard', icon: '🤝', name: 'Punto comunitario', unlock: 'communityBoard', desc: 'Lugar de encuentro para el barrio.', parts: [
+    bpPart('wallWood', 0, -2, 0, 'roble'), bpPart('roof', 0, 0, 0, 'plano'), bpPart('cuadro', 0, -1.75), bpPart('mesa', 0, 0), bpPart('silla', -1, 1), bpPart('silla', 1, 1), bpPart('sofa', 0, 1.4), bpPart('lamp', 0, 0),
+  ] },
+  { id: 'reinforcedWalls', icon: '🧱', name: 'Fortín reforzado', unlock: 'reinforcedWalls', desc: 'Piedra y defensa para noches difíciles.', parts: [
+    bpPart('wallRock', 0, -2, 0, 'granito'), bpPart('wallRock', -2, 0, Math.PI / 2, 'granito'), bpPart('wallRock', 2, 0, Math.PI / 2, 'granito'), bpPart('door', 0, 2), bpPart('roof', 0, 0, 0, 'plano'), bpPart('torreta', -1.3, -1), bpPart('torreta', 1.3, -1), bpPart('lamp', 0, 0),
+  ] },
+  { id: 'trophyRoom', icon: '🏆', name: 'Sala de trofeos', unlock: 'trophyRoom', desc: 'Exhibe victorias deportivas y recuerdos.', parts: [
+    bpPart('wallWood', 0, -2, 0, 'nogal'), bpPart('wallWood', -2, 0, Math.PI / 2, 'nogal'), bpPart('wallWood', 2, 0, Math.PI / 2, 'nogal'), bpPart('door', 0, 2), bpPart('roof', 0, 0, 0, 'cobre'), bpPart('cuadro', -1, -1.75), bpPart('cuadro', 1, -1.75), bpPart('sofa', 0, .8), bpPart('tele', 0, -1.4), bpPart('lamp', 0, 0),
+  ] },
+  { id: 'marketStall', icon: '🏪', name: 'Puesto de mercado', unlock: 'marketStall', desc: 'Módulo abierto para el negocio familiar.', parts: [
+    bpPart('wallWood', 0, -2, 0, 'roble'), bpPart('wallWood', -2, 0, Math.PI / 2, 'roble'), bpPart('wallWood', 2, 0, Math.PI / 2, 'roble'), bpPart('roof', 0, 0, 0, 'cobre'), bpPart('mesa', -1, 0), bpPart('mesa', 1, 0), bpPart('lamp', 0, 0),
+  ] },
+  { id: 'treasureMap', icon: '🗺️', name: 'Base exploradora', unlock: 'treasureMap', desc: 'Campamento compacto para buscar secretos.', parts: [
+    bpPart('wallRock', 0, -2, 0, 'arenisca'), bpPart('roof', 0, 0, 0, 'plano'), bpPart('mesa', 0, 0), bpPart('cuadro', 0, -1.75), bpPart('cama', 1, 1), bpPart('lamp', -1, 0), bpPart('planta', -1, 1),
+  ] },
+  { id: 'guardianCore', icon: '🛡️', name: 'Núcleo guardián', unlock: 'guardianCore', desc: 'Búnker avanzado con defensa automática.', parts: [
+    bpPart('wallRock', 0, -2, 0, 'pizarra'), bpPart('wallRock', -2, 0, Math.PI / 2, 'pizarra'), bpPart('wallRock', 2, 0, Math.PI / 2, 'pizarra'), bpPart('door', 0, 2), bpPart('roof', 0, 0, 0, 'cobre'), bpPart('torreta', -1.3, -1), bpPart('torreta', 1.3, -1), bpPart('laser', 0, 1), bpPart('lamp', 0, 0),
+  ] },
+  { id: 'starHome', icon: '🚀', name: 'Casa estelar', unlock: 'starHome', desc: 'Hogar final con tecnología y confort.', parts: [
+    bpPart('wallRock', 0, -2, 0, 'pizarra'), bpPart('wallRock', -2, 0, Math.PI / 2, 'pizarra'), bpPart('wallRock', 2, 0, Math.PI / 2, 'pizarra'), bpPart('door', 0, 2), bpPart('roof', 0, 0, 0, 'cobre'), bpPart('laser', 0, -1), bpPart('heladera', -1, 0), bpPart('cama', 1, 0), bpPart('tele', 0, 1.4), bpPart('lamp', 0, 0),
+  ] },
+];
+let activeBlueprintId = null;
+function currentBlueprint() { return BUILD_BLUEPRINTS.find(bp => bp.id === activeBlueprintId) || null; }
+function blueprintUnlocked(bp) { return !bp.unlock || state.creative || !!(state.blueprints && (state.blueprints[bp.unlock] || (bp.altUnlock && state.blueprints[bp.altUnlock]))); }
+function blueprintNeeds(bp) { const needs = {}; for (const p of bp.parts) needs[p.key] = (needs[p.key] || 0) + 1; return needs; }
+function blueprintMissing(bp) { const missing = []; for (const [key, count] of Object.entries(blueprintNeeds(bp))) { const lack = count - (state.inv[key] || 0); if (lack > 0) missing.push({ key, count: lack }); } return missing; }
+function blueprintMaterials(bp) {
+  return Object.entries(blueprintNeeds(bp)).map(([key, count]) => { const item = SHOP.find(s => s.key === key); return count + '× ' + (item ? item.name : key); }).join(' · ');
+}
+function renderBlueprintPanel() {
+  const list = ui('blueprintList'); if (!list) return;
+  const html = BUILD_BLUEPRINTS.map(bp => {
+    const unlocked = blueprintUnlocked(bp), missing = unlocked ? blueprintMissing(bp) : [];
+    const status = !unlocked ? '🔒 Se obtiene avanzando la campaña' : missing.length ? 'Falta: ' + missing.map(m => m.count + '× ' + (SHOP.find(s => s.key === m.key)?.name || m.key)).join(', ') : '✓ Materiales listos';
+    return `<button class="blueprint-option ${activeBlueprintId === bp.id ? 'active' : ''}" data-blueprint="${bp.id}" ${unlocked ? '' : 'disabled'}><b>${bp.icon} ${bp.name}</b><small>${bp.desc}</small><small>${blueprintMaterials(bp)}</small><small>${status}</small></button>`;
+  }).join('');
+  setHTMLIfChanged(list, html);
+}
+function closeBlueprintPanel() { ui('blueprintPanel').style.display = 'none'; typing = false; }
+function openBlueprintPanel() {
+  if (!state.running || state.phase !== 'DAY') { toast('📐 Los planos se usan durante el día'); return; }
+  state.buildMode = true; releaseLock(); typing = true; renderBlueprintPanel(); ui('blueprintPanel').style.display = 'block';
+}
+function selectBlueprint(id) {
+  const bp = BUILD_BLUEPRINTS.find(x => x.id === id); if (!bp || !blueprintUnlocked(bp)) return;
+  activeBlueprintId = id; state.buildMode = true; refreshBlueprintGhost(); closeBlueprintPanel();
+  toast('📐 ' + bp.name + ' seleccionado · F coloca · G cambia plano');
+}
 const buildVariantIndex = {};
 function variantFor(key, id) {
   const list = BUILD_VARIANTS[key]; if (!list) return null;
@@ -3235,6 +3313,7 @@ function variantFor(key, id) {
 }
 function currentBuildVariant() { return variantFor(BUILD_KEYS[buildSel]); }
 function cycleBuildVariant(delta) {
+  if (activeBlueprintId) { toast('🎛️ Las variantes del plano ya están definidas'); return; }
   const key = BUILD_KEYS[buildSel], list = BUILD_VARIANTS[key];
   if (!list) { toast('🎛️ Esta pieza no tiene variantes'); return; }
   buildVariantIndex[key] = ((buildVariantIndex[key] || 0) + (delta || 1) + list.length) % list.length;
@@ -3243,6 +3322,7 @@ function cycleBuildVariant(delta) {
 }
 const ghost = new THREE.Group(); scene.add(ghost); ghost.visible = false;
 let ghostMesh = null;
+const blueprintGhost = new THREE.Group(); scene.add(blueprintGhost); blueprintGhost.visible = false;
 // línea brillante debajo del objeto
 const ghostLine = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.7, 24),
   new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
@@ -3279,6 +3359,17 @@ function objMaterial(key, variantId) {
   return mat(objColor(key, variantId));
 }
 
+function refreshBlueprintGhost() {
+  while (blueprintGhost.children.length) {
+    const child = blueprintGhost.children[0]; blueprintGhost.remove(child); if (child.geometry) child.geometry.dispose(); if (child.material) child.material.dispose();
+  }
+  const bp = currentBlueprint(); if (!bp) return;
+  for (const p of bp.parts) {
+    const mesh = new THREE.Mesh(objGeometry(p.key, p.variant), new THREE.MeshStandardMaterial({ color: objColor(p.key, p.variant), transparent: true, opacity: .38, depthWrite: false }));
+    mesh.position.set(p.x, objY(p.key), p.z); mesh.rotation.y = p.rot || 0; blueprintGhost.add(mesh);
+  }
+}
+
 function refreshGhost() {
   if (ghostMesh) ghost.remove(ghostMesh);
   const key = BUILD_KEYS[buildSel];
@@ -3289,14 +3380,16 @@ function refreshGhost() {
 refreshGhost();
 
 function updateBuild() {
-  ghost.visible = state.buildMode && state.phase === 'DAY';
-  if (!ghost.visible) return;
+  const canBuild = state.buildMode && state.phase === 'DAY';
+  ghost.visible = canBuild && !activeBlueprintId; blueprintGhost.visible = canBuild && !!activeBlueprintId;
+  if (!canBuild) return;
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const t = player.position.clone().addScaledVector(fwd, 5); t.y = 0;
-  ghost.position.set(t.x, 0, t.z);
-  ghost.rotation.y = buildRot;
-  const have = state.inv[BUILD_KEYS[buildSel]] > 0;
-  ghostLine.material.color.set(have ? 0x4ade80 : 0xef4444);
+  if (activeBlueprintId) { blueprintGhost.position.set(t.x, 0, t.z); blueprintGhost.rotation.y = buildRot; }
+  else {
+    ghost.position.set(t.x, 0, t.z); ghost.rotation.y = buildRot;
+    const have = state.inv[BUILD_KEYS[buildSel]] > 0; ghostLine.material.color.set(have ? 0x4ade80 : 0xef4444);
+  }
 }
 
 // Crea y coloca un objeto en (x,z) con rotación rot (reutilizado por placeObject y al cargar la partida)
@@ -3363,6 +3456,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId) {
 }
 function placeObject() {
   if (!state.buildMode || state.phase !== 'DAY') return;
+  if (activeBlueprintId) { placeBlueprint(); return; }
   const key = BUILD_KEYS[buildSel];
   if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
   state.inv[key]--;
@@ -3372,6 +3466,20 @@ function placeObject() {
   addMoney(val);
   toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + (variant ? ' · ' + variant.name : '') + ' +$' + val);
   checkConstructionBonus();
+}
+
+function placeBlueprint() {
+  const bp = currentBlueprint(); if (!bp) return;
+  const missing = blueprintMissing(bp);
+  if (missing.length) { toast('📦 Faltan materiales: ' + missing.map(m => m.count + '× ' + (SHOP.find(s => s.key === m.key)?.name || m.key)).join(', ')); openBlueprintPanel(); return; }
+  const c = Math.cos(buildRot), s = Math.sin(buildRot); let value = 0;
+  for (const p of bp.parts) {
+    const x = blueprintGhost.position.x + p.x * c + p.z * s, z = blueprintGhost.position.z - p.x * s + p.z * c;
+    state.inv[p.key]--; spawnPlaced(p.key, x, z, buildRot + (p.rot || 0), null, p.variant);
+    const item = SHOP.find(shopItem => shopItem.key === p.key); value += item ? (item.value || 0) : 0;
+  }
+  addMoney(value); checkConstructionBonus(); renderBlueprintPanel();
+  toast('🏗️ Plano construido: ' + bp.name + ' · ' + bp.parts.length + ' piezas · +$' + value); phaseText('PLANO COMPLETADO');
 }
 
 function deleteObject() {
@@ -3404,11 +3512,12 @@ function houseStats() {
     else if (o.key === 'lamp') lamps++;
     else if (o.key === 'oven') ovens++;
   }
-  const ready = walls >= 4;
-  const simple = walls >= 4 && roofs >= 1;                              // casa simple
-  const full = walls >= 4 && doors >= 1 && roofs >= 1 && lamps >= 1 && ovens >= 1;  // casa completa
+  const enclosure = walls + doors;
+  const ready = enclosure >= 4;
+  const simple = enclosure >= 4 && roofs >= 1;                         // casa simple
+  const full = enclosure >= 4 && doors >= 1 && roofs >= 1 && lamps >= 1 && ovens >= 1;  // casa completa
   const mansion = full;
-  return { walls, roofs, lamps, doors, ovens, ready, simple, full, mansion, counts, ...houseRatings(counts) };
+  return { walls, enclosure, roofs, lamps, doors, ovens, ready, simple, full, mansion, counts, ...houseRatings(counts) };
 }
 const TUTORIAL_STEPS = [
   { text: 'Sigue la flecha hasta el supermercado', test: () => dist2D(player.position, SUPER_POS) < 11 },
@@ -4462,6 +4571,7 @@ const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jump
 addEventListener('keydown', e => {
   if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
+  if (e.code === 'Escape' && ui('blueprintPanel').style.display === 'block') { closeBlueprintPanel(); return; }
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
   if (e.code === 'Escape' && ui('rocketbox').style.display === 'flex') { closeRocket(); return; }  // Esc cierra los cajones del cohete
@@ -4478,7 +4588,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
   if (e.code === 'KeyN') tryStartNight();
   if (e.code === 'AltLeft' || e.code === 'AltRight') { e.preventDefault(); dodge(); }
-  if (e.code === 'KeyB') { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Construcción activa · rueda para elegir · F coloca · X quita' : 'Modo construir OFF'); }
+  if (e.code === 'KeyB') { state.buildMode = !state.buildMode; if (!state.buildMode) { activeBlueprintId = null; blueprintGhost.visible = false; } toast(state.buildMode ? '🔨 Construcción activa · G abre planos · F coloca · X quita' : 'Modo construir OFF'); }
   if (e.code === 'KeyP') buildRot = Math.PI / 2;
   if (e.code === 'KeyL') buildRot = 0;
   if (e.code === 'KeyF') { if (state.planet === 'platus' && !state.buildMode) makeCampfire(); else placeObject(); }   // en Platus (sin construir) F = FOGATA
@@ -4486,7 +4596,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyC') setDadMode('follow');
   if (e.code === 'KeyV') setDadMode('stay');
   if (e.code === 'KeyO') setDadMode('clean');
-  if (e.code === 'KeyG') toggleDadArm();
+  if (e.code === 'KeyG') { if (state.buildMode) openBlueprintPanel(); else toggleDadArm(); }
   if (e.code === 'KeyH') spawnHelper();
   if (e.code === 'KeyR') { if (state.buildMode) cycleBuildVariant(1); else tryLaunchRocket(); }
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
@@ -4503,6 +4613,7 @@ addEventListener('keydown', e => {
 });
 // Inventario tipo Minecraft: elegir un espacio (slot)
 function selectSlot(n) {
+  activeBlueprintId = null; blueprintGhost.visible = false;
   if (n === 1) state.buildMode = false;                       // 1 = herramienta en mano (pala/espada)
   else if (n >= 2 && n <= BUILD_KEYS.length + 1) { buildSel = n - 2; state.buildMode = true; refreshGhost(); }  // construir (incluye muebles/ventana)
 }
@@ -4682,6 +4793,9 @@ canvas.addEventListener('wheel', e => {
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 function rotateBuild() { buildRot = (buildRot + Math.PI / 2) % (Math.PI * 2); state.buildMode = true; refreshGhost(); }
+ui('blueprintBtn').onclick = openBlueprintPanel;
+ui('blueprintClose').onclick = closeBlueprintPanel;
+ui('blueprintList').addEventListener('click', e => { const button = e.target.closest('[data-blueprint]'); if (button && !button.disabled) selectBlueprint(button.dataset.blueprint); });
 ui('rotateBtn').onclick = rotateBuild;
 ui('deleteBtn').onclick = deleteObject;
 // Nueva partida: primero pregunta TU NOMBRE (cada jugador tiene su propia partida guardada)
@@ -4894,7 +5008,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
-      case 'build': state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (elige un slot y ✋ coloca)' : 'Modo construir OFF'); break;
+      case 'build': state.buildMode = !state.buildMode; if (!state.buildMode) { activeBlueprintId = null; blueprintGhost.visible = false; } toast(state.buildMode ? '🔨 Modo construir ON · abre 📐 planos o elige una pieza' : 'Modo construir OFF'); break;
+      case 'blueprints': openBlueprintPanel(); break;
       case 'place': placeObject(); break;
       case 'dig': digHole(); break;
       case 'fogata': makeCampfire(); break;
@@ -4946,6 +5061,7 @@ function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).cla
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
   saveGame();
+  closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   state.running = false; state.driving = false; state.cinematic = false; document.body.classList.remove('cine');
   if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
   if (engineGain) engineGain.gain.value = 0;
@@ -4959,6 +5075,7 @@ function saveAndExit() {
 
 function startGame() {
   hideScreens();
+  closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPlants(); clearHelpers();
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
@@ -5583,6 +5700,7 @@ function clearSave() { try { localStorage.removeItem(saveKey()); } catch (e) {} 
 function loadGame() {
   let d; try { d = JSON.parse(localStorage.getItem(saveKey())); } catch (e) { return false; }
   if (!d) return false;
+  closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPolice(); clearPlants(); clearHelpers();
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
@@ -7331,7 +7449,10 @@ function updateContextPrompt() {
   let action = null;
   const playable = state.running && !state.paused && !typing && (state.phase === 'DAY' || state.phase === 'NIGHT');
   if (playable) {
-    if (state.buildMode) { const v = currentBuildVariant(); action = { key: 'F', touch: '✋', text: 'Colocar' + (v ? ' · ' + v.name : '') + ' · R cambia variante · X quita' }; }
+    if (state.buildMode) {
+      const bp = currentBlueprint(), v = currentBuildVariant();
+      action = bp ? { key: 'F', touch: '🏗️', text: 'Construir ' + bp.name + ' · G cambia plano · R gira' } : { key: 'F', touch: '✋', text: 'Colocar' + (v ? ' · ' + v.name : '') + ' · G planos · R variante · X quita' };
+    }
     else if (state.driving && car) action = { key: 'E', touch: '🤝', text: car.helicopter ? 'Salir del helicóptero' : 'Bajar del vehículo' };
     else {
       const harvest = nearestHarvestable(2.8);
@@ -7430,13 +7551,14 @@ function renderHUD() {
     }
   } else bb.style.display = 'none';
   const showBuildBtns = (state.buildMode && state.phase === 'DAY') ? 'block' : 'none';
-  ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;
+  ui('blueprintBtn').style.display = showBuildBtns; ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;
 
   // papá
   const modeTxt = { follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '';
   setHTMLIfChanged(ui('dadhud'), `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}`);
   // equipo
   let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
+  if (currentBlueprint()) gear.unshift('📐 ' + currentBlueprint().name + ' · ' + currentBlueprint().parts.length + ' piezas');
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');
   if (state.ngplus) gear.unshift('⭐ Partida+');

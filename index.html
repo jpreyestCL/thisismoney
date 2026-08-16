@@ -4785,6 +4785,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { if (state.buildMode) cycleBuildVariant(1); else tryLaunchRocket(); }
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && new URLSearchParams(location.search).has('debug') && !state.meteorTriggered) triggerMeteor();
+  if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
   if (e.code === 'KeyE') { if (!tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
@@ -6018,6 +6019,40 @@ function updateBuying(dt) {
 // ===================================================================
 //  AUTO: cuerpo rectangular, ruedas redondas, manubrio; se sube y se conduce; tiene vida
 // ===================================================================
+const VEHICLE_DELIVERY_CENTER = new THREE.Vector3(40, 0, -5);   // vereda exterior, frente a la entrada del súper
+function vehicleSpawnIsClear(pos, radius, ignoreTraffic) {
+  if (Math.abs(pos.x) > 225 || Math.abs(pos.z) > 225) return false;
+  for (const o of obstacles) {
+    if (pos.x > o.minX - radius && pos.x < o.maxX + radius && pos.z > o.minZ - radius && pos.z < o.maxZ + radius) return false;
+  }
+  for (const v of vehicles) if (dist2D(pos, v.group.position) < radius + (v.spawnRadius || 2.7)) return false;
+  if (!ignoreTraffic) for (const v of traffic.concat(parkedCars)) if (v.visible && dist2D(pos, v.position) < radius + 3) return false;
+  // Los objetos pequeños no crean AABB, pero tampoco deben quedar debajo del vehículo entregado.
+  for (const o of placed) if (o.mesh.visible && dist2D(pos, o.mesh.position) < radius + 1.2) return false;
+  return true;
+}
+function findVehicleDeliverySpot(radius) {
+  // Primero ocupa plazas alineadas delante del súper; si están llenas avanza hacia la explanada.
+  const offsets = [0, -6, 6, -12, 12, -18, 18, -24, 24];
+  for (let row = 0; row < 16; row++) {
+    for (const dx of offsets) {
+      const p = new THREE.Vector3(VEHICLE_DELIVERY_CENTER.x + dx, 0, VEHICLE_DELIVERY_CENTER.z + row * 6);
+      if (vehicleSpawnIsClear(p, radius, false)) return p;
+    }
+  }
+  // Si el frente está completamente ocupado, amplía la búsqueda por la zona abierta de la ciudad.
+  for (let z = -5; z <= 210; z += 6) for (let x = -210; x <= 210; x += 6) {
+    const p = new THREE.Vector3(x,0,z); if (vehicleSpawnIsClear(p,radius,false)) return p;
+  }
+  for (let z = -210; z < -5; z += 6) for (let x = -210; x <= 210; x += 6) {
+    const p = new THREE.Vector3(x,0,z); if (vehicleSpawnIsClear(p,radius,false)) return p;
+  }
+  return null;
+}
+function debugVehicleDelivery() {
+  const v = spawnCar({ moto:vehicles.length % 2 === 1 }); if (!v) return;
+  player.position.set(v.group.position.x,PLAYER_EYE,v.group.position.z+4); yaw=0; pitch=-.08;
+}
 function spawnCar(opts) {
   const g = new THREE.Group();
   const helicopter = !!(opts && opts.helicopter), bodyMat = mat(helicopter ? 0x16a34a : 0xdc2626);
@@ -6049,20 +6084,17 @@ function spawnCar(opts) {
   }
   const moto = !!(opts && opts.moto);
   if (moto) g.scale.set(0.45, 0.9, 0.85);   // moto: angosta y un poco más baja (y más rápida al conducir)
+  const spawnRadius = helicopter ? 4.8 : (moto ? 1.65 : 2.7);
   let hx, hz, heading;
   if (opts && opts.x != null) { hx = opts.x; hz = opts.z; heading = opts.heading || 0; }
   else {
-    const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-    const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-    const sideOffsets = [0, 4.5, -4.5, 9, -9];
-    let p = player.position.clone().addScaledVector(fwd, 6);
-    outer: for (let row = 0; row < 5; row++) for (const offset of sideOffsets) {
-      const candidate = player.position.clone().addScaledVector(fwd, 6 + row * 5).addScaledVector(side, offset);
-      if (vehicles.every(v => dist2D(candidate, v.group.position) > 4)) { p = candidate; break outer; }
-    }
-    // El modelo del vehículo tiene el frente en su eje local +Z, mientras que
-    // la cámara del jugador mira hacia -Z cuando yaw=0.
-    hx = p.x; hz = p.z; heading = yaw + Math.PI;
+    const p = findVehicleDeliverySpot(spawnRadius);
+    if (!p) { toast('🚧 No queda un espacio libre para entregar el vehículo'); return null; }
+    hx = p.x; hz = p.z; heading = 0;   // +Z mira hacia afuera del súper: W permite salir inmediatamente
+  }
+  // Repara partidas antiguas donde un vehículo quedó guardado dentro de una pared.
+  if (opts && opts.restoring && (!opts.y || opts.y < 5) && !vehicleSpawnIsClear(new THREE.Vector3(hx,0,hz),spawnRadius,false)) {
+    const p = findVehicleDeliverySpot(spawnRadius); if (p) { hx = p.x; hz = p.z; heading = 0; }
   }
   g.position.set(hx, (opts && opts.y != null) ? opts.y : 0, hz); g.rotation.y = heading; scene.add(g);
   // barra de vida flotante
@@ -6070,9 +6102,10 @@ function spawnCar(opts) {
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
-  car = { group: g, wheels, rotors, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, helicopter, speedMult: moto ? 1.45 : 1 };
+  car = { group: g, wheels, rotors, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, helicopter, speedMult: moto ? 1.45 : 1, spawnRadius };
   vehicles.push(car);
-  if (!opts || !opts.restoring) toast((helicopter ? '🚁 ¡Helicóptero comprado!' : moto ? '🏍️ ¡Moto comprada!' : '🚗 ¡Auto comprado!') + ' Tienes ' + vehicles.length + ' vehículos. Acércate y pulsa E');
+  if (!opts || !opts.restoring) toast((helicopter ? '🚁 ¡Helicóptero comprado!' : moto ? '🏍️ ¡Moto comprada!' : '🚗 ¡Auto comprado!') + ' Entrega lista frente al súper · tienes ' + vehicles.length + ' vehículos. Acércate y pulsa E');
+  return car;
 }
 // Auto más cercano de la CALLE (tráfico o estacionado) para robar
 function nearestStreetCar(maxD) {
@@ -6288,10 +6321,10 @@ function buyItem(item) {
     state.money -= item.price; paintHouse(item.paint, item.name); return;
   }
   if (item.car) {
-    state.money -= item.price; spawnCar(); return;
+    if (spawnCar()) state.money -= item.price; return;
   }
   if (item.helicopter) {
-    state.money -= item.price; spawnCar({ helicopter: true });
+    if (spawnCar({ helicopter: true })) state.money -= item.price;
     return;
   }
   if (item.key === 'perro') {
@@ -6304,7 +6337,7 @@ function buyItem(item) {
     state.money -= item.price; buildFloor2(); toast('🏠 ¡Segundo piso construido! Sube por la escalera exterior · +$300 cada noche'); return;
   }
   if (item.key === 'moto') {
-    state.money -= item.price; spawnCar({ moto: true });
+    if (spawnCar({ moto: true })) state.money -= item.price;
     return;
   }
   if (item.key === 'jetpack') {

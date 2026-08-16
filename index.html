@@ -655,7 +655,7 @@
           <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
-          <kbd>1–9</kbd><span>Elegir herramienta o pieza. La rueda recorre todo el inventario.</span>
+          <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
           <kbd>Q / K</kbd><span>Comer o plantar. Shift+K cambia entre manzana, zanahoria, trigo y tomate.</span>
           <kbd>C/V/O</kbd><span>Ordenar a papá: seguir, esperar o limpiar. G lo arma y Z lo deja descansar.</span>
           <kbd>U / I</kbd><span>Abrir desafíos de mates o esta guía.</span>
@@ -3267,13 +3267,18 @@ let car = null;             // vehículo seleccionado (el último usado o compra
 const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
   'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera'];
-// Categorías del hotbar en celular (18 slots no caben en pantalla chica)
+// Categorías del hotbar (18 slots no caben en pantalla, ni en celular ni en PC).
+// Se muestran las 3 pestañas + las piezas de la categoría activa: así TODOS los
+// materiales son alcanzables (antes los slots 10-18 quedaban fuera de pantalla).
 const BUILD_CATS = {
   casa: ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'],
   defensa: ['ballesta', 'torreta', 'laser'],
   muebles: ['window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'heladera'],
 };
+const BUILD_CAT_TABS = [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑']];
 let buildCat = 'casa';
+function catKeys() { return BUILD_CATS[buildCat] || BUILD_KEYS; }          // piezas visibles ahora
+function catOf(key) { for (const c in BUILD_CATS) if (BUILD_CATS[c].includes(key)) return c; return 'casa'; }
 // Inventario inicial: 0 de cada cosa colocable + comida/semillas
 function freshInv() { const inv = { food: 0, semillas: 0, semillas_zanahoria: 0, semillas_trigo: 0, semillas_tomate: 0, carbon: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
 let buildSel = 0, buildRot = 0;
@@ -4791,7 +4796,8 @@ addEventListener('keydown', e => {
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
   if (e.code === 'KeyE') { if (!tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
-  if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
+  // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
+  { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
   if (e.code === 'KeyQ') { if (!sportSecondaryAction()) eatFood(); }
   if (e.code === 'KeyI') toggleHelp();   // abrir/cerrar el menú de ayuda
   if (e.code === 'KeyK') { if (e.shiftKey) cycleCrop(1); else plantSeed(); }
@@ -4799,11 +4805,26 @@ addEventListener('keydown', e => {
   if (e.code === 'BracketLeft') cycleCrop(-1);
   if (e.code === 'KeyZ') toggleDadRest();   // papá descansa en sofá/cama (los monstruos no lo ven)
 });
-// Inventario tipo Minecraft: elegir un espacio (slot)
+// Inventario tipo Minecraft: elegir un espacio (slot).
+// Los números son de la CATEGORÍA activa (1 = herramienta, 2..10 = piezas de la pestaña).
 function selectSlot(n) {
   activeBlueprintId = null; blueprintGhost.visible = false;
-  if (n === 1) state.buildMode = false;                       // 1 = herramienta en mano (pala/espada)
-  else if (n >= 2 && n <= BUILD_KEYS.length + 1) { buildSel = n - 2; state.buildMode = true; refreshGhost(); }  // construir (incluye muebles/ventana)
+  if (n === 1) { state.buildMode = false; return; }           // 1 = herramienta en mano (pala/espada)
+  const key = catKeys()[n - 2];
+  if (!key) return;
+  buildSel = BUILD_KEYS.indexOf(key); state.buildMode = true; refreshGhost();
+}
+// Elegir una pieza por su clave: cambia solo la pestaña si hace falta (rueda del mouse)
+function selectBuildKey(key) {
+  const i = BUILD_KEYS.indexOf(key); if (i < 0) return;
+  activeBlueprintId = null; blueprintGhost.visible = false;
+  buildCat = catOf(key); buildSel = i; state.buildMode = true; refreshGhost();
+}
+// Cambiar de pestaña (celular: tocar la pestaña · PC: Shift+rueda) y elegir su 1ª pieza
+function setBuildCat(cat) {
+  if (!BUILD_CATS[cat]) return;
+  buildCat = cat;
+  const key = catKeys()[0]; if (key) selectBuildKey(key);
 }
 function eatFood() {
   if ((state.inv.food || 0) <= 0) { toast('No tienes comida (cómprala en el SÚPER)'); return; }
@@ -4967,15 +4988,21 @@ canvas.addEventListener('click', () => {
 });
 // Soltar el mouse (salir del pointer lock) para poder clickear los menús en PC
 function releaseLock() { try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {} }
-// Rueda del mouse (PC): recorre TODOS los slots del hotbar (las teclas solo llegan al 9;
-// los slots 10-19 no tienen dígito, y con pointer lock tampoco se pueden clickear).
+// Rueda del mouse (PC): recorre TODAS las piezas (cambiando de pestaña sola);
+// con Shift salta de pestaña. Los dígitos solo eligen dentro de la pestaña activa.
 canvas.addEventListener('wheel', e => {
   if (!state.running || state.paused || typing || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
+  const dir = e.deltaY > 0 ? 1 : -1;
+  if (e.shiftKey) {                                    // Shift+rueda: cambiar de pestaña
+    const cats = BUILD_CAT_TABS.map(t => t[0]);
+    setBuildCat(cats[(cats.indexOf(buildCat) + dir + cats.length) % cats.length]);
+    e.preventDefault(); return;
+  }
   const total = BUILD_KEYS.length + 1;                 // 19 slots: 1 herramienta + 18 colocables
-  let cur = state.buildMode ? buildSel + 2 : 1;        // número de slot actual (1..19)
-  cur += (e.deltaY > 0 ? 1 : -1);
+  let cur = state.buildMode ? buildSel + 2 : 1;        // número global de slot (1..19)
+  cur += dir;
   if (cur < 1) cur = total; else if (cur > total) cur = 1;
-  selectSlot(cur);
+  if (cur === 1) selectSlot(1); else selectBuildKey(BUILD_KEYS[cur - 2]);
   e.preventDefault();
 }, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -5109,7 +5136,7 @@ ui('mathCloseBtn').onclick = closeMathBox;
 // bloquear el scroll horizontal de la barra en celular: swipe = scrollear, tap = elegir.
 ui('buildbar').addEventListener('click', e => {
   const tab = e.target.closest('[data-cat]');
-  if (tab) { buildCat = tab.dataset.cat; return; }   // pestañas de categoría (celular)
+  if (tab) { setBuildCat(tab.dataset.cat); return; }   // pestañas de categoría
   const slot = e.target.closest('.slot'); if (!slot) return;
   const n = +slot.dataset.slot; if (n) selectSlot(n);
 });
@@ -5920,7 +5947,7 @@ function loadGame() {
   basketball.scoreRed = +(savedSports.basketball && savedSports.basketball[0]) || 0; basketball.scoreBlue = +(savedSports.basketball && savedSports.basketball[1]) || 0; drawTeamScore(basketball.board, 'BASQUET', basketball.scoreRed, basketball.scoreBlue);
   tennis.points = Array.isArray(savedSports.tennisPoints) ? savedSports.tennisPoints.slice(0, 2) : [0, 0]; tennis.games = Array.isArray(savedSports.tennisGames) ? savedSports.tennisGames.slice(0, 2) : [0, 0]; drawTennisScore();
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
-  state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
+  state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = Math.max(d.meteorAt || 0, METEOR_AT);   // partidas viejas también esperan al millón
   state.trips = d.trips || 0; state.ngplus = !!d.ngplus;
   state.planetName = d.planetName || 'Platus'; state.planetGround = d.planetGround || 0x9c4a2a;
   state.planetSky = d.planetSky || 0xd98c5f; state.planetHazard = d.planetHazard || 'cold'; state.planetGrav = d.planetGrav || 1; state.inRuins = false;
@@ -7875,18 +7902,16 @@ function renderHUD() {
     const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊' };
     const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera' };
     let html = '';
-    if (isTouch && state.buildMode) {   // pestañas de categoría en celular (18 slots no caben)
-      for (const [cat, em] of [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑']])
-        html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;
-    }
+    for (const [cat, em] of BUILD_CAT_TABS)   // pestañas de categoría (18 slots no caben en pantalla)
+      html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;
     html += `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
-    BUILD_KEYS.forEach((k, i) => {
-      if (isTouch && state.buildMode && !BUILD_CATS[buildCat].includes(k)) return;   // solo la categoría activa
-      html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}" data-slot="${i + 2}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`;
+    catKeys().forEach((k, i) => {   // solo las piezas de la categoría activa (máx 9: teclas 2..9 y 0)
+      const n = i + 2;
+      html += `<div class="slot ${state.buildMode && BUILD_KEYS[buildSel] === k ? 'sel' : ''}" data-slot="${n}"><div class="kk">${n === 10 ? 0 : n}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`;
     });
     setHTMLIfChanged(bb, html);
     if (!isTouch) {
-      const selectedSlot = bb.querySelector('.slot.sel');
+      const selectedSlot = bb.querySelector('.slot[data-slot].sel');   // la pieza elegida (no la pestaña)
       if (selectedSlot) {
         const left = selectedSlot.offsetLeft, right = left + selectedSlot.offsetWidth;
         if (left < bb.scrollLeft || right > bb.scrollLeft + bb.clientWidth) bb.scrollLeft = Math.max(0, left - bb.clientWidth / 2);

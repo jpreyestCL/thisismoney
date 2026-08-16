@@ -5,7 +5,7 @@ export const GAME_RULES = Object.freeze({
   nightSeconds: 180,
   firstNightSeconds: 90,
   finalHordeSeconds: 35,
-  meteorAt: 75000,
+  meteorAt: 1000000,   // el "millón": recién ahí cae el meteorito
   momAt: 20000,
   jailMoneyLoss: 0.20,
 });
@@ -18,7 +18,7 @@ export const PROGRESSION = Object.freeze([
   { at: 20000, icon: '👩', name: 'La familia crece', detail: 'Mamá se une y ayuda con comida.' },
   { at: 35000, icon: '🏗️', name: 'Segundo piso', detail: 'Amplía la casa y su producción.' },
   { at: 50000, icon: '🔆', name: 'Tecnología defensiva', detail: 'Láser y heladera disponibles.' },
-  { at: 75000, icon: '🚀', name: 'Horizonte espacial', detail: 'Comienza la misión del cohete.' },
+  { at: 1000000, icon: '🚀', name: 'Horizonte espacial', detail: 'Al llegar al millón cae el meteorito: comienza la misión del cohete.' },
 ]);
 
 export const CHAPTERS = Object.freeze([

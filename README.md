@@ -4,7 +4,7 @@ A single-file 3D survival-and-money game that runs in any modern browser. No bui
 
 > **Note / Nota:** the game itself (menus, dialogue, shop, help screen) is entirely **in Spanish**. This README is bilingual — English first, Spanish below. · **El juego está en español**; este README está en inglés y español.
 
-**Play / Jugar:** https://tim.strivexlatam.com
+**Play / Jugar:** https://tim.strivexlatam.com · **License / Licencia:** [MIT](LICENSE)
 
 ---
 
@@ -107,8 +107,8 @@ The whole game is one file, split into sections by `// =====` banners (`grep -n 
 ### Credits and license
 
 - Built with [Three.js](https://threejs.org) (MIT).
-- 3D models and images in `assets/` are bundled with the project; they are not covered by any separate license grant here.
-- This repository does **not** ship a `LICENSE` file, so no open-source license is granted: all rights reserved by default. If you want the code reusable, add a license file.
+- The code is released under the **MIT License** — see [`LICENSE`](LICENSE).
+- The 3D models and images in `assets/` are bundled with the project. Check their provenance before reusing them on their own; the MIT grant is meant for the game code.
 
 ---
 
@@ -213,5 +213,5 @@ En [`CLAUDE.md`](CLAUDE.md) hay notas de desarrollo mucho más detalladas de cad
 ### Créditos y licencia
 
 - Hecho con [Three.js](https://threejs.org) (MIT).
-- Los modelos 3D e imágenes de `assets/` vienen con el proyecto; no se otorga aquí ninguna licencia aparte sobre ellos.
-- Este repositorio **no** incluye un archivo `LICENSE`, así que no hay licencia open source: por defecto quedan todos los derechos reservados. Si quieres que el código sea reutilizable, agrega una licencia.
+- El código se publica bajo la **licencia MIT** — ver [`LICENSE`](LICENSE).
+- Los modelos 3D e imágenes de `assets/` vienen con el proyecto. Revisa su procedencia antes de reutilizarlos por separado; la licencia MIT está pensada para el código del juego.

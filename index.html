@@ -1401,18 +1401,36 @@ function tryFamilyOrCitizenInteract() {
   }
   const n = nearestCitizen(); if (!n) return false;
   const b = n.userData.brain; const favors = state.citizenFavors || (state.citizenFavors = {}); const favor = favors[b.id];
-  if (!favor) {
-    favors[b.id] = { active: true, done: false };
-    say('👋 ' + b.name + ' · ' + b.job, '¿Me ayudas con 1 comida? Te devolveré el favor y la ciudad confiará más en tu familia.');
-  } else if (!favor.done && (state.inv.food || 0) > 0) {
-    state.inv.food--; favor.done = true; b.trust++; state.reputation = (state.reputation || 0) + 1; addMoney(200 + state.reputation * 25);
+  if (!favor || (favor.done && state.night >= (favor.availableNight || 0))) {
+    const requests = [{ key: 'food', amount: 1, label: '1 comida' }, { key: 'wallWood', amount: 1, label: '1 pared de madera' }, { key: 'semillas', amount: 2, label: '2 semillas' }];
+    const req = requests[(b.id.length + state.night + b.trust) % requests.length]; favors[b.id] = { ...req, done: false, times: favor ? favor.times || 0 : 0 };
+    say('👋 ' + b.name + ' · ' + b.job, '¿Me ayudas con ' + req.label + '? ' + relationshipLabel(favor ? favor.times || 0 : 0) + '.');
+  } else if (!favor.done && (state.inv[favor.key] || 0) >= favor.amount) {
+    state.inv[favor.key] -= favor.amount; favor.done = true; favor.times = (favor.times || 0) + 1; favor.availableNight = state.night + 2; b.trust = favor.times;
+    state.reputation = (state.reputation || 0) + 1; addMoney(180 + favor.times * 70); giveCitizenJobReward(b.job);
     if (state.reputation === 3) { state.blueprints.huerto = true; toast('📐 Plano comunitario: HUERTO FÉRTIL desbloqueado'); }
-    say('💚 ' + b.name, '¡Gracias! Confianza de la ciudad +' + 1 + '. Toma tu recompensa.');
+    say('💚 ' + b.name, '¡Gracias! Ahora somos ' + relationshipLabel(favor.times).toLowerCase() + '. Vuelve otro día.');
     missionProgress('help', 1);
-  } else if (!favor.done) say('💬 ' + b.name, 'Todavía necesito 1 comida. Puedes comprarla o cosecharla.');
-  else say('💬 ' + b.name, 'Qué gusto verte. La ciudad recuerda que ayudaste.');
+  } else if (!favor.done) say('💬 ' + b.name, 'Todavía necesito ' + favor.label + '. Puedes conseguirlo trabajando o en la tienda.');
+  else say('💬 ' + b.name, citizenMoodLine(b, favor.times || 0));
   return true;
 }
+function relationshipLabel(times) { return times >= 5 ? 'Amigos de confianza' : times >= 3 ? 'Buenos amigos' : times >= 1 ? 'Conocidos' : 'Vecinos nuevos'; }
+function citizenMoodLine(b, trust) {
+  if (state.weather === 'rain') return 'La lluvia cambia mis planes, pero el barrio se siente más unido.';
+  if (state.wanted > 0) return 'No me gusta verte metido en problemas. Arregla las cosas y hablamos.';
+  return trust >= 3 ? 'Siempre tendrás un lugar aquí. Tu familia mejoró el barrio.' : 'Qué gusto verte. Recuerdo que ayudaste.';
+}
+function giveCitizenJobReward(job) {
+  if (job === 'hortelana') state.inv.semillas = (state.inv.semillas || 0) + 2;
+  else if (job === 'carpintero') state.inv.wallWood = (state.inv.wallWood || 0) + 1;
+  else if (job === 'mecánico') state.inv.carbon = (state.inv.carbon || 0) + 2;
+  else if (job === 'enfermera') { state.hp = Math.min(100, state.hp + 25); state.dadHp = Math.min(100, state.dadHp + 20); }
+  else if (job === 'entrenador') state.sportBonus = (state.sportBonus || 0) + 1;
+  else state.inv.food = (state.inv.food || 0) + 1;
+}
+function communityDiscount() { return Math.min(.15, Math.floor((state.reputation || 0) / 3) * .03); }
+function effectivePrice(item) { return Math.max(1, Math.round(item.price * (1 - communityDiscount()))); }
 
 // ===================================================================
 //  ESTADIOS + ROBAR + POLICÍA + CÁRCEL
@@ -4404,18 +4422,19 @@ function renderShopList(filter) {
   if (state.planet === 'platus' && !f) renderContractRow(list);   // contrato del vendedor alien arriba de todo
   shopCatalog().filter(it => !f || it.name.toLowerCase().includes(f)).forEach(it => {
     const locked = !state.creative && it.unlockAt && state.totalEarned < it.unlockAt;   // en creativo no hay candados
-    const can = !locked && state.money >= it.price;
+    const price = effectivePrice(it), can = !locked && state.money >= price;
     const row = document.createElement('button');
     row.className = 'shopRow';
     row.style.cssText = 'display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:8px; padding:8px 10px; font-size:14px; font-weight:700; color:#fff; background:' + (can ? 'rgba(34,197,94,.18)' : 'rgba(255,255,255,.06)') + '; opacity:' + (can ? '1' : '.5') + ';';
-    row.innerHTML = '<span style="font-size:18px">' + (locked ? '🔒' : shopIcon(it)) + '</span><span style="flex:1">' + it.name + (locked ? ' <small style="opacity:.65">se desbloquea a los $' + it.unlockAt + '</small>' : '') + '</span><span style="color:' + (can ? '#4ade80' : '#f87171') + '">$' + it.price + '</span>';
+    row.innerHTML = '<span style="font-size:18px">' + (locked ? '🔒' : shopIcon(it)) + '</span><span style="flex:1">' + it.name + (locked ? ' <small style="opacity:.65">se desbloquea a los $' + it.unlockAt + '</small>' : '') + '</span><span style="color:' + (can ? '#4ade80' : '#f87171') + '">$' + price + '</span>';
     row.onclick = () => buyShopItem(it);
     list.appendChild(row);
   });
 }
 function buyShopItem(item) {
-  if (state.money < item.price) { toast('💸 Te falta plata para ' + item.name + ' ($' + item.price + ')'); return; }
-  buyItem(item);
+  const priced = { ...item, price: effectivePrice(item) };
+  if (state.money < priced.price) { toast('💸 Te falta plata para ' + item.name + ' ($' + priced.price + ')'); return; }
+  buyItem(priced);
   renderShopList(ui('shopInput').value);   // refresca precios/dinero y el estado de cada fila
 }
 function processShopBuy() {   // Enter en PC: compra el primero que coincide con el filtro

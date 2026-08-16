@@ -5429,7 +5429,7 @@ function attackNPC() {
 //  MINAS VOXEL: pozos cuadrados hacia abajo y túneles excavables a los lados
 // ===================================================================
 const holes = [];
-const DEPTH_STEP = 1.35, ENTER_DIGS = 1, MAX_DIGS = 8, MAX_HOLES = 2, HOLE_FIND = 2.8, MINE_CELL = 3;
+const DEPTH_STEP = 1.35, ENTER_DIGS = 1, MAX_DIGS = 8, HOLE_FIND = 2.8, MINE_CELL = 3;
 const tunnelKey = (x, z) => x + ',' + z;
 function renderHole(h) {   // (re)construye la malla del hoyo según su profundidad
   while (h.group.children.length) h.group.remove(h.group.children[0]);
@@ -5499,10 +5499,7 @@ function digHole() {
   let h = findHole(t.x, t.z);
   const wasEnterable = h && h.enterable;
   if (h) { if (h.depth < MAX_DIGS) h.depth++; renderHole(h); }   // profundizar el mismo hoyo
-  else {
-    if (holes.length >= MAX_HOLES) { toast('🪨 Solo puedes tener 2 minas. Profundiza o amplía una de las que ya abriste.'); return; }
-    h = spawnHole(t.x, t.z, 1);                                  // hoyo nuevo
-  }
+  else h = spawnHole(t.x, t.z, 1);                               // hoyo nuevo
   if (state.planet === 'platus' && digUpTreasure(t.x, t.z)) return;   // ¿había un tesoro enterrado aquí? (detector)
   if (h.enterable && !wasEnterable) { toast('⛏️ ¡Abriste una MINA cuadrada! Pulsa E para bajar. Adentro mira al frente para cavar lados o hacia abajo para profundizar.'); return; }
   if (state.planet === 'platus' && h.depth >= MAX_DIGS && !state.coreClaimed) { reachCore(h); return; }   // ¡llegaste al núcleo del planeta!

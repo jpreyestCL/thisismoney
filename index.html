@@ -501,6 +501,8 @@
       <button type="button" class="tbtn" data-act="delete" aria-label="Quitar pieza">🗑️<small>borrar</small></button>
       <button type="button" class="tbtn" data-act="crop" aria-label="Cambiar semilla">🌾<small>semilla</small></button>
       <button type="button" class="tbtn" data-act="camera" aria-label="Cambiar cámara">📷<small>vista</small></button>
+      <button type="button" class="tbtn" data-act="dodge" aria-label="Esquivar">💨<small>esquiva</small></button>
+      <button type="button" class="tbtn" data-act="block" aria-label="Bloquear">🛡️<small>bloqueo</small></button>
       <button type="button" class="tbtn" data-act="dadFollow" aria-label="Papá seguir">🚶<small>papá</small></button>
       <button type="button" class="tbtn" data-act="dadStay" aria-label="Papá esperar">🧍<small>quieto</small></button>
       <button type="button" class="tbtn" data-act="dadClean" aria-label="Papá limpiar">🧹<small>limpia</small></button>
@@ -3607,6 +3609,7 @@ function spawnEnemy(type, atPos) {
   if (def.fly) data.fly = true;
   if (def.breaksAir) data.breaksAir = true;
   if (def.ufo) data.ufo = true;
+  data.role = def.commander || def.boss ? 'leader' : def.breaksAir || def.opensDoors ? 'breaker' : data.speed > 2.4 ? 'scout' : 'brute';
   if (atPos) e.position.copy(atPos);
   else { const a = Math.random() * Math.PI * 2, r = 32; e.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); }
   Object.assign(e.userData, data);
@@ -4117,7 +4120,7 @@ const state = {
   tutorial: { step: 0, complete: false }, chapter: 0, chapterFlags: {}, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
   business: null, businessOrders: 0,
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
-  foundSecrets: {}, secretsFound: 0,
+  foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -4249,14 +4252,36 @@ function tryDiscoverSecret() {
 function syncWorldSecrets() { for (const s of worldSecrets) s.visible = state.planet === 'tierra' && !state.foundSecrets[s.userData.secret.id]; }
 
 function damagePlayer(amount) {
-  if (state.creative || isPlayerHidden()) return;   // bajo tierra / en las ruinas estás a salvo
+  if (state.creative || isPlayerHidden() || state.invulnerable > 0) return;
   let dmg = amount * state.armorFactor;
+  if (state.blocking && state.stamina >= 8) { dmg *= .3; state.stamina -= 8; beep(180, .05, .03); }
   if (state.hasShield && state.shieldHp > 0) {   // el escudo de energía absorbe primero
     const absorbed = Math.min(state.shieldHp, dmg);
     state.shieldHp -= absorbed; dmg -= absorbed; state.shieldCd = 3;   // 3s sin recargar tras un golpe
     if (state.shieldHp <= 0) toast('🛡️ ¡Escudo agotado! Se recarga solo si no te pegan');
   }
   state.hp -= dmg;
+}
+function combatIsActive() { return state.phase === 'NIGHT' || state.inCastle || state.inArena; }
+function updateCombat(dt) {
+  state.dodgeCd = Math.max(0, state.dodgeCd - dt); state.invulnerable = Math.max(0, state.invulnerable - dt);
+  if (!combatIsActive()) state.blocking = false;
+  if (!state.blocking) state.stamina = Math.min(100, state.stamina + 24 * dt);
+}
+function dodge() {
+  if (!state.running || !combatIsActive() || state.dodgeCd > 0 || state.stamina < 25 || state.driving) return;
+  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); player.position.addScaledVector(dir, 3.8); state.stamina -= 25; state.dodgeCd = .8; state.invulnerable = .35; toast('💨 Esquiva');
+}
+function toggleBlock() {
+  if (!combatIsActive()) { toast('🛡️ El bloqueo se activa durante un combate'); return; }
+  state.blocking = !state.blocking; toast(state.blocking ? '🛡️ Bloqueo activo' : 'Bloqueo desactivado');
+}
+function buildingMaxHp(o) { return o.key === 'wallRock' ? 200 : 100; }
+function nearestDamagedBuilding(maxD = 3.5) { let best = null, bd = maxD; for (const o of placed) if (o.hp < buildingMaxHp(o)) { const d = dist2D(player.position, o.mesh.position); if (d < bd) { best = o; bd = d; } } return best; }
+function tryRepairBuilding() {
+  const o = nearestDamagedBuilding(); if (!o) return false; const resource = o.key === 'wallRock' ? 'carbon' : 'wallWood';
+  if ((state.inv[resource] || 0) < 1) { toast('🔧 Necesitas ' + (resource === 'carbon' ? 'carbón' : 'madera') + ' para reparar'); return true; }
+  const max = buildingMaxHp(o); state.inv[resource]--; o.hp = Math.min(max, o.hp + 45); toast('🔧 Construcción reparada · ' + Math.round(o.hp / max * 100) + '%'); return true;
 }
 // Recarga del escudo de energía cuando no te han pegado por un rato
 function updateShield(dt) {
@@ -4349,6 +4374,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyY') { openShopInput(); return; }   // abrir vendedor (comprar escribiendo)
   if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
   if (e.code === 'KeyN') tryStartNight();
+  if (e.code === 'AltLeft' || e.code === 'AltRight') { e.preventDefault(); dodge(); }
   if (e.code === 'KeyB') { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Construcción activa · rueda para elegir · F coloca · X quita' : 'Modo construir OFF'); }
   if (e.code === 'KeyP') buildRot = Math.PI / 2;
   if (e.code === 'KeyL') buildRot = 0;
@@ -4362,7 +4388,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') { if (state.buildMode) cycleBuildVariant(1); else tryLaunchRocket(); }
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && new URLSearchParams(location.search).has('debug') && !state.meteorTriggered) triggerMeteor();
-  if (e.code === 'KeyE') { if (!tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') { if (!sportSecondaryAction()) eatFood(); }
@@ -4517,7 +4543,20 @@ addEventListener('mousemove', e => {
   yaw -= e.movementX * LOOK_SENS * lookMult; pitch -= e.movementY * LOOK_SENS * lookMult;
   pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
 });
-canvas.addEventListener('mousedown', () => { if (state.phase === 'NIGHT') attack(); else attackNPC(); });  // noche: pegar monstruos · día: pegar personas (te vuelve buscado)
+let attackChargeStart = 0;
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 2 && combatIsActive()) { state.blocking = true; return; }
+  if (e.button === 0) attackChargeStart = performance.now();
+});
+canvas.addEventListener('mouseup', e => {
+  if (e.button === 2) { state.blocking = false; return; }
+  if (e.button !== 0) return; const held = (performance.now() - attackChargeStart) / 1000, power = combatIsActive() && held >= .65 && state.stamina >= 18 ? 2.2 : 1;
+  if (power > 1) { state.stamina -= 18; toast('⚔️ Ataque cargado'); }
+  if (sportAction()) return; if (state.phase === 'NIGHT') attack(power); else attackNPC();
+});
+addEventListener('mouseup', e => { if (e.button === 2) state.blocking = false; });
+addEventListener('blur', () => { state.blocking = false; });
 // En PC el clic captura el mouse (pointer lock): la cámara gira sin que el cursor se escape; Esc lo suelta
 canvas.addEventListener('click', () => {
   if (document.body.classList.contains('touch')) return;
@@ -4748,7 +4787,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -4759,6 +4798,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'plant': plantSeed(); break;
       case 'crop': cycleCrop(1); break;
       case 'camera': cycleCameraMode(); break;
+      case 'dodge': dodge(); break;
+      case 'block': toggleBlock(); break;
       case 'rotate': rotateBuild(); break;
       case 'variant': cycleBuildVariant(1); break;
       case 'delete': deleteObject(); break;
@@ -4833,7 +4874,7 @@ function startGame() {
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
-  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.worldEvent = null; state.nextWorldEvent = 45; state.foundSecrets = {}; state.secretsFound = 0; syncWorldSecrets();
+  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.worldEvent = null; state.nextWorldEvent = 45; state.foundSecrets = {}; state.secretsFound = 0; state.stamina = 100; state.blocking = false; state.dodgeCd = 0; state.invulnerable = 0; syncWorldSecrets();
   state.mathLeft = 5; state.mathStreak = 0;
   soccer.scoreRed = soccer.scoreBlue = 0; updateScoreboard();
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
@@ -5446,7 +5487,7 @@ function loadGame() {
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')),
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
-    streak: d.streak || 0,
+    streak: d.streak || 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   });
   lastHp = state.hp;
   state.inv = Object.assign(freshInv(), d.inv || {});
@@ -6332,14 +6373,14 @@ function updateUfoBoss(e, dt) {
     if (dist2D(e.position, player.position) < 6) damagePlayer(ud.dmg || 22);   // rayo si estás justo debajo
   }
 }
-function attack() {
+function attack(multiplier = 1) {
   if (state.buildMode) return;
   vmSwing = 1; beep(320, 0.05, 0.03);
   if (state.inCastle) { attackCastleFoe(); return; }   // en el castillo, el golpe pega a los aliens malos
   if (state.inArena) { hitArenaFoe(); return; }        // en el coliseo, el golpe pega a los enemigos de la oleada
   if (titan && hitTitan(state.weaponDmg)) return;      // golpear al TITÁN
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5, dmg = state.weaponDmg;   // la pistola láser dispara LEJOS
+  const range = state.laserGun ? 30 : 5, dmg = Math.round(state.weaponDmg * multiplier);
   let best = null, bestD = range;
   for (const e of enemies) {
     if (e.userData.type === 'bull') continue;
@@ -6516,6 +6557,7 @@ function tryShelter() {
 function updateMoles(dt) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
+    if (ud.bossKill && ud.hp < ud.maxhp * .5 && !ud.phase2) { ud.phase2 = true; ud.speed *= 1.35; ud.dmg = Math.round(ud.dmg * 1.4); spawnEnemy('zombie', e.position.clone().add(new THREE.Vector3(2, 0, 0))); spawnEnemy('zombie', e.position.clone().add(new THREE.Vector3(-2, 0, 0))); toast('⚔️ JEFE FASE 2 · ahora lidera refuerzos'); }
     if (!ud.mole) continue;   // topo normal o topo jefe
     const inSameMine = state.underground && ud.mineHole && state.shelterHole === ud.mineHole;
     if (ud.mineHole && !inSameMine) continue;   // los topos de mina esperan abajo hasta que vuelvas a entrar
@@ -6594,7 +6636,13 @@ function updateNight(dt) {
     if (blocked) {
       if (ud.attackCd <= 0) { const fortify = 1 - Math.min(.5, houseStats().protection / 200); blocked.hp -= (ud.opensDoors ? 30 : (ud.dmg || 10)) * fortify; ud.attackCd = 1; state.nightDamage = true; if (blocked.hp <= 0) removePlaced(blocked); }
     } else if (d > 1.4) {
-      moveToward(e, tgt, ud.speed * dt); e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
+      if (ud.role === 'scout' && d > 4) {
+        if (!ud.flankSign) ud.flankSign = Math.random() < .5 ? -1 : 1;
+        const dx = tgt.x - e.position.x, dz = tgt.z - e.position.z, len = Math.hypot(dx, dz) || 1, step = ud.speed * dt;
+        e.position.x += (dx / len * .72 - dz / len * .69 * ud.flankSign) * step;
+        e.position.z += (dz / len * .72 + dx / len * .69 * ud.flankSign) * step;
+      } else moveToward(e, tgt, ud.speed * dt);
+      e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
     } else if (ud.attackCd <= 0) {
       ud.attackCd = 1;
       const dmg = ud.dmg || 10;
@@ -6767,6 +6815,7 @@ function loop() {
     updatePet(dt);                         // perro guardián (desbloqueo $50k)
     updatePetAlien(dt);                    // mascota alien (tecnología de Platus)
     updateShield(dt);                      // recarga del escudo de energía
+    updateCombat(dt);
     updateNPCs(dt);
     updateSoccer(dt);
     updateBasketball(dt);
@@ -7172,6 +7221,7 @@ function updateContextPrompt() {
       let owned = null;
       for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
       if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
+      else if (nearestDamagedBuilding()) action = { key: 'E', touch: '🔧', text: 'Reparar construcción dañada' };
       else if (state.sportGame) action = { key: 'CLIC/Q', touch: '⚽', text: state.sportGame.name + ' · acción / técnica · ' + state.sportGame.score + ' pts · ' + Math.ceil(state.sportGame.time) + 's' };
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
@@ -7269,6 +7319,7 @@ function renderHUD() {
   const hsNow = houseStats();
   if (state.buildMode) gear.unshift('🏠 Protección ' + hsNow.protection + ' · Confort ' + hsNow.comfort + ' · Producción ' + hsNow.production + ' · Energía ' + hsNow.energy);
   if (state.reputation > 0) gear.push('🤝 confianza ' + state.reputation);
+  if (state.phase === 'NIGHT') gear.push('⚡ resistencia ' + Math.round(state.stamina) + ' · Alt esquiva · clic der. bloquea');
   if (state.secretsFound > 0) gear.push('🗺️ secretos ' + state.secretsFound + '/' + SECRET_DEFS.length);
   if (state.business) gear.push(BUSINESS_TYPES[state.business.type].icon + ' negocio nv.' + state.business.level + ' · 📦' + state.business.stock);
   const medalCount = Object.keys(state.medals || {}).length; if (medalCount) gear.push('🏅 ' + medalCount + '/3 deportes');

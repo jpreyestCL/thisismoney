@@ -680,6 +680,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
 import { CHAPTERS, GAME_RULES, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=4';
+const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 function pixelateModel(root) {
@@ -4538,7 +4539,6 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-const ui = id => document.getElementById(id);
 function rotateBuild() { buildRot = (buildRot + Math.PI / 2) % (Math.PI * 2); state.buildMode = true; refreshGhost(); }
 ui('rotateBtn').onclick = rotateBuild;
 ui('deleteBtn').onclick = deleteObject;

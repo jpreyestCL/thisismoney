@@ -55,6 +55,13 @@
   #speedometer .speed-main { font:900 30px/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
   #speedometer .speed-meta { padding-bottom:2px; color:var(--muted, oklch(76% .018 220)); font:800 9px/1.25 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing:.08em; text-transform:uppercase; }
   #speedometer.turbo .speed-meta { color:var(--warning, oklch(75% .17 72)); }
+  #sportHud { position:absolute; top:92px; left:50%; transform:translateX(-50%); display:none; min-width:280px; padding:8px 12px;
+    background:var(--panel, oklch(19% .025 235 / .94)); border:1px solid var(--line, oklch(85% .01 230 / .22)); border-radius:6px; text-align:center; }
+  #sportHud .sport-head { color:var(--muted, oklch(76% .018 220)); font:800 9px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing:.08em; text-transform:uppercase; }
+  #sportHud .sport-score { margin:3px 0; font:900 25px/1 ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric:tabular-nums; }
+  #sportHud .sport-red { color:oklch(70% .16 25); } #sportHud .sport-blue { color:oklch(76% .12 224); }
+  #sportHud .sport-help { color:var(--ink, oklch(96% .012 110)); font-size:10px; }
+  body.sporting #objective { display:none; }
 
   /* inventario estilo Minecraft (hotbar) */
   #buildbar { position: absolute; bottom: 58px; left: 50%; transform: translateX(-50%); display: none; gap: 5px; flex-wrap: wrap; justify-content: center; max-width: 94vw; }
@@ -135,6 +142,8 @@
   body.touch #dadhud { display: none; }
   body.touch #speedometer { top:150px; left:6px; bottom:auto; transform:none; min-width:104px; padding:5px 8px 6px; }
   body.touch #speedometer .speed-main { font-size:24px; }
+  body.touch #sportHud { top:150px; min-width:220px; max-width:58vw; padding:6px 8px; }
+  body.touch #sportHud .sport-score { font-size:20px; }
   /* hotbar: fila compacta con scroll horizontal; solo aparece en modo construir (lo pone el JS) */
   body.touch #buildbar { left: 214px; right: 166px; transform: none; max-width: none; bottom: 12px; gap: 4px; padding: 3px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; justify-content: flex-start; -webkit-overflow-scrolling: touch; }
   body.touch .slot { width: 46px; height: 46px; }
@@ -155,6 +164,8 @@
   body.touch.building #touchBtns > [data-act="hit"], body.touch.building #touchBtns > [data-act="interact"] { display: none; }
   body.touch.building #touchBtns > [data-act="place"] { display: flex; }
   body.touch.vehicle #touchBtns > [data-act="hit"], body.touch.vehicle #touchBtns > [data-act="build"] { display: none; }
+  body.touch.sporting #touchBtns > [data-act="build"] { display:none; }
+  body.touch.sporting #touchBtns > [data-act="eat"] { display:flex; }
   body.touch #moveBtns > [data-act="run"], body.touch #moveBtns > [data-act="crouch"] { display: none; }
 
   #rotateHint { display: none; pointer-events: none; }
@@ -184,6 +195,8 @@
   body.watch #speedometer { top:92px; left:4px; bottom:auto; transform:none; min-width:76px; padding:3px 5px; gap:4px; }
   body.watch #speedometer .speed-main { font-size:17px; }
   body.watch #speedometer .speed-meta { font-size:6px; }
+  body.watch #sportHud { top:92px; min-width:128px; max-width:64vw; padding:3px 5px; }
+  body.watch #sportHud .sport-score { font-size:14px; } body.watch #sportHud .sport-help { display:none; }
   body.watch #joystick { left: 8px; bottom: 44px; width: 76px; height: 76px; }
   body.watch #joyKnob  { width: 34px; height: 34px; margin: -17px 0 0 -17px; }
   /* botones de acción: una tira horizontal que se desliza (cabe en cualquier alto de reloj) */
@@ -405,6 +418,7 @@
   <div id="dadhud"></div>
   <div id="gearhud"></div>
   <div id="speedometer" role="status" aria-label="Velocidad del vehículo"><span class="speed-main" id="speedValue">0</span><span class="speed-meta"><span id="speedMode">VELOCIDAD</span><br>KM/H</span></div>
+  <div id="sportHud" role="status" aria-live="polite"><div class="sport-head" id="sportHead">PARTIDO</div><div class="sport-score"><span class="sport-red" id="sportRed">0</span> : <span class="sport-blue" id="sportBlue">0</span> <small id="sportTime">1:30</small></div><div class="sport-help" id="sportHelp"></div></div>
   <div id="buildbar"></div>
   <button id="rotateBtn">🔄 Girar</button>
   <button id="deleteBtn">🗑️ Quitar</button>
@@ -1578,7 +1592,7 @@ function updateSoccer(dt) {
       const ballInOwnZone = p.userData.dir > 0 ? (b.x < p.userData.home.x + 3) : (b.x > p.userData.home.x - 3);
       target = ballInOwnZone ? b : p.userData.home;
     }
-    if (dist2D(p.position, target) > 0.6) { moveToward(p, target, 4.5 * dt); p.rotation.y = Math.atan2(target.x - p.position.x, target.z - p.position.z); }
+    if (dist2D(p.position, target) > 0.6) { moveToward(p, target, 4.5 * sportNpcSpeed('futbol', p.userData.team === 0x2563eb) * dt); p.rotation.y = Math.atan2(target.x - p.position.x, target.z - p.position.z); }
     swingLimbs(p, dt);
   }
   // el más cercano patea la pelota
@@ -1597,9 +1611,10 @@ function updateSoccer(dt) {
   }
   // ¿gol? si la pelota entra a un arco: suma al marcador y vuelve al centro
   if (Math.abs(b.z - soccer.cz) < 2 && (b.x <= soccer.cx - 9 + 0.3 || b.x >= soccer.cx + 9 - 0.3)) {
-    if (b.x >= soccer.cx + 9 - 0.3) soccer.scoreRed++; else soccer.scoreBlue++;   // arco derecho = gol rojo; izquierdo = gol azul
+    const scoringTeam = b.x >= soccer.cx + 9 - 0.3 ? 0 : 1;
+    if (scoringTeam === 0) soccer.scoreRed++; else soccer.scoreBlue++;   // arco derecho = gol rojo; izquierdo = gol azul
     updateScoreboard();
-    if (state.sportGame && state.sportGame.type === 'futbol' && state.sportGame.lastTouch > 0) { state.sportGame.score += 3; toast('⚽ ¡GOL DEL JUGADOR! +3'); }
+    registerSportPoint('futbol', scoringTeam, 1, scoringTeam === 0 && state.sportGame && state.sportGame.lastTouch > 0);
     b.set(soccer.cx, 0.35, soccer.cz); soccer.vel.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
   }
 }
@@ -1669,14 +1684,14 @@ function updateBasketball(dt) {
       b.ball.position.set(h.position.x + ud.dir * .38, .55 + Math.abs(Math.sin(performance.now() * .009)) * .75, h.position.z); b.ball.rotation.z += dt * 8;
     }
     // Robo si el defensor llega bien posicionado.
-    if (nearestDef && nd < .72 && Math.random() < dt * .45) { b.holder = nearestDef; nearestDef.userData.decisionIn = .7; }
+    if (nearestDef && nd < .72 && Math.random() < dt * .45 * sportNpcSpeed('basket', nearestDef.userData.team === 1)) { b.holder = nearestDef; nearestDef.userData.decisionIn = .7; }
   } else {
     b.vel.y -= 9.8 * dt; b.ball.position.addScaledVector(b.vel, dt); b.ball.rotation.z += b.vel.x * dt * 2;
     const targetX = b.cx + (b.shotTeam === 0 ? 7.95 : -7.95);
     if (Math.abs(b.ball.position.x - targetX) < .42 && Math.abs(b.ball.position.z - b.cz) < .62 && b.ball.position.y > 2.35 && b.ball.position.y < 3.25) {
       if (b.shotTeam === 0) b.scoreRed += 2; else b.scoreBlue += 2;
       drawTeamScore(b.board, 'BASQUET', b.scoreRed, b.scoreBlue, 'CANASTA DE 2'); resetBasketball(b.shotTeam ? 0 : 1);
-      if (state.sportGame && state.sportGame.type === 'basket' && state.sportGame.lastTouch > 0) { state.sportGame.score += 3; toast('🏀 ¡CANASTA! +3'); }
+      registerSportPoint('basket', b.shotTeam, 2, b.shotTeam === 0 && state.sportGame && state.sportGame.lastTouch > 0);
     } else if (b.ball.position.y < .3 || Math.abs(b.ball.position.x - b.cx) > 10 || Math.abs(b.ball.position.z - b.cz) > 7) resetBasketball(b.shotTeam ? 0 : 1);
   }
   for (const p of b.players) {
@@ -1685,7 +1700,7 @@ function updateBasketball(dt) {
       const targetX = mate ? b.holder.position.x - p.userData.dir * 2.4 : (b.holder ? b.holder.position.x + p.userData.dir * .8 : b.ball.position.x);
       const targetZ = mate ? p.userData.homeZ : (b.holder ? b.holder.position.z + (p.userData.role === 'guard' ? 1.1 : -1.1) : b.ball.position.z);
       const target = new THREE.Vector3(THREE.MathUtils.clamp(targetX, b.cx - 7, b.cx + 7), 0, THREE.MathUtils.clamp(targetZ, b.cz - 5, b.cz + 5));
-      if (dist2D(p.position, target) > .65) moveToward(p, target, 3.2 * dt);
+      if (dist2D(p.position, target) > .65) moveToward(p, target, 3.2 * sportNpcSpeed('basket', p.userData.team === 1) * dt);
     }
     const look = p === b.holder ? new THREE.Vector3(b.cx + p.userData.dir * 8, 0, b.cz) : (b.holder ? b.holder.position : b.ball.position);
     p.rotation.y = Math.atan2(look.x - p.position.x, look.z - p.position.z); swingLimbs(p, dt);
@@ -1712,7 +1727,7 @@ function tennisPoint(winner) {
   else if (tennis.points[0] >= 4 && tennis.points[1] >= 4) { tennis.points[0]--; tennis.points[1]--; }   // vuelve a deuce
   tennis.server = 1 - tennis.server; tennis.serveIn = 1.1; tennis.vel.set(0, 0, 0); tennis.bounces = 0; tennis.bounceSide = null;
   drawTennisScore();
-  if (state.sportGame && state.sportGame.type === 'tenis' && state.sportGame.lastTouch > 0) { state.sportGame.score += 2; toast('🎾 Punto jugado +2'); }
+  registerSportPoint('tenis', winner, 1, winner === 0 && state.sportGame && state.sportGame.lastTouch > 0);
 }
 function serveTennis() {
   const t = tennis, p = t.players[t.server], dir = t.server === 0 ? 1 : -1;
@@ -1734,12 +1749,13 @@ function updateTennis(dt) {
   for (const p of t.players) {
     const side = p.userData.side, ownX = t.cx + (side ? 4.6 : -4.6);
     const target = new THREE.Vector3(ownX, 0, THREE.MathUtils.clamp(t.ball.position.z, t.cz - 4.5, t.cz + 4.5));
-    if (dist2D(p.position, target) > .25) moveToward(p, target, 4.4 * dt);
+    if (dist2D(p.position, target) > .25) moveToward(p, target, 4.4 * sportNpcSpeed('tenis', side === 1) * dt);
     p.rotation.y = Math.atan2(t.ball.position.x - p.position.x, t.ball.position.z - p.position.z); swingLimbs(p, dt);
     const approaching = side === 0 ? t.vel.x < 0 : t.vel.x > 0;
     if (sideNow === side && approaching && dist2D(p.position, t.ball.position) < 1.25 && t.ball.position.y < 2.5) {
       const dir = side === 0 ? 1 : -1, targetZ = t.cz + (Math.random() - .5) * 7;
-      t.vel.set(dir * (7.5 + Math.random() * 1.8), 5 + Math.random(), (targetZ - t.ball.position.z) * 1.15); t.lastHit = side; t.bounces = 0; t.bounceSide = null;
+      const pace = sportNpcSpeed('tenis', side === 1);
+      t.vel.set(dir * (7.5 + Math.random() * 1.8) * pace, 5 + Math.random(), (targetZ - t.ball.position.z) * 1.15); t.lastHit = side; t.bounces = 0; t.bounceSide = null;
     }
   }
 }
@@ -1755,58 +1771,107 @@ const SPORT_INFO = [
   { type: 'basket', name: 'Básquet', center: new THREE.Vector3(20, 0, 58), ball: () => basketball.ball },
   { type: 'tenis', name: 'Tenis', center: new THREE.Vector3(-70, 0, -10), ball: () => tennis.ball },
 ];
+const SPORT_LEVELS = [
+  { name: 'BARRIO', ai: .88, time: 75, reward: 1 },
+  { name: 'LIGA', ai: 1.05, time: 90, reward: 1.45 },
+  { name: 'CAMPEONATO', ai: 1.2, time: 105, reward: 2 },
+];
+const SPORT_TARGETS = { futbol: [2, 3, 4], basket: [6, 8, 10], tenis: [3, 4, 5] };
+const SPORT_CONTROLS = {
+  futbol: ['CLIC tiro', 'Q control y pase'], basket: ['CLIC lanzamiento', 'Q pase corto'], tenis: ['CLIC golpe', 'Q efecto'],
+};
+function sportMedalRank(type) {
+  const value = Number((state.medals || {})[type]) || 0;
+  return value > 3 ? Math.min(3, Math.max(1, Math.ceil(value / 8))) : Math.min(3, value);
+}
+function sportNpcSpeed(type, opponent) {
+  const game = state.sportGame;
+  return game && game.type === type && opponent ? SPORT_LEVELS[game.level].ai : 1;
+}
+function registerSportPoint(type, team, points, playerMade) {
+  const game = state.sportGame; if (!game || game.type !== type) return;
+  game.teamScore[team] += points;
+  if (team === 0) {
+    game.score += playerMade ? 4 : 2;
+    if (playerMade) { game.combo++; game.bestCombo = Math.max(game.bestCombo, game.combo); toast((type === 'futbol' ? '⚽ ¡GOL!' : type === 'basket' ? '🏀 ¡CANASTA!' : '🎾 ¡PUNTO!') + ' Combo x' + game.combo); }
+  } else { game.combo = 0; toast('🔵 Punto del rival. ¡Recupera la pelota!'); }
+  game.lastTouch = 0;
+  const target = SPORT_TARGETS[type][game.level];
+  if (game.teamScore[0] >= target || game.teamScore[1] >= target) finishSportGame(false);
+}
+function recordSportTouch(game, distance) {
+  const perfect = distance <= 1.05;
+  game.actions++; game.lastTouch = 4; game.combo++; game.bestCombo = Math.max(game.bestCombo, game.combo); game.score += perfect ? 2 : 1;
+  if (perfect) { floatText(player.position, '¡PERFECTO!', '#bef264', 16); beep(760, .06, .04); }
+}
 function nearestSport(maxD = 13) {
   let best = null, bd = maxD;
   for (const s of SPORT_INFO) { const d = dist2D(player.position, s.center); if (d < bd) { best = s; bd = d; } }
   return best;
 }
 function trySportInteract() {
-  if (state.sportGame) return sportSecondaryAction();
+  if (state.sportGame) { finishSportGame(true); return true; }
   const sport = nearestSport(); if (!sport || state.phase !== 'DAY') return false;
-  state.sportGame = { type: sport.type, name: sport.name, time: 60, score: 0, actions: 0, lastTouch: 0 };
-  player.position.set(sport.center.x, PLAYER_EYE, sport.center.z + 4.5);
-  toast('🏟️ Entraste a ' + sport.name + ' · acércate a la pelota y usa la acción principal · E abandona');
+  const level = Math.min(2, sportMedalRank(sport.type)), rules = SPORT_LEVELS[level];
+  state.sportGame = { type: sport.type, name: sport.name, level, time: rules.time, score: 0, actions: 0, lastTouch: 0, teamScore: [0, 0], combo: 0, bestCombo: 0 };
+  const startX = sport.type === 'tenis' ? sport.center.x - 4.3 : sport.center.x - 2;
+  player.position.set(startX, PLAYER_EYE, sport.center.z + (sport.type === 'tenis' ? 2.8 : 4.2));
+  toast('🏟️ ' + sport.name + ' · nivel ' + rules.name + ' · juegas para ROJOS · E abandona');
   return true;
 }
 function sportAction() {
   const game = state.sportGame; if (!game) return false;
   const sport = SPORT_INFO.find(s => s.type === game.type), ball = sport && sport.ball();
-  if (!ball || dist2D(player.position, ball.position) > 2.2) { toast('🏃 Acércate a la pelota'); return true; }
-  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); game.actions++; game.lastTouch = 3;
-  if (game.type === 'futbol') soccer.vel.set(dir.x * 11, 0, dir.z * 11);
+  const distance = ball ? dist2D(player.position, ball.position) : 99;
+  if (!ball || distance > 2.2) { game.combo = 0; toast('🏃 Acércate a la pelota'); return true; }
+  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); recordSportTouch(game, distance);
+  if (game.type === 'futbol') soccer.vel.set(dir.x * (11.5 + Math.min(3, game.combo * .3)), 0, dir.z * (11.5 + Math.min(3, game.combo * .3)));
   else if (game.type === 'basket') {
     basketball.holder = null; basketball.shotTeam = 0;
-    const target = new THREE.Vector3(basketball.cx + 8, 2.8, basketball.cz), dx = target.x - ball.position.x, dz = target.z - ball.position.z, flight = 1;
-    basketball.vel.set(dx / flight, 7.1, dz / flight);
+    const target = new THREE.Vector3(basketball.cx + 7.95, 2.75, basketball.cz), dx = target.x - ball.position.x, dz = target.z - ball.position.z;
+    const flight = Math.max(.72, Math.hypot(dx, dz) / 8.2); basketball.vel.set(dx / flight, (target.y - ball.position.y + 4.9 * flight * flight) / flight, dz / flight);
   } else {
     const side = ball.position.x < tennis.cx ? 0 : 1, toward = side === 0 ? 1 : -1;
-    tennis.vel.set(toward * 8.8, 5.8, dir.z * 3.5); tennis.lastHit = side; tennis.bounces = 0; tennis.bounceSide = null;
+    tennis.vel.set(toward * (8.8 + Math.min(2, game.combo * .2)), 5.8, dir.z * 3.5); tennis.lastHit = 0; tennis.bounces = 0; tennis.bounceSide = null;
   }
-  game.score++; beep(620, .07, .04); return true;
+  beep(620, .07, .04); return true;
 }
 function sportSecondaryAction() {
   const game = state.sportGame; if (!game) return false;
   const sport = SPORT_INFO.find(s => s.type === game.type), ball = sport && sport.ball(); if (!ball) return true;
-  if (dist2D(player.position, ball.position) > 3) { toast('🏃 Acércate a la pelota para usar la técnica'); return true; }
-  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); game.lastTouch = 2;
+  const distance = dist2D(player.position, ball.position);
+  if (distance > 3) { game.combo = 0; toast('🏃 Acércate a la pelota para usar la técnica'); return true; }
+  const dir = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)); recordSportTouch(game, distance);
   if (game.type === 'futbol') { ball.position.set(player.position.x + dir.x, .35, player.position.z + dir.z); soccer.vel.set(dir.x * 4, 0, dir.z * 4); toast('⚽ Control y pase corto'); }
   else if (game.type === 'basket') { basketball.holder = null; basketball.vel.set(dir.x * 4, 2.5, dir.z * 4); ball.position.set(player.position.x + dir.x * .7, 1, player.position.z + dir.z * .7); toast('🏀 Drible y pase'); }
   else { tennis.vel.z *= -1.25; tennis.vel.y = Math.max(6.2, tennis.vel.y); toast('🎾 Golpe con efecto'); }
-  game.actions++; beep(480, .06, .035); return true;
+  beep(480, .06, .035); return true;
 }
 function updateSportGame(dt) {
   const game = state.sportGame; if (!game) return;
   game.time -= dt; game.lastTouch = Math.max(0, game.lastTouch - dt);
+  const sport = SPORT_INFO.find(s => s.type === game.type);
+  if (sport) {
+    const maxX = game.type === 'tenis' ? sport.center.x - .35 : sport.center.x + 9;
+    player.position.x = THREE.MathUtils.clamp(player.position.x, sport.center.x - 9, maxX);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, sport.center.z - 6, sport.center.z + 6);
+  }
   if (game.time <= 0) finishSportGame(false);
 }
 function finishSportGame(abandoned) {
   const game = state.sportGame; if (!game) return;
   if (!abandoned) {
-    const reward = (200 + game.score * 40) * (state.worldEvent && state.worldEvent.id === 'tournament' ? 2 : 1); addMoney(reward);
-    state.medals[game.type] = Math.max(state.medals[game.type] || 0, game.score);
-    state.reputation = (state.reputation || 0) + 1;
+    const won = game.teamScore[0] > game.teamScore[1], draw = game.teamScore[0] === game.teamScore[1], rules = SPORT_LEVELS[game.level];
+    let reward = Math.round((won ? 450 : draw ? 250 : 140) * rules.reward + game.score * 25 + game.bestCombo * 20);
+    if (state.worldEvent && state.worldEvent.id === 'tournament') reward *= 2;
+    addMoney(reward);
+    const oldRank = sportMedalRank(game.type); if (won) state.medals[game.type] = Math.max(oldRank, game.level + 1);
+    if (won) state.reputation = (state.reputation || 0) + 1;
     missionProgress('sport', 1);
-    toast('🏅 ' + game.name + ' terminado · ' + game.score + ' jugadas · +$' + reward);
+    const result = won ? 'VICTORIA' : draw ? 'EMPATE' : 'DERROTA';
+    toast((won ? '🏅 ' : draw ? '🤝 ' : '💪 ') + result + ' ' + game.teamScore[0] + '-' + game.teamScore[1] + ' · combo x' + game.bestCombo + ' · +$' + reward);
+    if (won) { phaseText('🏅 ' + SPORT_LEVELS[game.level].name); tone(523, .12, .05, 'triangle'); setTimeout(() => tone(659, .16, .05, 'triangle'), 120); }
+    saveGame();
   } else toast('Saliste del partido. Puedes volver cuando quieras.');
   state.sportGame = null;
 }
@@ -4827,7 +4892,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
       case 'interact': if (!tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
-      case 'eat': eatFood(); break;
+      case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
       case 'build': state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (elige un slot y ✋ coloca)' : 'Modo construir OFF'); break;
       case 'place': placeObject(); break;
@@ -7274,7 +7339,7 @@ function updateContextPrompt() {
       for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
       if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
       else if (nearestDamagedBuilding()) action = { key: 'E', touch: '🔧', text: 'Reparar construcción dañada' };
-      else if (state.sportGame) action = { key: 'CLIC/Q', touch: '⚽', text: state.sportGame.name + ' · acción / técnica · ' + state.sportGame.score + ' pts · ' + Math.ceil(state.sportGame.time) + 's' };
+      else if (state.sportGame) action = { key: 'CLIC/Q', touch: '🏅', text: state.sportGame.name + ' · primario / técnica · rojos ' + state.sportGame.teamScore[0] + '-' + state.sportGame.teamScore[1] + ' azules' };
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
       else if (nearKeeper()) action = { key: 'Y', touch: '🛒', text: 'Abrir catálogo del vendedor' };
@@ -7320,7 +7385,18 @@ function renderHUD() {
     ui('speedMode').textContent = car.helicopter ? 'VELOCIDAD AÉREA' : (car.reverse ? 'REVERSA' : (car.turbo ? 'TURBO' : 'VELOCIDAD'));
     speedometer.classList.toggle('turbo', !!car.turbo);
   }
-  document.body.classList.toggle('building', !!state.buildMode); document.body.classList.toggle('vehicle', !!state.driving);
+  document.body.classList.toggle('building', !!state.buildMode); document.body.classList.toggle('vehicle', !!state.driving); document.body.classList.toggle('sporting', !!state.sportGame);
+  const sportHud = ui('sportHud'), sportGame = state.sportGame;
+  sportHud.style.display = sportGame ? 'block' : 'none';
+  if (sportGame) {
+    const controls = SPORT_CONTROLS[sportGame.type];
+    ui('sportHead').textContent = sportGame.name + ' · ' + SPORT_LEVELS[sportGame.level].name + ' · COMBO x' + sportGame.combo;
+    ui('sportRed').textContent = sportGame.teamScore[0]; ui('sportBlue').textContent = sportGame.teamScore[1]; ui('sportTime').textContent = fmt(sportGame.time);
+    ui('sportHelp').textContent = controls[0] + ' · ' + controls[1] + ' · E salir';
+  }
+  const touchHit = document.querySelector('[data-act="hit"]'), touchTechnique = document.querySelector('[data-act="eat"]');
+  if (touchHit) { setHTMLIfChanged(touchHit, sportGame ? '🏅<small>jugar</small>' : '👊<small>acción</small>'); touchHit.setAttribute('aria-label', sportGame ? 'Acción deportiva principal' : 'Acción principal'); }
+  if (touchTechnique) { setHTMLIfChanged(touchTechnique, sportGame ? '✨<small>técnica</small>' : '🍖<small>comer</small>'); touchTechnique.setAttribute('aria-label', sportGame ? 'Técnica deportiva' : 'Comer'); }
   const heliDownBtn = ui('heliDownBtn');
   if (heliDownBtn) heliDownBtn.style.display = state.driving && car && car.helicopter ? 'flex' : 'none';
   updateContextPrompt();
@@ -7400,7 +7476,7 @@ function renderHUD() {
 
   // objetivo
   let obj = '';
-  if (state.sportGame) obj = '🏟️ ' + state.sportGame.name + ' · ' + state.sportGame.score + ' jugadas · ' + fmt(state.sportGame.time);
+  if (state.sportGame) obj = '🏟️ ' + state.sportGame.name + ' · ' + SPORT_LEVELS[state.sportGame.level].name + ' · objetivo ' + SPORT_TARGETS[state.sportGame.type][state.sportGame.level] + ' puntos';
   else if (state.tutorial && !state.tutorial.complete) obj = '📍 PASO ' + (state.tutorial.step + 1) + '/' + TUTORIAL_STEPS.length + ' · ' + TUTORIAL_STEPS[state.tutorial.step].text;
   else if (state.worldEvent) obj = state.worldEvent.icon + ' ' + state.worldEvent.name + ' · ' + state.worldEvent.text + ' · ' + fmt(state.worldEventTime);
   else if (state.chapter < CHAPTERS.length) { const ch = currentChapter(); obj = '📖 CAP. ' + (state.chapter + 1) + ' · ' + ch.title + ' · ' + ch.goal; }

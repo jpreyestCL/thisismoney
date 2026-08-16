@@ -214,9 +214,126 @@
   body.minecraft-look #crosshair::before { width:18px; height:2px; top:8px; left:0; }
   body.minecraft-look #crosshair::after { width:2px; height:18px; top:0; left:8px; }
   body.minecraft-look #minimap { border-radius: 0 !important; border: 3px solid #171717; image-rendering: pixelated; }
+
+  /* ===== MONEY OS: capa de interfaz clara, inspirada en mods de información ===== */
+  :root {
+    --ink: oklch(96% .012 110);
+    --muted: oklch(76% .018 220);
+    --panel: oklch(19% .025 235 / .94);
+    --panel-soft: oklch(25% .028 230 / .84);
+    --line: oklch(72% .025 210 / .22);
+    --action: oklch(78% .19 132);
+    --action-ink: oklch(20% .04 132);
+    --warning: oklch(75% .17 72);
+    --danger: oklch(66% .2 28);
+    --info: oklch(76% .12 224);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);
+  }
+  html, body { background: oklch(12% .025 235); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  button, input { font: inherit; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--info); outline-offset: 3px; }
+  .btn {
+    min-height: 48px; margin-top: 0; border: 1px solid oklch(90% .03 132 / .3); border-radius: var(--radius-sm);
+    background: var(--action); color: var(--action-ink); padding: 12px 24px; box-shadow: 0 5px 0 oklch(42% .11 132);
+    font-size: 15px; font-weight: 850; letter-spacing: .035em; text-transform: uppercase;
+    transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), background-color 180ms var(--ease-out);
+  }
+  .btn:hover { transform: translateY(-2px); background: oklch(83% .19 132); }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 oklch(42% .11 132); }
+  .btn.secondary { background: var(--panel-soft) !important; color: var(--ink); border-color: var(--line); box-shadow: 0 4px 0 oklch(10% .02 235 / .7); }
+  .screen h1 { color: var(--ink); background: none; -webkit-text-fill-color: currentColor; }
+
+  #start { align-items: stretch; justify-content: center; text-align: left; padding: clamp(18px, 4vw, 56px); }
+  #start::before { content:""; position:absolute; inset:0; background:linear-gradient(90deg, oklch(10% .025 235 / .96) 0 42%, oklch(10% .025 235 / .62) 68%, oklch(10% .025 235 / .4)); pointer-events:none; }
+  .start-shell { position:relative; width:min(100%, 1080px); margin:auto; display:grid; grid-template-columns:minmax(0, 580px) 1fr; gap:clamp(24px, 6vw, 72px); align-items:end; }
+  .start-copy { max-width: 620px; }
+  .start-eyebrow { display:flex; align-items:center; gap:8px; color:var(--action); font:800 12px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing:.13em; text-transform:uppercase; }
+  .start-eyebrow::before { content:""; width:28px; height:2px; background:currentColor; }
+  #start .start-title { margin:18px 0 12px; max-width:8ch; color:var(--ink); font-size:clamp(52px, 8vw, 94px); line-height:.84; letter-spacing:-.065em; text-wrap:balance; }
+  .start-lead { margin:0; max-width:54ch; font-size:clamp(16px, 1.7vw, 20px); line-height:1.55; color:var(--muted); }
+  .start-lead strong { color:var(--ink); }
+  .game-loop { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:28px 0; counter-reset:loop; }
+  .loop-step { min-height:98px; padding:14px; background:var(--panel-soft); border:1px solid var(--line); border-radius:var(--radius-sm); }
+  .loop-step b { display:block; color:var(--action); font:800 11px ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing:.1em; text-transform:uppercase; margin-bottom:9px; }
+  .loop-step span { display:block; font-size:13px; line-height:1.4; color:var(--ink); }
+  .start-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  #start.has-save #startBtn { background:var(--panel-soft); color:var(--ink); border-color:var(--line); box-shadow:0 4px 0 oklch(10% .02 235 / .7); }
+  #bestline { margin-top:16px !important; padding:8px 10px; width:max-content; max-width:100%; background:oklch(31% .05 75 / .8); border:1px solid oklch(75% .17 72 / .4); border-radius:var(--radius-sm); }
+  .start-aside { padding:18px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md); box-shadow:0 20px 60px oklch(5% .02 235 / .5); }
+  .start-aside h2 { margin:0 0 14px; font-size:13px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; }
+  .control-row { display:flex; align-items:center; gap:12px; padding:9px 0; border-top:1px solid var(--line); font-size:13px; color:var(--muted); }
+  .control-row:first-of-type { border-top:0; }
+  kbd { min-width:58px; padding:5px 7px; border:1px solid oklch(85% .01 230 / .28); border-bottom-width:3px; border-radius:5px; background:oklch(29% .025 230); color:var(--ink); font:800 11px ui-monospace, SFMono-Regular, Consolas, monospace; text-align:center; }
+
+  .topbar { top:10px; left:10px; right:10px; gap:8px; align-items:flex-start; }
+  .topbar > div { gap:4px !important; }
+  .stat { padding:6px 9px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--panel); backdrop-filter:none; box-shadow:0 6px 20px oklch(5% .02 235 / .2); }
+  .stat b { color:var(--muted); font-size:8px; letter-spacing:.1em; }
+  .stat span { font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:14px; }
+  #objective { top:72px; max-width:min(72vw, 620px); background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm); padding:7px 12px; font-size:13px; }
+  #missions { top:114px !important; background:var(--panel) !important; border:1px solid var(--line); border-radius:var(--radius-sm) !important; padding:8px 10px !important; }
+  #contextPrompt { position:absolute; left:50%; top:calc(50% + 32px); transform:translateX(-50%); display:none; align-items:center; gap:8px; max-width:min(88vw, 520px); padding:8px 11px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm); color:var(--ink); font-size:13px; text-align:center; }
+  #contextPrompt.visible { display:flex; }
+  body.cine #contextPrompt { display:none !important; }
+  #contextKey { min-width:30px; padding:3px 6px; color:var(--action-ink); background:var(--action); border-radius:4px; font:900 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
+  #dadhud, #gearhud { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm); }
+  #buildbar { bottom:14px; max-width:min(72vw, 720px); flex-wrap:nowrap; justify-content:flex-start; overflow-x:auto; overflow-y:hidden; padding:3px; scrollbar-width:none; scroll-snap-type:x proximity; }
+  #buildbar::-webkit-scrollbar { display:none; }
+  .slot { flex:0 0 50px; width:50px; height:50px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--panel); scroll-snap-align:center; }
+  .slot.sel { border-color:var(--ink); background:oklch(34% .035 230); box-shadow:0 0 0 2px oklch(96% .012 110 / .22); }
+  .slot .nm { max-width:46px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  #help { background:oklch(10% .025 235 / .92); padding:18px; }
+  .guide-shell { width:min(96vw, 900px); max-height:90vh; overflow:hidden; display:grid; grid-template-columns:210px 1fr; background:oklch(17% .025 235); border:1px solid var(--line); border-radius:var(--radius-lg); box-shadow:0 28px 90px oklch(5% .02 235 / .65); text-align:left; }
+  .guide-nav { padding:22px 14px; background:oklch(14% .025 235); border-right:1px solid var(--line); }
+  .guide-nav h2 { margin:0 8px 18px; font-size:16px; }
+  .guide-tab { width:100%; min-height:42px; margin:2px 0; padding:9px 10px; border:0; border-radius:var(--radius-sm); background:transparent; color:var(--muted); text-align:left; font-weight:750; cursor:pointer; }
+  .guide-tab:hover { background:var(--panel-soft); color:var(--ink); }
+  .guide-tab.active { background:oklch(31% .06 132); color:var(--action); }
+  .guide-content { min-width:0; max-height:90vh; overflow:auto; padding:clamp(20px, 4vw, 40px); }
+  .guide-panel { display:none; }
+  .guide-panel.active { display:block; }
+  .guide-panel h3 { margin:0 0 8px; color:var(--ink); font-size:24px; }
+  .guide-panel > p { max-width:68ch; margin:0 0 20px; color:var(--muted); line-height:1.55; }
+  .guide-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .guide-item { padding:14px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--panel-soft); }
+  .guide-item b { display:block; margin-bottom:5px; color:var(--action); }
+  .guide-item span { color:var(--muted); font-size:13px; line-height:1.45; }
+  .key-list { display:grid; grid-template-columns:auto 1fr; gap:7px 14px; align-items:center; }
+  .key-list span { padding:7px 0; border-bottom:1px solid var(--line); color:var(--muted); font-size:13px; }
+  .guide-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:24px; }
+
+  @media (max-width: 760px) {
+    .start-shell { grid-template-columns:1fr; }
+    .start-aside { display:none; }
+    #start::before { background:oklch(10% .025 235 / .84); }
+    #start .start-title { font-size:clamp(48px, 17vw, 78px); }
+    .game-loop { margin:20px 0; }
+    .loop-step { min-height:84px; padding:11px; }
+    .guide-shell { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+    .guide-nav { padding:10px; border-right:0; border-bottom:1px solid var(--line); overflow-x:auto; white-space:nowrap; }
+    .guide-nav h2 { display:none; }
+    .guide-tab { width:auto; display:inline-block; }
+    .guide-content { padding:20px; }
+    .guide-grid { grid-template-columns:1fr; }
+    #contextPrompt { top:calc(50% + 42px); }
+  }
+  @media (max-height: 680px) and (min-width: 761px) {
+    .start-shell { grid-template-columns:minmax(0, 620px) 280px; }
+    #start .start-title { font-size:62px; margin:10px 0; }
+    .start-lead { font-size:15px; }
+    .game-loop { margin:16px 0; }
+    .loop-step { min-height:78px; padding:10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
+  }
 </style>
 </head>
-<body class="minecraft-look">
+<body class="game-ui">
 <canvas id="game"></canvas>
 
 <div id="hud" style="display:none">
@@ -246,6 +363,7 @@
   <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
   <div id="objective">Objetivo</div>
   <div id="crosshair"></div>
+  <div id="contextPrompt" role="status" aria-live="polite"><span id="contextKey">E</span><span id="contextText">Interactuar</span></div>
   <div id="toastStack"></div>
   <div id="toast"></div>
   <div id="dadhud"></div>
@@ -359,7 +477,10 @@
     <span id="moreBtns">
       <div class="tbtn" data-act="closeMore" style="background:rgba(239,68,68,.6);border-color:rgba(255,120,120,.7)">✖️<small>cerrar</small></div>
       <div class="tbtn" data-act="rotate">🔄<small>girar</small></div>
+      <div class="tbtn" data-act="variant">🎛️<small>variante</small></div>
       <div class="tbtn" data-act="delete">🗑️<small>borrar</small></div>
+      <div class="tbtn" data-act="crop">🌾<small>semilla</small></div>
+      <div class="tbtn" data-act="camera">📷<small>vista</small></div>
       <div class="tbtn" data-act="dadFollow">🚶<small>papá</small></div>
       <div class="tbtn" data-act="dadStay">🧍<small>quieto</small></div>
       <div class="tbtn" data-act="dadClean">🧹<small>limpia</small></div>
@@ -373,35 +494,34 @@
   </div>
 </div>
 
-<div class="screen" id="start" style="background:linear-gradient(rgba(2,6,23,.55),rgba(2,6,23,.85)), url('assets/img_58.png') center/cover;">
-  <h1 style="margin-top:-10px">THIS IS MONEY</h1>
-  <p>Vives con tu <b style="color:#38bdf8">papá</b> y empiezas con <b style="color:#4ade80">$1000</b>. Entra al <b style="color:#facc15">SÚPER</b>,
-     compra cosas (manteniendo apretado), <b style="color:#fb923c">construye</b> tu casa donde quieras y gana dinero.
-     Mientras mejor sea (¡una mansión!), más dinero. Sobrevive la <b style="color:#ef4444">noche</b> contra monstruos.</p>
-  <p style="font-size:13px;opacity:.7">En la ciudad hay una <b>casa secreta</b> con un tesoro (¡es la única en la que puedes entrar!). En los <b style="color:#22c55e">estadios</b> puedes robarle a la gente con <b>E</b>… pero cuidado con la <b style="color:#60a5fa">policía</b> (¡corre!). Cada 1000 monedas sube la <b>etapa</b>. A las 20.000 conoces a la <b style="color:#f9a8d4">mamá</b>. Al final cae un meteorito… ¡compra un cohete y <b>trajes espaciales</b> y escapa a <b style="color:#f97316">Platus</b>! Allá solo hay <b>árboles muertos</b>, las noches son <b style="color:#60a5fa">heladas</b> 🥶 (haz fogatas con carbón ⚫) y con 10 de carbón puedes <b>reutilizar el cohete</b> para volver.</p>
-  <p id="bestline" style="display:none; color:#fbbf24; font-weight:800; font-size:14px; margin:0;"></p>
-  <div class="keys">
-    <span><b>WASD</b></span><span>Caminar · <b>Shift</b> Correr · <b>Espacio</b> Saltar · <b>Ctrl</b> Agacharse</span>
-    <span><b>Flechas / Mouse</b></span><span>Mirar (mover la cámara)</span>
-    <span><b>E</b></span><span>Comprar / cobrar casa secreta / robar / <b>vender casa</b></span>
-    <span><b>I</b></span><span>📖 Abrir el menú de AYUDA (todas las teclas)</span>
-    <span><b>Y</b></span><span>Vendedor: comprar escribiendo (cerca del vendedor)</span>
-    <span><b>1-9 / rueda</b></span><span>Inventario: <b>1</b> herramienta · <b>2-9</b> o la <b>rueda del mouse</b> para el resto (10-19) · <b>Q</b> comer</span>
-    <span><b>B</b></span><span>Modo construir &nbsp; · &nbsp; <b>T</b> cavar (con pala)</span>
-    <span><b>P / L</b></span><span>Girar vertical / horizontal</span>
-    <span><b>F</b> / <b>X</b></span><span>Colocar / Borrar objeto</span>
-    <span><b>C / V / O</b></span><span>Papá: seguir / quieto / limpiar</span>
-    <span><b>G</b></span><span>Dar/quitar arma al papá</span>
-    <span><b>Z</b></span><span>😴 Papá descansa en sofá/cama (los monstruos no lo ven)</span>
-    <span><b>U</b></span><span>🧮 Desafío de mates: ¡resuélvelo y gana plata! (5 al día)</span>
-    <span><b>H</b></span><span>Spawnear ayudante (con mamá)</span>
-    <span><b>Clic</b></span><span>Atacar de noche &nbsp; · &nbsp; <b>N</b> empezar noche</span>
-    <span><b>R</b></span><span>Lanzar cohete (con papá, tras meteorito)</span>
-  </div>
-  <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
-    <button class="btn" id="continueBtn" style="display:none; background:linear-gradient(90deg,#38bdf8,#0284c7);">CONTINUAR</button>
-    <button class="btn" id="startBtn">JUGAR DE NUEVO</button>
-    <button class="btn" id="creativeBtn" style="background:linear-gradient(90deg,#a855f7,#7c3aed);">🎨 MODO CREATIVO</button>
+<div class="screen" id="start" style="background:url('assets/img_58.png') center/cover;">
+  <div class="start-shell">
+    <main class="start-copy">
+      <div class="start-eyebrow">Supervivencia, construcción y economía</div>
+      <h1 class="start-title">THIS IS MONEY</h1>
+      <p class="start-lead">Empiezas con tu papá y <strong>$1.000</strong>. Construyan un hogar de día, hagan crecer el negocio y defiendan todo cuando caiga la noche.</p>
+      <div class="game-loop" aria-label="Ciclo principal del juego">
+        <div class="loop-step"><b>01 · Consigue</b><span>Compra materiales, cultiva y acepta desafíos.</span></div>
+        <div class="loop-step"><b>02 · Construye</b><span>Convierte cuatro paredes en una base que produce.</span></div>
+        <div class="loop-step"><b>03 · Resiste</b><span>Sobrevive la noche, mejora y llega a otros planetas.</span></div>
+      </div>
+      <div class="start-actions">
+        <button class="btn" id="continueBtn" style="display:none;">CONTINUAR</button>
+        <button class="btn" id="startBtn">NUEVA PARTIDA</button>
+        <button class="btn secondary" id="creativeBtn">MODO CREATIVO</button>
+        <button class="btn secondary" id="startGuideBtn">VER GUÍA</button>
+      </div>
+      <p id="bestline" style="display:none; color:var(--warning); font-weight:800; font-size:13px;"></p>
+    </main>
+    <aside class="start-aside" aria-label="Controles esenciales">
+      <h2>Empieza en segundos</h2>
+      <div class="control-row"><kbd>WASD</kbd><span>Caminar y explorar</span></div>
+      <div class="control-row"><kbd>E</kbd><span>Usar lo que tienes delante</span></div>
+      <div class="control-row"><kbd>B</kbd><span>Entrar en modo construir</span></div>
+      <div class="control-row"><kbd>F5</kbd><span>Cambiar la vista del personaje</span></div>
+      <div class="control-row"><kbd>CLIC</kbd><span>Atacar o extraer recursos</span></div>
+      <div class="control-row"><kbd>I</kbd><span>Abrir la guía y el códice</span></div>
+    </aside>
   </div>
 </div>
 
@@ -424,56 +544,66 @@
 <button id="exitBtn" style="position:fixed; top:58px; left:104px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:12px; font-weight:700; height:40px; padding:0 10px; display:none;">💾 Salir</button>
 <button id="fotoBtn" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
 <div id="help">
-  <div style="max-width:640px; width:92vw; max-height:86vh; overflow:auto; background:rgba(2,6,23,.96); border:2px solid #34d399; border-radius:16px; padding:22px 26px;">
-    <h2 style="margin:0 0 6px; color:#34d399;">📖 AYUDA — Todas las teclas</h2>
-    <p style="margin:0 0 14px; opacity:.7; font-size:13px;">Abre o cierra este menú con la tecla <b>I</b> o el botón ❓</p>
-    <p style="margin:0 0 14px; font-size:13px; color:#38bdf8;">📱 <b>En celular:</b> joystick (izquierda) para caminar · arrastra la pantalla para mirar · botones de la derecha para las acciones (👊 pegar, 🤝 interactuar, 🛒 vendedor, 🍖 comer, 🌙 noche, 🔨 construir, ✋ colocar, ⋯ más).</p>
-    <div class="keys">
-      <span><b>W A S D</b></span><span>Caminar</span>
-      <span><b>Flechas</b></span><span>Mirar / mover la cámara (también sirve el mouse)</span>
-      <span><b>Shift</b></span><span>Correr &nbsp;·&nbsp; <b>Espacio</b> Saltar &nbsp;·&nbsp; <b>Ctrl</b> Agacharse</span>
-      <span><b>E</b></span><span>Interactuar: <b>subir/bajar del auto</b> / cobrar casa secreta / robar en estadio / vender tu casa</span>
-      <span><b>Y</b></span><span>Vendedor: comprar escribiendo. Vende de <b>todo</b>: auto ($2000), muebles, ventana ($50), pintura ($400), cuadro ($300)…</span>
-      <span><b>Auto</b></span><span>Cómpralo (2000), súbete con <b>E</b> y conduce con <b>W/S</b> (avanzar) y <b>A/D</b> (girar). Tiene 100 de vida</span>
-      <span><b>Pintura</b></span><span>Compra "pintura roja/azul/verde…" y te pinta la casa entera de ese color</span>
-      <span><b>1 - 9</b></span><span><b>1</b> herramienta (pala/espada) · <b>2-9…</b> elegir qué construir/colocar (muebles, ventana…)</span>
-      <span><b>Q</b></span><span>Comer (te quita el hambre)</span>
-      <span><b>K</b></span><span>Plantar una semilla de manzana (crece de a poco y da manzanas)</span>
-      <span><b>B</b></span><span>Modo construir ON/OFF</span>
-      <span><b>F</b> / <b>X</b></span><span>Colocar / Borrar objeto</span>
-      <span><b>P</b> / <b>L</b></span><span>Girar la pieza (vertical / horizontal)</span>
-      <span><b>T</b></span><span>Cavar un hoyo (con la pala)</span>
-      <span><b>Clic</b></span><span>Atacar de noche (puños o espada)</span>
-      <span><b>N</b></span><span>Empezar la noche antes de tiempo</span>
-      <span><b>C</b> / <b>V</b> / <b>O</b></span><span>Papá: seguir / quedarse quieto / limpiar</span>
-      <span><b>G</b></span><span>Darle o quitarle un arma al papá</span>
-      <span><b>H</b></span><span>Llamar a un ayudante (después de conocer a la mamá)</span>
-      <span><b>Z</b></span><span>😴 Papá descansa en el sofá o la cama: los monstruos NO lo detectan (Z de nuevo para levantarlo)</span>
-      <span><b>U</b></span><span>🧮 Desafío de mates (o botón 🧮 en celular): resuelve y gana $100-$400 (¡la racha paga hasta el doble!), 5 al día</span>
-      <span><b>R</b></span><span>Lanzar el cohete (con el papá y TRAJES ESPACIALES 🧑‍🚀; reutilizarlo cuesta 10 de carbón ⚫)</span>
-      <span><b>🪐</b></span><span><b>En PLATUS:</b> pica CARBÓN golpeando las rocas negras (👊/clic) · <b>T</b> hace una FOGATA (3 carbón) · de noche hace MUCHO frío: quédate cerca del fuego o te congelas 🥶 · no hay súper ni estadios</span>
+  <div class="guide-shell" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <nav class="guide-nav" aria-label="Secciones de la guía">
+      <h2 id="guideTitle">GUÍA DE CAMPO</h2>
+      <button class="guide-tab active" data-guide="start">Primer día</button>
+      <button class="guide-tab" data-guide="controls">Controles</button>
+      <button class="guide-tab" data-guide="progress">Progresión</button>
+      <button class="guide-tab" data-guide="codex">Códice</button>
+    </nav>
+    <div class="guide-content">
+      <section class="guide-panel active" data-guide-panel="start">
+        <h3>Tu primer día</h3>
+        <p>No necesitas memorizar todo. Sigue este circuito y la interfaz te mostrará la tecla correcta cuando estés cerca de algo útil.</p>
+        <div class="guide-grid">
+          <div class="guide-item"><b>1 · Llega al súper</b><span>Sigue la flecha, compra cuatro paredes y un techo manteniendo E.</span></div>
+          <div class="guide-item"><b>2 · Construye una base</b><span>Pulsa B, elige una pieza con la rueda y colócala con F.</span></div>
+          <div class="guide-item"><b>3 · Prepárate</b><span>Compra comida y un arma. Usa U para ganar dinero con desafíos de mates.</span></div>
+          <div class="guide-item"><b>4 · Sobrevive</b><span>Pulsa N cuando estés listo. Cada noche mejora tu economía y desbloquea contenido.</span></div>
+        </div>
+      </section>
+      <section class="guide-panel" data-guide-panel="controls">
+        <h3>Controles</h3>
+        <p>Las acciones frecuentes están cerca de la mano izquierda. Las acciones avanzadas aparecen en contexto.</p>
+        <div class="key-list">
+          <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
+          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios.</span>
+          <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
+          <kbd>B</kbd><span>Activar construcción. F coloca, X quita, P/L gira.</span>
+          <kbd>1–9</kbd><span>Elegir herramienta o pieza. La rueda recorre todo el inventario.</span>
+          <kbd>Q / K</kbd><span>Comer o plantar. Shift+K cambia entre manzana, zanahoria, trigo y tomate.</span>
+          <kbd>C/V/O</kbd><span>Ordenar a papá: seguir, esperar o limpiar. G lo arma y Z lo deja descansar.</span>
+          <kbd>U / I</kbd><span>Abrir desafíos de mates o esta guía.</span>
+          <kbd>N / R</kbd><span>Empezar la noche. En construcción, R cambia la variante; fuera de ella lanza el cohete.</span>
+          <kbd>F5</kbd><span>Cambiar entre primera persona, tercera trasera y tercera frontal.</span>
+        </div>
+      </section>
+      <section class="guide-panel" data-guide-panel="progress">
+        <h3>Cómo crecer</h3>
+        <p>El juego recompensa combinar construcción, exploración y buenas decisiones financieras.</p>
+        <div class="guide-grid">
+          <div class="guide-item"><b>Casa simple · $300</b><span>Cuatro paredes y techo. Es tu primera fuente estable de ingresos.</span></div>
+          <div class="guide-item"><b>Casa completa · $1.000</b><span>Añade puerta, lámpara y horno para subir el pago nocturno.</span></div>
+          <div class="guide-item"><b>Banco</b><span>Los ahorros ganan 5% por noche. Las deudas crecen 10%.</span></div>
+          <div class="guide-item"><b>Misiones y mates</b><span>Tres misiones diarias y cinco desafíos de mates financian tus mejoras.</span></div>
+          <div class="guide-item"><b>Huerto diverso</b><span>Combina dos o más cultivos cercanos para que crezcan 25% más rápido. Cosecha con E.</span></div>
+          <div class="guide-item"><b>Construcción con variantes</b><span>Madera, roca, techos y ventanas tienen acabados. Selecciona la pieza y pulsa R.</span></div>
+          <div class="guide-item"><b>Ciudad viva</b><span>Los habitantes deciden si pasean, conversan, compran, buscan refugio o vuelven a casa. En los estadios se disputan partidos completos.</span></div>
+          <div class="guide-item"><b>Medio juego</b><span>Perro, láser, segundo piso, moto y heladera se desbloquean con el total ganado.</span></div>
+          <div class="guide-item"><b>Otros planetas</b><span>Compra trajes y cohete. Lleva provisiones en los cajones antes de despegar.</span></div>
+        </div>
+      </section>
+      <section class="guide-panel" data-guide-panel="codex">
+        <h3>Códice de criaturas</h3>
+        <p>La colección registra cada enemigo descubierto. La primera derrota de cada especie entrega un bono.</p>
+        <div id="bestiary" style="font-size:13px; line-height:1.8;"></div>
+      </section>
+      <div class="guide-actions">
+        <button class="btn secondary" id="touchToggle">CONTROLES TÁCTILES</button>
+        <button class="btn" id="helpClose">VOLVER AL JUEGO</button>
+      </div>
     </div>
-    <h3 style="margin:16px 0 4px; color:#fbbf24;">💰 Cómo ganar dinero</h3>
-    <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.5; opacity:.92;">
-      <li>Construye una <b>casa simple</b> (4 paredes + techo) = <b>$300</b></li>
-      <li>Construye una <b>casa completa</b> (paredes + puerta + techo + lámpara + horno) = <b>$1000</b></li>
-      <li><b>Vende</b> tu casa completa a un aldeano (tecla E cerca de él) = <b>$1500</b></li>
-      <li>Encuentra la <b>casa secreta</b> y agarra el oro (tecla E) = <b>$1000</b></li>
-      <li>Roba en los <b>estadios</b> (tecla E)… ¡pero cuidado con la policía!</li>
-      <li>🧮 Resuelve <b>desafíos de mates</b> (tecla U / botón 🧮) = <b>$100-$400</b> cada uno, 5 al día</li>
-    </ul>
-    <h3 style="margin:16px 0 4px; color:#f87171;">👾 Monstruos por etapa (se acumulan)</h3>
-    <ul style="margin:0; padding-left:18px; font-size:13px; line-height:1.5; opacity:.92;">
-      <li><b>Etapa 1:</b> zombis · <b>2:</b> zombis con armadura · <b>3:</b> zombis inteligentes (abren puertas) · <b>4:</b> inteligentes con armadura</li>
-      <li><b>Etapa 5:</b> toros (comandante que manda embestidas) · <b>6-9:</b> toros con armadura</li>
-      <li><b>Etapa 10:</b> topos (también de noche) · <b>11:</b> topo jefe (llama a sus topitos)</li>
-      <li><b>Etapa 15:</b> hormiga (te <b>envenena</b>) · <b>Etapa 20:</b> monstruo volador (destruye techos)</li>
-      <li>Los monstruos de etapas anteriores <b>siguen apareciendo</b>: se van acumulando.</li>
-    </ul>
-    <p style="margin:14px 0 0; font-size:12px; opacity:.7;">¿No ves el joystick ni los botones en el celular? Actívalos aquí:</p>
-    <div id="bestiary" style="margin-top:12px; font-size:12px; line-height:1.8; opacity:.9;"></div>
-    <button class="btn" id="touchToggle" style="margin-top:8px; background:linear-gradient(90deg,#38bdf8,#0284c7);">📱 Controles táctiles</button>
-    <button class="btn" id="helpClose" style="margin-top:12px;">CERRAR (I)</button>
   </div>
 </div>
 
@@ -630,15 +760,20 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground);
 
-// ---------- Cámara en primera persona ----------
-const player = camera;
+// ---------- Jugador + cámara con vistas estilo voxel ----------
+// El jugador es un ancla independiente: así la cámara puede alejarse sin cambiar
+// la posición usada por colisiones, IA, vehículos e interacciones.
+const player = new THREE.Object3D();
 scene.add(player);
+scene.add(camera);
 const PLAYER_EYE = 1.7;
 camera.rotation.order = 'YXZ';
 let yaw = 0, pitch = 0;
 const LOOK_SENS = 0.0025;
 let vy = 0, grounded = true;        // salto/gravedad
 const CROUCH_EYE = 1.0;
+let cameraMode = 0;                 // 0 primera persona · 1 tercera trasera · 2 tercera frontal
+const CAMERA_NAMES = ['Primera persona', 'Tercera persona', 'Vista frontal'];
 
 // Brazo/puño tipo Minecraft en primera persona (no se puede ver al revés)
 function makeViewmodel() {
@@ -679,6 +814,59 @@ function makePerson(colorBody, colorHead) {
   const legR = limb(pants, 0.28, 0.85, 0.32,  0.2, 0.9);
   g.userData.limbs = { armL, armR, legL, legR };
   return g;
+}
+
+// Cuerpo visible del jugador para las dos cámaras externas.
+const playerAvatar = makePerson(0x3f6212, 0xe0ac69);
+playerAvatar.visible = false;
+scene.add(playerAvatar);
+const cameraAim = new THREE.Vector3(), cameraDesired = new THREE.Vector3(), cameraOffset = new THREE.Vector3();
+
+function cycleCameraMode() {
+  cameraMode = (cameraMode + 1) % CAMERA_NAMES.length;
+  viewmodel.visible = cameraMode === 0;
+  playerAvatar.visible = cameraMode !== 0 && !state.cinematic;
+  toast('📷 ' + CAMERA_NAMES[cameraMode]);
+}
+
+function getAimDirection(out) {
+  if (cameraMode === 2 && !state.cinematic) {
+    out.set(-Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)).normalize();
+    return out;
+  }
+  return camera.getWorldDirection(out);
+}
+
+function updatePlayerCamera(dt) {
+  if (state.cinematic) { playerAvatar.visible = false; viewmodel.visible = false; return; }
+  viewmodel.visible = cameraMode === 0;
+  playerAvatar.visible = cameraMode !== 0 && !state.driving && !state.riding;
+  if (cameraMode === 0) {
+    camera.position.copy(player.position);
+    camera.rotation.set(pitch, yaw, 0);
+    return;
+  }
+
+  playerAvatar.position.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
+  playerAvatar.rotation.y = yaw;
+  swingLimbs(playerAvatar, dt || 0.016);
+
+  cameraAim.set(player.position.x, player.position.y - 0.25, player.position.z);
+  const horizontal = 4.8 * Math.cos(pitch * 0.45);
+  const side = cameraMode === 1 ? 1 : -1;
+  cameraOffset.set(Math.sin(yaw) * horizontal * side, 1.5 + Math.sin(-pitch) * 2.2, Math.cos(yaw) * horizontal * side);
+  cameraDesired.copy(cameraAim).add(cameraOffset);
+
+  // Acerca la cámara cuando una pared queda entre ella y el personaje, sin lanzar
+  // rayos contra cada malla del mundo en todos los frames.
+  for (let i = 2; i <= 14; i++) {
+    const t = i / 14, sx = THREE.MathUtils.lerp(cameraAim.x, cameraDesired.x, t), sz = THREE.MathUtils.lerp(cameraAim.z, cameraDesired.z, t);
+    if (obstacles.some(o => sx > o.minX - .18 && sx < o.maxX + .18 && sz > o.minZ - .18 && sz < o.maxZ + .18)) {
+      cameraDesired.lerpVectors(cameraAim, cameraDesired, Math.max(.12, (i - 1) / 14)); break;
+    }
+  }
+  camera.position.lerp(cameraDesired, 1 - Math.exp(-14 * Math.min(dt || 0.016, 0.05)));
+  camera.lookAt(cameraAim);
 }
 function makeSign(text, color) {
   const cv = document.createElement('canvas');
@@ -802,7 +990,10 @@ const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'pollo',    name: 'Pollo',        price: 110, color: 0xe8c170, eat: 45 },
   { key: 'manzana',  name: 'Manzana',      price: 60,  color: 0xef4444, eat: 25 },
   { key: 'coca',     name: 'Coca-Cola',    price: 80,  color: 0xdc2626, eat: 20 },
-  { key: 'semillas', name: 'Semillas manzana (x10)', price: 60, color: 0x7c9a3b },
+  { key: 'semillas', name: 'Semillas de manzana (x10)', price: 60, color: 0x7c9a3b, seedType: 'apple', seedCount: 10 },
+  { key: 'semillas_zanahoria', name: 'Semillas de zanahoria (x8)', price: 90, color: 0xf97316, seedType: 'carrot', seedCount: 8 },
+  { key: 'semillas_trigo', name: 'Semillas de trigo (x8)', price: 110, color: 0xeab308, seedType: 'wheat', seedCount: 8 },
+  { key: 'semillas_tomate', name: 'Semillas de tomate (x6)', price: 140, color: 0xef4444, seedType: 'tomato', seedCount: 6 },
   { key: 'dadgun',   name: 'Arma papa',    price: 400, color: 0xf59e0b },
   { key: 'dadarmor', name: 'Armadura papa', price: 800, color: 0x64748b },
   { key: 'hijoarma',     name: 'Arma para hijos',     price: 600, color: 0xf59e0b },
@@ -899,6 +1090,10 @@ function makeProductMesh(key, color) {
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.15), mat(0x6b4423)); stem.position.y = 0.7; g.add(stem);
   } else if (key === 'coca') {
     const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.6), mat(color)); bottle.position.y = 0.45; bottle.castShadow = true; g.add(bottle);
+  } else if (key.startsWith('semillas')) {
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.62, 0.22), mat(0xd6c39a)); bag.position.y = 0.42; bag.castShadow = true; g.add(bag);
+    const mark = new THREE.Mesh(new THREE.CircleGeometry(0.12, 10), mat(color)); mark.position.set(0, 0.45, 0.12); g.add(mark);
+    const sprout = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 5), mat(0x3f9b45)); sprout.position.y = 0.86; g.add(sprout);
   } else if (key.startsWith('espada')) {
     const blade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.9, 0.04), mat(color)); blade.position.y = 0.7; blade.castShadow = true; g.add(blade);
     const guard = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.1, 0.1), mat(0x6b4423)); guard.position.y = 0.3; g.add(guard);
@@ -949,10 +1144,10 @@ function makeStore(cx, cz, items, title, roofColor) {
   addWallMesh(cx - hw / 2 - 1.5, cz + hd, hw - 3, T, H, wallC, true);
   addWallMesh(cx + hw / 2 + 1.5, cz + hd, hw - 3, T, H, wallC, true);
   const sign = makeSign(title, 0xfacc15); sign.position.set(cx, 6, cz + hd); scene.add(sign);
-  const cols = [cx - 7, cx - 3.5, cx, cx + 3.5, cx + 7];
+  const cols = [cx - 8.4, cx - 6, cx - 3.6, cx - 1.2, cx + 1.2, cx + 3.6, cx + 6, cx + 8.4];
   const rows = [cz - 6, cz, cz + 6];
   items.forEach((item, idx) => {
-    const x = cols[idx % 5], z = rows[Math.floor(idx / 5)];
+    const x = cols[idx % cols.length], z = rows[Math.floor(idx / cols.length)];
     item.pos = new THREE.Vector3(x, 0, z);
     const table = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 1.6), mat(0x94a3b8));
     table.position.set(x, 0.5, z); table.castShadow = true; scene.add(table);
@@ -1024,7 +1219,7 @@ function buildCity() {
   for (let i = 0; i < 14; i++) {
     const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
     n.position.set(-85 + Math.random() * 50, 0, 24 + Math.random() * 54);
-    n.userData.wanderT = 0; n.userData.dir = Math.random() * Math.PI * 2;
+    initCitizenBrain(n, new THREE.Vector3(-60, 0, 51), 28);
     scene.add(n); npcs.push(n);
   }
 }
@@ -1045,7 +1240,7 @@ function buildNeighborhood(cx, cz, houses, npcCount) {
   for (let i = 0; i < npcCount; i++) {
     const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
     n.position.set(cx + (Math.random() * 36 - 18), 0, cz + (Math.random() * 36 - 18));
-    n.userData.wanderT = 0; n.userData.dir = Math.random() * Math.PI * 2;
+    initCitizenBrain(n, new THREE.Vector3(cx, 0, cz), 20);
     scene.add(n); npcs.push(n);
   }
 }
@@ -1079,15 +1274,88 @@ loadBuilding('assets/edificio.glb', -30, 40, 14);
 loadBuilding('assets/edificio.glb', -30, 20, 12);
 loadBuilding('assets/tienda.glb', -30, 58, 6);
 loadBuilding('assets/tienda.glb', -52, 16, 6);
+function initCitizenBrain(n, center, radius) {
+  n.userData.brain = {
+    home: center.clone(), radius: radius || 18, goal: n.position.clone(), activity: 'idle',
+    thinkIn: Math.random() * 2, wait: Math.random() * 1.5, speed: .9 + Math.random() * .45,
+    sociable: Math.random() > .25, targetPerson: null,
+  };
+}
+function citizenPointBlocked(x, z) {
+  if (Math.abs(x) > 228 || Math.abs(z) > 228) return true;
+  return obstacles.some(o => x > o.minX - .48 && x < o.maxX + .48 && z > o.minZ - .48 && z < o.maxZ + .48);
+}
+function chooseCitizenGoal(n) {
+  const b = n.userData.brain;
+  if (state.phase === 'NIGHT' || state.weather === 'rain') {
+    b.activity = state.phase === 'NIGHT' ? 'goingHome' : 'shelter';
+    b.goal.copy(b.home); b.wait = 0; b.targetPerson = null; return;
+  }
+  if (state.wanted > 0 && dist2D(n.position, player.position) < 22) {
+    const dx = n.position.x - player.position.x, dz = n.position.z - player.position.z, len = Math.hypot(dx, dz) || 1;
+    b.activity = 'flee'; b.goal.set(n.position.x + dx / len * 14, 0, n.position.z + dz / len * 14); b.wait = 0; return;
+  }
+  const roll = Math.random();
+  if (roll < .18) {
+    b.activity = 'idle'; b.goal.copy(n.position); b.wait = 1.5 + Math.random() * 3; b.targetPerson = null;
+  } else if (roll < .38 && b.sociable && npcs.length > 1) {
+    const candidates = npcs.filter(o => o !== n && o.visible && dist2D(o.position, n.position) < 18);
+    const friend = candidates[(Math.random() * candidates.length) | 0];
+    if (friend) { b.activity = 'socialize'; b.targetPerson = friend; b.goal.copy(friend.position); b.wait = 2 + Math.random() * 3; }
+    else b.thinkIn = 0;
+  } else if (roll < .52 && keepers.length) {
+    let shop = keepers[0]; for (const k of keepers) if (dist2D(k, n.position) < dist2D(shop, n.position)) shop = k;
+    b.activity = 'shop'; b.goal.set(shop.x + (Math.random() - .5) * 4, 0, shop.z + 3 + Math.random() * 3); b.wait = 2 + Math.random() * 4; b.targetPerson = null;
+  } else {
+    b.activity = 'stroll'; b.targetPerson = null; b.wait = 0;
+    for (let tries = 0; tries < 8; tries++) {
+      const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * b.radius;
+      const x = b.home.x + Math.cos(a) * r, z = b.home.z + Math.sin(a) * r;
+      if (!citizenPointBlocked(x, z)) { b.goal.set(x, 0, z); break; }
+    }
+  }
+  b.thinkIn = 2.5 + Math.random() * 4;
+}
 function updateNPCs(dt) {
-  if (state.phase === 'NIGHT') return;   // de noche los habitantes duermen
+  if (state.planet !== 'tierra') return;
   for (const n of npcs) {
-    n.userData.wanderT -= dt;
-    if (n.userData.wanderT <= 0) { n.userData.dir = Math.random() * Math.PI * 2; n.userData.wanderT = 2 + Math.random() * 3; }
-    n.position.x += Math.sin(n.userData.dir) * 0.6 * dt;
-    n.position.z += Math.cos(n.userData.dir) * 0.6 * dt;
-    n.rotation.y = n.userData.dir;
-    swingLimbs(n, dt);
+    if (!n.userData.brain) initCitizenBrain(n, n.position.clone(), 18);
+    const b = n.userData.brain;
+    b.thinkIn -= dt;
+    if (state.phase === 'DAY' && !n.visible) { n.visible = true; b.thinkIn = 0; }
+    if (state.wanted > 0 && dist2D(n.position, player.position) < 15 && b.activity !== 'flee') b.thinkIn = 0;
+    if ((state.phase === 'NIGHT' && b.activity !== 'goingHome') || b.thinkIn <= 0) chooseCitizenGoal(n);
+
+    if (b.activity === 'socialize' && b.targetPerson) {
+      b.goal.copy(b.targetPerson.position); b.goal.x += 1.15;
+      if (dist2D(n.position, b.goal) < 1.4) { n.rotation.y = Math.atan2(b.targetPerson.position.x - n.position.x, b.targetPerson.position.z - n.position.z); b.wait -= dt; }
+    }
+    const distance = dist2D(n.position, b.goal);
+    let moved = false;
+    if (distance > .7 && b.wait <= 0) {
+      let dx = (b.goal.x - n.position.x) / distance, dz = (b.goal.z - n.position.z) / distance;
+      // Separación corta: evita que los peatones se atraviesen o formen una sola masa.
+      for (const other of npcs) if (other !== n && other.visible) {
+        const d = dist2D(n.position, other.position);
+        if (d > .01 && d < 1.25) { dx += (n.position.x - other.position.x) / d * .7; dz += (n.position.z - other.position.z) / d * .7; }
+      }
+      const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
+      const speed = b.speed * (b.activity === 'flee' ? 2.8 : 1), step = speed * dt;
+      let nx = n.position.x + dx * step, nz = n.position.z + dz * step;
+      if (citizenPointBlocked(nx, nz)) {
+        const sx = n.position.x - dz * step, sz = n.position.z + dx * step;
+        if (!citizenPointBlocked(sx, sz)) { nx = sx; nz = sz; }
+        else { b.thinkIn = 0; nx = n.position.x; nz = n.position.z; }
+      }
+      moved = nx !== n.position.x || nz !== n.position.z;
+      n.position.set(nx, 0, nz); n.rotation.y = Math.atan2(dx, dz);
+    } else {
+      b.wait -= dt;
+      if (b.wait <= 0 && distance <= .7) b.thinkIn = 0;
+    }
+    if (state.phase === 'NIGHT' && dist2D(n.position, b.home) < 1.2) n.visible = false;
+    if (moved) swingLimbs(n, dt); else swingLimbs(n, 0);
+    n.userData.activity = b.activity;
   }
 }
 
@@ -1097,6 +1365,8 @@ function updateNPCs(dt) {
 const victims = [];     // gente sentada en los estadios (les puedes robar)
 const stadiums = [];    // centros (para el mini-mapa)
 const soccer = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0, scoreRed: 0, scoreBlue: 0 };   // partido de fútbol
+const basketball = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0, holder: null, shotTeam: null, scoreRed: 0, scoreBlue: 0, resetIn: 0 };
+const tennis = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0, server: 0, lastHit: 1, bounceSide: null, bounces: 0, points: [0, 0], games: [0, 0], serveIn: 1 };
 // Marcador gigante: dibuja "ROJO x - y AZUL" en un canvas y lo pone en una pantalla sobre la cancha
 function updateScoreboard() {
   if (!soccer.scoreCtx) return;
@@ -1105,7 +1375,7 @@ function updateScoreboard() {
   ctx.font = 'bold 44px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#f87171'; ctx.fillText('ROJOS', 120, 55);
   ctx.fillStyle = '#60a5fa'; ctx.fillText('AZULES', 392, 55);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 96px sans-serif';
+  ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 96px sans-serif';
   ctx.fillText(soccer.scoreRed + '  -  ' + soccer.scoreBlue, 256, 135);
   soccer.scoreTex.needsUpdate = true;
 }
@@ -1128,10 +1398,12 @@ function makeStadium(cx, cz, fieldColor, name) {
     scene.add(v); victims.push(v);
   }
   if (name === 'FUTBOL') setupSoccer(cx, cz);
+  else if (name === 'BASQUET') setupBasketball(cx, cz);
+  else if (name === 'TENIS') setupTennis(cx, cz);
   stadiums.push(new THREE.Vector3(cx, 0, cz));
 }
 
-// Partido de fútbol decorativo: 2 arcos, una pelota y jugadores que la persiguen
+// Partido de fútbol 2 vs 2: posiciones, pases, tiros, defensa y goles reales.
 function setupSoccer(cx, cz) {
   soccer.cx = cx; soccer.cz = cz;
   // pantalla gigante del marcador, arriba de una gradería
@@ -1142,7 +1414,7 @@ function setupSoccer(cx, cz) {
   board.position.set(cx, 6.5, cz - 9); scene.add(board);
   const frame = new THREE.Mesh(new THREE.BoxGeometry(10.6, 4.6, 0.2), mat(0x111827)); frame.position.set(cx, 6.5, cz - 9.15); scene.add(frame);
   updateScoreboard();
-  const postMat = mat(0xffffff);
+  const postMat = mat(0xf8fafc);
   // dos arcos (porterías) en los extremos del campo (eje x)
   [-9, 9].forEach(gx => {
     const goal = new THREE.Group();
@@ -1169,11 +1441,11 @@ function setupSoccer(cx, cz) {
   }
 }
 function updateSoccer(dt) {
-  if (!soccer.ball) return;
+  if (!soccer.ball || state.phase !== 'DAY' || state.planet !== 'tierra') return;
   const ball = soccer.ball, b = ball.position;
   // mover pelota y frenarla por roce
   b.x += soccer.vel.x * dt; b.z += soccer.vel.z * dt;
-  soccer.vel.multiplyScalar(0.97);
+  soccer.vel.multiplyScalar(Math.exp(-1.8 * dt));
   // rebotar en los límites del campo (campo 20x14 -> media 9.5 x 6.5 dejando margen)
   if (b.x < soccer.cx - 9) { b.x = soccer.cx - 9; soccer.vel.x = Math.abs(soccer.vel.x); }
   if (b.x > soccer.cx + 9) { b.x = soccer.cx + 9; soccer.vel.x = -Math.abs(soccer.vel.x); }
@@ -1216,6 +1488,144 @@ function updateSoccer(dt) {
     if (b.x >= soccer.cx + 9 - 0.3) soccer.scoreRed++; else soccer.scoreBlue++;   // arco derecho = gol rojo; izquierdo = gol azul
     updateScoreboard();
     b.set(soccer.cx, 0.35, soccer.cz); soccer.vel.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
+  }
+}
+
+function makeSportScoreboard(cx, cz) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 180;
+  const tex = new THREE.CanvasTexture(cv);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(9.6, 3.7, .22), mat(0x111827)); frame.position.set(cx, 6.3, cz - 9.12); scene.add(frame);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(9.2, 3.3), new THREE.MeshBasicMaterial({ map: tex })); board.position.set(cx, 6.3, cz - 9); scene.add(board);
+  return { cv, ctx: cv.getContext('2d'), tex };
+}
+function drawTeamScore(board, title, left, right, subtitle) {
+  const c = board.ctx; c.fillStyle = '#0b1220'; c.fillRect(0, 0, 512, 180);
+  c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = 'bold 34px sans-serif'; c.fillStyle = '#facc15'; c.fillText(title, 256, 30);
+  c.font = 'bold 36px sans-serif'; c.fillStyle = '#f87171'; c.fillText('ROJOS', 112, 75); c.fillStyle = '#60a5fa'; c.fillText('AZULES', 400, 75);
+  c.font = 'bold 72px sans-serif'; c.fillStyle = '#f8fafc'; c.fillText(left + '  -  ' + right, 256, 124);
+  if (subtitle) { c.font = 'bold 18px sans-serif'; c.fillStyle = '#cbd5e1'; c.fillText(subtitle, 256, 164); }
+  board.tex.needsUpdate = true;
+}
+
+function setupBasketball(cx, cz) {
+  basketball.cx = cx; basketball.cz = cz; basketball.board = makeSportScoreboard(cx, cz);
+  const metal = mat(0xe2e8f0), rimMat = mat(0xf97316);
+  [-8.5, 8.5].forEach((gx, side) => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.1, .14, 3.2, 8), metal); pole.position.set(cx + gx, 1.6, cz); scene.add(pole);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(.18, 2.1, 3), mat(0xf1f5f9)); back.position.set(cx + gx - (side ? .15 : -.15), 3.15, cz); scene.add(back);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(.48, .07, 7, 18), rimMat); rim.rotation.y = Math.PI / 2; rim.position.set(cx + gx + (side ? -.55 : .55), 2.75, cz); scene.add(rim);
+  });
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 12), new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: .9 })); ball.castShadow = true; scene.add(ball); basketball.ball = ball;
+  const roster = [
+    { team: 0, dir: 1, role: 'guard', x: -3, z: -2 }, { team: 0, dir: 1, role: 'forward', x: -1, z: 2 },
+    { team: 1, dir: -1, role: 'guard', x: 3, z: 2 }, { team: 1, dir: -1, role: 'forward', x: 1, z: -2 },
+  ];
+  for (const r of roster) {
+    const p = makePerson(r.team ? 0x2563eb : 0xdc2626, 0xf1c27d); p.scale.set(.9, .9, .9); p.position.set(cx + r.x, 0, cz + r.z);
+    Object.assign(p.userData, r, { decisionIn: .5 + Math.random(), homeZ: cz + r.z }); scene.add(p); basketball.players.push(p);
+  }
+  basketball.holder = basketball.players[0]; basketball.ball.position.set(cx - 2.5, 1, cz - 2); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
+}
+function resetBasketball(team) {
+  basketball.holder = basketball.players.find(p => p.userData.team === team && p.userData.role === 'guard');
+  basketball.shotTeam = null; basketball.vel.set(0, 0, 0); basketball.resetIn = .7;
+  basketball.ball.position.set(basketball.cx + (team ? 2.5 : -2.5), 1, basketball.cz);
+}
+function shootBasket(holder) {
+  const dir = holder.userData.dir, targetX = basketball.cx + dir * 7.95;
+  const dx = targetX - basketball.ball.position.x, dz = basketball.cz - basketball.ball.position.z, time = Math.max(.75, Math.abs(dx) / 7.2);
+  basketball.vel.set(dx / time, (2.75 - basketball.ball.position.y + 4.9 * time * time) / time, dz / time);
+  basketball.shotTeam = holder.userData.team; basketball.holder = null;
+}
+function updateBasketball(dt) {
+  const b = basketball; if (!b.ball || state.phase !== 'DAY' || state.planet !== 'tierra') return;
+  if (b.resetIn > 0) { b.resetIn -= dt; return; }
+  if (b.holder) {
+    const h = b.holder, ud = h.userData, hoopX = b.cx + ud.dir * 8;
+    let nearestDef = null, nd = 99;
+    for (const p of b.players) if (p.userData.team !== ud.team) { const d = dist2D(p.position, h.position); if (d < nd) { nd = d; nearestDef = p; } }
+    ud.decisionIn -= dt;
+    if (Math.abs(hoopX - h.position.x) < 3.4 && ud.decisionIn <= 0) { shootBasket(h); ud.decisionIn = 1; }
+    else if (nd < 1.45 && ud.decisionIn <= 0) {
+      const mate = b.players.find(p => p !== h && p.userData.team === ud.team);
+      if (mate) { b.holder = mate; ud.decisionIn = 1.3; mate.userData.decisionIn = .5; }
+    }
+    if (b.holder === h) {
+      const target = new THREE.Vector3(hoopX - ud.dir * 2.2, 0, THREE.MathUtils.clamp(ud.homeZ, b.cz - 4.8, b.cz + 4.8));
+      if (dist2D(h.position, target) > .5) moveToward(h, target, 2.8 * dt);
+      b.ball.position.set(h.position.x + ud.dir * .38, .55 + Math.abs(Math.sin(performance.now() * .009)) * .75, h.position.z); b.ball.rotation.z += dt * 8;
+    }
+    // Robo si el defensor llega bien posicionado.
+    if (nearestDef && nd < .72 && Math.random() < dt * .45) { b.holder = nearestDef; nearestDef.userData.decisionIn = .7; }
+  } else {
+    b.vel.y -= 9.8 * dt; b.ball.position.addScaledVector(b.vel, dt); b.ball.rotation.z += b.vel.x * dt * 2;
+    const targetX = b.cx + (b.shotTeam === 0 ? 7.95 : -7.95);
+    if (Math.abs(b.ball.position.x - targetX) < .42 && Math.abs(b.ball.position.z - b.cz) < .62 && b.ball.position.y > 2.35 && b.ball.position.y < 3.25) {
+      if (b.shotTeam === 0) b.scoreRed += 2; else b.scoreBlue += 2;
+      drawTeamScore(b.board, 'BASQUET', b.scoreRed, b.scoreBlue, 'CANASTA DE 2'); resetBasketball(b.shotTeam ? 0 : 1);
+    } else if (b.ball.position.y < .3 || Math.abs(b.ball.position.x - b.cx) > 10 || Math.abs(b.ball.position.z - b.cz) > 7) resetBasketball(b.shotTeam ? 0 : 1);
+  }
+  for (const p of b.players) {
+    if (p !== b.holder) {
+      const mate = b.holder && p.userData.team === b.holder.userData.team;
+      const targetX = mate ? b.holder.position.x - p.userData.dir * 2.4 : (b.holder ? b.holder.position.x + p.userData.dir * .8 : b.ball.position.x);
+      const targetZ = mate ? p.userData.homeZ : (b.holder ? b.holder.position.z + (p.userData.role === 'guard' ? 1.1 : -1.1) : b.ball.position.z);
+      const target = new THREE.Vector3(THREE.MathUtils.clamp(targetX, b.cx - 7, b.cx + 7), 0, THREE.MathUtils.clamp(targetZ, b.cz - 5, b.cz + 5));
+      if (dist2D(p.position, target) > .65) moveToward(p, target, 3.2 * dt);
+    }
+    const look = p === b.holder ? new THREE.Vector3(b.cx + p.userData.dir * 8, 0, b.cz) : (b.holder ? b.holder.position : b.ball.position);
+    p.rotation.y = Math.atan2(look.x - p.position.x, look.z - p.position.z); swingLimbs(p, dt);
+  }
+}
+
+function setupTennis(cx, cz) {
+  tennis.cx = cx; tennis.cz = cz; tennis.board = makeSportScoreboard(cx, cz);
+  const net = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.05, 11), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, transparent: true, opacity: .72 })); net.position.set(cx, .55, cz); scene.add(net);
+  for (let side = 0; side < 2; side++) {
+    const p = makePerson(side ? 0x2563eb : 0xdc2626, 0xf1c27d); p.scale.set(.9, .9, .9); p.position.set(cx + (side ? 4.7 : -4.7), 0, cz); p.userData.side = side;
+    const racket = new THREE.Mesh(new THREE.TorusGeometry(.28, .055, 6, 12), mat(0xfacc15)); racket.rotation.y = Math.PI / 2; racket.position.set(side ? -.58 : .58, 1.45, 0); p.add(racket);
+    scene.add(p); tennis.players.push(p);
+  }
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(.17, 10, 8), new THREE.MeshStandardMaterial({ color: 0xd9f99d, emissive: 0x365314, emissiveIntensity: .2 })); ball.castShadow = true; ball.position.set(cx - 4.5, 1.2, cz); scene.add(ball); tennis.ball = ball;
+  drawTennisScore();
+}
+function tennisLabel(p) { return p === 0 ? '0' : p === 1 ? '15' : p === 2 ? '30' : p === 3 ? '40' : 'AD'; }
+function drawTennisScore() { drawTeamScore(tennis.board, 'TENIS', tennisLabel(tennis.points[0]), tennisLabel(tennis.points[1]), 'JUEGOS ' + tennis.games[0] + ' - ' + tennis.games[1]); }
+function tennisPoint(winner) {
+  tennis.points[winner]++;
+  const loser = 1 - winner;
+  if (tennis.points[winner] >= 4 && tennis.points[winner] - tennis.points[loser] >= 2) { tennis.games[winner]++; tennis.points = [0, 0]; }
+  else if (tennis.points[0] >= 4 && tennis.points[1] >= 4) { tennis.points[0]--; tennis.points[1]--; }   // vuelve a deuce
+  tennis.server = 1 - tennis.server; tennis.serveIn = 1.1; tennis.vel.set(0, 0, 0); tennis.bounces = 0; tennis.bounceSide = null;
+  drawTennisScore();
+}
+function serveTennis() {
+  const t = tennis, p = t.players[t.server], dir = t.server === 0 ? 1 : -1;
+  t.ball.position.set(p.position.x + dir * .55, 1.25, p.position.z); t.vel.set(dir * 7.6, 5.4, (Math.random() - .5) * 2.2); t.lastHit = t.server; t.bounces = 0; t.bounceSide = null;
+}
+function updateTennis(dt) {
+  const t = tennis; if (!t.ball || state.phase !== 'DAY' || state.planet !== 'tierra') return;
+  if (t.serveIn > 0) { t.serveIn -= dt; if (t.serveIn <= 0) serveTennis(); return; }
+  const previousX = t.ball.position.x;
+  t.vel.y -= 9.8 * dt; t.ball.position.addScaledVector(t.vel, dt);
+  if ((previousX - t.cx) * (t.ball.position.x - t.cx) <= 0 && t.ball.position.y < 1.08) { tennisPoint(1 - t.lastHit); return; }
+  const sideNow = t.ball.position.x < t.cx ? 0 : 1;
+  if (t.ball.position.y <= .2) {
+    t.ball.position.y = .2; t.vel.y = Math.abs(t.vel.y) * .72;
+    if (t.bounceSide === sideNow) t.bounces++; else { t.bounceSide = sideNow; t.bounces = 1; }
+    if (t.bounces > 1) { tennisPoint(1 - sideNow); return; }
+  }
+  if (Math.abs(t.ball.position.x - t.cx) > 9.6 || Math.abs(t.ball.position.z - t.cz) > 6.2 || t.ball.position.y < -1) { tennisPoint(1 - t.lastHit); return; }
+  for (const p of t.players) {
+    const side = p.userData.side, ownX = t.cx + (side ? 4.6 : -4.6);
+    const target = new THREE.Vector3(ownX, 0, THREE.MathUtils.clamp(t.ball.position.z, t.cz - 4.5, t.cz + 4.5));
+    if (dist2D(p.position, target) > .25) moveToward(p, target, 4.4 * dt);
+    p.rotation.y = Math.atan2(t.ball.position.x - p.position.x, t.ball.position.z - p.position.z); swingLimbs(p, dt);
+    const approaching = side === 0 ? t.vel.x < 0 : t.vel.x > 0;
+    if (sideNow === side && approaching && dist2D(p.position, t.ball.position) < 1.25 && t.ball.position.y < 2.5) {
+      const dir = side === 0 ? 1 : -1, targetZ = t.cz + (Math.random() - .5) * 7;
+      t.vel.set(dir * (7.5 + Math.random() * 1.8), 5 + Math.random(), (targetZ - t.ball.position.z) * 1.15); t.lastHit = side; t.bounces = 0; t.bounceSide = null;
+    }
   }
 }
 function buildStadiums() {
@@ -1590,7 +2000,7 @@ function spawnPedestrians() {
   for (const [x, z] of spots) {
     const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][(Math.random() * 5) | 0], 0xf1c27d);
     n.position.set(x + (Math.random() * 4 - 2), 0, z + (Math.random() * 4 - 2));
-    n.userData.wanderT = 0; n.userData.dir = Math.random() * Math.PI * 2;
+    initCitizenBrain(n, n.position.clone(), 18);
     scene.add(n); npcs.push(n);
   }
 }
@@ -1922,7 +2332,7 @@ function giveCastleGift(pos) {
   coinBurst(pos, 6); beep(760, 0.1, 0.05); discoverAlien('castleFriend');
 }
 function attackCastleFoe() {   // pegarle a un alien malo del castillo (👊/clic o láser)
-  const p = player.position, dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
   const range = state.laserGun ? 30 : 5; let best = null, bd = range;
   for (const f of castleFoes) { if (!f.alive) continue; const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
@@ -2061,7 +2471,7 @@ function defeatTitan() {
 }
 function hitTitan(dmg) {
   if (!titan) return false;
-  const p = player.position, dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
   const range = state.laserGun ? 34 : 6;
   if (dist2D(p, titan.mesh.position) > range) return false;
   const to = new THREE.Vector3().subVectors(titan.mesh.position, p).normalize();
@@ -2132,7 +2542,7 @@ function tryColiseum() {
   return true;
 }
 function hitArenaFoe() {
-  const p = player.position, dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
   const range = state.laserGun ? 30 : 5; let best = null, bd = range;
   for (const f of arenaFoes) { const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
@@ -2552,8 +2962,44 @@ const BUILD_CATS = {
 };
 let buildCat = 'casa';
 // Inventario inicial: 0 de cada cosa colocable + comida/semillas
-function freshInv() { const inv = { food: 0, semillas: 0, carbon: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
+function freshInv() { const inv = { food: 0, semillas: 0, semillas_zanahoria: 0, semillas_trigo: 0, semillas_tomate: 0, carbon: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
 let buildSel = 0, buildRot = 0;
+const BUILD_VARIANTS = {
+  wallWood: [
+    { id: 'roble', name: 'Roble claro', color: 0x9a6738 },
+    { id: 'troncos', name: 'Troncos', color: 0x704522 },
+    { id: 'nogal', name: 'Nogal oscuro', color: 0x49301f },
+  ],
+  wallRock: [
+    { id: 'granito', name: 'Granito', color: 0x7b8490 },
+    { id: 'pizarra', name: 'Pizarra', color: 0x3f4b59 },
+    { id: 'arenisca', name: 'Arenisca', color: 0xc9a66b },
+  ],
+  roof: [
+    { id: 'plano', name: 'Plano', color: 0x475569 },
+    { id: 'piramide', name: 'Piramidal', color: 0x8b3f32 },
+    { id: 'cobre', name: 'Cobre', color: 0x3f8f78 },
+  ],
+  window: [
+    { id: 'clara', name: 'Marco claro', color: 0x9fd0ff, frame: 0xe8eef5 },
+    { id: 'industrial', name: 'Industrial', color: 0x83b8d8, frame: 0x273444 },
+    { id: 'dorada', name: 'Marco dorado', color: 0xb8daf0, frame: 0xc8912e },
+  ],
+};
+const buildVariantIndex = {};
+function variantFor(key, id) {
+  const list = BUILD_VARIANTS[key]; if (!list) return null;
+  if (id) { const found = list.find(v => v.id === id); if (found) return found; }
+  return list[(buildVariantIndex[key] || 0) % list.length];
+}
+function currentBuildVariant() { return variantFor(BUILD_KEYS[buildSel]); }
+function cycleBuildVariant(delta) {
+  const key = BUILD_KEYS[buildSel], list = BUILD_VARIANTS[key];
+  if (!list) { toast('🎛️ Esta pieza no tiene variantes'); return; }
+  buildVariantIndex[key] = ((buildVariantIndex[key] || 0) + (delta || 1) + list.length) % list.length;
+  refreshGhost();
+  toast('🎛️ ' + SHOP.find(s => s.key === key).name + ': ' + currentBuildVariant().name);
+}
 const ghost = new THREE.Group(); scene.add(ghost); ghost.visible = false;
 let ghostMesh = null;
 // línea brillante debajo del objeto
@@ -2561,10 +3007,11 @@ const ghostLine = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.7, 24),
   new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
 ghostLine.rotation.x = -Math.PI / 2; ghostLine.position.y = 0.05; ghost.add(ghostLine);
 
-function objGeometry(key) {
+function objGeometry(key, variantId) {
+  const variant = variantFor(key, variantId);
   if (key === 'wallWood' || key === 'wallRock') return new THREE.BoxGeometry(4, 3, 0.4);
   if (key === 'door') return new THREE.BoxGeometry(1.5, 2.6, 0.18);   // tamaño de puerta normal
-  if (key === 'roof') return new THREE.BoxGeometry(5, 0.4, 5);
+  if (key === 'roof') return variant && variant.id === 'piramide' ? new THREE.ConeGeometry(3.7, 2, 4) : new THREE.BoxGeometry(5, 0.4, 5);
   if (key === 'lamp') return new THREE.CylinderGeometry(0.12, 0.12, 2.4);
   if (key === 'oven') return new THREE.BoxGeometry(1.2, 1.4, 1);
   if (key === 'ballesta' || key === 'torreta') return new THREE.BoxGeometry(0.8, 0.9, 1.2);
@@ -2580,21 +3027,22 @@ function objGeometry(key) {
   if (key === 'planta') return new THREE.CylinderGeometry(0.32, 0.42, 0.6);
   return new THREE.BoxGeometry(1, 1, 1);
 }
-function objColor(key) { return SHOP.find(s => s.key === key).color; }
+function objColor(key, variantId) { const variant = variantFor(key, variantId); return variant ? variant.color : SHOP.find(s => s.key === key).color; }
 const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
   window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4, heladera: 0.95 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
 // Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
-function objMaterial(key) {
-  if (key === 'window') return new THREE.MeshStandardMaterial({ color: 0x9fd0ff, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.15, emissive: 0x2a4a6a, emissiveIntensity: 0.25, side: THREE.DoubleSide });
+function objMaterial(key, variantId) {
+  if (key === 'window') return new THREE.MeshStandardMaterial({ color: objColor(key, variantId), transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.15, emissive: 0x2a4a6a, emissiveIntensity: 0.25, side: THREE.DoubleSide });
   if (key === 'planta') return mat(0x8b5e34);
-  return mat(objColor(key));
+  return mat(objColor(key, variantId));
 }
 
 function refreshGhost() {
   if (ghostMesh) ghost.remove(ghostMesh);
   const key = BUILD_KEYS[buildSel];
-  ghostMesh = new THREE.Mesh(objGeometry(key), new THREE.MeshStandardMaterial({ color: objColor(key), transparent: true, opacity: 0.5 }));
+  const variant = currentBuildVariant();
+  ghostMesh = new THREE.Mesh(objGeometry(key, variant && variant.id), new THREE.MeshStandardMaterial({ color: objColor(key, variant && variant.id), transparent: true, opacity: 0.5 }));
   ghostMesh.position.y = objY(key); ghost.add(ghostMesh);
 }
 refreshGhost();
@@ -2611,18 +3059,27 @@ function updateBuild() {
 }
 
 // Crea y coloca un objeto en (x,z) con rotación rot (reutilizado por placeObject y al cargar la partida)
-function spawnPlaced(key, x, z, rot, hp) {
-  const m = new THREE.Mesh(objGeometry(key), objMaterial(key));
+function spawnPlaced(key, x, z, rot, hp, variantId) {
+  const variant = variantFor(key, variantId);
+  const m = new THREE.Mesh(objGeometry(key, variant && variant.id), objMaterial(key, variant && variant.id));
   m.position.set(x, objY(key), z); m.rotation.y = rot;
   m.castShadow = true; m.receiveShadow = true; scene.add(m);
-  const obj = { mesh: m, key, hp: (hp != null ? hp : (key === 'wallRock' ? 200 : 100)) };
+  const obj = { mesh: m, key, variant: variant && variant.id, hp: (hp != null ? hp : (key === 'wallRock' ? 200 : 100)) };
   // ----- Muebles y decoración -----
   const legMat = mat(0x3f2a17);
   const legs = (hw, hd, len) => { for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len), legMat); l.position.set(sx * hw, -len / 2, sz * hd); m.add(l); } };
-  if (key === 'window') {   // marco blanco + cruz (el vidrio es transparente, se ve a través)
-    const fr = new THREE.MeshStandardMaterial({ color: 0xe8eef5, roughness: 0.7 });
+  if (key === 'window') {   // marco + cruz (el vidrio es transparente, se ve a través)
+    const fr = new THREE.MeshStandardMaterial({ color: variant && variant.frame ? variant.frame : 0xe8eef5, roughness: 0.7 });
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.22), fr); b.castShadow = true; b.position.set(x, y, 0); m.add(b); };
     bar(2.7, 0.22, 0, 1); bar(2.7, 0.22, 0, -1); bar(0.22, 2, -1.3, 0); bar(0.22, 2, 1.3, 0); bar(0.16, 2, 0, 0); bar(2.7, 0.16, 0, 0);
+  }
+  if (key === 'wallWood' && variant && variant.id === 'troncos') {
+    const seam = mat(0x3f2818);
+    for (let y = -1.2; y <= 1.2; y += 0.48) { const line = new THREE.Mesh(new THREE.BoxGeometry(3.92, 0.07, 0.45), seam); line.position.y = y; m.add(line); }
+  }
+  if (key === 'wallRock' && variant && variant.id === 'arenisca') {
+    const seam = mat(0x8f7046);
+    for (let y = -1; y <= 1; y += 0.65) { const line = new THREE.Mesh(new THREE.BoxGeometry(3.92, 0.05, 0.45), seam); line.position.y = y; m.add(line); }
   }
   if (key === 'cuadro') {
     const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), new THREE.MeshStandardMaterial({ color: 0x60a5fa })); pic.position.z = 0.06; m.add(pic);
@@ -2668,10 +3125,11 @@ function placeObject() {
   const key = BUILD_KEYS[buildSel];
   if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
   state.inv[key]--;
-  spawnPlaced(key, ghost.position.x, ghost.position.z, buildRot);
+  const variant = currentBuildVariant();
+  spawnPlaced(key, ghost.position.x, ghost.position.z, buildRot, null, variant && variant.id);
   const val = SHOP.find(s => s.key === key).value;
   addMoney(val);
-  toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + ' +$' + val);
+  toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + (variant ? ' · ' + variant.name : '') + ' +$' + val);
   checkConstructionBonus();
 }
 
@@ -3583,10 +4041,13 @@ let typing = false;   // true mientras el input del vendedor está abierto (bloq
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
 addEventListener('keydown', e => {
+  if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
+  if (e.code === 'Escape' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
   if (e.code === 'Escape' && ui('rocketbox').style.display === 'flex') { closeRocket(); return; }  // Esc cierra los cajones del cohete
   if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
+  if (e.code === 'F5' && state.running && !typing) { e.preventDefault(); cycleCameraMode(); return; }
   if (state.paused) return;   // en pausa el teclado no hace nada (solo Esc, arriba)
   if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
   keys[e.code] = true;
@@ -3595,7 +4056,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyY') { openShopInput(); return; }   // abrir vendedor (comprar escribiendo)
   if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
   if (e.code === 'KeyN') tryStartNight();
-  if (e.code === 'KeyB') { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Modo construir ON (1-5 elegir, F colocar, X borrar)' : 'Modo construir OFF'); }
+  if (e.code === 'KeyB') { state.buildMode = !state.buildMode; toast(state.buildMode ? '🔨 Construcción activa · rueda para elegir · F coloca · X quita' : 'Modo construir OFF'); }
   if (e.code === 'KeyP') buildRot = Math.PI / 2;
   if (e.code === 'KeyL') buildRot = 0;
   if (e.code === 'KeyF') { if (state.planet === 'platus' && !state.buildMode) makeCampfire(); else placeObject(); }   // en Platus (sin construir) F = FOGATA
@@ -3605,15 +4066,17 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyO') setDadMode('clean');
   if (e.code === 'KeyG') toggleDadArm();
   if (e.code === 'KeyH') spawnHelper();
-  if (e.code === 'KeyR') tryLaunchRocket();
+  if (e.code === 'KeyR') { if (state.buildMode) cycleBuildVariant(1); else tryLaunchRocket(); }
   if (e.code === 'KeyT') digHole();                                  // cavar con la pala
   if (e.code === 'KeyM' && !state.meteorTriggered) triggerMeteor();  // probar el meteorito
-  if (e.code === 'KeyE') { if (!tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: montura · auto · refugio · ruinas · castillo · coliseo · cohete · banco · oro / robar / vender casa
+  if (e.code === 'KeyE') { if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } }   // interactuar: cosecha · montura · auto · refugio · ruinas · castillo · coliseo · cohete · banco · oro / robar / vender casa
   if (e.code === 'KeyJ') tryCollectGolden();
   if (/^Digit[1-9]$/.test(e.code)) selectSlot(+e.code.slice(5));
   if (e.code === 'KeyQ') eatFood();   // comer
   if (e.code === 'KeyI') toggleHelp();   // abrir/cerrar el menú de ayuda
-  if (e.code === 'KeyK') plantSeed();    // plantar una semilla de manzana (crece de a poco)
+  if (e.code === 'KeyK') { if (e.shiftKey) cycleCrop(1); else plantSeed(); }
+  if (e.code === 'BracketRight') cycleCrop(1);
+  if (e.code === 'BracketLeft') cycleCrop(-1);
   if (e.code === 'KeyZ') toggleDadRest();   // papá descansa en sofá/cama (los monstruos no lo ven)
 });
 // Inventario tipo Minecraft: elegir un espacio (slot)
@@ -3695,7 +4158,7 @@ function shopIcon(item) {
   if (item.key === 'baseespacial') return '🏕️'; if (item.key === 'basetorreta') return '🔫'; if (item.key === 'basegenerador') return '⚡';
   if (item.car) return '🚗'; if (item.paint) return '🎨';
   if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
-  if (item.factor) return '🛡️'; if (item.key === 'semillas') return '🌱';
+  if (item.factor) return '🛡️'; if (item.seedType) return item.seedType === 'carrot' ? '🥕' : item.seedType === 'wheat' ? '🌾' : item.seedType === 'tomato' ? '🍅' : '🌱';
   if (item.key === 'dadgun') return '🔫'; if (item.key === 'dadarmor') return '🛡️'; if (item.key === 'rocket') return '🚀'; if (item.key === 'traje') return '🧑‍🚀';
   if (item.key === 'hijoarma') return '⚔️'; if (item.key === 'hijoarmadura') return '🛡️';
   if (item.key === 'perro') return '🐶'; if (item.key === 'laser') return '🔆'; if (item.key === 'piso2') return '🏠';
@@ -3850,7 +4313,7 @@ ui('pauseLoad').onclick = () => {
   } catch (e) { toast('❌ Ese código no es válido'); }
 };
 ui('continueBtn').onclick = () => openProfilebox();   // elige QUIÉN juega (si hay varias partidas)
-if (hasSave()) ui('continueBtn').style.display = '';   // mostrar "Continuar" si hay partida guardada
+if (hasSave()) { ui('continueBtn').style.display = ''; ui('start').classList.add('has-save'); }   // mostrar "Continuar" si hay partida guardada
 showBestLine();   // récord personal en la pantalla de inicio
 ui('jailBtn').onclick = () => hideScreens();
 ui('overBtn').onclick = () => { resetAll(); startGame(); };
@@ -3863,9 +4326,19 @@ function toggleHelp(force) {
   const h = ui('help');
   const show = force !== undefined ? force : (h.style.display !== 'flex');
   h.style.display = show ? 'flex' : 'none';
-  if (show) renderBestiary();   // el bestiario vive en el menú de ayuda
+  if (show) {
+    releaseLock();
+    if (state.running) state.paused = true;
+    renderBestiary();   // el bestiario vive en el menú de ayuda
+    const active = document.querySelector('.guide-tab.active'); if (active) active.focus();
+  } else if (state.running) state.paused = false;
 }
 ui('helpBtn').onclick = () => toggleHelp();
+ui('startGuideBtn').onclick = () => toggleHelp(true);
+document.querySelectorAll('.guide-tab').forEach(tab => tab.onclick = () => {
+  document.querySelectorAll('.guide-tab').forEach(b => { b.classList.toggle('active', b === tab); b.setAttribute('aria-selected', b === tab ? 'true' : 'false'); });
+  document.querySelectorAll('.guide-panel').forEach(panel => panel.classList.toggle('active', panel.dataset.guidePanel === tab.dataset.guide));
+});
 ui('touchToggle').onclick = () => setTouchMode(!document.body.classList.contains('touch'));
 ui('soundBtn').onclick = () => toggleSound();
 ui('exitBtn').onclick = () => saveAndExit();
@@ -3977,7 +4450,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryHarvest() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -3986,7 +4459,10 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'dig': digHole(); break;
       case 'fogata': makeCampfire(); break;
       case 'plant': plantSeed(); break;
+      case 'crop': cycleCrop(1); break;
+      case 'camera': cycleCameraMode(); break;
       case 'rotate': rotateBuild(); break;
+      case 'variant': cycleBuildVariant(1); break;
       case 'delete': deleteObject(); break;
       case 'dadFollow': setDadMode('follow'); break;
       case 'dadStay': setDadMode('stay'); break;
@@ -4034,6 +4510,7 @@ function saveAndExit() {
   ui('hud').style.display = 'none'; ui('helpBtn').style.display = 'none'; ui('soundBtn').style.display = 'none'; ui('exitBtn').style.display = 'none'; ui('fotoBtn').style.display = 'none';
   ['jail', 'over'].forEach(s => ui(s).classList.add('hidden'));
   ui('start').classList.remove('hidden');
+  ui('start').classList.add('has-save');
   ui('continueBtn').style.display = '';   // ya hay partida guardada para continuar
   showBestLine();
 }
@@ -4055,10 +4532,13 @@ function startGame() {
   state.contract = null;   // sin contratos al empezar
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
   endEclipse(); state.coreClaimed = false; state.relics = 0; state.trophies = 0; removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
-  state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
+  state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
   state.mathLeft = 5; state.mathStreak = 0;
+  soccer.scoreRed = soccer.scoreBlue = 0; updateScoreboard();
+  basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
+  tennis.points = [0, 0]; tennis.games = [0, 0]; tennis.server = 0; tennis.serveIn = 1; drawTennisScore();
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
   removePet(); removeAlienPet(); removeFloor2(); removeBase();
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;   // tecnología alien: se compra de nuevo
@@ -4117,12 +4597,17 @@ function saveGame() {
       houseTier: houseTier, inv: state.inv,
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
-      placed: placed.map(o => ({ key: o.key, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
+      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
       vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, moto: !!v.moto, helicopter: !!v.helicopter })),
       car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
       pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
       petAlien: !!petAlien, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
+      cameraMode: cameraMode,
+      sports: {
+        soccer: [soccer.scoreRed, soccer.scoreBlue], basketball: [basketball.scoreRed, basketball.scoreBlue],
+        tennisPoints: tennis.points, tennisGames: tennis.games,
+      },
       mathLeft: state.mathLeft != null ? state.mathLeft : 5, mathStreak: state.mathStreak || 0,   // desafíos de mates
       hasSuits: !!state.hasSuits, usedRocket: !!state.usedRocket, meteorAt: state.meteorAt || METEOR_AT,   // viajes espaciales
       trips: state.trips || 0, ngplus: !!state.ngplus,
@@ -4132,7 +4617,8 @@ function saveGame() {
       bank: state.bank || 0, debt: state.debt || 0,   // banco: ahorros y deudas
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
       holes: holes.map(h => ({ x: h.x, z: h.z, depth: h.depth, tunnels: [...h.tunnels].map(k => k.split(',').map(Number)) })),   // minas voxel + túneles laterales
-      plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, grow: p.grow, apples: p.apples })),   // huerto: árboles plantados
+      plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, crop: p.crop, grow: p.grow, produce: p.produce })),   // huerto diverso
+      selectedCrop: selectedCrop,
       helpers: helpers.map(h => ({ x: h.position.x, z: h.position.z })),   // ayudantes (hijos) comprados
       helperWeapon: !!state.helperWeapon, helperArmor: !!state.helperArmor,   // arma/armadura de los hijos
       contract: state.contract || null,   // contrato del vendedor alien
@@ -4252,9 +4738,9 @@ ui('bankCloseBtn').onclick = closeBank;
 // ===================================================================
 // La carga del cohete SOBREVIVE al viaje (goToPlanet no la borra). Cárgalo en la Tierra
 // con comida/materiales/armas y sácalos en el planeta nuevo para sobrevivir más.
-const INV_ICON = { food: '🍖', semillas: '🌱', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊' };
-const INV_LABEL = { food: 'Comida', semillas: 'Semillas', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera' };
-const INV_KEYS = ['food', 'semillas', 'carbon', ...BUILD_KEYS];
+const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊' };
+const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera' };
+const INV_KEYS = ['food', 'semillas', 'semillas_zanahoria', 'semillas_trigo', 'semillas_tomate', 'carbon', ...BUILD_KEYS];
 function rocketRow(key, n, into) {
   const b = document.createElement('button');
   b.style.cssText = 'display:flex; align-items:center; gap:6px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:7px; padding:6px 8px; font-size:13px; font-weight:700; color:#fff; background:rgba(255,255,255,.08);';
@@ -4583,7 +5069,7 @@ function showBestLine() {
 // ===================================================================
 const MISSION_DEFS = [
   { type: 'kills',   icon: '⚔️', need: () => 6 + state.stage * 2, txt: n => 'Mata ' + n + ' monstruos' },
-  { type: 'harvest', icon: '🍎', need: () => 3, txt: n => 'Cosecha ' + n + ' manzanas' },
+  { type: 'harvest', icon: '🌾', need: () => 3, txt: n => 'Cosecha ' + n + ' productos del huerto' },
   { type: 'dig',     icon: '🪏', need: () => 3, txt: n => 'Cava ' + n + ' hoyos' },
   { type: 'plant',   icon: '🌱', need: () => 2, txt: n => 'Planta ' + n + ' semillas' },
   { type: 'rob',     icon: '🕶️', need: () => 1, txt: () => 'Roba sin que te vean' },
@@ -4652,13 +5138,18 @@ function loadGame() {
   state.inv = Object.assign(freshInv(), d.inv || {});
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
-  (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
+  (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
   if (state.planet !== 'platus') {
     const savedVehicles = Array.isArray(d.vehicles) ? d.vehicles : (d.car ? [d.car] : []);
     savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, moto: v.moto, helicopter: v.helicopter, restoring: true }));
   }
   state.unlocked = d.unlocked || {};
   state.creative = !!d.creative;
+  cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
+  const savedSports = d.sports || {};
+  soccer.scoreRed = +(savedSports.soccer && savedSports.soccer[0]) || 0; soccer.scoreBlue = +(savedSports.soccer && savedSports.soccer[1]) || 0; updateScoreboard();
+  basketball.scoreRed = +(savedSports.basketball && savedSports.basketball[0]) || 0; basketball.scoreBlue = +(savedSports.basketball && savedSports.basketball[1]) || 0; drawTeamScore(basketball.board, 'BASQUET', basketball.scoreRed, basketball.scoreBlue);
+  tennis.points = Array.isArray(savedSports.tennisPoints) ? savedSports.tennisPoints.slice(0, 2) : [0, 0]; tennis.games = Array.isArray(savedSports.tennisGames) ? savedSports.tennisGames.slice(0, 2) : [0, 0]; drawTennisScore();
   state.mathLeft = d.mathLeft != null ? d.mathLeft : 5; state.mathStreak = d.mathStreak || 0;
   state.hasSuits = !!d.hasSuits; state.usedRocket = !!d.usedRocket; state.meteorAt = d.meteorAt || METEOR_AT;
   state.trips = d.trips || 0; state.ngplus = !!d.ngplus;
@@ -4679,7 +5170,8 @@ function loadGame() {
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); spawnBase(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 160; }
-  (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.apples));   // huerto: reponer árboles
+  selectedCrop = CROP_DEFS[d.selectedCrop] ? d.selectedCrop : 'apple';
+  (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.produce != null ? p.produce : p.apples, p.crop || 'apple'));   // huerto: reponer cultivos y saves antiguos
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
   state.contract = d.contract || null;   // contrato del vendedor alien
   clearEggPets(); (d.eggPets || []).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
@@ -4712,7 +5204,7 @@ function resetAll() {
   state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false;
   state.helperWeapon = false; state.helperArmor = false;
   state.dadArmor = 1; applyDadArmor(false);
-  state.inv = freshInv(); state.poison = 0; state.dadPoison = 0;
+  state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.dadGun = state.hasRocket = false;
   state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
   if (ui('escape')) ui('escape').style.display = 'none';
@@ -4919,12 +5411,9 @@ function updateDriving(dt) {
   ensureEngine(); if (engineGain) { engineGain.gain.value = 0.03 + 0.05 * car.enginePow; engineOsc.frequency.value = 55 + car.enginePow * 150; }
   yaw = car.heading;
   if (car.helicopter) {
-    // Cámara elevada detrás del helicóptero: deja ver la nave y mucho más terreno al volar.
-    player.position.set(car.group.position.x + Math.sin(yaw) * 9, car.group.position.y + 6.5, car.group.position.z + Math.cos(yaw) * 9);
-    camera.rotation.y = yaw; camera.rotation.x = Math.min(pitch, -0.2);
+    player.position.set(car.group.position.x, car.group.position.y + 2.1, car.group.position.z);
   } else {
     player.position.set(car.group.position.x, car.group.position.y + 2.1, car.group.position.z);
-    camera.rotation.y = yaw; camera.rotation.x = pitch;
   }
 }
 // Vida del auto: los monstruos cercanos lo dañan; si llega a 0 se destruye
@@ -5085,6 +5574,7 @@ function buyItem(item) {
   state.money -= item.price;
   tone(880, 0.06, 0.045, 'triangle'); setTimeout(() => tone(1175, 0.08, 0.045, 'triangle'), 70);   // sonido de compra
   if (item.build) { state.inv[item.key] = (state.inv[item.key] || 0) + 1; toast('🛒 Compraste ' + item.name + (item.deco ? ' (colócala: B y luego F)' : ' (constrúyela con B/F)')); }
+  else if (item.seedType) { state.inv[item.key] = (state.inv[item.key] || 0) + (item.seedCount || 1); toast(shopIcon(item) + ' ' + item.name + ' · K planta · Shift+K cambia cultivo'); }
   else if (item.eat) { state.inv.food++; toast('🍖 ' + item.name + ' guardada en el inventario (pulsa 7 para comer)'); }
   else if (item.dmg) {   // arma (espada o pala): equipa la más fuerte
     const isShovel = item.key && item.key.startsWith('pala');
@@ -5104,7 +5594,6 @@ function buyItem(item) {
     else toast('El papá ya tiene su armadura');
   }
   else if (item.key === 'traje') { state.hasSuits = true; toast('🧑‍🚀 Trajes espaciales para ti y tu papá: listos para viajar en cohete'); }
-  else if (item.key === 'semillas') { state.inv.semillas = (state.inv.semillas || 0) + 10; toast('🌱 Compraste 10 semillas de manzana (pulsa K para plantar)'); }
   else if (item.key === 'rocket') { giveRocket(); }
 }
 function setWeaponColor(c) {   // pinta la hoja del pico/arma en primera persona
@@ -5140,51 +5629,102 @@ function sellHouse() {
 }
 
 // ===================================================================
-//  HUERTO: plantar semillas de manzana (tecla K) y cosechar manzanas
+//  HUERTO DIVERSO: cultivos, biodiversidad, crecimiento y cosecha
 // ===================================================================
+const CROP_DEFS = {
+  apple:  { name: 'Manzana', icon: '🍎', seedKey: 'semillas',            growTime: 20, max: 3, regrow: 8,  food: 1,   money: 0,  kind: 'tree' },
+  carrot: { name: 'Zanahoria', icon: '🥕', seedKey: 'semillas_zanahoria', growTime: 11, max: 4, regrow: 7,  food: 1,   money: 8,  kind: 'root' },
+  wheat:  { name: 'Trigo', icon: '🌾', seedKey: 'semillas_trigo',         growTime: 16, max: 5, regrow: 9,  food: 0.5, money: 18, kind: 'grain' },
+  tomato: { name: 'Tomate', icon: '🍅', seedKey: 'semillas_tomate',       growTime: 14, max: 4, regrow: 7,  food: 1,   money: 12, kind: 'vine' },
+};
+const CROP_ORDER = Object.keys(CROP_DEFS);
+let selectedCrop = 'apple';
 const plants = [];
-function spawnPlant(x, z, grow, apples) {   // crea/recrea un árbol con su crecimiento y manzanas (usado por plantSeed y loadGame)
-  const g = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1, 6), mat(0x7c4a1e)); trunk.position.y = 0.5; g.add(trunk);
-  const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), mat(0x2f9e44)); leaves.position.y = 1.4; g.add(leaves);
-  g.position.set(x, 0, z);
-  const pl = { mesh: g, grow: Math.min(1, grow || 0), apples: 0, appleMeshes: [] };
-  g.scale.setScalar(0.25 + pl.grow * 0.75); scene.add(g);
-  plants.push(pl);
-  for (let i = 0; i < (apples || 0); i++) {   // repone las manzanas ya crecidas
-    const a = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), mat(0xef4444));
-    a.position.set((Math.random() - 0.5) * 1, 1.4 + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 1);
-    g.add(a); pl.appleMeshes.push(a); pl.apples++;
+
+function makeCropBase(type) {
+  const def = CROP_DEFS[type], g = new THREE.Group();
+  if (def.kind === 'tree') {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 1, 6), mat(0x7c4a1e)); trunk.position.y = 0.5; g.add(trunk);
+    const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), mat(0x2f9e44)); leaves.position.y = 1.4; g.add(leaves);
+  } else if (def.kind === 'root') {
+    for (let i = 0; i < 4; i++) { const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.65, 5), mat(0x3f9b45)); leaf.position.set((i - 1.5) * 0.16, 0.38, (i % 2) * 0.12); leaf.rotation.z = (i - 1.5) * 0.14; g.add(leaf); }
+  } else if (def.kind === 'grain') {
+    for (let i = 0; i < 6; i++) { const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 1.15, 5), mat(0xc49a32)); stalk.position.set((i % 3 - 1) * 0.24, 0.58, (Math.floor(i / 3) - .5) * 0.28); g.add(stalk); }
+  } else {
+    const stake = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 1.6, 6), mat(0x6b4423)); stake.position.y = 0.8; g.add(stake);
+    for (let i = 0; i < 5; i++) { const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.26, 7, 7), mat(0x2f8a45)); leaf.position.set((i % 2 ? 1 : -1) * 0.2, 0.35 + i * 0.22, 0); leaf.scale.set(1.2, .55, 1); g.add(leaf); }
   }
+  return g;
+}
+function addCropProduce(pl) {
+  const def = CROP_DEFS[pl.crop], i = pl.produce, item = new THREE.Group();
+  if (def.kind === 'tree' || def.kind === 'vine') {
+    const fruit = new THREE.Mesh(new THREE.SphereGeometry(def.kind === 'tree' ? 0.16 : 0.14, 7, 7), mat(def.kind === 'tree' ? 0xef4444 : 0xdc2626)); item.add(fruit);
+    item.position.set((Math.random() - .5) * (def.kind === 'tree' ? 1 : .55), def.kind === 'tree' ? 1.25 + Math.random() * .55 : .45 + Math.random() * .8, (Math.random() - .5) * .5);
+  } else if (def.kind === 'root') {
+    const root = new THREE.Mesh(new THREE.ConeGeometry(.11, .42, 7), mat(0xf97316)); root.rotation.x = Math.PI; root.position.y = .18; item.add(root); item.position.set((i % 2 ? 1 : -1) * (.16 + i * .04), .06, (i % 3 - 1) * .15);
+  } else {
+    const head = new THREE.Mesh(new THREE.CapsuleGeometry(.07, .22, 3, 5), mat(0xeab308)); head.position.y = .95; item.add(head); item.position.set((i % 3 - 1) * .24, 0, (Math.floor(i / 3) - .5) * .28);
+  }
+  pl.mesh.add(item); pl.produceMeshes.push(item); pl.produce++;
+}
+function spawnPlant(x, z, grow, produce, crop) {
+  const type = CROP_DEFS[crop] ? crop : 'apple', g = makeCropBase(type);
+  g.position.set(x, 0, z);
+  const pl = { mesh: g, crop: type, grow: Math.min(1, grow || 0), produce: 0, produceMeshes: [] };
+  g.scale.setScalar(0.25 + pl.grow * 0.75); scene.add(g); plants.push(pl);
+  for (let i = 0; i < (produce || 0); i++) addCropProduce(pl);
   return pl;
 }
+function cycleCrop(delta) {
+  let i = CROP_ORDER.indexOf(selectedCrop); i = (i + (delta || 1) + CROP_ORDER.length) % CROP_ORDER.length;
+  selectedCrop = CROP_ORDER[i]; const d = CROP_DEFS[selectedCrop];
+  toast(d.icon + ' Semilla seleccionada: ' + d.name + ' · tienes ' + (state.inv[d.seedKey] || 0));
+}
+function cropDiversity(pl) {
+  const types = new Set([pl.crop]);
+  for (const other of plants) if (other !== pl && dist2D(other.mesh.position, pl.mesh.position) < 8) types.add(other.crop);
+  return types.size;
+}
 function plantSeed() {
-  if ((state.inv.semillas || 0) <= 0) { toast('🌱 No tienes semillas (cómpralas en el SÚPER)'); return; }
-  state.inv.semillas--;
+  const def = CROP_DEFS[selectedCrop];
+  if ((state.inv[def.seedKey] || 0) <= 0) { toast(def.icon + ' No tienes semillas de ' + def.name.toLowerCase() + ' · Shift+K cambia cultivo'); return; }
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const pos = player.position.clone().addScaledVector(fwd, 2.5); pos.y = 0;
-  spawnPlant(pos.x, pos.z, 0, 0);   // empieza chiquita (brote)
+  if (plants.some(p => dist2D(p.mesh.position, pos) < 1.6)) { toast('🌱 Deja un poco más de espacio entre cultivos'); return; }
+  state.inv[def.seedKey]--;
+  const pl = spawnPlant(pos.x, pos.z, 0, 0, selectedCrop);
   missionProgress('plant');
-  toast('🌱 Plantaste una semilla. Crecerá y dará manzanas (acércate para cosechar)');
+  const diverse = cropDiversity(pl) >= 2;
+  toast(def.icon + ' Plantaste ' + def.name.toLowerCase() + (diverse ? ' · biodiversidad activa: crece 25% más rápido' : ' · combina cultivos para acelerar el huerto'));
+}
+function nearestHarvestable(maxD) {
+  let best = null, bd = maxD || 2.6;
+  for (const pl of plants) { const d = dist2D(player.position, pl.mesh.position); if (pl.grow >= 1 && pl.produce > 0 && d < bd) { best = pl; bd = d; } }
+  return best;
+}
+function tryHarvest() {
+  const pl = nearestHarvestable(2.8); if (!pl) return false;
+  const def = CROP_DEFS[pl.crop], count = pl.produce;
+  pl.produceMeshes.forEach(m => pl.mesh.remove(m)); pl.produceMeshes = []; pl.produce = 0;
+  const foodGain = Math.max(1, Math.round(count * def.food)), moneyGain = count * def.money;
+  state.inv.food += foodGain;
+  if (moneyGain) addMoney(moneyGain);
+  if (pl.crop !== 'apple') state.inv[def.seedKey] = (state.inv[def.seedKey] || 0) + 1;
+  pl.grow = pl.crop === 'apple' ? 1 : .72; pl.mesh.scale.setScalar(.25 + pl.grow * .75);
+  missionProgress('harvest', count);
+  coinBurst(pl.mesh.position, Math.min(8, count + 2));
+  toast(def.icon + ' Cosechaste ' + count + ' ' + def.name.toLowerCase() + (count === 1 ? '' : 's') + ' · +' + foodGain + ' comida' + (moneyGain ? ' · +$' + moneyGain : '') + (pl.crop !== 'apple' ? ' · +1 semilla' : ''));
+  return true;
 }
 function updatePlants(dt) {
   for (const pl of plants) {
-    if (pl.grow < 1) {   // crece durante ~15 s
-      pl.grow = Math.min(1, pl.grow + dt / 15);
+    const def = CROP_DEFS[pl.crop] || CROP_DEFS.apple;
+    if (pl.grow < 1) {
+      const diversityBoost = cropDiversity(pl) >= 2 ? 1.25 : 1;
+      pl.grow = Math.min(1, pl.grow + dt * diversityBoost / def.growTime);
       pl.mesh.scale.setScalar(0.25 + pl.grow * 0.75);
-    } else if (pl.apples < 3 && Math.random() < dt / 8) {   // ya adulta: da manzanas de a poco
-      const a = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), mat(0xef4444));
-      a.position.set((Math.random() - 0.5) * 1, 1.4 + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 1);
-      pl.mesh.add(a); pl.appleMeshes.push(a); pl.apples++;
-    }
-    // cosechar al acercarse: cada manzana llena la comida
-    if (pl.apples > 0 && dist2D(player.position, pl.mesh.position) < 2) {
-      pl.appleMeshes.forEach(a => pl.mesh.remove(a));
-      state.inv.food += pl.apples;
-      toast('🍎 Cosechaste ' + pl.apples + ' manzana(s) (comida) — pulsa Q para comer');
-      missionProgress('harvest', pl.apples);
-      pl.apples = 0; pl.appleMeshes = [];
-    }
+    } else if (pl.produce < def.max && Math.random() < dt / def.regrow) addCropProduce(pl);
   }
 }
 function clearPlants() { plants.forEach(p => scene.remove(p.mesh)); plants.length = 0; }
@@ -5473,7 +6013,7 @@ function attack() {
   if (state.inCastle) { attackCastleFoe(); return; }   // en el castillo, el golpe pega a los aliens malos
   if (state.inArena) { hitArenaFoe(); return; }        // en el coliseo, el golpe pega a los enemigos de la oleada
   if (titan && hitTitan(state.weaponDmg)) return;      // golpear al TITÁN
-  const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
   const range = state.laserGun ? 30 : 5, dmg = state.weaponDmg;   // la pistola láser dispara LEJOS
   let best = null, bestD = range;
   for (const e of enemies) {
@@ -5503,7 +6043,7 @@ function attackNPC() {
   if (state.inArena) { vmSwing = 1; beep(320, 0.05, 0.03); hitArenaFoe(); return; }   // en el coliseo (de día también)
   if (titan && hitTitan(state.weaponDmg)) { vmSwing = 1; return; }   // golpear al TITÁN (de día también)
   if (state.planet === 'platus') { vmSwing = 1; if (!tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus el golpe de día: GEODA · CRISTAL · CARBÓN
-  const p = player.position; const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+  const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
   const range = 4;
   let best = null, bestD = range;
   for (const person of npcs.concat(victims)) {
@@ -5891,6 +6431,8 @@ function loop() {
     updateShield(dt);                      // recarga del escudo de energía
     updateNPCs(dt);
     updateSoccer(dt);
+    updateBasketball(dt);
+    updateTennis(dt);
     swingLimbs(mom, dt);
     updateArrow();
     updateDayNight(dt);
@@ -5931,6 +6473,7 @@ function loop() {
     updateTimers(dt);
   }
   for (const e of enemies) swingLimbs(e, dt);
+  if (state.running) updatePlayerCamera(dt);
   updateBillboards(dt);
   updateFloats(dt); updateCoins(dt); updateCombo(dt);   // "juice": textos, monedas, combo
   updateSky(dt);
@@ -6260,6 +6803,36 @@ function updateTimers(dt) {
 
 function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
 let shownMoney = 0;   // el contador de dinero "rueda" hacia el valor real
+function updateContextPrompt() {
+  const box = ui('contextPrompt'), key = ui('contextKey'), txt = ui('contextText');
+  if (!box) return;
+  let action = null;
+  const playable = state.running && !state.paused && !typing && (state.phase === 'DAY' || state.phase === 'NIGHT');
+  if (playable) {
+    if (state.buildMode) { const v = currentBuildVariant(); action = { key: 'F', touch: '✋', text: 'Colocar' + (v ? ' · ' + v.name : '') + ' · R cambia variante · X quita' }; }
+    else if (state.driving && car) action = { key: 'E', touch: '🤝', text: car.helicopter ? 'Salir del helicóptero' : 'Bajar del vehículo' };
+    else {
+      const harvest = nearestHarvestable(2.8);
+      let owned = null;
+      for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
+      if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
+      else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
+      else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
+      else if (nearKeeper()) action = { key: 'Y', touch: '🛒', text: 'Abrir catálogo del vendedor' };
+      else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
+      else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };
+      else if (state.phase === 'DAY') {
+        let product = null;
+        for (const it of shopStands) if (dist2D(player.position, it.pos) < 2.8) { product = it; break; }
+        if (product) action = { key: 'E', touch: '🤝', text: 'Mantén para comprar ' + product.name + ' · $' + product.price };
+        else { const crop = CROP_DEFS[selectedCrop]; if ((state.inv[crop.seedKey] || 0) > 0) action = { key: 'K', touch: crop.icon, text: 'Plantar ' + crop.name.toLowerCase() + ' · Shift+K cambia cultivo' }; }
+        if (!action && houseStats().ready) action = { key: 'N', touch: '🌙', text: 'Empezar la noche cuando estés preparado' };
+      }
+    }
+  }
+  box.classList.toggle('visible', !!action);
+  if (action) { key.textContent = document.body.classList.contains('touch') ? action.touch : action.key; txt.textContent = action.text; }
+}
 function renderHUD() {
   if (state.creative && state.money < 999999999) state.money = 999999999;   // creativo: la plata nunca baja
   const mdiff = state.money - shownMoney;
@@ -6275,6 +6848,7 @@ function renderHUD() {
   ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(NIGHT_LENGTH - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(DAY_LENGTH - state.dayTime) : '--');
   const heliDownBtn = ui('heliDownBtn');
   if (heliDownBtn) heliDownBtn.style.display = state.driving && car && car.helicopter ? 'flex' : 'none';
+  updateContextPrompt();
 
   // barra de construcción. En celular solo aparece en modo construir (para no tapar la pantalla).
   const bb = ui('buildbar');
@@ -6296,6 +6870,13 @@ function renderHUD() {
       html += `<div class="slot ${state.buildMode && buildSel === i ? 'sel' : ''}" data-slot="${i + 2}"><div class="kk">${i + 2}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`;
     });
     bb.innerHTML = html;
+    if (!isTouch) {
+      const selectedSlot = bb.querySelector('.slot.sel');
+      if (selectedSlot) {
+        const left = selectedSlot.offsetLeft, right = left + selectedSlot.offsetWidth;
+        if (left < bb.scrollLeft || right > bb.scrollLeft + bb.clientWidth) bb.scrollLeft = Math.max(0, left - bb.clientWidth / 2);
+      }
+    }
   } else bb.style.display = 'none';
   const showBuildBtns = (state.buildMode && state.phase === 'DAY') ? 'block' : 'none';
   ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;

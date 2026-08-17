@@ -2660,7 +2660,7 @@ function buildWaterPark() {
   kid.position.set(cx - 24, .55, cz + 20); g.add(kid);
 
   // Toboganes: torre de bloques + rampa que cae a la piscina
-  const slide = (sx, sz, h, col, dir) => {
+  const slide = (sx, sz, h, col, dir, nombre) => {
     const s = new THREE.Group(); s.position.set(sx, 0, sz); g.add(s);
     for (let i = 0; i < h; i++) mcBox(s, 0, i + .5, 0, 4, 1, 4, i % 2 ? 0xe2e8f0 : 0xcbd5e1);   // torre a rayas
     mcBox(s, 0, h + .6, 0, 5, 1.2, 5, col);                    // plataforma
@@ -2672,9 +2672,20 @@ function buildWaterPark() {
       mcBox(s, dir * off, y + .7, Math.sin(t * 2.2) * 3.5 + 1.5, 2.6, 1, .3, 0xf8fafc);
     }
     addObstacle(sx, sz, 4, 4);
+    // Te puedes TIRAR por el tobogán: E al lado de la torre te sube arriba y te
+    // deslizas por la rampa hasta caer a la piscina.
+    parkAttractions.push({
+      name: nombre, emoji: '🛝', price: 50, center: { x: sx, z: sz }, radius: 6,
+      slide: true, dur: 3.4, exit: { x: sx + dir * 21, z: sz + 3 },
+      path: t => ({                                     // misma curva con la que se dibujó la rampa
+        x: sx + dir * (3 + t * 17.6),
+        y: (h + .3) * (1 - t) + 2.2,
+        z: sz + Math.sin(t * 2.2) * 3.5,
+      }),
+    });
   };
-  slide(cx - 26, cz - 14, 9, 0xf97316, 1);
-  slide(cx + 26, cz - 14, 7, 0x22c55e, -1);
+  slide(cx - 24, cz + 6, 9, 0xf97316, 1, 'el tobogán naranjo');    // caen dentro de la piscina grande
+  slide(cx + 24, cz + 6, 7, 0x22c55e, -1, 'el tobogán verde');
 
   // Reposeras, quitasoles y torre del salvavidas
   for (let i = 0; i < 6; i++) {
@@ -2715,12 +2726,13 @@ function pickSeat(a) {
 function leaveParkRide(silent) {
   if (!parkRide) return false;
   const a = parkRide.att, e = a.exit || { x: a.center.x + a.radius * .8, z: a.center.z };
+  const wasSlide = a.slide;
   parkRide = null;
-  player.position.set(e.x, PLAYER_EYE, e.z + 3);
+  player.position.set(e.x, PLAYER_EYE, wasSlide ? e.z : e.z + 3);
   if (!silent) {
     state.hp = Math.min(100, state.hp + 20);
     floatText(player.position, '🎉 ¡Qué divertido! +20 vida', '#fde047', 18);
-    toast(a.emoji + ' Te bajaste de ' + a.name + ' · ¡lo pasaste genial! (+20 de vida)');
+    toast(a.emoji + (wasSlide ? ' ¡SPLASH! Caíste al agua desde ' : ' Te bajaste de ') + a.name + ' · ¡lo pasaste genial! (+20 de vida)');
     beep(660, .12, .05);
   }
   return true;
@@ -2730,10 +2742,11 @@ function tryParkRide() {
   const a = nearestAttraction(); if (!a) return false;
   const price = state.creative ? 0 : a.price;
   if (state.money < price) { toast('🎟️ El boleto de ' + a.name + ' cuesta $' + price); return true; }
-  const seat = pickSeat(a); if (!seat) return false;
+  const seat = a.slide ? null : pickSeat(a);
+  if (!a.slide && !seat) return false;
   if (price) addMoney(-price);
-  parkRide = { att: a, seat };
-  toast(a.emoji + ' ¡Te subiste a ' + a.name + '!' + (price ? ' (-$' + price + ')' : ' (¡gratis!)') + ' · E para bajarte');
+  parkRide = { att: a, seat, t: 0 };
+  toast(a.emoji + (a.slide ? ' ¡Te tiraste por ' : ' ¡Te subiste a ') + a.name + '!' + (price ? ' (-$' + price + ')' : ' (¡gratis!)') + (a.slide ? ' · ¡al agua!' : ' · E para bajarte'));
   beep(880, .1, .05); vibr(30);
   return true;
 }
@@ -2767,7 +2780,13 @@ function updateParks(dt) {
       r.obj.rotation.y = -a + Math.PI / 2;
     }
   }
-  if (parkRide) {   // vas montado: el jugador viaja pegado al asiento
+  if (parkRide && parkRide.att.slide) {   // tobogán: bajas por la curva y caes al agua
+    const a = parkRide.att;
+    parkRide.t = Math.min(1, parkRide.t + dt / a.dur);
+    const p = a.path(parkRide.t);
+    player.position.set(p.x, p.y, p.z);
+    if (parkRide.t >= 1) { leaveParkRide(false); beep(300, .18, .05); }
+  } else if (parkRide) {   // vas montado: el jugador viaja pegado al asiento
     parkRide.seat.getWorldPosition(_seatPos);
     player.position.set(_seatPos.x, _seatPos.y + (parkRide.att.seatY || 0), _seatPos.z);   // seatY = altura de los ojos sobre el asiento
   }
@@ -8407,7 +8426,7 @@ function updateContextPrompt() {
       const stand = nearestParkStand(), att = parkRide ? parkRide.att : nearestAttraction();
       if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };
-      else if (att) action = { key: 'E', touch: '🎟️', text: 'Subirte a ' + att.name + (att.price ? ' · boleto $' + att.price : ' · ¡gratis!') };
+      else if (att) action = { key: 'E', touch: '🎟️', text: (att.slide ? 'Tirarte por ' : 'Subirte a ') + att.name + (att.price ? ' · boleto $' + att.price : ' · ¡gratis!') };
       else if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
       else if (nearestDamagedBuilding()) action = { key: 'E', touch: '🔧', text: 'Reparar construcción dañada' };
       else if (state.sportGame) action = { key: 'CLIC/Q', touch: '🏅', text: state.sportGame.name + ' · primario / técnica · rojos ' + state.sportGame.teamScore[0] + '-' + state.sportGame.teamScore[1] + ' azules' };

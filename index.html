@@ -664,6 +664,7 @@
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
           <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
+          <kbd>P · L</kbd><span>Girar la pieza al ángulo que quieras: un toque la mueve 15° y si mantienes apretado gira sin parar (igual que el botón 🔄 Girar).</span>
           <kbd>Q / K</kbd><span>Comer o plantar. Shift+K cambia entre manzana, zanahoria, trigo y tomate.</span>
           <kbd>C/V/O</kbd><span>Ordenar a papá: seguir, esperar o limpiar. G lo arma y Z lo deja descansar.</span>
           <kbd>U / I</kbd><span>Abrir desafíos de mates o esta guía.</span>
@@ -3843,8 +3844,9 @@ function buildBaseY(x, z) {
   const f = floor2Data, { lx, lz } = floor2Local(x, z);
   return (Math.abs(lx) <= f.hw && Math.abs(lz) <= f.hd) ? f.baseY : 0;
 }
-function updateBuild() {
+function updateBuild(dt) {
   const canBuild = state.buildMode && state.phase === 'DAY';
+  if (canBuild) spinBuild(dt || 0);   // mantener el botón (o P/L) gira la pieza de a poco
   ghost.visible = canBuild && !activeBlueprintId; blueprintGhost.visible = canBuild && !!activeBlueprintId;
   if (!canBuild) return;
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
@@ -3914,9 +3916,10 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
   // Las colisiones son en 2D (no distinguen pisos): una pared del 2º piso taparía el paso
   // abajo también, así que arriba las paredes se colocan pero sin caja de choque.
   if ((key === 'wallWood' || key === 'wallRock') && !by) {
-    // bloquea al jugador y a los enemigos
-    const w = Math.abs(Math.cos(rot)) > 0.5 ? 4 : 0.4;
-    const d = Math.abs(Math.cos(rot)) > 0.5 ? 0.4 : 4;
+    // bloquea al jugador y a los enemigos (caja que envuelve la pared en cualquier ángulo)
+    const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
+    const w = 4 * ca + 0.4 * sa;
+    const d = 4 * sa + 0.4 * ca;
     obj.aabb = { minX: m.position.x - w / 2, maxX: m.position.x + w / 2, minZ: m.position.z - d / 2, maxZ: m.position.z + d / 2 };
     obstacles.push(obj.aabb);
   }
@@ -5217,9 +5220,8 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
   if (e.code === 'KeyN') tryStartNight();
   if (e.code === 'AltLeft' || e.code === 'AltRight') { e.preventDefault(); dodge(); }
-  if (e.code === 'KeyB') { state.buildMode = !state.buildMode; if (!state.buildMode) { activeBlueprintId = null; blueprintGhost.visible = false; } toast(state.buildMode ? '🔨 Construcción activa · G abre planos · F coloca · X quita' : 'Modo construir OFF'); }
-  if (e.code === 'KeyP') buildRot = Math.PI / 2;
-  if (e.code === 'KeyL') buildRot = 0;
+  if (e.code === 'KeyB') { state.buildMode = !state.buildMode; if (!state.buildMode) { activeBlueprintId = null; blueprintGhost.visible = false; } toast(state.buildMode ? '🔨 Construcción activa · F coloca · X quita · G planos · 🔄 (o P/L) gira la pieza al ángulo que quieras' : 'Modo construir OFF'); }
+  // P / L: mantenerlas apretadas gira la pieza hacia un lado o el otro (lo aplica spinBuild)
   if (e.code === 'KeyF') { if (state.planet === 'platus' && !state.buildMode) makeCampfire(); else placeObject(); }   // en Platus (sin construir) F = FOGATA
   if (e.code === 'KeyX') deleteObject();
   if (e.code === 'KeyC') setDadMode('follow');
@@ -5456,11 +5458,29 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-function rotateBuild() { buildRot = (buildRot + Math.PI / 2) % (Math.PI * 2); state.buildMode = true; refreshGhost(); }
+// GIRO LIBRE de las piezas: un toque gira 15° (podés dejarla en cualquier ángulo)
+// y si MANTIENES apretado el botón (o P / L) gira sin parar hasta soltarlo.
+const ROT_STEP = Math.PI / 12;        // 15° por toque
+const ROT_SPEED = 1.7;                // radianes por segundo al mantener
+let rotHold = 0;                      // -1 izquierda · 0 quieto · +1 derecha
+function normRot(r) { const t = Math.PI * 2; return ((r % t) + t) % t; }
+function rotateBuild(dir) { buildRot = normRot(buildRot + (dir || 1) * ROT_STEP); state.buildMode = true; refreshGhost(); }
+function spinBuild(dt) {   // giro continuo mientras se mantiene apretado
+  const dir = rotHold || (keys['KeyP'] ? 1 : 0) || (keys['KeyL'] ? -1 : 0);
+  if (dir) buildRot = normRot(buildRot + dir * ROT_SPEED * dt);
+}
 ui('blueprintBtn').onclick = openBlueprintPanel;
 ui('blueprintClose').onclick = closeBlueprintPanel;
 ui('blueprintList').addEventListener('click', e => { const button = e.target.closest('[data-blueprint]'); if (button && !button.disabled) selectBlueprint(button.dataset.blueprint); });
-ui('rotateBtn').onclick = rotateBuild;
+// Botón GIRAR: un toque = 15° · mantenerlo apretado = gira sin parar
+(() => {
+  const btn = ui('rotateBtn');
+  let downAt = 0;
+  const start = e => { e.preventDefault(); downAt = performance.now(); rotHold = 1; state.buildMode = true; };
+  const end = () => { if (rotHold && performance.now() - downAt < 220) rotateBuild(1); rotHold = 0; };
+  btn.addEventListener('pointerdown', start);
+  addEventListener('pointerup', end); addEventListener('pointercancel', end);
+})();
 ui('deleteBtn').onclick = deleteObject;
 ui('floor2RotBtn').onclick = rotateFloor2;
 ui('floor2DelBtn').onclick = sellFloor2;
@@ -5713,13 +5733,19 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (act === 'more') { ui('moreBtns').classList.toggle('open'); const m = document.querySelector('.tbtn[data-act="more"]'), open = ui('moreBtns').classList.contains('open'); if (m) { m.classList.toggle('on', open); m.setAttribute('aria-expanded', String(open)); } return; }
       if (act === 'closeMore') { closeMorePanel(); return; }   // ✖️ cerrar el panel
       if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
+      if (act === 'rotate') { rotHold = 1; el.dataset.downAt = String(performance.now()); state.buildMode = true; return; }   // mantener = giro libre
       press(act);
       if (el.closest('#moreBtns')) closeMorePanel();   // al usar cualquier acción del panel "⋯ más", ciérralo
     }, { passive: false });
-    const release = e => { const el = e.target.closest && e.target.closest('.tbtn'); if (!el) return; if (el.dataset.act === 'jump') touch.jumpHeld = false; if (el.dataset.act === 'heliDown') { touch.heliDown = false; el.classList.remove('on'); } };
+    const release = e => {
+      const el = e.target.closest && e.target.closest('.tbtn'); if (!el) return;
+      if (el.dataset.act === 'jump') touch.jumpHeld = false;
+      if (el.dataset.act === 'rotate') { if (performance.now() - (+el.dataset.downAt || 0) < 220) rotateBuild(1); rotHold = 0; }   // toque corto = 15°
+      if (el.dataset.act === 'heliDown') { touch.heliDown = false; el.classList.remove('on'); }
+    };
     container.addEventListener('pointerup', release);
     container.addEventListener('pointercancel', release);
-    container.addEventListener('pointerleave', () => { touch.jumpHeld = false; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
+    container.addEventListener('pointerleave', () => { touch.jumpHeld = false; rotHold = 0; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
   }
   bindButtons(ui('touchBtns'));
   bindButtons(ui('moveBtns'));
@@ -7849,7 +7875,7 @@ function loop() {
     updateMovement(dt);
     updateWater(dt);                       // aire limitado y daño por ahogo bajo el mar
     updateViewmodel(dt);
-    updateBuild();
+    updateBuild(dt);
     updateDad(dt);
     dadWalkBob(dt);
     updateHelpers(dt);

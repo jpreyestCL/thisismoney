@@ -618,8 +618,8 @@
 </div>
 
 <div class="screen hidden" id="jail">
-  <h1 style="color:#fbbf24">CÁRCEL</h1>
-  <p>Te atraparon. Pagaste una multa del 20%, pero tu casa y tu progreso siguen en pie.</p>
+  <h1 style="color:#fbbf24" id="jailTitle">CÁRCEL</h1>
+  <p id="jailText">Te atraparon. Pagaste una multa del 20%, pero tu casa y tu progreso siguen en pie.</p>
   <button class="btn" id="jailBtn">SALIR Y SEGUIR</button>
 </div>
 
@@ -5853,7 +5853,7 @@ function saveGame() {
       houseTier: houseTier, inv: state.inv,
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
-      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
+      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, rot: o.mesh.rotation.y, hp: o.hp, paint: o.paint != null ? o.paint : null })),
       vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, moto: !!v.moto, helicopter: !!v.helicopter })),
       car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
       pet: !!pet, hasFloor2: !!state.hasFloor2, floor2Rot: state.floor2Rot || 0, unlocked: state.unlocked || {},   // desbloqueos del medio juego
@@ -6411,7 +6411,10 @@ function loadGame() {
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
   applyPlayerArmor();   // vuelve a ponerte la armadura que tenías comprada
-  (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant, o.baseY); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
+  (d.placed || []).forEach(o => {
+    const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant, o.baseY);
+    if (o.paint != null) { obj.paint = o.paint; obj.mesh.material = mat(o.paint); }   // la pintura de la casa se conserva
+  });
   if (state.planet !== 'platus') {
     const savedVehicles = Array.isArray(d.vehicles) ? d.vehicles : (d.car ? [d.car] : []);
     savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, moto: v.moto, helicopter: v.helicopter, restoring: true }));
@@ -6818,7 +6821,7 @@ function paintHouse(color, label) {
   let n = 0;
   for (const o of placed) {
     if (['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 20) {
-      o.mesh.material = mat(color); n++;
+      o.mesh.material = mat(color); o.paint = color; n++;   // se guarda el color para no perder la pintura al salir
     }
   }
   toast('🎨 Pintaste tu casa (' + n + ' piezas) de ' + label.replace('Pintura ', '')); beep(520, 0.1, 0.04);
@@ -7729,10 +7732,18 @@ function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
   state.driving = false; removeMount();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
+  // En los planetas NO hay cárcel (ni policía): te rescata el cohete y despiertas ahí
+  const alien = state.planet === 'platus';
+  ui('jailTitle').textContent = alien ? '🚀 RESCATE' : 'CÁRCEL';
+  ui('jailText').textContent = alien
+    ? 'Te desmayaste en ' + (state.planetName || 'el planeta') + '. El traje te llevó de vuelta al cohete; el rescate costó el 20% de tu plata.'
+    : 'Te atraparon. Pagaste una multa del 20%, pero tu casa y tu progreso siguen en pie.';
+  ui('jailBtn').textContent = alien ? 'VOLVER AL COHETE' : 'SALIR Y SEGUIR';
   const fine = Math.round(state.money * GAME_RULES.jailMoneyLoss);
   clearWaves(); state.money = Math.max(0, state.money - fine); state.hp = 100; state.phase = 'JAIL';
   ui('hud').style.display = 'none'; ui('jail').classList.remove('hidden');
-  setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(10, PLAYER_EYE, 16); }, 0);
+  const back = alien ? (state.rocket ? state.rocket.position : { x: 10, z: 10 }) : { x: 10, z: 16 };
+  setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(back.x, PLAYER_EYE, back.z + 3); }, 0);
 }
 function gameOver() {
   if (state.phase === 'OVER') return;

@@ -50,7 +50,7 @@
     background: rgba(0,0,0,.72); padding: 11px 22px; border-radius: 10px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: center; max-width: 86vw; }
   #toastStack { position: absolute; top: calc(50% - 34px); left: 50%; transform: translate(-50%,-100%); z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; pointer-events: none; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
+  body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
@@ -80,13 +80,17 @@
   .slot .nm { font-size: 8px; opacity: .75; margin-top: 1px; }
   .slot .ct { position: absolute; bottom: 1px; right: 4px; font-size: 12px; font-weight: 800; text-shadow: 0 1px 2px #000; }
   .slot .kk { position: absolute; top: 1px; left: 4px; font-size: 9px; opacity: .5; }
-  #rotateBtn, #deleteBtn, #blueprintBtn { position: absolute; right: 18px; left: auto; bottom: auto; display: none; pointer-events: all; cursor: pointer;
+  #rotateBtn, #deleteBtn, #blueprintBtn, #floor2RotBtn, #floor2DelBtn { position: absolute; right: 18px; left: auto; bottom: auto; display: none; pointer-events: all; cursor: pointer;
     color: #042; border: none; padding: 10px 20px; font-size: 15px; font-weight: 800; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
   #blueprintBtn { top:calc(50% - 116px); background:oklch(76% .12 224); color:oklch(19% .025 235); }
   #rotateBtn { top: calc(50% - 56px); transform: none; background: rgba(34,197,94,.85); }
   #rotateBtn:hover { background: #22c55e; }
   #deleteBtn { top: calc(50% + 4px); transform: none; background: rgba(239,68,68,.85); color: #fff; }
   #deleteBtn:hover { background: #ef4444; }
+  #floor2RotBtn { top: calc(50% + 64px); transform: none; background: rgba(59,130,246,.85); color: #fff; }
+  #floor2RotBtn:hover { background: #3b82f6; }
+  #floor2DelBtn { top: calc(50% + 124px); transform: none; background: rgba(217,119,6,.85); color: #fff; }
+  #floor2DelBtn:hover { background: #d97706; }
   #blueprintPanel { position:absolute; top:92px; left:12px; z-index:11; display:none; width:min(340px,calc(100vw - 24px)); max-height:calc(100vh - 180px); overflow:auto;
     pointer-events:all; background:var(--panel,oklch(19% .025 235 / .97)); border:1px solid var(--line,oklch(85% .01 230 / .22)); border-radius:10px; padding:12px; }
   #blueprintPanel h2 { margin:0; color:var(--ink,oklch(96% .012 110)); font-size:17px; }
@@ -169,7 +173,7 @@
   body.touch .slot .ic { font-size: 17px; }
   body.touch .slot .nm { font-size: 7px; }
   body.touch .slot .ct { font-size: 10px; }
-  body.touch #rotateBtn, body.touch #deleteBtn, body.touch #blueprintBtn { display: none !important; }
+  body.touch #rotateBtn, body.touch #deleteBtn, body.touch #blueprintBtn, body.touch #floor2RotBtn, body.touch #floor2DelBtn { display: none !important; }
   body.touch #blueprintPanel { top:84px; left:6px; max-height:calc(100vh - 170px); }
   /* botones táctiles un poco más chicos para que quepan todos (incluido el panel "más") */
   body.touch .tbtn { width: calc(46px * var(--btnscale, 1)); height: calc(46px * var(--btnscale, 1)); font-size: calc(19px * var(--btnscale, 1)); }
@@ -445,6 +449,8 @@
   <button id="blueprintBtn">📐 Planos</button>
   <button id="rotateBtn">🔄 Girar</button>
   <button id="deleteBtn">🗑️ Quitar</button>
+  <button id="floor2RotBtn">🔄 Girar piso 2</button>
+  <button id="floor2DelBtn">🗑️ Sacar piso 2</button>
   <aside id="blueprintPanel" aria-label="Planos de construcción"><h2>📐 PLANOS</h2><p>Elige una estructura. Verás el conjunto antes de gastar materiales.</p><div id="blueprintList"></div><button class="bankBtn" id="blueprintClose" style="width:100%;margin-top:9px">Cerrar</button></aside>
   <div id="buyring">
     <svg width="90" height="90"><circle cx="45" cy="45" r="38" stroke="rgba(255,255,255,.2)" stroke-width="7" fill="none"/>
@@ -561,6 +567,8 @@
       <button type="button" class="tbtn" data-act="variant" aria-label="Cambiar variante">🎛️<small>variante</small></button>
       <button type="button" class="tbtn" data-act="blueprints" aria-label="Abrir planos">📐<small>planos</small></button>
       <button type="button" class="tbtn" data-act="delete" aria-label="Quitar pieza">🗑️<small>borrar</small></button>
+      <button type="button" class="tbtn" data-act="floor2Rot" aria-label="Girar el segundo piso">🔄<small>piso 2</small></button>
+      <button type="button" class="tbtn" data-act="floor2Del" aria-label="Sacar el segundo piso">🏚️<small>sacar p2</small></button>
       <button type="button" class="tbtn" data-act="crop" aria-label="Cambiar semilla">🌾<small>semilla</small></button>
       <button type="button" class="tbtn" data-act="camera" aria-label="Cambiar cámara">📷<small>vista</small></button>
       <button type="button" class="tbtn" data-act="dodge" aria-label="Esquivar">💨<small>esquiva</small></button>
@@ -3456,26 +3464,36 @@ function refreshGhost() {
 }
 refreshGhost();
 
+// Altura del piso donde estás construyendo: 0 = suelo · loza del 2º piso si estás arriba
+// (así se pueden poner muebles y adornos en el segundo piso igual que en el primero).
+function buildBaseY(x, z) {
+  if (!state.hasFloor2 || !floor2Data || !playerOnFloor2) return 0;
+  const f = floor2Data, { lx, lz } = floor2Local(x, z);
+  return (Math.abs(lx) <= f.hw && Math.abs(lz) <= f.hd) ? f.baseY : 0;
+}
 function updateBuild() {
   const canBuild = state.buildMode && state.phase === 'DAY';
   ghost.visible = canBuild && !activeBlueprintId; blueprintGhost.visible = canBuild && !!activeBlueprintId;
   if (!canBuild) return;
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const t = player.position.clone().addScaledVector(fwd, 5); t.y = 0;
-  if (activeBlueprintId) { blueprintGhost.position.set(t.x, 0, t.z); blueprintGhost.rotation.y = buildRot; }
+  const by = buildBaseY(t.x, t.z);   // si estás en el segundo piso, se construye sobre la loza
+  if (activeBlueprintId) { blueprintGhost.position.set(t.x, by, t.z); blueprintGhost.rotation.y = buildRot; }
   else {
-    ghost.position.set(t.x, 0, t.z); ghost.rotation.y = buildRot;
+    ghost.position.set(t.x, by, t.z); ghost.rotation.y = buildRot;
     const have = state.inv[BUILD_KEYS[buildSel]] > 0; ghostLine.material.color.set(have ? 0x4ade80 : 0xef4444);
   }
 }
 
-// Crea y coloca un objeto en (x,z) con rotación rot (reutilizado por placeObject y al cargar la partida)
-function spawnPlaced(key, x, z, rot, hp, variantId) {
+// Crea y coloca un objeto en (x,z) con rotación rot (reutilizado por placeObject y al cargar la partida).
+// baseY = altura del piso donde se apoya: 0 = suelo · floor2Data.baseY = loza del segundo piso.
+function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
   const variant = variantFor(key, variantId);
+  const by = baseY || 0;
   const m = new THREE.Mesh(objGeometry(key, variant && variant.id), objMaterial(key, variant && variant.id));
-  m.position.set(x, objY(key), z); m.rotation.y = rot;
+  m.position.set(x, objY(key) + by, z); m.rotation.y = rot;
   m.castShadow = true; m.receiveShadow = true; scene.add(m);
-  const obj = { mesh: m, key, variant: variant && variant.id, hp: (hp != null ? hp : (key === 'wallRock' ? 200 : 100)) };
+  const obj = { mesh: m, key, variant: variant && variant.id, baseY: by, hp: (hp != null ? hp : (key === 'wallRock' ? 200 : 100)) };
   // ----- Muebles y decoración -----
   const legMat = mat(0x3f2a17);
   const legs = (hw, hd, len) => { for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len), legMat); l.position.set(sx * hw, -len / 2, sz * hd); m.add(l); } };
@@ -3517,11 +3535,13 @@ function spawnPlaced(key, x, z, rot, hp, variantId) {
     handle.position.set(0.35, 0.2, 0.44); m.add(handle);
   }
   if (key === 'lamp') {
-    const light = new THREE.PointLight(0xfff1a8, 0, 38); light.position.set(m.position.x, 2.6, m.position.z); scene.add(light); obj.light = light;
+    const light = new THREE.PointLight(0xfff1a8, 0, 38); light.position.set(m.position.x, 2.6 + by, m.position.z); scene.add(light); obj.light = light;
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10), new THREE.MeshStandardMaterial({ color: 0xfff1a8, emissive: 0xfde047, emissiveIntensity: 2.2 }));
-    bulb.position.set(m.position.x, 2.5, m.position.z); scene.add(bulb); obj.bulb = bulb;
+    bulb.position.set(m.position.x, 2.5 + by, m.position.z); scene.add(bulb); obj.bulb = bulb;
   }
-  if (key === 'wallWood' || key === 'wallRock') {
+  // Las colisiones son en 2D (no distinguen pisos): una pared del 2º piso taparía el paso
+  // abajo también, así que arriba las paredes se colocan pero sin caja de choque.
+  if ((key === 'wallWood' || key === 'wallRock') && !by) {
     // bloquea al jugador y a los enemigos
     const w = Math.abs(Math.cos(rot)) > 0.5 ? 4 : 0.4;
     const d = Math.abs(Math.cos(rot)) > 0.5 ? 0.4 : 4;
@@ -3539,7 +3559,7 @@ function placeObject() {
   if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
   state.inv[key]--;
   const variant = currentBuildVariant();
-  spawnPlaced(key, ghost.position.x, ghost.position.z, buildRot, null, variant && variant.id);
+  spawnPlaced(key, ghost.position.x, ghost.position.z, buildRot, null, variant && variant.id, ghost.position.y);
   const val = SHOP.find(s => s.key === key).value;
   addMoney(val);
   toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + (variant ? ' · ' + variant.name : '') + ' +$' + val);
@@ -3553,7 +3573,7 @@ function placeBlueprint() {
   const c = Math.cos(buildRot), s = Math.sin(buildRot); let value = 0;
   for (const p of bp.parts) {
     const x = blueprintGhost.position.x + p.x * c + p.z * s, z = blueprintGhost.position.z - p.x * s + p.z * c;
-    state.inv[p.key]--; spawnPlaced(p.key, x, z, buildRot + (p.rot || 0), null, p.variant);
+    state.inv[p.key]--; spawnPlaced(p.key, x, z, buildRot + (p.rot || 0), null, p.variant, blueprintGhost.position.y);
     const item = SHOP.find(shopItem => shopItem.key === p.key); value += item ? (item.value || 0) : 0;
   }
   addMoney(value); checkConstructionBonus(); renderBlueprintPanel();
@@ -3563,7 +3583,10 @@ function placeBlueprint() {
 function deleteObject() {
   if (!state.buildMode) return;
   let best = null, bd = 4;
-  for (const o of placed) { const d = dist2D(o.mesh.position, ghost.position); if (d < bd) { bd = d; best = o; } }
+  for (const o of placed) {
+    if (Math.abs((o.baseY || 0) - ghost.position.y) > 1) continue;   // solo lo del piso en el que estás
+    const d = dist2D(o.mesh.position, ghost.position); if (d < bd) { bd = d; best = o; }
+  }
   if (!best) { toast('Apunta cerca de un objeto para borrarlo'); return; }
   state.inv[best.key] = (state.inv[best.key] || 0) + 1;   // te lo devuelve al inventario
   const nm = SHOP.find(s => s.key === best.key);
@@ -4271,7 +4294,7 @@ function buildFloor2() {
   // Footprint REAL de tu casa: centroide y tamaño de las paredes/puertas que construiste (no el marcador verde)
   let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9, sx = 0, sz = 0, n = 0;
   for (const o of placed) {
-    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'door') && dist2D(o.mesh.position, houseAnchor) < 20) {
+    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'door') && !o.baseY && dist2D(o.mesh.position, houseAnchor) < 20) {   // solo las del primer piso: son las que definen la planta
       const p = o.mesh.position; minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); sx += p.x; sz += p.z; n++;
     }
   }
@@ -4293,15 +4316,38 @@ function buildFloor2() {
   for (let i = 0; i < steps; i++) mk(1.4, sh, 0.55, hw + 0.7, (i + 0.5) * sh, -hd + 0.6 + i * ((hd * 2 - 1.2) / steps), 0x8b5a2b);
   mk(1.7, 0.24, 1.35, hw + .42, baseY, hd - .62, 0xa87c4a);                              // descanso de llegada
   const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, hd * 2), mat(0x5a3a1e)); rail.position.set(hw + 1.35, baseY - 0.4, 0); rail.rotation.x = -Math.atan2(baseY, hd * 2 - 1.2); g.add(rail);   // baranda
-  g.position.set(bx, 0, bz);
-  scene.add(g); floor2Group = g; floor2Data = { bx, bz, hw, hd, baseY, stairX: hw + .7, z0: -hd + .3, z1: hd - .58 }; playerOnFloor2 = false;
+  const rot = state.floor2Rot || 0;
+  g.position.set(bx, 0, bz); g.rotation.y = rot;   // 🔄 Girar piso 2: mueve la escalera de lado
+  scene.add(g); floor2Group = g; floor2Data = { bx, bz, hw, hd, baseY, rot, stairX: hw + .7, z0: -hd + .3, z1: hd - .58 }; playerOnFloor2 = false;
 }
 function removeFloor2() { state.hasFloor2 = false; floor2Data = null; playerOnFloor2 = false; if (floor2Group) { scene.remove(floor2Group); floor2Group = null; } }
+// Botón 🔄: gira el segundo piso 90° (la escalera queda por otro lado)
+function rotateFloor2() {
+  if (!state.hasFloor2) { toast('🏠 Todavía no tienes segundo piso'); return; }
+  state.floor2Rot = ((state.floor2Rot || 0) + Math.PI / 2) % (Math.PI * 2);
+  buildFloor2(); beep(520, 0.08, 0.04);
+  toast('🔄 Giraste el segundo piso · la escalera cambió de lado');
+}
+// Botón 🗑️: saca el segundo piso y te devuelve la mitad de lo que costó
+function sellFloor2() {
+  if (!state.hasFloor2) { toast('🏠 No tienes segundo piso que sacar'); return; }
+  const back = Math.floor((UNLOCK_ITEMS.find(i => i.key === 'piso2').price) / 2);
+  let up = 0;   // lo que tenías arriba vuelve a la mochila (si no, quedaría flotando en el aire)
+  for (let i = placed.length - 1; i >= 0; i--) { const o = placed[i]; if (o.baseY) { state.inv[o.key] = (state.inv[o.key] || 0) + 1; removePlaced(o); up++; } }
+  removeFloor2(); addMoney(back); beep(300, 0.12, 0.05);
+  toast('🗑️ Sacaste el segundo piso · te devolvieron $' + back + (up ? ' y ' + up + ' objeto(s) que tenías arriba' : ''));
+}
+// Coordenadas locales del segundo piso (deshace su giro): sirven para caminar y para construir arriba
+function floor2Local(x, z) {
+  const f = floor2Data, dx = x - f.bx, dz = z - f.bz, a = f.rot || 0;
+  const c = Math.cos(a), s = Math.sin(a);
+  return { lx: dx * c - dz * s, lz: dx * s + dz * c };
+}
 
 // Altura transitable de la escalera y de la loza. El estado evita "teletransportarse" al piso superior saltando desde abajo.
 function secondFloorSupportY(eye) {
   if (!state.hasFloor2 || !floor2Data || state.underground || state.inCastle || state.inArena || state.inRuins) { playerOnFloor2 = false; return null; }
-  const f = floor2Data, lx = player.position.x - f.bx, lz = player.position.z - f.bz;
+  const f = floor2Data, { lx, lz } = floor2Local(player.position.x, player.position.z);
   const onStairs = Math.abs(lx - f.stairX) <= .9 && lz >= f.z0 - .35 && lz <= f.z1 + .35;
   if (onStairs) {
     const t = THREE.MathUtils.clamp((lz - f.z0) / Math.max(.1, f.z1 - f.z0), 0, 1);
@@ -4516,7 +4562,7 @@ const state = {
   incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
   album: {}, albumDone: false,   // álbum de criaturas alien (colección)
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
-  coreClaimed: false, relics: 0, trophies: 0,   // núcleo (reliquias) + trofeos de titanes
+  coreClaimed: false, relics: 0, trophies: 0, floor2Rot: 0,   // núcleo (reliquias) + trofeos + giro del 2º piso
   riding: false,   // montando una criatura firma domada
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
@@ -5040,6 +5086,8 @@ ui('blueprintClose').onclick = closeBlueprintPanel;
 ui('blueprintList').addEventListener('click', e => { const button = e.target.closest('[data-blueprint]'); if (button && !button.disabled) selectBlueprint(button.dataset.blueprint); });
 ui('rotateBtn').onclick = rotateBuild;
 ui('deleteBtn').onclick = deleteObject;
+ui('floor2RotBtn').onclick = rotateFloor2;
+ui('floor2DelBtn').onclick = sellFloor2;
 // Nueva partida: primero pregunta TU NOMBRE (cada jugador tiene su propia partida guardada)
 let pendingMode = 'normal';
 function openNamebox(mode) {
@@ -5263,6 +5311,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'rotate': rotateBuild(); break;
       case 'variant': cycleBuildVariant(1); break;
       case 'delete': deleteObject(); break;
+      case 'floor2Rot': rotateFloor2(); break;
+      case 'floor2Del': sellFloor2(); break;
       case 'dadFollow': setDadMode('follow'); break;
       case 'dadStay': setDadMode('stay'); break;
       case 'dadClean': setDadMode('clean'); break;
@@ -5343,7 +5393,7 @@ function startGame() {
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
   tennis.points = [0, 0]; tennis.games = [0, 0]; tennis.server = 0; tennis.serveIn = 1; drawTennisScore();
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
-  removePet(); removeAlienPet(); removeFloor2(); removeBase();
+  removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase();
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;   // tecnología alien: se compra de nuevo
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
   houseTier = 0;
@@ -5401,10 +5451,10 @@ function saveGame() {
       houseTier: houseTier, inv: state.inv,
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
-      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
+      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, rot: o.mesh.rotation.y, hp: o.hp, color: (o.mesh.material && o.mesh.material.color) ? o.mesh.material.color.getHex() : null })),
       vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, moto: !!v.moto, helicopter: !!v.helicopter })),
       car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
-      pet: !!pet, hasFloor2: !!state.hasFloor2, unlocked: state.unlocked || {},   // desbloqueos del medio juego
+      pet: !!pet, hasFloor2: !!state.hasFloor2, floor2Rot: state.floor2Rot || 0, unlocked: state.unlocked || {},   // desbloqueos del medio juego
       petAlien: !!petAlien, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
       cameraMode: cameraMode,
@@ -5958,7 +6008,7 @@ function loadGame() {
   state.inv = Object.assign(freshInv(), d.inv || {});
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
-  (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
+  (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant, o.baseY); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
   if (state.planet !== 'platus') {
     const savedVehicles = Array.isArray(d.vehicles) ? d.vehicles : (d.car ? [d.car] : []);
     savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, moto: v.moto, helicopter: v.helicopter, restoring: true }));
@@ -5992,7 +6042,7 @@ function loadGame() {
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   updateHouseAnchor();   // recalcula dónde está tu casa (en los planetas la construyes donde quieras)
-  removeFloor2(); if (d.hasFloor2) buildFloor2();
+  removeFloor2(); state.floor2Rot = d.floor2Rot || 0; if (d.hasFloor2) buildFloor2();
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); spawnBase(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 160; }
@@ -6039,7 +6089,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); removeBase(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
@@ -6392,7 +6442,7 @@ function buyItem(item) {
   if (item.key === 'piso2') {
     if (state.hasFloor2) { toast('🏠 Ya tienes segundo piso'); return; }
     if (!houseStats().ready) { toast('🏠 Primero construye tu casa (4 paredes)'); return; }
-    state.money -= item.price; buildFloor2(); toast('🏠 ¡Segundo piso construido! Sube por la escalera exterior · +$300 cada noche'); return;
+    state.money -= item.price; buildFloor2(); toast('🏠 ¡Segundo piso construido! Sube por la escalera · arriba puedes poner muebles igual que abajo · con B: 🔄 lo giras y 🗑️ lo sacas · +$300 cada noche'); return;
   }
   if (item.key === 'moto') {
     if (spawnCar({ moto: true })) state.money -= item.price;
@@ -7203,7 +7253,7 @@ function updateNight(dt) {
     const flies = ud.fly;
     let blocked = null;
     if (!flies) { for (const o of placed) {
-      const isBarrier = o.key === 'wallWood' || o.key === 'wallRock' || (o.key === 'door' && !ud.opensDoors); // los inteligentes abren puertas
+      const isBarrier = !o.baseY && (o.key === 'wallWood' || o.key === 'wallRock' || (o.key === 'door' && !ud.opensDoors)); // los inteligentes abren puertas · las paredes del 2º piso no frenan a los de abajo
       if (isBarrier && o.hp > 0 && dist2D(e.position, o.mesh.position) < 2.2) blocked = o;
     } }
     if (flies) e.position.y = 3 + Math.sin(state.nightTime * 4 + i) * 0.3;   // flotar
@@ -7951,6 +8001,8 @@ function renderHUD() {
   } else bb.style.display = 'none';
   const showBuildBtns = (state.buildMode && state.phase === 'DAY') ? 'block' : 'none';
   ui('blueprintBtn').style.display = showBuildBtns; ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;
+  const showFloor2Btns = (showBuildBtns === 'block' && state.hasFloor2) ? 'block' : 'none';   // solo con segundo piso puesto
+  ui('floor2RotBtn').style.display = showFloor2Btns; ui('floor2DelBtn').style.display = showFloor2Btns;
 
   // papá
   const modeTxt = dad.userData.protecting ? '🛡️ Protegiéndote' : ({ follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '');

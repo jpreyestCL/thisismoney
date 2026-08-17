@@ -2401,6 +2401,9 @@ spawnPedestrians();
 //  Tierra, así que se ocultan solos al viajar a otro planeta.
 // ===================================================================
 const parkRides = [];            // piezas que se mueven (rueda, carrusel, columpios, carro)
+const parkAttractions = [];      // atracciones a las que te puedes SUBIR (E)
+const parkStands = [];           // puestos de comida del parque (E para comprar)
+let parkRide = null;             // {att, seat} si vas montado en una atracción
 const parkMatCache = new Map();  // un material por color: muchos bloques, pocos materiales
 function mcMat(c) { let m = parkMatCache.get(c); if (!m) { m = mat(c); parkMatCache.set(c, m); } return m; }
 function mcBox(parent, x, y, z, w, h, d, color) {
@@ -2474,6 +2477,7 @@ function buildCondoPark() {
 
   // Columpios (se mueven)
   const sw = new THREE.Group(); sw.position.set(cx - 10, 0, cz - 9); g.add(sw);
+  const swingSeats = [];
   mcBox(sw, -2.4, 1.6, 0, .3, 3.2, .3, 0x8b5a2b); mcBox(sw, 2.4, 1.6, 0, .3, 3.2, .3, 0x8b5a2b);
   mcBox(sw, 0, 3.2, 0, 5.4, .3, .3, 0x8b5a2b);
   for (const sx of [-1.2, 1.2]) {
@@ -2481,7 +2485,9 @@ function buildCondoPark() {
     mcBox(pivot, 0, -1, -.02, .12, 2, .12, 0x52525b);
     mcBox(pivot, 0, -2.05, 0, 1, .18, .6, 0xef4444);
     parkRides.push({ kind: 'swing', obj: pivot, t: Math.random() * 6, speed: 1.6 + Math.random() * .4 });
+    swingSeats.push(pivot);
   }
+  parkAttractions.push({ name: 'los columpios', emoji: '🛝', price: 0, center: { x: cx - 10, z: cz - 9 }, radius: 6, seats: swingSeats, mount: 'near', seatY: -1.5 });    // sentado en la tabla del columpio
   addObstacle(cx - 12.4, cz - 9, .6, .6); addObstacle(cx - 7.6, cz - 9, .6, .6);
 
   // Resbalín (escalera de bloques + rampa)
@@ -2544,25 +2550,28 @@ function buildFunPark() {
   mcBox(fw, -3, 6, 0, 1.4, 12, 1.4, 0x64748b); mcBox(fw, 3, 6, 0, 1.4, 12, 1.4, 0x64748b);
   mcBox(fw, 0, .6, 0, 12, 1.2, 8, 0x9ca3af);
   const wheel = new THREE.Group(); wheel.position.set(0, 12, 0); fw.add(wheel);
-  const R = 10, CAB = 10;
+  const R = 10, CAB = 10, wheelSeats = [];
   for (let i = 0; i < CAB; i++) {
     const a = (i / CAB) * Math.PI * 2, px = Math.cos(a) * R, py = Math.sin(a) * R;
     mcBox(wheel, px / 2, py / 2, 0, .5, R, .5, 0xcbd5e1).rotation.z = a - Math.PI / 2;   // radio
     const cab = new THREE.Group(); cab.position.set(px, py, 0); wheel.add(cab);
     mcBox(cab, 0, -1, 0, 2.2, 1.8, 2.4, [0xef4444, 0xfacc15, 0x22c55e, 0x38bdf8, 0xa855f7][i % 5]);
     parkRides.push({ kind: 'cabin', obj: cab });   // las cabinas se mantienen derechas
+    wheelSeats.push(cab);
   }
   for (let i = 0; i < CAB * 2; i++) {   // aro exterior
     const a = (i / (CAB * 2)) * Math.PI * 2;
     mcBox(wheel, Math.cos(a) * R, Math.sin(a) * R, 0, 1.4, 1.4, .6, 0xe2e8f0);
   }
   parkRides.push({ kind: 'wheel', obj: wheel, speed: .22 });
+  parkAttractions.push({ name: 'la rueda de la fortuna', emoji: '🎡', price: 120, center: { x: cx - 32, z: cz + 6 }, radius: 13, seats: wheelSeats, mount: 'lowest', seatY: -0.5 });   // dentro de la cabina
   addObstacle(cx - 32, cz + 6, 12, 8);
 
   // ---- Carrusel (gira) ----
   const car = new THREE.Group(); car.position.set(cx + 30, 0, cz + 4); g.add(car);
   mcBox(car, 0, .5, 0, 14, 1, 14, 0xf5d0a9);
   const spin = new THREE.Group(); spin.position.y = 1; car.add(spin);
+  const carHorses = [];
   mcBox(spin, 0, 3.4, 0, 1.2, 6.8, 1.2, 0xfbbf24);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2, hx = Math.cos(a) * 5, hz = Math.sin(a) * 5;
@@ -2574,6 +2583,7 @@ function buildFunPark() {
     mcBox(horse, 1.2, 1.1, 0, .5, .5, .5, col);
     for (const lx of [-.6, .6]) for (const lz of [-.28, .28]) mcBox(horse, lx, -.8, lz, .28, .9, .28, col);
     parkRides.push({ kind: 'horse', obj: horse, t: i });
+    carHorses.push(horse);
   }
   for (let i = 0; i < 12; i++) {                             // techo cónico hecho de bloques
     const a = (i / 12) * Math.PI * 2;
@@ -2582,6 +2592,7 @@ function buildFunPark() {
   }
   mcBox(spin, 0, 8.1, 0, 2, .6, 2, 0xef4444);
   parkRides.push({ kind: 'carousel', obj: spin, speed: .5 });
+  parkAttractions.push({ name: 'el carrusel', emoji: '🎠', price: 60, center: { x: cx + 30, z: cz + 4 }, radius: 8, seats: carHorses, mount: 'near', seatY: 1 });        // sentado en el caballo
   addObstacle(cx + 30, cz + 4, 14, 14);
 
   // ---- Montaña rusa (un carro recorre la vía) ----
@@ -2597,19 +2608,21 @@ function buildFunPark() {
   mcBox(cart, 0, 0, 0, 2.4, 1.2, 1.8, 0xfacc15);
   mcBox(cart, -1, .8, 0, .4, .6, 1.8, 0xdc2626);
   parkRides.push({ kind: 'coaster', obj: cart, t: 0, speed: .6, rx: RX, rz: RZ, fy: coasterY });
+  parkAttractions.push({ name: 'la montaña rusa', emoji: '🎢', price: 150, center: { x: cx, z: cz - 11 }, radius: 6, seats: [cart], mount: 'near', seatY: 1, exit: { x: cx, z: cz - 8 } });   // se sube en el andén del borde
 
   // ---- Kioscos, globos y bancas ----
-  const kiosk = (kx, kz, col, txt) => {
+  const kiosk = (kx, kz, col, txt, emoji, price) => {
     const k = new THREE.Group(); k.position.set(kx, 0, kz); g.add(k);
     mcBox(k, 0, 1.4, 0, 5, 2.8, 4, 0xfef3c7);
     mcBox(k, 0, 3.2, 0, 6, .8, 5, col);
     mcBox(k, 0, 1.6, -2.1, 3.4, 1.4, .3, 0x92400e);
     mcSign(k, 0, 4.6, 0, txt, col);
     addObstacle(kx, kz, 5, 4);
+    parkStands.push({ name: txt.toLowerCase(), emoji, price, x: kx, z: kz - 2.6 });   // se atiende por el mesón
   };
-  kiosk(cx - 20, cz - 10, 0xef4444, 'HELADOS');
-  kiosk(cx + 20, cz - 10, 0x22c55e, 'PALOMITAS');
-  kiosk(cx - 20, cz + 16, 0x38bdf8, 'ALGODON');
+  kiosk(cx - 20, cz - 10, 0xef4444, 'HELADOS', '🍦', 120);
+  kiosk(cx + 20, cz - 10, 0x22c55e, 'PALOMITAS', '🍿', 90);
+  kiosk(cx - 20, cz + 16, 0x38bdf8, 'ALGODON', '🍬', 70);
   for (let i = 0; i < 8; i++) {   // globos
     const bx = cx - 40 + i * 11, bz = cz - 40 + (i % 3) * 4;
     mcBox(g, bx, 3.2, bz, .1, 4, .1, 0xe5e7eb);
@@ -2683,6 +2696,62 @@ function buildWaterPark() {
 buildCondoPark(); buildFunPark(); buildWaterPark();
 WATER_ZONES.push(POOL);   // en la piscina grande se nada igual que en el mar
 
+// ----- Subirte a las atracciones (E) y comprar en los puestos (E) -----
+const _seatPos = new THREE.Vector3();
+function nearestAttraction() {
+  for (const a of parkAttractions) if (dist2D(player.position, a.center) < a.radius) return a;
+  return null;
+}
+function pickSeat(a) {
+  if (a.mount === 'lowest') {   // en la rueda te subes a la cabina que está abajo
+    let best = null, by = 1e9;
+    for (const seat of a.seats) { seat.getWorldPosition(_seatPos); if (_seatPos.y < by) { by = _seatPos.y; best = seat; } }
+    return best;
+  }
+  let best = null, bd = 1e9;
+  for (const seat of a.seats) { seat.getWorldPosition(_seatPos); const d = dist2D(player.position, _seatPos); if (d < bd) { bd = d; best = seat; } }
+  return best;
+}
+function leaveParkRide(silent) {
+  if (!parkRide) return false;
+  const a = parkRide.att, e = a.exit || { x: a.center.x + a.radius * .8, z: a.center.z };
+  parkRide = null;
+  player.position.set(e.x, PLAYER_EYE, e.z + 3);
+  if (!silent) {
+    state.hp = Math.min(100, state.hp + 20);
+    floatText(player.position, '🎉 ¡Qué divertido! +20 vida', '#fde047', 18);
+    toast(a.emoji + ' Te bajaste de ' + a.name + ' · ¡lo pasaste genial! (+20 de vida)');
+    beep(660, .12, .05);
+  }
+  return true;
+}
+function tryParkRide() {
+  if (parkRide) return leaveParkRide(false);
+  const a = nearestAttraction(); if (!a) return false;
+  const price = state.creative ? 0 : a.price;
+  if (state.money < price) { toast('🎟️ El boleto de ' + a.name + ' cuesta $' + price); return true; }
+  const seat = pickSeat(a); if (!seat) return false;
+  if (price) addMoney(-price);
+  parkRide = { att: a, seat };
+  toast(a.emoji + ' ¡Te subiste a ' + a.name + '!' + (price ? ' (-$' + price + ')' : ' (¡gratis!)') + ' · E para bajarte');
+  beep(880, .1, .05); vibr(30);
+  return true;
+}
+function nearestParkStand() {
+  for (const st of parkStands) if (dist2D(player.position, st) < 3.4) return st;
+  return null;
+}
+function tryParkFood() {
+  const st = nearestParkStand(); if (!st) return false;
+  const price = state.creative ? 0 : st.price;
+  if (state.money < price) { toast('💸 ' + st.emoji + ' ' + st.name + ' cuesta $' + price); return true; }
+  if (price) addMoney(-price);
+  state.inv.food = (state.inv.food || 0) + 1;
+  toast(st.emoji + ' ¡Compraste ' + st.name + '! ' + (price ? '(-$' + price + ') ' : '') + '+1 comida · Q para comer');
+  beep(720, .09, .05); vibr(20);
+  return true;
+}
+
 // Animación de los juegos (se llama en el loop)
 function updateParks(dt) {
   for (const r of parkRides) {
@@ -2697,6 +2766,10 @@ function updateParks(dt) {
       r.obj.position.set(Math.cos(a) * r.rx, r.fy(a) + .8, Math.sin(a) * r.rz);
       r.obj.rotation.y = -a + Math.PI / 2;
     }
+  }
+  if (parkRide) {   // vas montado: el jugador viaja pegado al asiento
+    parkRide.seat.getWorldPosition(_seatPos);
+    player.position.set(_seatPos.x, _seatPos.y + (parkRide.att.seatY || 0), _seatPos.z);   // seatY = altura de los ojos sobre el asiento
   }
 }
 
@@ -5235,7 +5308,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { if (!tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -5690,7 +5763,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -5754,6 +5827,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
 function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; startMusic(); }
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
+  leaveParkRide(true);   // si estabas en una atracción, te bajas antes de guardar
   saveGame();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   state.running = false; state.driving = false; state.cinematic = false; document.body.classList.remove('cine');
@@ -5795,7 +5869,7 @@ function startGame() {
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
   tennis.points = [0, 0]; tennis.games = [0, 0]; tennis.server = 0; tennis.serveIn = 1; drawTennisScore();
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
-  removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase();
+  removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true);
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;   // tecnología alien: se compra de nuevo
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
   houseTier = 0;
@@ -6447,6 +6521,7 @@ function loadGame() {
   removeAlienPet(); if (d.petAlien) spawnAlienPet();
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
+  leaveParkRide(true);
   updateHouseAnchor();   // recalcula dónde está tu casa (en los planetas la construyes donde quieras)
   removeFloor2(); state.floor2Rot = d.floor2Rot || 0; if (d.hasFloor2) buildFloor2();
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
@@ -6495,7 +6570,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase(); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
@@ -7301,7 +7376,7 @@ function goToPlanet() {
   state.planetSky = P.sky; state.planetHazard = P.hazard; state.planetGrav = P.grav; state.planetCreature = P.creature;   // rasgos propios del planeta
   state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
-  clearPlants(); clearHelpers(); removePet(); removeFloor2(); clearCampfires(); dad.visible = true;
+  clearPlants(); clearHelpers(); removePet(); removeFloor2(); leaveParkRide(true); clearCampfires(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
   clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false; removeMount();   // cada planeta tiene su propio núcleo; la montura no viaja
   clearTitan(); titanTimer = 150 + Math.random() * 130;
@@ -7730,7 +7805,7 @@ function surviveNight() {
 }
 function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
-  state.driving = false; removeMount();
+  state.driving = false; removeMount(); leaveParkRide(true);
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
   // En los planetas NO hay cárcel (ni policía): te rescata el cohete y despiertas ahí
   const alien = state.planet === 'platus';
@@ -8073,6 +8148,7 @@ function drawMinimap() {
 function updateMovement(dt) {
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
   if (typing) clearInput();   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
+  if (parkRide) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // montado en una atracción: te lleva ella
   if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
   if (state.riding && mount) { updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
   const moveStartX = player.position.x, moveStartZ = player.position.z;
@@ -8328,7 +8404,11 @@ function updateContextPrompt() {
       const harvest = nearestHarvestable(2.8);
       let owned = null;
       for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
-      if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
+      const stand = nearestParkStand(), att = parkRide ? parkRide.att : nearestAttraction();
+      if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
+      else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };
+      else if (att) action = { key: 'E', touch: '🎟️', text: 'Subirte a ' + att.name + (att.price ? ' · boleto $' + att.price : ' · ¡gratis!') };
+      else if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
       else if (nearestDamagedBuilding()) action = { key: 'E', touch: '🔧', text: 'Reparar construcción dañada' };
       else if (state.sportGame) action = { key: 'CLIC/Q', touch: '🏅', text: state.sportGame.name + ' · primario / técnica · rojos ' + state.sportGame.teamScore[0] + '-' + state.sportGame.teamScore[1] + ' azules' };
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };

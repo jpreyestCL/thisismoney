@@ -947,6 +947,64 @@ function makePerson(colorBody, colorHead) {
 const playerAvatar = makePerson(0x3f6212, 0xe0ac69);
 playerAvatar.visible = false;
 scene.add(playerAvatar);
+
+// ===================================================================
+//  ARMADURA ESTILO MINECRAFT (casco, peto, hombreras, grebas y botas)
+//  Se ve puesta encima del cuerpo, como en Minecraft: bloques un poco
+//  más grandes que el personaje, con el color de cada material.
+// ===================================================================
+const ARMOR_TIERS = {
+  cuero:     { color: 0x9a5b2b, trim: 0x6b3f1d },
+  metal:     { color: 0xd7dde5, trim: 0x9aa4b2 },
+  obsidiana: { color: 0x7c3aed, trim: 0x4c1d95 },
+};
+function armorTierFor(factor) {          // el factor de daño dice qué armadura llevas
+  if (factor == null || factor >= 1) return null;
+  if (factor <= 0.35) return 'obsidiana';
+  if (factor <= 0.65) return 'metal';
+  return 'cuero';
+}
+// Pone (o quita, con tier = null) la armadura sobre un personaje hecho con makePerson
+function applyMinecraftArmor(person, tier, scale) {
+  if (!person) return;
+  const prev = person.userData.mcArmor;
+  if (prev) { for (const m of prev) if (m.parent) m.parent.remove(m); person.userData.mcArmor = null; }
+  person.userData.mcArmorTier = tier || null;
+  if (!tier || !ARMOR_TIERS[tier]) return;
+  const T = ARMOR_TIERS[tier], k = scale || 1, parts = [];
+  const piece = (parent, w, h, d, x, y, z, col) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w * k, h * k, d * k), mat(col));
+    m.position.set(x * k, y * k, z * k); m.castShadow = true; parent.add(m); parts.push(m); return m;
+  };
+  const limbs = person.userData.limbs || {};
+  piece(person, .62, .3, .62, 0, 2.24, 0, T.color);          // casco: tapa
+  piece(person, .62, .26, .12, 0, 2.02, -.27, T.color);      // casco: nuca
+  for (const sx of [-1, 1]) piece(person, .12, .26, .62, sx * .27, 2.02, 0, T.color);   // casco: costados
+  piece(person, .84, .78, .52, 0, 1.42, 0, T.color);         // peto
+  piece(person, .86, .16, .54, 0, 1.06, 0, T.trim);          // cinturón
+  piece(person, .8, .12, .5, 0, 1.76, 0, T.trim);            // cuello
+  if (limbs.armL) piece(limbs.armL, .32, .38, .38, 0, -.19, 0, T.color);   // hombreras (se mueven con el brazo)
+  if (limbs.armR) piece(limbs.armR, .32, .38, .38, 0, -.19, 0, T.color);
+  for (const leg of [limbs.legL, limbs.legR]) if (leg) {
+    piece(leg, .36, .42, .4, 0, -.24, 0, T.color);           // greba
+    piece(leg, .38, .22, .44, 0, -.76, .02, T.trim);         // bota
+  }
+  person.userData.mcArmor = parts;
+}
+// El jugador: se ve en las cámaras de 3ª persona y en la manga del viewmodel
+function applyPlayerArmor() {
+  const tier = armorTierFor(state.armorFactor);
+  applyMinecraftArmor(playerAvatar, tier);
+  const arm = viewmodel.children[0];   // manga del brazo en 1ª persona
+  if (arm && arm.material) arm.material.color.setHex(tier ? ARMOR_TIERS[tier].color : 0x3f6212);
+  if (!viewmodel.userData.bracer) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(.34, .34, .3), mat(0xd7dde5));
+    b.position.set(0, 0, -.16); viewmodel.add(b); viewmodel.userData.bracer = b;
+  }
+  viewmodel.userData.bracer.visible = !!tier;
+  if (tier) viewmodel.userData.bracer.material = mat(ARMOR_TIERS[tier].color);
+}
+
 function replaceToolInMount(mount, kind, color, scale, flip) {
   if (mount.userData.toolKind === kind && mount.userData.toolColor === color) return;
   while (mount.children.length) mount.remove(mount.children[0]);
@@ -1256,8 +1314,11 @@ function makeProductMesh(key, color) {
   } else if (key.startsWith('pala')) {
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8), mat(0x6b4423)); handle.position.y = 0.5; g.add(handle);
     const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.06), mat(color)); scoop.position.y = 0.95; scoop.castShadow = true; g.add(scoop);
-  } else if (key.startsWith('armadura')) {
-    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.35), mat(color)); chest.position.y = 0.5; chest.castShadow = true; g.add(chest);
+  } else if (key.startsWith('armadura')) {   // peto + casco, como la armadura de minecraft
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.55, 0.35), mat(color)); chest.position.y = 0.42; chest.castShadow = true; g.add(chest);
+    for (const sx of [-0.4, 0.4]) { const pad = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.26, 0.32), mat(color)); pad.position.set(sx, 0.58, 0); g.add(pad); }
+    const helm = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.3, 0.42), mat(color)); helm.position.y = 0.92; helm.castShadow = true; g.add(helm);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.1), mat(0x1f2937)); visor.position.set(0, 0.88, 0.2); g.add(visor);
   } else if (key === 'traje') {
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.6, 0.3), mat(color)); body.position.y = 0.45; body.castShadow = true; g.add(body);
     const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 10), new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.5, roughness: .1 })); helmet.position.y = 0.95; g.add(helmet);
@@ -2100,9 +2161,14 @@ buildDesert(-165, 140);   // segundo desierto en las afueras del mapa agrandado
 
 // Playa y mar voxel: costa de arena, agua profunda, fondo marino y algas de bloques.
 const BEACH = { cx: -165, cz: -155, waterW: 64, waterD: 48, surface: .48, bottom: -5 };
-function inBeachWater(x, z) {
-  return state.planet === 'tierra' && Math.abs(x - BEACH.cx) < BEACH.waterW / 2 && Math.abs(z - BEACH.cz) < BEACH.waterD / 2;
+// Zonas donde se puede NADAR (el mar y, más abajo, la piscina del parque acuático)
+const WATER_ZONES = [BEACH];
+function waterZoneAt(x, z) {
+  if (state.planet !== 'tierra') return null;
+  for (const w of WATER_ZONES) if (Math.abs(x - w.cx) < w.waterW / 2 && Math.abs(z - w.cz) < w.waterD / 2) return w;
+  return null;
 }
+function inBeachWater(x, z) { return !!waterZoneAt(x, z); }
 function buildBeach() {
   const sand = new THREE.Mesh(new THREE.PlaneGeometry(88, 70), mat(0xe6c878));
   sand.rotation.x = -Math.PI / 2; sand.position.set(BEACH.cx, .035, BEACH.cz); sand.receiveShadow = true; scene.add(sand);
@@ -2326,6 +2392,312 @@ function spawnPedestrians() {
   }
 }
 spawnPedestrians();
+
+// ===================================================================
+//  PARQUES ESTILO MINECRAFT: condominio · diversiones · acuático
+//  Todo se arma con CUBOS (nada de conos ni esferas) y con el material
+//  pixelado del juego. Se construyen antes del cierre del mundo de la
+//  Tierra, así que se ocultan solos al viajar a otro planeta.
+// ===================================================================
+const parkRides = [];            // piezas que se mueven (rueda, carrusel, columpios, carro)
+const parkMatCache = new Map();  // un material por color: muchos bloques, pocos materiales
+function mcMat(c) { let m = parkMatCache.get(c); if (!m) { m = mat(c); parkMatCache.set(c, m); } return m; }
+function mcBox(parent, x, y, z, w, h, d, color) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mcMat(color));
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
+}
+function mcFloor(parent, x, z, w, d, color, y) {   // loza/pasto/camino
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, .3, d), mcMat(color));
+  m.position.set(x, (y != null ? y : .05) - .15, z); m.receiveShadow = true; parent.add(m); return m;
+}
+function mcTree(parent, x, z, h, leaf) {           // árbol de bloques (tronco + copa cúbica)
+  const t = h || 4;
+  mcBox(parent, x, t / 2, z, .8, t, .8, 0x6b4423);
+  const L = leaf || 0x3f8f29;
+  mcBox(parent, x, t + 1.1, z, 3.4, 1.2, 3.4, L);
+  mcBox(parent, x, t + 2.1, z, 2.2, 1.2, 2.2, L);
+  mcBox(parent, x, t + 3, z, 1, 1, 1, L);
+}
+function mcBench(parent, x, z, rot) {              // banca de plaza
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot || 0; parent.add(g);
+  mcBox(g, 0, .45, 0, 2.2, .18, .7, 0x8b5a2b);
+  mcBox(g, 0, .85, -.32, 2.2, .7, .16, 0x8b5a2b);
+  mcBox(g, -.9, .22, 0, .2, .45, .6, 0x4b5563); mcBox(g, .9, .22, 0, .2, .45, .6, 0x4b5563);
+  return g;
+}
+function mcLamp(parent, x, z, color) {             // farol de parque (con luz de noche)
+  const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+  mcBox(g, 0, 1.7, 0, .3, 3.4, .3, 0x3f3f46);
+  const head = mcBox(g, 0, 3.6, 0, .8, .8, .8, color || 0xfde047);
+  head.material = new THREE.MeshStandardMaterial({ color: color || 0xfde047, emissive: color || 0xfde047, emissiveIntensity: 1.1, roughness: 1 });
+  return g;
+}
+function mcFence(parent, cx, cz, w, d, color, gapW) {   // reja baja (decorativa, no bloquea)
+  const step = 2, g = new THREE.Group(); parent.add(g);
+  for (let x = -w / 2; x <= w / 2; x += step) {
+    if (Math.abs(x) > gapW / 2) mcBox(g, cx + x, .6, cz - d / 2, .25, 1.2, .25, color);
+    mcBox(g, cx + x, .6, cz + d / 2, .25, 1.2, .25, color);
+  }
+  for (let z = -d / 2; z <= d / 2; z += step) {
+    mcBox(g, cx - w / 2, .6, cz + z, .25, 1.2, .25, color);
+    mcBox(g, cx + w / 2, .6, cz + z, .25, 1.2, .25, color);
+  }
+  return g;
+}
+function mcSign(parent, x, y, z, text, color) {
+  const s = makeSign(text, color); s.position.set(x, y, z); parent.add(s); return s;
+}
+
+// ---------------- 1) PARQUE DEL CONDOMINIO (chico, de barrio) -------------
+const CONDO_PARK = new THREE.Vector3(-30, 0, -55);
+function buildCondoPark() {
+  const g = new THREE.Group(); scene.add(g);
+  const cx = CONDO_PARK.x, cz = CONDO_PARK.z;
+  mcFloor(g, cx, cz, 34, 34, 0x4f9c3a);                    // pasto
+  mcFloor(g, cx, cz, 4, 34, 0xd6c7a1, .09);                // caminos de tierra
+  mcFloor(g, cx, cz, 34, 4, 0xd6c7a1, .09);
+  mcFence(g, cx, cz, 34, 34, 0xa1a1aa, 6);
+  mcSign(g, cx, 4.2, cz - 17.4, 'PARQUE DEL CONDOMINIO', 0x86efac);
+  for (const [tx, tz] of [[-13, -13], [13, -13], [-13, 13], [13, 13], [-8, 0], [8, 0]]) {
+    mcTree(g, cx + tx, cz + tz, 4 + (Math.abs(tx + tz) % 3));
+    addObstacle(cx + tx, cz + tz, 1.2, 1.2);
+  }
+  mcBench(g, cx - 6, cz + 8, 0); mcBench(g, cx + 6, cz + 8, 0);
+  mcBench(g, cx - 6, cz - 8, Math.PI); mcBench(g, cx + 6, cz - 8, Math.PI);
+  mcLamp(g, cx - 11, cz + 3); mcLamp(g, cx + 11, cz - 3);
+
+  // Arenero con castillito de arena
+  mcFloor(g, cx + 10, cz + 10, 8, 8, 0xe6d3a3, .12);
+  mcBox(g, cx + 10, .7, cz + 10, 1.6, 1.4, 1.6, 0xd9c08a);
+  mcBox(g, cx + 10, 1.7, cz + 10, 1, 1, 1, 0xd9c08a);
+
+  // Columpios (se mueven)
+  const sw = new THREE.Group(); sw.position.set(cx - 10, 0, cz - 9); g.add(sw);
+  mcBox(sw, -2.4, 1.6, 0, .3, 3.2, .3, 0x8b5a2b); mcBox(sw, 2.4, 1.6, 0, .3, 3.2, .3, 0x8b5a2b);
+  mcBox(sw, 0, 3.2, 0, 5.4, .3, .3, 0x8b5a2b);
+  for (const sx of [-1.2, 1.2]) {
+    const pivot = new THREE.Group(); pivot.position.set(sx, 3.1, 0); sw.add(pivot);
+    mcBox(pivot, 0, -1, -.02, .12, 2, .12, 0x52525b);
+    mcBox(pivot, 0, -2.05, 0, 1, .18, .6, 0xef4444);
+    parkRides.push({ kind: 'swing', obj: pivot, t: Math.random() * 6, speed: 1.6 + Math.random() * .4 });
+  }
+  addObstacle(cx - 12.4, cz - 9, .6, .6); addObstacle(cx - 7.6, cz - 9, .6, .6);
+
+  // Resbalín (escalera de bloques + rampa)
+  const sl = new THREE.Group(); sl.position.set(cx + 10, 0, cz - 10); g.add(sl);
+  for (let i = 0; i < 5; i++) mcBox(sl, -1.5, .35 + i * .7, -1.4 + i * .55, 1.6, .7, .6, 0x9a3412);
+  mcBox(sl, -1.5, 3.6, 1, 1.8, .3, 1.8, 0x9a3412);
+  const ramp = mcBox(sl, 1.4, 2, 1.6, 1.4, .25, 5.4, 0x38bdf8); ramp.rotation.x = -.62;
+  addObstacle(cx + 8.5, cz - 10, 2, 2);
+
+  // Piletita/fuente del centro
+  mcBox(g, cx, .35, cz, 5, .7, 5, 0xb8b8c0);
+  const w = new THREE.Mesh(new THREE.BoxGeometry(4.2, .12, 4.2), new THREE.MeshStandardMaterial({ color: 0x3aa7dd, transparent: true, opacity: .8, roughness: .35 }));
+  w.position.set(cx, .74, cz); g.add(w);
+  mcBox(g, cx, 1.4, cz, .9, 1.4, .9, 0xd4d4d8);
+  addObstacle(cx, cz, 5, 5);
+  return g;
+}
+
+// ---------------- 2) PARQUE DE DIVERSIONES (grande, tipo Disney) ----------
+const FUN_PARK = new THREE.Vector3(165, 0, 55);
+function buildFunPark() {
+  const g = new THREE.Group(); scene.add(g);
+  const cx = FUN_PARK.x, cz = FUN_PARK.z;
+  mcFloor(g, cx, cz, 96, 96, 0x6aa84f);                      // pasto del recinto
+  mcFloor(g, cx, cz - 20, 10, 56, 0xe8d7b0, .09);            // avenida principal
+  mcFloor(g, cx, cz + 4, 60, 10, 0xe8d7b0, .09);             // avenida transversal
+  mcFence(g, cx, cz, 96, 96, 0xf59e0b, 12);
+
+  // ---- Entrada con arco y boletería ----
+  const ent = new THREE.Group(); ent.position.set(cx, 0, cz - 48); g.add(ent);
+  for (const sx of [-6, 6]) { mcBox(ent, sx, 4, 0, 2, 8, 2, 0xb45309); addObstacle(cx + sx, cz - 48, 2, 2); }
+  mcBox(ent, 0, 8.6, 0, 15, 1.6, 2, 0xb45309);
+  for (let i = -3; i <= 3; i++) mcBox(ent, i * 2, 9.9, 0, 1.2, 1.2, 1.2, [0xef4444, 0xfacc15, 0x22c55e, 0x38bdf8][(i + 3) % 4]);
+  mcSign(ent, 0, 11.6, 0, 'PARQUE MAGICO', 0xf472b6);
+  for (const sx of [-11, 11]) {   // boleterías
+    mcBox(ent, sx, 1.4, 2, 4, 2.8, 3, 0xfde68a); mcBox(ent, sx, 3.1, 2, 4.6, .6, 3.6, 0xdc2626);
+    addObstacle(cx + sx, cz - 46, 4, 3);
+  }
+
+  // ---- Castillo (el corazón del parque) ----
+  const cas = new THREE.Group(); cas.position.set(cx, 0, cz + 26); g.add(cas);
+  mcBox(cas, 0, 5, 0, 20, 10, 12, 0xdbe3ea);                 // cuerpo
+  mcBox(cas, 0, 10.4, 0, 21, .8, 13, 0xc7d0d9);
+  for (let i = -5; i <= 5; i++) mcBox(cas, i * 2, 11.2, -6.2, 1.2, 1.2, 1.2, 0xdbe3ea);   // almenas
+  mcBox(cas, 0, 3, -6.4, 3.4, 6, .8, 0x7c4a1e);              // portón
+  mcBox(cas, 0, 7.6, -6.4, 2.4, 2, .5, 0x60a5fa);            // vitral
+  const tower = (tx, tz, h, col) => {                        // torres con techo escalonado
+    mcBox(cas, tx, h / 2, tz, 5, h, 5, 0xe8eef5);
+    for (let i = 0; i < 4; i++) mcBox(cas, tx, h + .6 + i * 1.2, tz, 5 - i * 1.1, 1.2, 5 - i * 1.1, col);
+    mcBox(cas, tx, h + 5.6, tz, .3, 1.6, .3, 0x9ca3af);
+    mcBox(cas, tx + .7, h + 6, tz, 1.4, .9, .1, 0xef4444);   // banderín
+  };
+  tower(-11, -4, 14, 0x2563eb); tower(11, -4, 14, 0x2563eb);
+  tower(-8, 6, 18, 0x7c3aed); tower(8, 6, 18, 0x7c3aed); tower(0, 0, 22, 0xdb2777);
+  addObstacle(cx, cz + 26, 20, 12);
+  addObstacle(cx - 11, cz + 22, 5, 5); addObstacle(cx + 11, cz + 22, 5, 5);
+
+  // ---- Rueda de la fortuna (gira) ----
+  const fw = new THREE.Group(); fw.position.set(cx - 32, 0, cz + 6); g.add(fw);
+  mcBox(fw, -3, 6, 0, 1.4, 12, 1.4, 0x64748b); mcBox(fw, 3, 6, 0, 1.4, 12, 1.4, 0x64748b);
+  mcBox(fw, 0, .6, 0, 12, 1.2, 8, 0x9ca3af);
+  const wheel = new THREE.Group(); wheel.position.set(0, 12, 0); fw.add(wheel);
+  const R = 10, CAB = 10;
+  for (let i = 0; i < CAB; i++) {
+    const a = (i / CAB) * Math.PI * 2, px = Math.cos(a) * R, py = Math.sin(a) * R;
+    mcBox(wheel, px / 2, py / 2, 0, .5, R, .5, 0xcbd5e1).rotation.z = a - Math.PI / 2;   // radio
+    const cab = new THREE.Group(); cab.position.set(px, py, 0); wheel.add(cab);
+    mcBox(cab, 0, -1, 0, 2.2, 1.8, 2.4, [0xef4444, 0xfacc15, 0x22c55e, 0x38bdf8, 0xa855f7][i % 5]);
+    parkRides.push({ kind: 'cabin', obj: cab });   // las cabinas se mantienen derechas
+  }
+  for (let i = 0; i < CAB * 2; i++) {   // aro exterior
+    const a = (i / (CAB * 2)) * Math.PI * 2;
+    mcBox(wheel, Math.cos(a) * R, Math.sin(a) * R, 0, 1.4, 1.4, .6, 0xe2e8f0);
+  }
+  parkRides.push({ kind: 'wheel', obj: wheel, speed: .22 });
+  addObstacle(cx - 32, cz + 6, 12, 8);
+
+  // ---- Carrusel (gira) ----
+  const car = new THREE.Group(); car.position.set(cx + 30, 0, cz + 4); g.add(car);
+  mcBox(car, 0, .5, 0, 14, 1, 14, 0xf5d0a9);
+  const spin = new THREE.Group(); spin.position.y = 1; car.add(spin);
+  mcBox(spin, 0, 3.4, 0, 1.2, 6.8, 1.2, 0xfbbf24);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2, hx = Math.cos(a) * 5, hz = Math.sin(a) * 5;
+    mcBox(spin, hx, 3.6, hz, .3, 5, .3, 0xf59e0b);           // barra
+    const horse = new THREE.Group(); horse.position.set(hx, 1.6, hz); horse.rotation.y = -a; spin.add(horse);
+    const col = [0xffffff, 0x92400e, 0x1f2937][i % 3];
+    mcBox(horse, 0, 0, 0, 1.9, 1.1, .8, col);                // cuerpo
+    mcBox(horse, .8, .8, 0, .7, 1.1, .7, col);               // cabeza
+    mcBox(horse, 1.2, 1.1, 0, .5, .5, .5, col);
+    for (const lx of [-.6, .6]) for (const lz of [-.28, .28]) mcBox(horse, lx, -.8, lz, .28, .9, .28, col);
+    parkRides.push({ kind: 'horse', obj: horse, t: i });
+  }
+  for (let i = 0; i < 12; i++) {                             // techo cónico hecho de bloques
+    const a = (i / 12) * Math.PI * 2;
+    mcBox(spin, Math.cos(a) * 5.6, 6.6, Math.sin(a) * 5.6, 2.4, .5, 2.4, i % 2 ? 0xef4444 : 0xfef3c7);
+    mcBox(spin, Math.cos(a) * 3.4, 7.4, Math.sin(a) * 3.4, 2, .5, 2, i % 2 ? 0xfef3c7 : 0xef4444);
+  }
+  mcBox(spin, 0, 8.1, 0, 2, .6, 2, 0xef4444);
+  parkRides.push({ kind: 'carousel', obj: spin, speed: .5 });
+  addObstacle(cx + 30, cz + 4, 14, 14);
+
+  // ---- Montaña rusa (un carro recorre la vía) ----
+  const rc = new THREE.Group(); rc.position.set(cx, 0, cz - 24); g.add(rc);
+  const RX = 26, RZ = 13, SEG = 40;
+  const coasterY = a => 3 + Math.sin(a * 2) * 2.4 + Math.cos(a * 3) * 1.2;   // subidas y bajadas
+  for (let i = 0; i < SEG; i++) {
+    const a = (i / SEG) * Math.PI * 2, px = Math.cos(a) * RX, pz = Math.sin(a) * RZ, py = coasterY(a);
+    mcBox(rc, px, py, pz, 2, .4, 2, 0xef4444);               // vía
+    if (i % 4 === 0) mcBox(rc, px, py / 2, pz, .5, py, .5, 0x78350f);   // pilar
+  }
+  const cart = new THREE.Group(); rc.add(cart);
+  mcBox(cart, 0, 0, 0, 2.4, 1.2, 1.8, 0xfacc15);
+  mcBox(cart, -1, .8, 0, .4, .6, 1.8, 0xdc2626);
+  parkRides.push({ kind: 'coaster', obj: cart, t: 0, speed: .6, rx: RX, rz: RZ, fy: coasterY });
+
+  // ---- Kioscos, globos y bancas ----
+  const kiosk = (kx, kz, col, txt) => {
+    const k = new THREE.Group(); k.position.set(kx, 0, kz); g.add(k);
+    mcBox(k, 0, 1.4, 0, 5, 2.8, 4, 0xfef3c7);
+    mcBox(k, 0, 3.2, 0, 6, .8, 5, col);
+    mcBox(k, 0, 1.6, -2.1, 3.4, 1.4, .3, 0x92400e);
+    mcSign(k, 0, 4.6, 0, txt, col);
+    addObstacle(kx, kz, 5, 4);
+  };
+  kiosk(cx - 20, cz - 10, 0xef4444, 'HELADOS');
+  kiosk(cx + 20, cz - 10, 0x22c55e, 'PALOMITAS');
+  kiosk(cx - 20, cz + 16, 0x38bdf8, 'ALGODON');
+  for (let i = 0; i < 8; i++) {   // globos
+    const bx = cx - 40 + i * 11, bz = cz - 40 + (i % 3) * 4;
+    mcBox(g, bx, 3.2, bz, .1, 4, .1, 0xe5e7eb);
+    mcBox(g, bx, 6, bz, 1.2, 1.4, 1.2, [0xef4444, 0xfacc15, 0x22c55e, 0x38bdf8, 0xa855f7][i % 5]);
+  }
+  for (const [bx, bz] of [[-8, -8], [8, -8], [-8, 12], [8, 12]]) mcBench(g, cx + bx, cz + bz, bz > 0 ? Math.PI : 0);
+  mcLamp(g, cx - 6, cz - 40); mcLamp(g, cx + 6, cz - 40); mcLamp(g, cx - 6, cz + 14); mcLamp(g, cx + 6, cz + 14);
+  for (const [tx, tz] of [[-44, -44], [44, -44], [-44, 44], [44, 44], [-40, 0], [40, 0]]) mcTree(g, cx + tx, cz + tz, 5);
+  return g;
+}
+
+// ---------------- 3) PARQUE ACUÁTICO (se nada de verdad) -----------------
+const WATER_PARK = new THREE.Vector3(-160, 0, 55);
+// Piscina grande: es una ZONA DE AGUA (se puede nadar y bucear, como la playa)
+const POOL = { cx: WATER_PARK.x, cz: WATER_PARK.z + 6, waterW: 34, waterD: 22, surface: .5, bottom: -3.4 };
+function buildWaterPark() {
+  const g = new THREE.Group(); scene.add(g);
+  const cx = WATER_PARK.x, cz = WATER_PARK.z;
+  mcFloor(g, cx, cz, 68, 60, 0x9fd3ea);                       // baldosas del recinto
+  mcFence(g, cx, cz, 68, 60, 0x38bdf8, 8);
+  mcSign(g, cx, 4.2, cz - 30.4, 'PARQUE ACUATICO', 0x38bdf8);
+
+  // Piscina grande (fondo + bordes + agua)
+  const p = POOL;
+  mcBox(g, p.cx, p.bottom - .3, p.cz, p.waterW, .6, p.waterD, 0x2b7fa8);   // fondo azulejo
+  for (const sx of [-1, 1]) mcBox(g, p.cx + sx * (p.waterW / 2 + .6), .3, p.cz, 1.2, .6, p.waterD + 2.4, 0xf1f5f9);
+  for (const sz of [-1, 1]) mcBox(g, p.cx, .3, p.cz + sz * (p.waterD / 2 + .6), p.waterW + 2.4, .6, 1.2, 0xf1f5f9);
+  const water = new THREE.Mesh(new THREE.BoxGeometry(p.waterW, .12, p.waterD),
+    new THREE.MeshStandardMaterial({ color: 0x35a7d8, transparent: true, opacity: .78, roughness: .3 }));
+  water.position.set(p.cx, p.surface, p.cz); g.add(water);
+
+  // Piscina de niños (poca agua, decorativa)
+  mcBox(g, cx - 24, .25, cz + 20, 12, .5, 10, 0xf1f5f9);
+  const kid = new THREE.Mesh(new THREE.BoxGeometry(10, .12, 8), new THREE.MeshStandardMaterial({ color: 0x67d3f2, transparent: true, opacity: .8, roughness: .3 }));
+  kid.position.set(cx - 24, .55, cz + 20); g.add(kid);
+
+  // Toboganes: torre de bloques + rampa que cae a la piscina
+  const slide = (sx, sz, h, col, dir) => {
+    const s = new THREE.Group(); s.position.set(sx, 0, sz); g.add(s);
+    for (let i = 0; i < h; i++) mcBox(s, 0, i + .5, 0, 4, 1, 4, i % 2 ? 0xe2e8f0 : 0xcbd5e1);   // torre a rayas
+    mcBox(s, 0, h + .6, 0, 5, 1.2, 5, col);                    // plataforma
+    for (let i = 0; i < h; i++) mcBox(s, 0, i + .5, 2.6 + i * .25, 3, .3, 1, 0x94a3b8);          // escalera
+    for (let i = 0; i < 14; i++) {                             // rampa que baja curvando
+      const t = i / 13, y = (h + .3) * (1 - t) + .8, off = 3 + i * 1.35;
+      mcBox(s, dir * off, y, Math.sin(t * 2.2) * 3.5, 2.6, .5, 2.6, col);
+      mcBox(s, dir * off, y + .7, Math.sin(t * 2.2) * 3.5 - 1.5, 2.6, 1, .3, 0xf8fafc);
+      mcBox(s, dir * off, y + .7, Math.sin(t * 2.2) * 3.5 + 1.5, 2.6, 1, .3, 0xf8fafc);
+    }
+    addObstacle(sx, sz, 4, 4);
+  };
+  slide(cx - 26, cz - 14, 9, 0xf97316, 1);
+  slide(cx + 26, cz - 14, 7, 0x22c55e, -1);
+
+  // Reposeras, quitasoles y torre del salvavidas
+  for (let i = 0; i < 6; i++) {
+    const rx = cx - 12 + i * 5, rz = cz + 22;
+    mcBox(g, rx, .35, rz, 1.2, .25, 2.4, 0xf8fafc);
+    mcBox(g, rx, .9, rz - .9, 1.2, 1.1, .25, 0xf8fafc);
+    mcBox(g, rx + 2, 1.6, rz, .18, 3.2, .18, 0x8b5a2b);
+    mcBox(g, rx + 2, 3.3, rz, 3.4, .4, 3.4, i % 2 ? 0xef4444 : 0xfacc15);
+  }
+  const tw = new THREE.Group(); tw.position.set(cx + 26, 0, cz + 18); g.add(tw);
+  for (const [lx, lz] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) mcBox(tw, lx, 2, lz, .35, 4, .35, 0xd97706);
+  mcBox(tw, 0, 4.3, 0, 4, .6, 4, 0xfbbf24); mcBox(tw, 0, 5.4, -1.8, 4, 1.6, .3, 0xfbbf24);
+  mcBox(tw, 0, 6.4, 0, 4.6, .5, 4.6, 0xef4444);
+  addObstacle(cx + 26, cz + 18, 3.4, 3.4);
+  for (const [tx, tz] of [[-30, 26], [30, 26], [-30, -26], [30, -26]]) mcTree(g, cx + tx, cz + tz, 4, 0x2f9e44);
+  return g;
+}
+
+buildCondoPark(); buildFunPark(); buildWaterPark();
+WATER_ZONES.push(POOL);   // en la piscina grande se nada igual que en el mar
+
+// Animación de los juegos (se llama en el loop)
+function updateParks(dt) {
+  for (const r of parkRides) {
+    if (r.kind === 'wheel') r.obj.rotation.z += r.speed * dt;
+    else if (r.kind === 'cabin') r.obj.rotation.z = -r.obj.parent.rotation.z;   // la cabina no se da vuelta
+    else if (r.kind === 'carousel') r.obj.rotation.y += r.speed * dt;
+    else if (r.kind === 'horse') { r.t += dt * 2.4; r.obj.position.y = 1.6 + Math.sin(r.t) * .5; }
+    else if (r.kind === 'swing') { r.t += dt * r.speed; r.obj.rotation.x = Math.sin(r.t) * .5; }
+    else if (r.kind === 'coaster') {
+      r.t += dt * r.speed;
+      const a = r.t % (Math.PI * 2);
+      r.obj.position.set(Math.cos(a) * r.rx, r.fy(a) + .8, Math.sin(a) * r.rz);
+      r.obj.rotation.y = -a + Math.PI / 2;
+    }
+  }
+}
 
 // ---- Cierre del "mundo de la Tierra": todo lo agregado desde el marcador es terrestre ----
 scene.children.forEach(o => { if (!_preEarthChildren.has(o)) earthMeshes.push(o); });
@@ -4162,10 +4534,8 @@ function applyHelperGearTo(h) {   // pone/quita arma y armadura a UN hijo según
     const w = makeVoxelSword(0xf59e0b, .42); w.position.set(0.55, 1.45, 0.3); w.rotation.x = Math.PI; h.add(w); h.userData.weapon = w;
   }
   if (h.userData.weapon) h.userData.weapon.visible = !!state.helperWeapon;
-  if (state.helperArmor && !h.userData.armor) {   // peto de armadura en el pecho
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.75, 0.5), mat(0x94a3b8)); plate.position.set(0, 1.35, 0); h.add(plate); h.userData.armor = plate;
-  }
-  if (h.userData.armor) h.userData.armor.visible = !!state.helperArmor;
+  const wantArmor = state.helperArmor ? 'metal' : null;   // armadura completa estilo minecraft
+  if ((h.userData.mcArmorTier || null) !== wantArmor) applyMinecraftArmor(h, wantArmor);
 }
 function applyHelperGear() { for (const h of helpers) applyHelperGearTo(h); }   // a TODOS los hijos (al comprar)
 function makeHelperAt(x, z) {   // crea un ayudante en (x,z) sin cobrar (usado por spawnHelper y loadGame)
@@ -4443,8 +4813,14 @@ function applyDadArmed(v) {   // pone/quita el arma (compartido por G y por load
 function ensureDadArmorPlate() {   // placa de armadura en el pecho del papá (una sola vez)
   if (!dad.userData.armorPlate) {
     const plate = new THREE.Group();
-    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.7, 0.18), mat(0x64748b)); chest.castShadow = true; plate.add(chest);
-    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.14, 0.22), mat(0x334155)); strap.position.y = 0.18; plate.add(strap);
+    const T = ARMOR_TIERS.metal;
+    const add = (w, h, d, x, y, z, col) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(col)); m.position.set(x, y, z); m.castShadow = true; plate.add(m); };
+    add(0.62, 0.7, 0.18, 0, 0, 0, T.color);          // peto
+    add(0.7, 0.14, 0.22, 0, 0.18, 0, T.trim);        // correa
+    add(0.24, 0.3, 0.26, -0.42, 0.22, -0.16, T.color);   // hombreras
+    add(0.24, 0.3, 0.26, 0.42, 0.22, -0.16, T.color);
+    add(0.46, 0.24, 0.44, 0, 0.72, -0.26, T.color);      // casco
+    add(0.46, 0.2, 0.1, 0, 0.56, -0.05, T.trim);         // visera
     plate.position.set(0, 1.15, 0.28); dad.add(plate); dad.userData.armorPlate = plate;
   }
   return dad.userData.armorPlate;
@@ -5379,7 +5755,7 @@ function startGame() {
   state.cinematic = false; document.body.classList.remove('cine');
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
-  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); setWeaponColor(0x94a3b8);
+  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.contract = null;   // sin contratos al empezar
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
@@ -6008,6 +6384,7 @@ function loadGame() {
   state.inv = Object.assign(freshInv(), d.inv || {});
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
+  applyPlayerArmor();   // vuelve a ponerte la armadura que tenías comprada
   (d.placed || []).forEach(o => { const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant, o.baseY); if (o.color != null && obj.mesh.material && obj.mesh.material.color) obj.mesh.material.color.setHex(o.color); });
   if (state.planet !== 'platus') {
     const savedVehicles = Array.isArray(d.vehicles) ? d.vehicles : (d.car ? [d.car] : []);
@@ -6077,7 +6454,7 @@ function continueGame() {
 
 function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
-  state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false;
+  state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; applyPlayerArmor();
   state.helperWeapon = false; state.helperArmor = false;
   state.dadArmor = 1; applyDadArmor(false);
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
@@ -6497,7 +6874,7 @@ function buyItem(item) {
     else toast(isShovel ? '🪏 ' + item.name + ' guardada: ya puedes CAVAR (T) aunque tu arma sea otra' : 'Ya tienes un arma más fuerte (' + state.weaponName + ')');
   }
   else if (item.factor) {  // armadura: deja la que menos daño recibe
-    if (item.factor < state.armorFactor) { state.armorFactor = item.factor; toast('🛡️ ' + item.name + ': un zombi te hace ' + Math.round(10 * item.factor) + ' (antes 10)'); }
+    if (item.factor < state.armorFactor) { state.armorFactor = item.factor; applyPlayerArmor(); toast('🛡️ ' + item.name + ': se te ve puesta (mira con 📷) · un zombi te hace ' + Math.round(10 * item.factor) + ' (antes 10)'); }
     else toast('Ya tienes una armadura mejor');
   }
   else if (item.key === 'hijoarma') { state.helperWeapon = true; applyHelperGear(); toast('⚔️ ¡Tus hijos ahora tienen ARMA! Pegan mucho más fuerte de noche'); }
@@ -7487,6 +7864,7 @@ function loop() {
     updateSportGame(dt);
     updateBusiness(dt);
     updateWorldEvents(dt);
+    updateParks(dt);                       // rueda, carrusel, columpios y montaña rusa de los parques
     swingLimbs(mom, dt);
     updateArrow();
     updateTutorial();
@@ -7636,6 +8014,9 @@ function drawMinimap() {
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
   if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); }   // súper / armería / banco
+  if (state.planet !== 'platus') {   // los tres parques
+    icon(CONDO_PARK.x, CONDO_PARK.z, '🌳', 13); icon(FUN_PARK.x, FUN_PARK.z, '🎡', 15); icon(WATER_PARK.x, WATER_PARK.z, '🏊', 14);
+  }
   if (state.planet === 'tierra' && state.blueprints.treasureMap) for (const s of worldSecrets) if (s.visible) icon(s.position.x, s.position.z, '❓', 11);
   icon(houseAnchor.x, houseAnchor.z, '🏠', 15);
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
@@ -7693,14 +8074,15 @@ function updateMovement(dt) {
     }
   }
   // Natación voxel: Espacio sube, Ctrl se hunde; el fondo de arena detiene la caída.
-  const swimming = !state.underground && !state.inCastle && !state.inRuins && inBeachWater(player.position.x, player.position.z);
+  const zone = (!state.underground && !state.inCastle && !state.inRuins) ? waterZoneAt(player.position.x, player.position.z) : null;
+  const swimming = !!zone;
   state.inWater = swimming;
   if (swimming) {
     const swimUp = keys['Space'] || touch.jumpHeld, swimDown = keys['ControlLeft'] || keys['ControlRight'] || touch.crouch;
     const vertical = (swimUp ? 3.8 : 0) - (swimDown ? 3.8 : .7);
-    player.position.y = THREE.MathUtils.clamp(player.position.y + vertical * dt, BEACH.bottom + PLAYER_EYE, BEACH.surface + PLAYER_EYE);
-    state.underwater = player.position.y < BEACH.surface - .05;
-    grounded = player.position.y <= BEACH.bottom + PLAYER_EYE + .01; vy = 0; touch.jump = false;
+    player.position.y = THREE.MathUtils.clamp(player.position.y + vertical * dt, zone.bottom + PLAYER_EYE, zone.surface + PLAYER_EYE);
+    state.underwater = player.position.y < zone.surface - .05;
+    grounded = player.position.y <= zone.bottom + PLAYER_EYE + .01; vy = 0; touch.jump = false;
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   state.underwater = false;

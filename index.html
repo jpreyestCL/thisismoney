@@ -752,6 +752,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
+import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=6';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -1064,7 +1065,7 @@ function getAimDirection(out) {
 function updatePlayerCamera(dt) {
   if (state.cinematic) { playerAvatar.visible = false; viewmodel.visible = false; return; }
   viewmodel.visible = cameraMode === 0;
-  playerAvatar.visible = cameraMode !== 0 && !state.driving && !state.riding;
+  playerAvatar.visible = (cameraMode !== 0 || mirrorNear) && !state.driving && !state.riding;   // frente a un espejo se muestra tu cuerpo para que te veas
   if (cameraMode === 0) {
     camera.position.copy(player.position);
     camera.rotation.set(pitch, yaw, 0);
@@ -3929,6 +3930,18 @@ homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
 // ===================================================================
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
+const mirrorObjs = [];      // espejos colocados (solo el más cercano refleja de verdad, por rendimiento)
+let mirrorNear = false;     // true si estás frente a un espejo (ahí se muestra tu cuerpo para verte)
+function updateMirrors() {
+  let best = null, bd = 7;
+  for (const o of mirrorObjs) {
+    if (!o.mesh.parent) continue;
+    const d = dist2D(player.position, o.mesh.position);
+    if (d < bd) { bd = d; best = o; }
+  }
+  mirrorNear = !!best;
+  for (const o of mirrorObjs) if (o.mirrors) for (const luna of o.mirrors) luna.visible = (o === best);
+}
 // Centro de TU CASA. En la Tierra es el marcador verde fijo; en los planetas NO hay marcador,
 // así que es el centro de las piezas que construiste (si no, el segundo piso, la pintura y la
 // defensa nocturna miraban un punto vacío del mapa y nunca encontraban tu casa).
@@ -4190,10 +4203,18 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
     barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.15, 0.5); m.add(barrel);
     obj.ammo = key === 'laser' ? 12 : 5; obj.shotCd = 0; obj.reloading = false; obj.reloadT = 0;
   }
-  if (key === 'espejo') {   // marco de madera alrededor de la luna
+  if (key === 'espejo') {   // marco de madera + luna que REFLEJA (te ves a ti mismo)
     const fr = mat(0x8b5a2b);
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), fr); b.position.set(x, y, -0.02); m.add(b); };
     bar(1.3, 0.16, 0, 0.86); bar(1.3, 0.16, 0, -0.86); bar(0.16, 1.9, -0.63, 0); bar(0.16, 1.9, 0.63, 0);
+    // Dos reflectores (uno por cara) para que te veas por delante y por detrás del espejo
+    for (const lado of [1, -1]) {
+      const luna = new Reflector(new THREE.PlaneGeometry(1, 1.55), { textureWidth: 512, textureHeight: 512, color: 0x9fb8c9 });
+      luna.position.z = lado * 0.075; if (lado < 0) luna.rotation.y = Math.PI;
+      luna.visible = false; m.add(luna);                 // se prende solo cuando te acercas (rinde mejor)
+      (obj.mirrors || (obj.mirrors = [])).push(luna);
+    }
+    mirrorObjs.push(obj);
   }
   if (key === 'alfombra') {   // borde y dibujo de la alfombra
     const borde = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.06, 2.1), mat(0x7f1d1d)); borde.position.y = -0.02; m.add(borde);
@@ -4266,6 +4287,7 @@ function deleteObject() {
 }
 function removePlaced(o) {
   scene.remove(o.mesh); if (o.light) scene.remove(o.light); if (o.bulb) scene.remove(o.bulb);
+  if (o.mirrors) { const i = mirrorObjs.indexOf(o); if (i >= 0) mirrorObjs.splice(i, 1); o.mirrors.forEach(mi => { if (mi.dispose) mi.dispose(); }); }
   if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
   const i = placed.indexOf(o); if (i >= 0) placed.splice(i, 1);
   if (['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'].includes(o.key)) houseTier = 0;  // se rompió: puedes volver a ganar el bono
@@ -8200,6 +8222,7 @@ function loop() {
     updateBusiness(dt);
     updateWorldEvents(dt);
     updateParks(dt);                       // rueda, carrusel, columpios y montaña rusa de los parques
+    updateMirrors();                       // enciende el espejo más cercano (y te muestra en él)
     swingLimbs(mom, dt);
     updateArrow();
     updateTutorial();

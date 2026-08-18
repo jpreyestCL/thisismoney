@@ -2421,13 +2421,13 @@ function mcFloor(parent, x, z, w, d, color, y) {   // loza/pasto/camino
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, .3, d), mcMat(color));
   m.position.set(x, (y != null ? y : .05) - .15, z); m.receiveShadow = true; parent.add(m); return m;
 }
-function mcTree(parent, x, z, h, leaf) {           // árbol de bloques (tronco + copa cúbica)
-  const t = h || 4;
-  mcBox(parent, x, t / 2, z, .8, t, .8, 0x6b4423);
+function mcTree(parent, x, z, h, leaf, baseY) {     // árbol de bloques (tronco + copa cúbica)
+  const t = h || 4, y0 = baseY || 0;
+  mcBox(parent, x, y0 + t / 2, z, .8, t, .8, 0x6b4423);
   const L = leaf || 0x3f8f29;
-  mcBox(parent, x, t + 1.1, z, 3.4, 1.2, 3.4, L);
-  mcBox(parent, x, t + 2.1, z, 2.2, 1.2, 2.2, L);
-  mcBox(parent, x, t + 3, z, 1, 1, 1, L);
+  mcBox(parent, x, y0 + t + 1.1, z, 3.4, 1.2, 3.4, L);
+  mcBox(parent, x, y0 + t + 2.1, z, 2.2, 1.2, 2.2, L);
+  mcBox(parent, x, y0 + t + 3, z, 1, 1, 1, L);
 }
 function mcBench(parent, x, z, rot) {              // banca de plaza
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot || 0; parent.add(g);
@@ -2764,19 +2764,49 @@ function buildWaterPark() {
 // con las capas desalineadas para que no parezca una pirámide perfecta.
 const mountains = [];   // cerros ESCALABLES: caminas por sus escalones hasta la cima
 const MOUNT_TAPER = 0.86;
-function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet) {
-  const layers = 10, step = h / layers;
+// La montaña NACE del suelo: la falda es de pasto/tierra con lomas medio enterradas
+// alrededor, después viene la roca y arriba la nieve. Las terrazas llevan ÁRBOLES.
+function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
+  const layers = 10, step = h / layers, o = opts || {};
+  const soil = o.soil != null ? o.soil : 0x6b5335, grass = o.grass != null ? o.grass : 0x4f8a35;
+  const leaf = o.leaf != null ? o.leaf : 0x2f7d24, treeN = o.trees != null ? o.trees : 14;
   let rnd = seed || 1;
   const rand = () => { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
-  for (let i = 0; i < layers; i++) {   // capas cuadradas cada vez más chicas = escalones para subir
+  // 1) Lomas de la falda: bloques medio ENTERRADOS que salen del pasto (rompen el borde recto)
+  for (let i = 0; i < 26; i++) {
+    const a = (i / 26) * 6.28 + rand() * .22, d = r * (.98 + rand() * .22);
+    const w = 4 + rand() * 7, hh = 1.6 + rand() * 3.4;
+    mcBox(parent, cx + Math.cos(a) * d, hh / 2 - 1.4, cz + Math.sin(a) * d, w, hh, w, rand() < .55 ? grass : soil);
+  }
+  // 2) Capas cuadradas (los escalones por los que se sube): tierra abajo, roca, nieve arriba
+  for (let i = 0; i < layers; i++) {
     const t = i / layers;
     const w = r * 2 * (1 - t * MOUNT_TAPER);
-    const col = (i >= layers - 3 && cap) ? cap : rock;
-    mcBox(parent, cx, step * i + step / 2, cz, w, step + .05, w, col);
+    const col = (i >= layers - 3 && cap) ? cap : (i === 0 ? grass : (i === 1 ? soil : rock));
+    const bajo = i === 0 ? 1.4 : 0;   // la primera capa se hunde en el pasto
+    mcBox(parent, cx, step * i + step / 2 - bajo / 2, cz, w, step + .05 + bajo, w, col);
   }
-  for (let i = 0; i < 5; i++) {   // rocas sueltas en la falda (decoración)
-    const a = rand() * 6.28, d = r * (.75 + rand() * .35);
-    mcBox(parent, cx + Math.cos(a) * d, 1, cz + Math.sin(a) * d, 2.4, 2, 2.4, rock);
+  // 3) Rocas sueltas repartidas por las terrazas
+  for (let i = 0; i < 8; i++) {
+    const capa = Math.floor(rand() * (layers - 2));
+    const half = r * (1 - (capa / layers) * MOUNT_TAPER), halfIn = r * (1 - ((capa + 1) / layers) * MOUNT_TAPER);
+    const lado = Math.floor(rand() * 4), p = (rand() - .5) * 2 * half, q = halfIn + rand() * Math.max(.5, half - halfIn);
+    const rx = lado < 2 ? p : (lado === 2 ? q : -q), rz = lado < 2 ? (lado === 0 ? q : -q) : p;
+    mcBox(parent, cx + rx, step * (capa + 1) + 1, cz + rz, 2.4, 2, 2.4, rock);
+  }
+  // 4) ÁRBOLES en las terrazas de abajo y del medio (arriba hay nieve/roca pelada)
+  for (let i = 0; i < treeN; i++) {
+    const capa = Math.floor(rand() * Math.max(1, layers - 4));
+    const half = r * (1 - (capa / layers) * MOUNT_TAPER), halfIn = r * (1 - ((capa + 1) / layers) * MOUNT_TAPER);
+    const banda = Math.max(1.5, half - halfIn);
+    const lado = Math.floor(rand() * 4), p = (rand() - .5) * 1.8 * half, q = halfIn + .8 + rand() * banda * .8;
+    const tx = lado < 2 ? p : (lado === 2 ? q : -q), tz = lado < 2 ? (lado === 0 ? q : -q) : p;
+    mcTree(parent, cx + tx, cz + tz, 3 + rand() * 2.4, leaf, step * (capa + 1));
+  }
+  // 5) Arbolitos al pie del cerro, para que se funda con el pasto
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * 6.28 + rand() * .4, d = r * (1.05 + rand() * .25);
+    mcTree(parent, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 3.5 + rand() * 2, leaf, 0);
   }
   mountains.push({ x: cx, z: cz, r, h, layers, step, planet: planet || 'tierra' });
 }
@@ -2946,7 +2976,7 @@ function buildPlatus() {
   const cerros = new THREE.Group(); cerros.visible = false; scene.add(cerros); platusStuff.push(cerros);
   const antesObs = obstacles.length;
   for (const [mx, mz, mr, mh, seed] of [[-150, -120, 32, 38, 7], [165, -160, 30, 34, 8], [60, 190, 28, 30, 9], [-95, 185, 26, 28, 10], [180, 120, 30, 32, 11]])
-    mcMountain(cerros, mx, mz, mr, mh, 0x5b4a5e, 0x7c3aed, seed, 'platus');
+    mcMountain(cerros, mx, mz, mr, mh, 0x5b4a5e, 0x7c3aed, seed, 'platus', { soil: 0x4a3a52, grass: 0x5d4a3a, leaf: 0x7c3aed, trees: 10 });
   obstacles.slice(antesObs).forEach(o => platusObstacles.push(o));   // (por si algún día agregan colisiones)
 
   // VENDEDOR ALIEN (nativo de Platus): cerca del punto de aterrizaje (10,16).
@@ -4592,14 +4622,14 @@ function hitEnemy(e, dmg, fromPos) {
 // Botín al matar: escala con la etapa, 10% de kill DORADO (x5), piñata y bono por combo
 function killLoot(e) {
   const c = addCombo();
-  let m = 10 + 5 * state.stage;
+  let m = 4 + 2 * state.stage;                                // matar monstruos paga poco: la plata sale del trabajo
   m = Math.round(m * (1 + Math.min(0.5, (c - 1) * 0.1)));   // el combo paga hasta +50%
   const golden = Math.random() < 0.10;
-  if (golden) m *= 5;
-  if (e.userData.bossKill) { m += 500; state.chapterFlags.bossDefeated = true; toast('⚔️ ¡Derrotaste al JEFE! +$500 extra'); coinBurst(e.position, 16); }
-  if (e.userData.ufoKill) { m += 900; toast('🛸 ¡DERRIBASTE EL OVNI JEFE! +$900 extra'); coinBurst(e.position, 24); }
+  if (golden) m *= 3;
+  if (e.userData.bossKill) { m += 200; state.chapterFlags.bossDefeated = true; toast('⚔️ ¡Derrotaste al JEFE! +$200 extra'); coinBurst(e.position, 16); }
+  if (e.userData.ufoKill) { m += 350; toast('🛸 ¡DERRIBASTE EL OVNI JEFE! +$350 extra'); coinBurst(e.position, 24); }
   if (e.userData.pinata) {
-    m += 300 + 60 * state.stage;
+    m += 120 + 25 * state.stage;
     toast('🪅 ¡Reventaste la PIÑATA! +$' + m); coinBurst(e.position, 20);
     tone(660, .1, .06, 'triangle'); setTimeout(() => tone(990, .14, .06, 'triangle'), 100);
   } else if (golden) {

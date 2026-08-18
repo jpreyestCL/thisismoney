@@ -2429,6 +2429,17 @@ function mcTree(parent, x, z, h, leaf, baseY) {     // árbol de bloques (tronco
   mcBox(parent, x, y0 + t + 2.1, z, 2.2, 1.2, 2.2, L);
   mcBox(parent, x, y0 + t + 3, z, 1, 1, 1, L);
 }
+function mcDeadTree(parent, x, z, h, baseY) {       // árbol SECO: tronco pelado + ramas, sin hojas
+  const t = h || 4, y0 = baseY || 0;
+  mcBox(parent, x, y0 + t / 2, z, .7, t, .7, 0x4a3728);
+  mcBox(parent, x, y0 + t + .5, z, .5, 1, .5, 0x4a3728);
+  for (let i = 0; i < 4; i++) {                    // ramas peladas hacia los lados
+    const a = (i / 4) * 6.28 + .4, dx = Math.cos(a), dz = Math.sin(a);
+    const y = y0 + t * (.55 + i * .13);
+    mcBox(parent, x + dx * .9, y, z + dz * .9, 1.5 * Math.abs(dx) + .28, .28, 1.5 * Math.abs(dz) + .28, 0x3b2b1f);
+    mcBox(parent, x + dx * 1.6, y + .5, z + dz * 1.6, .28, .9, .28, 0x3b2b1f);
+  }
+}
 function mcBench(parent, x, z, rot) {              // banca de plaza
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot || 0; parent.add(g);
   mcBox(g, 0, .45, 0, 2.2, .18, .7, 0x8b5a2b);
@@ -2801,12 +2812,14 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
     const banda = Math.max(1.5, half - halfIn);
     const lado = Math.floor(rand() * 4), p = (rand() - .5) * 1.8 * half, q = halfIn + .8 + rand() * banda * .8;
     const tx = lado < 2 ? p : (lado === 2 ? q : -q), tz = lado < 2 ? (lado === 0 ? q : -q) : p;
-    mcTree(parent, cx + tx, cz + tz, 3 + rand() * 2.4, leaf, step * (capa + 1));
+    if (o.dead) mcDeadTree(parent, cx + tx, cz + tz, 3 + rand() * 2.4, step * (capa + 1));
+    else mcTree(parent, cx + tx, cz + tz, 3 + rand() * 2.4, leaf, step * (capa + 1));
   }
   // 5) Arbolitos al pie del cerro, para que se funda con el pasto
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * 6.28 + rand() * .4, d = r * (1.05 + rand() * .25);
-    mcTree(parent, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 3.5 + rand() * 2, leaf, 0);
+    if (o.dead) mcDeadTree(parent, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 3.5 + rand() * 2, 0);
+    else mcTree(parent, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 3.5 + rand() * 2, leaf, 0);
   }
   mountains.push({ x: cx, z: cz, r, h, layers, step, planet: planet || 'tierra' });
 }
@@ -2976,7 +2989,7 @@ function buildPlatus() {
   const cerros = new THREE.Group(); cerros.visible = false; scene.add(cerros); platusStuff.push(cerros);
   const antesObs = obstacles.length;
   for (const [mx, mz, mr, mh, seed] of [[-150, -120, 32, 38, 7], [165, -160, 30, 34, 8], [60, 190, 28, 30, 9], [-95, 185, 26, 28, 10], [180, 120, 30, 32, 11]])
-    mcMountain(cerros, mx, mz, mr, mh, 0x5b4a5e, 0x7c3aed, seed, 'platus', { soil: 0x4a3a52, grass: 0x5d4a3a, leaf: 0x7c3aed, trees: 10 });
+    mcMountain(cerros, mx, mz, mr, mh, 0x5b4a5e, 0x7c3aed, seed, 'platus', { soil: 0x4a3a52, grass: 0x5d4a3a, dead: true, trees: 10 });   // en Platus los árboles están SECOS
   obstacles.slice(antesObs).forEach(o => platusObstacles.push(o));   // (por si algún día agregan colisiones)
 
   // VENDEDOR ALIEN (nativo de Platus): cerca del punto de aterrizaje (10,16).

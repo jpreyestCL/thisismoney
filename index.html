@@ -4653,7 +4653,16 @@ function spawnEnemy(type, atPos) {
   if (def.ufo) data.ufo = true;
   data.role = def.commander || def.boss ? 'leader' : def.breaksAir || def.opensDoors ? 'breaker' : data.speed > 2.4 ? 'scout' : 'brute';
   if (atPos) e.position.copy(atPos);
-  else { const a = Math.random() * Math.PI * 2, r = 32; e.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); }
+  else {
+    // Aparecen en CUALQUIER PARTE del mundo (no solo alrededor del centro), pero nunca
+    // encima tuyo: se busca un punto al azar que quede a más de 22 de distancia.
+    let x = 0, z = 0;
+    for (let i = 0; i < 14; i++) {
+      x = (Math.random() * 2 - 1) * 220; z = (Math.random() * 2 - 1) * 220;
+      if (Math.hypot(x - player.position.x, z - player.position.z) > 22) break;
+    }
+    e.position.set(x, 0, z);
+  }
   Object.assign(e.userData, data);
   decorateEnemyLevel(e, level, def.barY);
   addHealthBar(e);

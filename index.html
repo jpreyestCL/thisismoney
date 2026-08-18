@@ -1191,8 +1191,11 @@ momTag.scale.set(.5, .5, .5); momTag.position.set(0, 3, 0); mom.add(momTag); mom
 const SUPER_POS = new THREE.Vector3(40, 0, -18);
 const obstacles = [];   // cajas que bloquean al jugador
 
-function addObstacle(cx, cz, w, d) {
+function addObstacle(cx, cz, w, d, top) {
+  // top = altura de la caja (opcional). Si tus pies están por encima, no te frena:
+  // así en el SEGUNDO PISO no chocas con las paredes de abajo (paredes invisibles).
   const o = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 };
+  if (top != null) o.top = top;
   obstacles.push(o);
   return o;
 }
@@ -4244,7 +4247,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
     const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
     const w = 4 * ca + 0.4 * sa;
     const d = 4 * sa + 0.4 * ca;
-    obj.aabb = { minX: m.position.x - w / 2, maxX: m.position.x + w / 2, minZ: m.position.z - d / 2, maxZ: m.position.z + d / 2 };
+    obj.aabb = { minX: m.position.x - w / 2, maxX: m.position.x + w / 2, minZ: m.position.z - d / 2, maxZ: m.position.z + d / 2, top: 3 };   // 3 de alto: desde el 2º piso ya no estorban
     obstacles.push(obj.aabb);
   }
   placed.push(obj);
@@ -8572,7 +8575,9 @@ function updateViewmodel(dt) {
 }
 function resolveCollisions() {
   const r = 0.45, p = player.position;
+  const pies = p.y - PLAYER_EYE + .05;   // altura de tus pies (para pasar por encima de lo bajo)
   for (const o of obstacles) {
+    if (o.top != null && pies >= o.top) continue;   // vas caminando más arriba que esa pared
     if (p.x > o.minX - r && p.x < o.maxX + r && p.z > o.minZ - r && p.z < o.maxZ + r) {
       const left = (o.minX - r) - p.x, right = (o.maxX + r) - p.x, up = (o.minZ - r) - p.z, down = (o.maxZ + r) - p.z;
       const px = Math.abs(left) < Math.abs(right) ? left : right;

@@ -3024,7 +3024,9 @@ function buildPlatus() {
   const cerros = new THREE.Group(); cerros.visible = false; scene.add(cerros); platusStuff.push(cerros);
   const antesObs = obstacles.length;
   for (const [mx, mz, mr, mh, seed] of [[-150, -120, 32, 38, 7], [165, -160, 30, 34, 8], [60, 190, 28, 30, 9], [-95, 185, 26, 28, 10], [180, 120, 30, 32, 11]])
-    mcMountain(cerros, mx, mz, mr, mh, 0x6b7280, 0xf8fafc, seed, 'platus', { dead: true, trees: 18 });   // igualitas a las de la Tierra (pasto, roca y nieve); solo los árboles van SECOS
+    // Como las de la Tierra (roca gris y nieve arriba), pero SIN NADA VERDE: en Platus
+    // la falda es tierra seca del planeta y los árboles van pelados.
+    mcMountain(cerros, mx, mz, mr, mh, 0x6b7280, 0xf8fafc, seed, 'platus', { dead: true, trees: 18, grass: 0x8a5230, soil: 0x6b3f28 });
   obstacles.slice(antesObs).forEach(o => platusObstacles.push(o));   // (por si algún día agregan colisiones)
 
   // VENDEDOR ALIEN (nativo de Platus): cerca del punto de aterrizaje (10,16).

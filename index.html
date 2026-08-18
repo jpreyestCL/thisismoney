@@ -1066,16 +1066,18 @@ function updatePlayerCamera(dt) {
   if (state.cinematic) { playerAvatar.visible = false; viewmodel.visible = false; return; }
   viewmodel.visible = cameraMode === 0;
   playerAvatar.visible = (cameraMode !== 0 || mirrorNear) && !state.driving && !state.riding;   // frente a un espejo se muestra tu cuerpo para que te veas
+  // El cuerpo acompaña al jugador SIEMPRE (en 1ª persona sirve para verte en el espejo).
+  // Mira hacia DONDE MIRAS (la cara de las personas apunta a +z y la vista va a -z), así en
+  // el espejo te ves la cara y en tercera persona te ves la espalda.
+  playerAvatar.position.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
+  playerAvatar.rotation.y = yaw + Math.PI;
+  swingLimbs(playerAvatar, dt || 0.016);
   if (cameraMode === 0) {
     camera.position.copy(player.position);
     camera.rotation.set(pitch, yaw, 0);
     applyCameraFeedback(dt);
     return;
   }
-
-  playerAvatar.position.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
-  playerAvatar.rotation.y = yaw;
-  swingLimbs(playerAvatar, dt || 0.016);
 
   cameraAim.set(player.position.x, player.position.y - 0.25, player.position.z);
   const horizontal = 4.8 * Math.cos(pitch * 0.45);
@@ -3932,6 +3934,7 @@ homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
 const mirrorObjs = [];      // espejos colocados (solo el más cercano refleja de verdad, por rendimiento)
 let mirrorNear = false;     // true si estás frente a un espejo (ahí se muestra tu cuerpo para verte)
+const _mirrorTmp = new THREE.Vector3();
 function updateMirrors() {
   let best = null, bd = 7;
   for (const o of mirrorObjs) {
@@ -3941,6 +3944,13 @@ function updateMirrors() {
   }
   mirrorNear = !!best;
   for (const o of mirrorObjs) if (o.mirrors) for (const luna of o.mirrors) luna.visible = (o === best);
+  if (best) {   // la luna mira hacia el lado en el que estás parado
+    _mirrorTmp.copy(player.position); best.mesh.worldToLocal(_mirrorTmp);
+    const delante = _mirrorTmp.z >= 0;
+    const luna = best.mirrors[0];
+    luna.rotation.y = delante ? 0 : Math.PI;
+    luna.position.z = delante ? 0.08 : -0.08;
+  }
 }
 // Centro de TU CASA. En la Tierra es el marcador verde fijo; en los planetas NO hay marcador,
 // así que es el centro de las piezas que construiste (si no, el segundo piso, la pintura y la
@@ -4207,13 +4217,10 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
     const fr = mat(0x8b5a2b);
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), fr); b.position.set(x, y, -0.02); m.add(b); };
     bar(1.3, 0.16, 0, 0.86); bar(1.3, 0.16, 0, -0.86); bar(0.16, 1.9, -0.63, 0); bar(0.16, 1.9, 0.63, 0);
-    // Dos reflectores (uno por cara) para que te veas por delante y por detrás del espejo
-    for (const lado of [1, -1]) {
-      const luna = new Reflector(new THREE.PlaneGeometry(1, 1.55), { textureWidth: 512, textureHeight: 512, color: 0x9fb8c9 });
-      luna.position.z = lado * 0.075; if (lado < 0) luna.rotation.y = Math.PI;
-      luna.visible = false; m.add(luna);                 // se prende solo cuando te acercas (rinde mejor)
-      (obj.mirrors || (obj.mirrors = [])).push(luna);
-    }
+    // Un reflector que se da vuelta hacia el lado desde el que lo miras
+    const luna = new Reflector(new THREE.PlaneGeometry(1, 1.55), { textureWidth: 512, textureHeight: 512, color: 0xb9cddb });
+    luna.position.z = 0.08; luna.visible = false; m.add(luna);   // se prende solo cuando te acercas (rinde mejor)
+    obj.mirrors = [luna];
     mirrorObjs.push(obj);
   }
   if (key === 'alfombra') {   // borde y dibujo de la alfombra
@@ -8203,6 +8210,7 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
   if (state.running && !state.paused && (state.phase === 'DAY' || state.phase === 'NIGHT')) {
+    updateMirrors();                       // enciende el espejo más cercano (antes de dibujar tu cuerpo)
     updateMovement(dt);
     updateWater(dt);                       // aire limitado y daño por ahogo bajo el mar
     updateViewmodel(dt);
@@ -8222,7 +8230,6 @@ function loop() {
     updateBusiness(dt);
     updateWorldEvents(dt);
     updateParks(dt);                       // rueda, carrusel, columpios y montaña rusa de los parques
-    updateMirrors();                       // enciende el espejo más cercano (y te muestra en él)
     swingLimbs(mom, dt);
     updateArrow();
     updateTutorial();

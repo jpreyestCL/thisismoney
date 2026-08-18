@@ -752,7 +752,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
-import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=5';
+import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=6';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -936,6 +936,17 @@ function makePerson(colorBody, colorHead) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
     m.position.y = -h / 2; m.castShadow = true; pivot.add(m); g.add(pivot); return pivot;
   };
+  // CARA estilo minecraft en el frente de la cabeza (ojos con pupila, cejas y boca)
+  const facePiece = (w, h, col, x, y, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.04), new THREE.MeshStandardMaterial({ color: col, roughness: .9 }));
+    m.position.set(x, y, z); g.add(m); return m;
+  };
+  for (const sx of [-0.12, 0.12]) {
+    facePiece(0.13, 0.12, 0xf8fafc, sx, 2.11, 0.253);                 // ojo
+    facePiece(0.06, 0.09, 0x1f2937, sx + (sx > 0 ? .02 : -.02), 2.11, 0.263);   // pupila
+    facePiece(0.15, 0.04, 0x3b2b1f, sx, 2.21, 0.253);                 // ceja
+  }
+  facePiece(0.2, 0.05, 0x7f3a35, 0, 1.94, 0.253);                     // boca
   const armL = limb(colorBody, 0.22, 0.8, 0.28, -0.5, 1.78);
   const armR = limb(colorBody, 0.22, 0.8, 0.28,  0.5, 1.78);
   const legL = limb(pants, 0.28, 0.85, 0.32, -0.2, 0.9);
@@ -1240,6 +1251,8 @@ const DECOR_ITEMS = [
   { key: 'sofa',   name: 'Sofá',      price: 300,  value: 120, color: 0x10b981, build: true, deco: true },
   { key: 'tele',   name: 'Televisor', price: 400,  value: 150, color: 0x1f2937, build: true, deco: true },
   { key: 'planta', name: 'Planta',    price: 120,  value: 45,  color: 0x22c55e, build: true, deco: true },
+  { key: 'espejo', name: 'Espejo',    price: 250,  value: 90,  color: 0xdbeafe, build: true, deco: true },
+  { key: 'alfombra', name: 'Alfombra', price: 180, value: 70,  color: 0xb91c1c, build: true, deco: true },
   { key: 'auto',   name: 'Auto',      price: 2000, color: 0xdc2626, car: true },
   { key: 'helicoptero', name: 'Helicóptero voxel', price: 4000, color: 0x16a34a, helicopter: true },
 ];
@@ -1315,6 +1328,12 @@ function makeProductMesh(key, color) {
   } else if (key.startsWith('pala')) {
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8), mat(0x6b4423)); handle.position.y = 0.5; g.add(handle);
     const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.06), mat(color)); scoop.position.y = 0.95; scoop.castShadow = true; g.add(scoop);
+  } else if (key === 'espejo') {
+    const marco = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.08), mat(0x8b5a2b)); marco.position.y = 0.5; marco.castShadow = true; g.add(marco);
+    const luna = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.64, 0.1), new THREE.MeshStandardMaterial({ color: 0xcfe6ff, roughness: .08, metalness: .25, emissive: 0x8fb8dd, emissiveIntensity: .55 })); luna.position.y = 0.5; g.add(luna);
+  } else if (key === 'alfombra') {
+    const alf = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.6), mat(color)); alf.position.y = 0.06; alf.castShadow = true; g.add(alf);
+    const cen = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.07, 0.32), mat(0xfacc15)); cen.position.y = 0.1; g.add(cen);
   } else if (key.startsWith('armadura')) {   // peto + casco, como la armadura de minecraft
     const chest = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.55, 0.35), mat(color)); chest.position.y = 0.42; chest.castShadow = true; g.add(chest);
     for (const sx of [-0.4, 0.4]) { const pad = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.26, 0.32), mat(color)); pad.position.set(sx, 0.58, 0); g.add(pad); }
@@ -1954,6 +1973,7 @@ function recordSportTouch(game, distance) {
   if (perfect) { floatText(player.position, '¡PERFECTO!', '#bef264', 16); beep(760, .06, .04); }
 }
 function nearestSport(maxD = 13) {
+  if (state.planet !== 'tierra') return null;   // los estadios son de la Tierra: en los planetas no hay partidos
   let best = null, bd = maxD;
   for (const s of SPORT_INFO) { const d = dist2D(player.position, s.center); if (d < bd) { best = s; bd = d; } }
   return best;
@@ -2773,70 +2793,79 @@ function buildWaterPark() {
 // ---------------- MONTAÑAS (bloques, estilo minecraft) -------------------
 // Se arman con capas cuadradas cada vez más chicas (como un cerro de bloques),
 // con las capas desalineadas para que no parezca una pirámide perfecta.
-const mountains = [];   // cerros ESCALABLES: caminas por sus escalones hasta la cima
-const MOUNT_TAPER = 0.86;
-// La montaña NACE del suelo: la falda es de pasto/tierra con lomas medio enterradas
-// alrededor, después viene la roca y arriba la nieve. Las terrazas llevan ÁRBOLES.
-function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
-  const layers = 10, step = h / layers, o = opts || {};
-  const soil = o.soil != null ? o.soil : 0x6b5335, grass = o.grass != null ? o.grass : 0x4f8a35;
-  const leaf = o.leaf != null ? o.leaf : 0x2f7d24, treeN = o.trees != null ? o.trees : 14;
-  let rnd = seed || 1;
-  const rand = () => { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
-  // 1) Lomas de la falda: bloques medio ENTERRADOS que salen del pasto (rompen el borde recto)
-  for (let i = 0; i < 26; i++) {
-    const a = (i / 26) * 6.28 + rand() * .22, d = r * (.98 + rand() * .22);
-    const w = 4 + rand() * 7, hh = 1.6 + rand() * 3.4;
-    mcBox(parent, cx + Math.cos(a) * d, hh / 2 - 1.4, cz + Math.sin(a) * d, w, hh, w, rand() < .55 ? grass : soil);
-  }
-  // 2) Capas cuadradas (los escalones por los que se sube): tierra abajo, roca, nieve arriba
-  for (let i = 0; i < layers; i++) {
-    const t = i / layers;
-    const w = r * 2 * (1 - t * MOUNT_TAPER);
-    const col = (i >= layers - 3 && cap) ? cap : (i === 0 ? grass : (i === 1 ? soil : rock));
-    const bajo = i === 0 ? 1.4 : 0;   // la primera capa se hunde en el pasto
-    mcBox(parent, cx, step * i + step / 2 - bajo / 2, cz, w, step + .05 + bajo, w, col);
-  }
-  // 3) Rocas sueltas repartidas por las terrazas
-  for (let i = 0; i < 8; i++) {
-    const capa = Math.floor(rand() * (layers - 2));
-    const half = r * (1 - (capa / layers) * MOUNT_TAPER), halfIn = r * (1 - ((capa + 1) / layers) * MOUNT_TAPER);
-    const lado = Math.floor(rand() * 4), p = (rand() - .5) * 2 * half, q = halfIn + rand() * Math.max(.5, half - halfIn);
-    const rx = lado < 2 ? p : (lado === 2 ? q : -q), rz = lado < 2 ? (lado === 0 ? q : -q) : p;
-    mcBox(parent, cx + rx, step * (capa + 1) + 1, cz + rz, 2.4, 2, 2.4, rock);
-  }
-  // 4) ÁRBOLES en las terrazas de abajo y del medio (arriba hay nieve/roca pelada)
-  for (let i = 0; i < treeN; i++) {
-    const capa = Math.floor(rand() * Math.max(1, layers - 4));
-    const half = r * (1 - (capa / layers) * MOUNT_TAPER), halfIn = r * (1 - ((capa + 1) / layers) * MOUNT_TAPER);
-    const banda = Math.max(1.5, half - halfIn);
-    const lado = Math.floor(rand() * 4), p = (rand() - .5) * 1.8 * half, q = halfIn + .8 + rand() * banda * .8;
-    const tx = lado < 2 ? p : (lado === 2 ? q : -q), tz = lado < 2 ? (lado === 0 ? q : -q) : p;
-    if (o.dead) mcDeadTree(parent, cx + tx, cz + tz, 3 + rand() * 2.4, step * (capa + 1));
-    else mcTree(parent, cx + tx, cz + tz, 3 + rand() * 2.4, leaf, step * (capa + 1));
-  }
-  // 5) Arbolitos al pie del cerro, para que se funda con el pasto
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * 6.28 + rand() * .4, d = r * (1.05 + rand() * .25);
-    if (o.dead) mcDeadTree(parent, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 3.5 + rand() * 2, 0);
-    else mcTree(parent, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 3.5 + rand() * 2, leaf, 0);
-  }
-  mountains.push({ x: cx, z: cz, r, h, layers, step, planet: planet || 'tierra' });
+const mountains = [];   // cerros ESCALABLES con ladera continua (nada de escalones)
+const rockTex = groundTex.clone(); rockTex.repeat.set(1, 1); rockTex.needsUpdate = true;   // textura pixelada neutra (se tiñe por columna)
+// Perfil del cerro: altura suave según la distancia al centro + crestas, para que
+// caminar sea una SUBIDA continua. La misma función dibuja la montaña y te sostiene.
+function mountainProfile(m, dx, dz) {
+  const d = Math.hypot(dx, dz);
+  if (d >= m.r) return 0;
+  const a = Math.atan2(dz, dx);
+  const crestas = 1 + .13 * Math.sin(a * 3 + m.ph) + .07 * Math.sin(a * 6 - m.ph * 1.7);
+  return m.h * Math.pow(1 - d / m.r, 1.45) * crestas;
 }
-// Altura del cerro bajo tus pies (0 = suelo normal). Se calcula con la MISMA fórmula
-// con la que se dibujan las capas, así los escalones coinciden con lo que se ve.
 function mountainHeightAt(x, z) {
   const here = state.planet === 'platus' ? 'platus' : 'tierra';
   let best = 0;
   for (const m of mountains) {
     if (m.planet !== here) continue;
-    const d = Math.max(Math.abs(x - m.x), Math.abs(z - m.z));
-    if (d >= m.r) continue;
-    const i = Math.floor(m.layers * (1 - d / m.r) / MOUNT_TAPER);
-    const top = m.step * Math.min(m.layers, i + 1);
-    if (top > best) best = top;
+    if (Math.abs(x - m.x) > m.r || Math.abs(z - m.z) > m.r) continue;
+    const hh = mountainProfile(m, x - m.x, z - m.z);
+    if (hh > best) best = hh;
   }
   return best;
+}
+// La montaña se arma con COLUMNAS de bloques de distinta altura (InstancedMesh: 1 draw call).
+// Como la altura de cada columna sale del perfil suave, la ladera sube parejo y no en escalones.
+function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
+  const o = opts || {};
+  const soil = o.soil != null ? o.soil : 0x6b5335, grass = o.grass != null ? o.grass : 0x4f8a35;
+  const leaf = o.leaf != null ? o.leaf : 0x2f7d24, treeN = o.trees != null ? o.trees : 22;
+  let rnd = seed || 1;
+  const rand = () => { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
+  const m = { x: cx, z: cz, r, h, ph: (seed || 1) * 1.7, planet: planet || 'tierra' };
+  mountains.push(m);
+  const CELL = 2.1, cols = [];
+  for (let gx = -r; gx <= r; gx += CELL) for (let gz = -r; gz <= r; gz += CELL) {
+    const hh = mountainProfile(m, gx, gz);
+    if (hh > .4) cols.push([gx, gz, hh]);
+  }
+  const geo = new THREE.BoxGeometry(CELL * 1.03, 1, CELL * 1.03);
+  const matCol = new THREE.MeshStandardMaterial({ map: rockTex, color: 0xffffff, roughness: 1, metalness: 0, flatShading: true });
+  const im = new THREE.InstancedMesh(geo, matCol, cols.length);
+  im.castShadow = true; im.receiveShadow = true;
+  const m4 = new THREE.Matrix4(), pos = new THREE.Vector3(), qq = new THREE.Quaternion(), scl = new THREE.Vector3(), col = new THREE.Color();
+  cols.forEach(([gx, gz, hh], i) => {
+    const bottom = -2.5;                                   // las columnas nacen bajo el pasto
+    pos.set(cx + gx, (hh + bottom) / 2, cz + gz);
+    scl.set(1, hh - bottom, 1);
+    m4.compose(pos, qq, scl); im.setMatrixAt(i, m4);
+    const f = hh / h;                                      // pasto abajo · tierra · roca · nieve arriba
+    col.setHex(f > .8 ? cap : (f > .34 ? rock : (f > .14 ? soil : grass)));
+    im.setColorAt(i, col);
+  });
+  im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  parent.add(im);
+  // Piedras sueltas repartidas por la ladera
+  for (let i = 0; i < 10; i++) {
+    const a = rand() * 6.28, d = r * (.2 + rand() * .7);
+    const px = Math.cos(a) * d, pz = Math.sin(a) * d;
+    mcBox(parent, cx + px, mountainProfile(m, px, pz) + .8, cz + pz, 2.2, 1.8, 2.2, rock);
+  }
+  // ÁRBOLES sembrados en la ladera (hasta media montaña; arriba queda pelado)
+  for (let i = 0; i < treeN; i++) {
+    const a = rand() * 6.28, d = r * (.18 + rand() * .78);
+    const px = Math.cos(a) * d, pz = Math.sin(a) * d, y = mountainProfile(m, px, pz);
+    if (y > h * .62) continue;
+    if (o.dead) mcDeadTree(parent, cx + px, cz + pz, 3 + rand() * 2.4, y - .4);
+    else mcTree(parent, cx + px, cz + pz, 3 + rand() * 2.4, leaf, y - .4);
+  }
+  // Arbolitos al pie, para que el cerro se funda con el suelo
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * 6.28 + rand() * .4, d = r * (1.02 + rand() * .22);
+    if (o.dead) mcDeadTree(parent, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 3.5 + rand() * 2, 0);
+    else mcTree(parent, cx + Math.cos(a) * d, cz + Math.sin(a) * d, 3.5 + rand() * 2, leaf, 0);
+  }
 }
 function buildEarthMountains() {
   const g = new THREE.Group(); scene.add(g);
@@ -2989,7 +3018,7 @@ function buildPlatus() {
   const cerros = new THREE.Group(); cerros.visible = false; scene.add(cerros); platusStuff.push(cerros);
   const antesObs = obstacles.length;
   for (const [mx, mz, mr, mh, seed] of [[-150, -120, 32, 38, 7], [165, -160, 30, 34, 8], [60, 190, 28, 30, 9], [-95, 185, 26, 28, 10], [180, 120, 30, 32, 11]])
-    mcMountain(cerros, mx, mz, mr, mh, 0x5b4a5e, 0x7c3aed, seed, 'platus', { soil: 0x4a3a52, grass: 0x5d4a3a, dead: true, trees: 10 });   // en Platus los árboles están SECOS
+    mcMountain(cerros, mx, mz, mr, mh, 0x6b7280, 0xf8fafc, seed, 'platus', { dead: true, trees: 18 });   // igualitas a las de la Tierra (pasto, roca y nieve); solo los árboles van SECOS
   obstacles.slice(antesObs).forEach(o => platusObstacles.push(o));   // (por si algún día agregan colisiones)
 
   // VENDEDOR ALIEN (nativo de Platus): cerca del punto de aterrizaje (10,16).
@@ -3914,16 +3943,17 @@ function updateHouseAnchor() {
 let car = null;             // vehículo seleccionado (el último usado o comprado)
 const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
-  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera'];
+  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera', 'espejo', 'alfombra'];
 // Categorías del hotbar (18 slots no caben en pantalla, ni en celular ni en PC).
 // Se muestran las 3 pestañas + las piezas de la categoría activa: así TODOS los
 // materiales son alcanzables (antes los slots 10-18 quedaban fuera de pantalla).
 const BUILD_CATS = {
   casa: ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'],
   defensa: ['ballesta', 'torreta', 'laser'],
-  muebles: ['window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'heladera'],
+  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'heladera'],
+  deco: ['window', 'cuadro', 'planta', 'espejo', 'alfombra'],
 };
-const BUILD_CAT_TABS = [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑']];
+const BUILD_CAT_TABS = [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑'], ['deco', '🖼️']];
 let buildCat = 'casa';
 function catKeys() { return BUILD_CATS[buildCat] || BUILD_KEYS; }          // piezas visibles ahora
 function catOf(key) { for (const c in BUILD_CATS) if (BUILD_CATS[c].includes(key)) return c; return 'casa'; }
@@ -4056,16 +4086,20 @@ function objGeometry(key, variantId) {
   if (key === 'sofa') return new THREE.BoxGeometry(2, 0.55, 0.9);
   if (key === 'tele') return new THREE.BoxGeometry(1.6, 0.9, 0.12);
   if (key === 'planta') return new THREE.CylinderGeometry(0.32, 0.42, 0.6);
+  if (key === 'espejo') return new THREE.BoxGeometry(1.1, 1.7, 0.12);      // espejo de pared
+  if (key === 'alfombra') return new THREE.BoxGeometry(2.6, 0.08, 1.8);    // alfombra al ras del suelo
   return new THREE.BoxGeometry(1, 1, 1);
 }
 function objColor(key, variantId) { const variant = variantFor(key, variantId); return variant ? variant.color : SHOP.find(s => s.key === key).color; }
 const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
-  window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4, heladera: 0.95 };
+  window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4, heladera: 0.95,
+  espejo: 1.5, alfombra: 0.05 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
 // Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
 function objMaterial(key, variantId) {
   if (key === 'window') return new THREE.MeshStandardMaterial({ color: objColor(key, variantId), transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.15, emissive: 0x2a4a6a, emissiveIntensity: 0.25, side: THREE.DoubleSide });
   if (key === 'planta') return mat(0x8b5e34);
+  if (key === 'espejo') return new THREE.MeshStandardMaterial({ color: 0xcfe6ff, roughness: 0.08, metalness: 0.25, emissive: 0x8fb8dd, emissiveIntensity: 0.55 });   // luna del espejo: clara y brillante
   return mat(objColor(key, variantId));
 }
 
@@ -4155,6 +4189,16 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9), mat(key === 'laser' ? 0x22d3ee : 0x1f2937));
     barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.15, 0.5); m.add(barrel);
     obj.ammo = key === 'laser' ? 12 : 5; obj.shotCd = 0; obj.reloading = false; obj.reloadT = 0;
+  }
+  if (key === 'espejo') {   // marco de madera alrededor de la luna
+    const fr = mat(0x8b5a2b);
+    const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), fr); b.position.set(x, y, -0.02); m.add(b); };
+    bar(1.3, 0.16, 0, 0.86); bar(1.3, 0.16, 0, -0.86); bar(0.16, 1.9, -0.63, 0); bar(0.16, 1.9, 0.63, 0);
+  }
+  if (key === 'alfombra') {   // borde y dibujo de la alfombra
+    const borde = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.06, 2.1), mat(0x7f1d1d)); borde.position.y = -0.02; m.add(borde);
+    const centro = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.07, 1.1), mat(0xfacc15)); centro.position.y = 0.03; m.add(centro);
+    const rombo = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.5), mat(0xb91c1c)); rombo.position.y = 0.05; rombo.rotation.y = Math.PI / 4; m.add(rombo);
   }
   if (key === 'heladera') {   // manilla de la heladera
     const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.08), mat(0x9ca3af));
@@ -4635,14 +4679,14 @@ function hitEnemy(e, dmg, fromPos) {
 // Botín al matar: escala con la etapa, 10% de kill DORADO (x5), piñata y bono por combo
 function killLoot(e) {
   const c = addCombo();
-  let m = 4 + 2 * state.stage;                                // matar monstruos paga poco: la plata sale del trabajo
+  let m = 2 + state.stage;                                   // matar monstruos paga MUY poco: la plata sale del trabajo
   m = Math.round(m * (1 + Math.min(0.5, (c - 1) * 0.1)));   // el combo paga hasta +50%
   const golden = Math.random() < 0.10;
-  if (golden) m *= 3;
-  if (e.userData.bossKill) { m += 200; state.chapterFlags.bossDefeated = true; toast('⚔️ ¡Derrotaste al JEFE! +$200 extra'); coinBurst(e.position, 16); }
-  if (e.userData.ufoKill) { m += 350; toast('🛸 ¡DERRIBASTE EL OVNI JEFE! +$350 extra'); coinBurst(e.position, 24); }
+  if (golden) m *= 2;
+  if (e.userData.bossKill) { m += 100; state.chapterFlags.bossDefeated = true; toast('⚔️ ¡Derrotaste al JEFE! +$100 extra'); coinBurst(e.position, 16); }
+  if (e.userData.ufoKill) { m += 150; toast('🛸 ¡DERRIBASTE EL OVNI JEFE! +$150 extra'); coinBurst(e.position, 24); }
   if (e.userData.pinata) {
-    m += 120 + 25 * state.stage;
+    m += 60 + 12 * state.stage;
     toast('🪅 ¡Reventaste la PIÑATA! +$' + m); coinBurst(e.position, 20);
     tone(660, .1, .06, 'triangle'); setTimeout(() => tone(990, .14, .06, 'triangle'), 100);
   } else if (golden) {
@@ -6251,8 +6295,8 @@ ui('bankCloseBtn').onclick = closeBank;
 // ===================================================================
 // La carga del cohete SOBREVIVE al viaje (goToPlanet no la borra). Cárgalo en la Tierra
 // con comida/materiales/armas y sácalos en el planeta nuevo para sobrevivir más.
-const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊' };
-const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera' };
+const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶' };
+const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra' };
 const INV_KEYS = ['food', 'semillas', 'semillas_zanahoria', 'semillas_trigo', 'semillas_tomate', 'carbon', ...BUILD_KEYS];
 function rocketRow(key, n, into) {
   const b = document.createElement('button');
@@ -8662,8 +8706,8 @@ function renderHUD() {
   if (showBar) {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
-    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊' };
-    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera' };
+    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶' };
+    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra' };
     let html = '';
     for (const [cat, em] of BUILD_CAT_TABS)   // pestañas de categoría (18 slots no caben en pantalla)
       html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;

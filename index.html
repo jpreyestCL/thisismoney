@@ -3942,6 +3942,7 @@ function makeCampfire() {   // botón 🔥 (o F en Platus sin construir): 3 de c
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const p = player.position.clone().addScaledVector(fwd, 2.5);
   spawnCampfire(p.x, p.z);
+  netSend({ t: 'fire', id: net.myId, x: +p.x.toFixed(2), z: +p.z.toFixed(2) });
   toast('🔥 ¡Fogata lista! De noche quédate cerca para no congelarte');
   beep(500, 0.12, 0.05);
 }
@@ -4804,6 +4805,13 @@ function startEnemyAttack(e) {
 }
 // Golpear a un enemigo: baja vida, lo pone rojo, lo empuja; devuelve true si murió
 function hitEnemy(e, dmg, fromPos) {
+  if (e.userData.remote) {   // el monstruo es del anfitrión: él decide si muere
+    netSend({ t: 'hit', id: net.myId, eid: e.userData.netId, dmg });
+    e.userData.flash = 0.15; e.userData.hitPulse = .2;
+    beep(180, 0.05, 0.035); hitConfirm(dmg, false);
+    floatText(e.position, '-' + Math.round(dmg), '#fbbf24', 13);
+    return false;
+  }
   e.userData.hp -= dmg; e.userData.flash = 0.15; e.userData.hitPulse = .2;
   if (fromPos) { const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1; e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6; }
   beep(180, 0.05, 0.035);
@@ -4836,7 +4844,8 @@ function killLoot(e) {
     tone(880, .1, .06, 'triangle'); setTimeout(() => tone(1320, .14, .06, 'triangle'), 90);
     vibr([40, 30, 90]);
   } else { floatText(e.position, '+$' + m, '#4ade80', 15); coinBurst(e.position, 4); }
-  addMoney(m);
+  if (e.userData.lastHitBy && e.userData.lastHitBy !== net.myId) netSend({ t: 'loot', id: net.myId, to: e.userData.lastHitBy, m });   // le pagamos al amigo que lo remató
+  else addMoney(m);
   recordKill(e);            // bestiario (colección de monstruos)
   missionProgress('kills');
   if (['alien', 'alienBig'].includes(e.userData.type) || e.userData.type === state.planetCreature) contractProgress('alienkill');   // contrato del vendedor alien
@@ -4922,7 +4931,7 @@ function moveToward(e, target, step) {
 }
 function removeEnemy(i) { const e = enemies[i]; if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); enemies.splice(i, 1); }
 function killEnemy(e) { const i = enemies.indexOf(e); if (i >= 0) removeEnemy(i); }
-function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; removeChest(); clearMeteorShower(); }
+function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; netMobs.clear(); projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; removeChest(); clearMeteorShower(); }   // netMobs.clear(): los monstruos del anfitrión se vuelven a recibir enseguida
 function updateProjectiles(dt) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i], ud = p.userData;
@@ -7272,7 +7281,7 @@ function buyItem(item) {
   // casos que pueden fallar (no cobrar si no se puede)
   if (item.paint) {
     if (!hasHouseToPaint()) { toast('🎨 Construye tu casa primero para poder pintarla'); return; }
-    state.money -= item.price; paintHouse(item.paint, item.name); return;
+    state.money -= item.price; paintHouse(item.paint, item.name); netSend({ t: 'paint', id: net.myId, c: item.paint, n: item.name }); return;
   }
   if (item.car) {
     if (spawnCar()) state.money -= item.price; return;
@@ -7452,6 +7461,7 @@ function plantSeed() {
   if (plants.some(p => dist2D(p.mesh.position, pos) < 1.6)) { toast('🌱 Deja un poco más de espacio entre cultivos'); return; }
   state.inv[def.seedKey]--;
   const pl = spawnPlant(pos.x, pos.z, 0, 0, selectedCrop);
+  netSend({ t: 'plant', id: net.myId, x: +pos.x.toFixed(2), z: +pos.z.toFixed(2), crop: selectedCrop });   // el huerto es de todos
   missionProgress('plant');
   const diverse = cropDiversity(pl) >= 2;
   toast(def.icon + ' Plantaste ' + def.name.toLowerCase() + (diverse ? ' · biodiversidad activa: crece 25% más rápido' : ' · combina cultivos para acelerar el huerto'));
@@ -7465,6 +7475,7 @@ function tryHarvest() {
   const pl = nearestHarvestable(2.8); if (!pl) return false;
   const def = CROP_DEFS[pl.crop], count = pl.produce;
   pl.produceMeshes.forEach(m => pl.mesh.remove(m)); pl.produceMeshes = []; pl.produce = 0;
+  netSend({ t: 'harvest', id: net.myId, x: +pl.mesh.position.x.toFixed(2), z: +pl.mesh.position.z.toFixed(2) });   // el huerto es compartido
   const foodGain = Math.max(1, Math.round(count * def.food)), moneyGain = count * def.money;
   state.inv.food += foodGain;
   if (moneyGain) addMoney(moneyGain);
@@ -7954,7 +7965,7 @@ function renderHole(h) {   // (re)construye la malla del hoyo según su profundi
   h.enterable = h.depth >= ENTER_DIGS;
   const sign = makeSign('MINA ↓', 0x8b5a2b); sign.scale.set(.45, .45, .45); sign.position.y = 1.7; sign.userData.billboard = true; h.group.add(sign);
 }
-function spawnHole(x, z, depth, tunnels) {
+function spawnHole(x, z, depth, tunnels) {   // (los hoyos también se avisan a la sala)
   const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
   const cells = tunnels && tunnels.length ? tunnels.map(c => tunnelKey(c[0], c[1])) : [tunnelKey(0, 0)];
   const h = { x, z, depth, group: g, enterable: false, tunnels: new Set(cells) };
@@ -7997,7 +8008,7 @@ function digHole() {
   let h = findHole(t.x, t.z);
   const wasEnterable = h && h.enterable;
   if (h) { if (h.depth < MAX_DIGS) h.depth++; renderHole(h); }   // profundizar el mismo hoyo
-  else h = spawnHole(t.x, t.z, 1);                               // hoyo nuevo
+  else { h = spawnHole(t.x, t.z, 1); netSend({ t: 'hole', id: net.myId, x: +t.x.toFixed(2), z: +t.z.toFixed(2), d: 1 }); }   // hoyo nuevo (los amigos también lo ven)
   if (state.planet === 'platus' && digUpTreasure(t.x, t.z)) return;   // ¿había un tesoro enterrado aquí? (detector)
   if (h.enterable && !wasEnterable) { toast('⛏️ ¡Abriste una MINA! Camina sobre el hoyo para caer. Adentro puedes expandirla sin límite.'); return; }
   if (awakenMineMoles(h, false)) return;
@@ -8058,6 +8069,13 @@ function updateMoles(dt) {
 function updateNight(dt) {
   state.nightTime += dt;
   const duration = currentNightLength();
+  if (netGuest()) {   // en una sala online los monstruos los maneja el anfitrión
+    if (state.chestAt && state.chestAt.length && state.nightTime >= state.chestAt[0]) { state.chestAt.shift(); spawnChest(); }
+    updateChest(dt);
+    updateDefenses(dt);
+    if (state.nightTime >= duration) surviveNight();
+    return;
+  }
   state.spawnTimer -= dt;
   const aliveCount = enemies.filter(e => e.userData.type !== 'bull').length;
   if (!state.hordeOn && state.nightTime >= duration - GAME_RULES.finalHordeSeconds) {
@@ -8329,7 +8347,7 @@ function loop() {
     updateWater(dt);                       // aire limitado y daño por ahogo bajo el mar
     updateViewmodel(dt);
     updateBuild(dt);
-    updateDad(dt);
+    if (!netGuest()) updateDad(dt);        // en una sala online el papá lo maneja el anfitrión
     dadWalkBob(dt);
     updateHelpers(dt);
     updatePet(dt);                         // perro guardián (desbloqueo $50k)
@@ -8695,6 +8713,7 @@ function netHandle(raw, fromConn) {
   if (m.t === 'pos') {
     const p = netAvatar(m.id, m.name);
     p.target.set(m.x, m.y != null ? m.y : 0, m.z); p.yaw = m.yaw; p.last = performance.now();
+    netGear(p, m.w, m.wc, m.ar || null);
     if (m.name && m.name !== p.name) { p.name = m.name; p.group.remove(p.tag); const tg = makeSign(m.name, 0xfde047); tg.scale.set(.42, .42, .42); tg.position.set(0, 3.1, 0); tg.userData.billboard = true; p.group.add(tg); p.tag = tg; }
   } else if (m.t === 'place') {
     net.applying = true;
@@ -8710,6 +8729,26 @@ function netHandle(raw, fromConn) {
     if (m.phase === 'NIGHT' && state.phase !== 'NIGHT') startNight();
     else if (m.phase === 'DAY' && state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = m.dayTime || 0; toast('☀️ ¡Amaneció! (lo marcó el anfitrión)'); }
     if (m.phase === 'DAY') state.dayTime = m.dayTime || state.dayTime;
+  } else if (m.t === 'plant') {
+    net.applying = true; try { spawnPlant(m.x, m.z, 0, 0, m.crop || 'apple'); } finally { net.applying = false; }
+  } else if (m.t === 'harvest') {
+    const pl = plants.find(q => Math.abs(q.mesh.position.x - m.x) < .5 && Math.abs(q.mesh.position.z - m.z) < .5);
+    if (pl) { pl.produce = 0; if (pl.fruits) pl.fruits.forEach(f => f.visible = false); }
+  } else if (m.t === 'hole') {
+    net.applying = true; try { spawnHole(m.x, m.z, m.d || 1, null); } finally { net.applying = false; }
+  } else if (m.t === 'fire') {
+    net.applying = true; try { spawnCampfire(m.x, m.z); } finally { net.applying = false; }
+  } else if (m.t === 'paint') {
+    net.applying = true; try { paintHouse(m.c, m.n || 'color'); } finally { net.applying = false; }
+  } else if (m.t === 'dad') {
+    if (!net.isHost) netApplyDad(m);
+  } else if (m.t === 'mobs') {
+    if (!net.isHost) netApplyMobs(m.list || []);
+  } else if (m.t === 'hit') {          // un amigo le pegó a un monstruo: el anfitrión aplica el daño
+    if (!net.isHost) return;
+    for (const e of enemies) if (e.userData.netId === m.eid) { e.userData.lastHitBy = m.id; hitEnemy(e, m.dmg, null); break; }
+  } else if (m.t === 'loot') {         // te tocó la plata del monstruo que mataste
+    if (m.to === net.myId) { addMoney(m.m); floatText(player.position, '+$' + m.m, '#4ade80', 16); }
   } else if (m.t === 'bye') {
     netRemoveAvatar(m.id);
     toast('👋 ' + (m.name || 'Un amigo') + ' salió de la sala');
@@ -8718,7 +8757,11 @@ function netHandle(raw, fromConn) {
     netSendPos(true);   // que te vea al tiro
   }
 }
+function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
+// con ?debug se puede mirar el estado de la sala desde la consola
+try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state }); } catch (e) {}
 function netAddConn(c) {
+  netStartTimer();
   net.conns.push(c);
   c.on('data', d => netHandle(d, c));
   c.on('close', () => {
@@ -8729,18 +8772,102 @@ function netAddConn(c) {
   c.on('error', () => {});
   netStatus('Conectados: ' + (net.conns.length + 1), true);
 }
+// ---- MONSTRUOS COMPARTIDOS: el anfitrión los maneja y manda dónde están ----
+function netGuest() { return net.on && !net.isHost; }
+let netMobId = 0;
+const netMobs = new Map();   // netId -> monstruo (en los invitados)
+function netMobSnapshot() {
+  const list = [];
+  for (const e of enemies) {
+    const ud = e.userData;
+    if (ud.netId == null) ud.netId = ++netMobId;
+    list.push({ i: ud.netId, ty: ud.type, x: +e.position.x.toFixed(1), y: +e.position.y.toFixed(1), z: +e.position.z.toFixed(1), h: Math.round(ud.hp), r: +e.rotation.y.toFixed(2) });
+  }
+  netSend({ t: 'mobs', id: net.myId, list });
+}
+function netApplyMobs(list) {
+  const vistos = new Set();
+  for (const m of list) {
+    vistos.add(m.i);
+    let e = netMobs.get(m.i);
+    if (!e) {
+      e = spawnEnemy(m.ty, new THREE.Vector3(m.x, m.y, m.z));
+      e.userData.netId = m.i; e.userData.remote = true;
+      netMobs.set(m.i, e);
+    }
+    e.userData.netTarget = e.userData.netTarget || new THREE.Vector3();
+    e.userData.netTarget.set(m.x, m.y, m.z);
+    e.userData.netRot = m.r;
+    e.userData.hp = m.h;
+  }
+  for (const [id, e] of netMobs) {   // los que ya no están, murieron
+    if (!vistos.has(id)) { killEnemy(e); netMobs.delete(id); }
+  }
+}
+function netMobsLerp(dt) {
+  for (const [, e] of netMobs) {
+    if (e.userData.netTarget) e.position.lerp(e.userData.netTarget, Math.min(1, dt * 9));
+    if (e.userData.netRot != null) e.rotation.y = e.userData.netRot;
+    const ud = e.userData;
+    if (ud.bar) {   // barra de vida del monstruo del amigo
+      ud.bar.g.position.set(e.position.x, ud.barY || 2.6, e.position.z); ud.bar.g.quaternion.copy(camera.quaternion);
+      const f = Math.max(0, Math.min(1, ud.hp / ud.maxhp)); ud.bar.fg.scale.x = f || 0.001;
+      ud.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : (f > 0.25 ? 0xf59e0b : 0xef4444));
+    }
+  }
+}
+function netClearMobs() { for (const [, e] of netMobs) killEnemy(e); netMobs.clear(); }
+// El PAPÁ es uno solo para toda la sala: lo maneja el anfitrión y los demás lo ven igual
+function netSendDad() {
+  netSend({ t: 'dad', id: net.myId, x: +dad.position.x.toFixed(2), y: +dad.position.y.toFixed(2), z: +dad.position.z.toFixed(2),
+    r: +dad.rotation.y.toFixed(2), v: dad.visible, hp: Math.round(state.dadHp), md: dad.userData.mode || 'follow', rest: !!dad.userData.resting });
+}
+function netApplyDad(m) {
+  dad.visible = !!m.v;
+  dad.userData.netTarget = dad.userData.netTarget || new THREE.Vector3();
+  dad.userData.netTarget.set(m.x, m.y, m.z);
+  dad.userData.netRot = m.r;
+  dad.userData.mode = m.md; dad.userData.resting = !!m.rest;
+  state.dadHp = m.hp;
+}
+function netDadLerp(dt) {
+  const t = dad.userData.netTarget; if (!t) return;
+  dad.position.lerp(t, Math.min(1, dt * 9));
+  if (dad.userData.netRot != null) dad.rotation.y = dad.userData.netRot;
+  dadWalkBob(dt);
+}
+
 function netSendPos(force) {
   if (!net.on) return;
-  netSend({ t: 'pos', id: net.myId, name: net.name, x: +player.position.x.toFixed(2), y: +(player.position.y - PLAYER_EYE).toFixed(2), z: +player.position.z.toFixed(2), yaw: +yaw.toFixed(2) });
+  netSend({ t: 'pos', id: net.myId, name: net.name, x: +player.position.x.toFixed(2), y: +(player.position.y - PLAYER_EYE).toFixed(2), z: +player.position.z.toFixed(2), yaw: +yaw.toFixed(2),
+    w: weaponKindFromName(state.weaponName), wc: weaponVisualColor, ar: armorTierFor(state.armorFactor) });   // arma y armadura, para que te vean equipado
+}
+// Le pone al muñeco del amigo su armadura y su arma en la mano
+function netGear(p, arma, color, armadura) {
+  if (p.armorTier !== armadura) { p.armorTier = armadura; applyMinecraftArmor(p.group, armadura || null); }
+  if (p.weaponKind !== arma || p.weaponColor !== color) {
+    p.weaponKind = arma; p.weaponColor = color;
+    const brazo = p.group.userData.limbs && p.group.userData.limbs.armR;
+    if (brazo) {
+      if (!brazo.userData.toolMount) { const mount = new THREE.Group(); mount.position.set(0, -.72, .08); mount.rotation.set(-.25, 0, -.18); brazo.add(mount); brazo.userData.toolMount = mount; }
+      replaceToolInMount(brazo.userData.toolMount, arma || 'fist', color || 0x94a3b8, .52, true);
+    }
+  }
+}
+// Lo que se MANDA va por temporizador: así la sala sigue viva aunque la ventana
+// quede en segundo plano (ahí el navegador congela el dibujo del juego).
+function netTick() {
+  if (!net.on || !state.running) return;
+  netSendPos();
+  if (!net.isHost) return;
+  net.tickN = (net.tickN || 0) + 1;
+  netMobSnapshot();                                   // monstruos: 10 veces por segundo
+  netSendDad();                                       // el papá también es compartido
+  if (net.tickN % 10 === 0) netSend({ t: 'phase', id: net.myId, phase: state.phase, dayTime: Math.round(state.dayTime), night: state.night });
 }
 function updateNet(dt) {
   if (!net.on) return;
-  net.sendT -= dt;
-  if (net.sendT <= 0) { net.sendT = 0.08; netSendPos(); }      // ~12 veces por segundo
-  if (net.isHost) {
-    net.phaseT -= dt;
-    if (net.phaseT <= 0) { net.phaseT = 1; netSend({ t: 'phase', id: net.myId, phase: state.phase, dayTime: Math.round(state.dayTime), night: state.night }); }
-  }
+  if (!net.isHost) { netMobsLerp(dt); netDadLerp(dt); }
   const ahora = performance.now();
   for (const [id, p] of net.players) {
     if (ahora - p.last > 15000) { netRemoveAvatar(id); continue; }   // se fue sin avisar
@@ -8830,8 +8957,9 @@ ui('netName').addEventListener('keydown', e => e.stopPropagation());
 function netLeave() {
   netSend({ t: 'bye', id: net.myId, name: net.name });
   for (const c of net.conns) { try { c.close(); } catch (e) {} }
-  net.conns = []; netClearAvatars();
+  net.conns = []; netClearAvatars(); netClearMobs();
   if (net.peer) { try { net.peer.destroy(); } catch (e) {} }
+  if (net.timer) { clearInterval(net.timer); net.timer = null; }
   net.peer = null; net.on = false; net.isHost = false; net.code = null;
   const hud = ui('nethud'); if (hud) hud.style.display = 'none';
 }

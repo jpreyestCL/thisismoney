@@ -441,6 +441,7 @@
   <div id="toastStack"></div>
   <div id="toast"></div>
   <div id="cineCaption" role="status" aria-live="polite"></div>
+  <div id="nethud" style="position:absolute; top:150px; left:12px; z-index:6; display:none; pointer-events:none; background:rgba(6,10,20,.8); border:1px solid #38bdf8; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700; color:#bae6fd;"></div>
   <div id="dadhud"></div>
   <div id="gearhud"></div>
   <div id="speedometer" role="status" aria-label="Velocidad del vehículo"><span class="speed-main" id="speedValue">0</span><span class="speed-meta"><span id="speedMode">VELOCIDAD</span><br>KM/H</span></div>
@@ -602,6 +603,7 @@
         <button class="btn" id="startBtn">NUEVA PARTIDA</button>
         <button class="btn secondary" id="creativeBtn">MODO CREATIVO</button>
         <button class="btn secondary" id="startGuideBtn">VER GUÍA</button>
+        <button class="btn secondary" id="friendsBtn">🌐 JUGAR CON AMIGOS</button>
       </div>
       <p id="bestline" style="display:none; color:var(--warning); font-weight:800; font-size:13px;"></p>
     </main>
@@ -614,6 +616,23 @@
       <div class="control-row"><kbd>CLIC</kbd><span>Atacar o extraer recursos</span></div>
       <div class="control-row"><kbd>I</kbd><span>Abrir la guía y el códice</span></div>
     </aside>
+  </div>
+</div>
+
+<div id="netbox" style="position:absolute; inset:0; display:none; z-index:14; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all;">
+  <div style="width:min(94vw,430px); background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:20px; text-align:center; color:#e2e8f0;">
+    <h2 style="margin:0 0 6px; color:#7dd3fc;">🌐 JUGAR CON AMIGOS</h2>
+    <p style="font-size:13px; opacity:.8; margin:0 0 14px;">Uno crea la sala y les pasa el CÓDIGO. Los demás lo escriben y aparecen en el mismo mundo: se ven caminar, comparten lo que construyen y el día y la noche.</p>
+    <input id="netName" type="text" maxlength="12" placeholder="Tu nombre" style="width:100%; padding:9px 10px; font-size:15px; border-radius:8px; border:1px solid #38bdf8; background:#0b1220; color:#fff; outline:none; margin-bottom:10px;">
+    <button class="btn" id="netCreateBtn" style="width:100%; margin-bottom:8px;">CREAR SALA</button>
+    <div id="netCodeBox" style="display:none; margin:8px 0; font-size:14px;">Código de tu sala: <b id="netCode" style="font-size:24px; letter-spacing:4px; color:#4ade80;"></b></div>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <input id="netJoinCode" type="text" maxlength="4" placeholder="CÓDIGO" style="flex:1; padding:9px 10px; font-size:16px; text-transform:uppercase; letter-spacing:3px; border-radius:8px; border:1px solid #38bdf8; background:#0b1220; color:#fff; outline:none;">
+      <button class="btn secondary" id="netJoinBtn" style="flex:1;">ENTRAR</button>
+    </div>
+    <p id="netStatus" style="font-size:13px; min-height:18px; margin:12px 0 6px; color:#fca5a5;"></p>
+    <button class="btn secondary" id="netPlayBtn" style="width:100%;">▶️ JUGAR</button>
+    <button class="btn secondary" id="netCloseBtn" style="width:100%; margin-top:6px;">Volver</button>
   </div>
 </div>
 
@@ -4340,6 +4359,7 @@ function placeObject() {
   state.inv[key]--;
   const variant = currentBuildVariant();
   spawnPlaced(key, ghost.position.x, ghost.position.z, buildRot, null, variant && variant.id, ghost.position.y);
+  netSend({ t: 'place', id: net.myId, key, x: +ghost.position.x.toFixed(2), z: +ghost.position.z.toFixed(2), rot: buildRot, variant: (variant && variant.id) || null, baseY: ghost.position.y });
   const val = SHOP.find(s => s.key === key).value;
   addMoney(val);
   toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + (variant ? ' · ' + variant.name : '') + ' +$' + val);
@@ -4368,6 +4388,7 @@ function deleteObject() {
     const d = dist2D(o.mesh.position, ghost.position); if (d < bd) { bd = d; best = o; }
   }
   if (!best) { toast('Apunta cerca de un objeto para borrarlo'); return; }
+  netSend({ t: 'remove', id: net.myId, key: best.key, x: +best.mesh.position.x.toFixed(2), z: +best.mesh.position.z.toFixed(2) });
   state.inv[best.key] = (state.inv[best.key] || 0) + 1;   // te lo devuelve al inventario
   const nm = SHOP.find(s => s.key === best.key);
   removePlaced(best);
@@ -8302,6 +8323,7 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
   if (state.running && !state.paused && (state.phase === 'DAY' || state.phase === 'NIGHT')) {
+    updateNet(dt);                         // amigos online: manda tu posición y mueve sus muñecos
     updateMirrors();                       // enciende el espejo más cercano (antes de dibujar tu cuerpo)
     updateMovement(dt);
     updateWater(dt);                       // aire limitado y daño por ahogo bajo el mar
@@ -8604,6 +8626,214 @@ function updateMovement(dt) {
   player.position.z = THREE.MathUtils.clamp(player.position.z, -230, 230);
   resolveCollisions();
   camera.rotation.y = yaw; camera.rotation.x = pitch;
+}
+
+// ===================================================================
+//  JUGAR CON AMIGOS (online): sala P2P con un CÓDIGO, sin servidor propio.
+//  El que crea la sala es el ANFITRIÓN y reparte los mensajes a los demás.
+//  Se comparte: dónde está cada uno, lo que construyen y el día/noche.
+//  (Los monstruos los pelea cada uno en su pantalla.)
+// ===================================================================
+const net = {
+  peer: null, conns: [], isHost: false, code: null, name: 'Jugador',
+  on: false, players: new Map(), sendT: 0, phaseT: 0, applying: false,
+};
+const NET_PREFIX = 'timoney-';
+function netCode() {   // código corto y fácil de dictar
+  const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = ''; for (let i = 0; i < 4; i++) c += L[Math.floor(Math.random() * L.length)];
+  return c;
+}
+function netStatus(txt, ok) {
+  const el = ui('netStatus'); if (!el) return;
+  el.textContent = txt; el.style.color = ok ? '#4ade80' : '#fca5a5';
+}
+function netLoadPeer() {   // se baja recién al abrir el panel (no retrasa el juego)
+  if (window.Peer) return Promise.resolve(window.Peer);
+  return new Promise((resolve, reject) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+    sc.onload = () => window.Peer ? resolve(window.Peer) : reject(new Error('sin Peer'));
+    sc.onerror = () => reject(new Error('no se pudo bajar peerjs'));
+    document.head.appendChild(sc);
+  });
+}
+// ---- Muñecos de los amigos ----
+const NET_COLORS = [0x2563eb, 0xdc2626, 0x7c3aed, 0xea580c, 0x0891b2, 0xdb2777];
+function netAvatar(id, nombre) {
+  let p = net.players.get(id);
+  if (p) return p;
+  const idx = net.players.size % NET_COLORS.length;
+  const g = makePerson(NET_COLORS[idx], 0xe0ac69);
+  const tag = makeSign(nombre || 'amigo', 0xfde047);
+  tag.scale.set(.42, .42, .42); tag.position.set(0, 3.1, 0); tag.userData.billboard = true; g.add(tag);
+  scene.add(g);
+  p = { group: g, tag, target: new THREE.Vector3(), yaw: 0, name: nombre || 'amigo', last: performance.now() };
+  net.players.set(id, p);
+  return p;
+}
+function netRemoveAvatar(id) {
+  const p = net.players.get(id); if (!p) return;
+  scene.remove(p.group); net.players.delete(id);
+}
+function netClearAvatars() { for (const id of [...net.players.keys()]) netRemoveAvatar(id); }
+
+// ---- Enviar / recibir ----
+function netSend(msg) {
+  if (!net.on) return;
+  const data = JSON.stringify(msg);
+  for (const c of net.conns) { try { if (c.open) c.send(data); } catch (e) {} }
+}
+function netHandle(raw, fromConn) {
+  let m; try { m = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return; }
+  if (!m || !m.t) return;
+  if (net.isHost) {   // el anfitrión reparte el mensaje a los demás
+    const data = JSON.stringify(m);
+    for (const c of net.conns) { if (c !== fromConn && c.open) { try { c.send(data); } catch (e) {} } }
+  }
+  if (m.id && m.id === net.myId) return;
+  if (m.t === 'pos') {
+    const p = netAvatar(m.id, m.name);
+    p.target.set(m.x, m.y != null ? m.y : 0, m.z); p.yaw = m.yaw; p.last = performance.now();
+    if (m.name && m.name !== p.name) { p.name = m.name; p.group.remove(p.tag); const tg = makeSign(m.name, 0xfde047); tg.scale.set(.42, .42, .42); tg.position.set(0, 3.1, 0); tg.userData.billboard = true; p.group.add(tg); p.tag = tg; }
+  } else if (m.t === 'place') {
+    net.applying = true;
+    try { spawnPlaced(m.key, m.x, m.z, m.rot || 0, null, m.variant, m.baseY || 0); } finally { net.applying = false; }
+  } else if (m.t === 'remove') {
+    net.applying = true;
+    try {
+      const o = placed.find(q => q.key === m.key && Math.abs(q.mesh.position.x - m.x) < .3 && Math.abs(q.mesh.position.z - m.z) < .3);
+      if (o) removePlaced(o);
+    } finally { net.applying = false; }
+  } else if (m.t === 'phase') {          // el anfitrión manda el día/noche
+    if (net.isHost) return;
+    if (m.phase === 'NIGHT' && state.phase !== 'NIGHT') startNight();
+    else if (m.phase === 'DAY' && state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = m.dayTime || 0; toast('☀️ ¡Amaneció! (lo marcó el anfitrión)'); }
+    if (m.phase === 'DAY') state.dayTime = m.dayTime || state.dayTime;
+  } else if (m.t === 'bye') {
+    netRemoveAvatar(m.id);
+    toast('👋 ' + (m.name || 'Un amigo') + ' salió de la sala');
+  } else if (m.t === 'hola') {
+    toast('🎉 ' + (m.name || 'Un amigo') + ' entró a la sala');
+    netSendPos(true);   // que te vea al tiro
+  }
+}
+function netAddConn(c) {
+  net.conns.push(c);
+  c.on('data', d => netHandle(d, c));
+  c.on('close', () => {
+    net.conns = net.conns.filter(x => x !== c);
+    netRemoveAvatar(c.peer);
+    netStatus('Conectados: ' + (net.conns.length + 1), true);
+  });
+  c.on('error', () => {});
+  netStatus('Conectados: ' + (net.conns.length + 1), true);
+}
+function netSendPos(force) {
+  if (!net.on) return;
+  netSend({ t: 'pos', id: net.myId, name: net.name, x: +player.position.x.toFixed(2), y: +(player.position.y - PLAYER_EYE).toFixed(2), z: +player.position.z.toFixed(2), yaw: +yaw.toFixed(2) });
+}
+function updateNet(dt) {
+  if (!net.on) return;
+  net.sendT -= dt;
+  if (net.sendT <= 0) { net.sendT = 0.08; netSendPos(); }      // ~12 veces por segundo
+  if (net.isHost) {
+    net.phaseT -= dt;
+    if (net.phaseT <= 0) { net.phaseT = 1; netSend({ t: 'phase', id: net.myId, phase: state.phase, dayTime: Math.round(state.dayTime), night: state.night }); }
+  }
+  const ahora = performance.now();
+  for (const [id, p] of net.players) {
+    if (ahora - p.last > 15000) { netRemoveAvatar(id); continue; }   // se fue sin avisar
+    p.group.position.lerp(p.target, Math.min(1, dt * 10));
+    p.group.rotation.y = p.yaw + Math.PI;
+    const moviendo = p.group.position.distanceToSquared(p.target) > 0.01;
+    swingLimbs(p.group, moviendo ? dt : 0);
+  }
+  const hud = ui('nethud');
+  if (hud) { hud.style.display = 'block'; setHTMLIfChanged(hud, '🌐 SALA <b>' + net.code + '</b> · ' + (net.players.size + 1) + ' jugando'); }
+}
+// ---- Crear / entrar / salir ----
+async function netCreate() {
+  netStatus('Creando sala…');
+  try {
+    const Peer = await netLoadPeer();
+    const code = netCode();
+    const peer = new Peer(NET_PREFIX + code);
+    net.peer = peer; net.isHost = true; net.code = code; net.myId = NET_PREFIX + code;
+    peer.on('open', () => {
+      net.on = true;
+      ui('netCode').textContent = code;
+      ui('netCodeBox').style.display = 'block';
+      netStatus('¡Sala lista! Pásales el código a tus amigos', true);
+    });
+    peer.on('connection', c => {
+      c.on('open', () => {
+        netAddConn(c);
+        netSend({ t: 'hola', id: net.myId, name: net.name });
+        // al que llega se le manda la casa que ya está construida
+        try {
+          for (const o of placed) c.send(JSON.stringify({ t: 'place', id: net.myId, key: o.key, x: +o.mesh.position.x.toFixed(2), z: +o.mesh.position.z.toFixed(2), rot: o.mesh.rotation.y, variant: o.variant || null, baseY: o.baseY || 0 }));
+          c.send(JSON.stringify({ t: 'phase', id: net.myId, phase: state.phase, dayTime: Math.round(state.dayTime), night: state.night }));
+        } catch (e) {}
+      });
+    });
+    peer.on('error', e => netStatus('No se pudo crear la sala: ' + e.type));
+  } catch (e) { netStatus('No se pudo cargar el modo online'); }
+}
+async function netJoin(code) {
+  code = (code || '').trim().toUpperCase();
+  if (code.length < 4) { netStatus('Escribe el código de 4 letras'); return; }
+  netStatus('Entrando a la sala ' + code + '…');
+  try {
+    const Peer = await netLoadPeer();
+    const peer = new Peer();
+    net.peer = peer; net.isHost = false; net.code = code;
+    peer.on('open', myId => {
+      net.myId = myId;
+      const c = peer.connect(NET_PREFIX + code, { reliable: true });
+      c.on('open', () => {
+        net.on = true; netAddConn(c);
+        netSend({ t: 'hola', id: net.myId, name: net.name });
+        netStatus('¡Conectado! Juegan juntos', true);
+        for (const o of placed) if (!o.baseY) netSend({ t: 'place', id: net.myId, key: o.key, x: +o.mesh.position.x.toFixed(2), z: +o.mesh.position.z.toFixed(2), rot: o.mesh.rotation.y, variant: o.variant || null, baseY: o.baseY || 0 });
+      });
+      c.on('error', () => netStatus('No encontré esa sala'));
+    });
+    peer.on('error', e => netStatus(e.type === 'peer-unavailable' ? 'No existe esa sala (revisa el código)' : 'Error de conexión: ' + e.type));
+  } catch (e) { netStatus('No se pudo cargar el modo online'); }
+}
+// ---- Botones del panel ----
+function openNetBox() {
+  ui('netbox').style.display = 'flex';
+  releaseLock();
+  const guardado = (() => { try { return localStorage.getItem('tim_netname') || currentProfile || ''; } catch (e) { return ''; } })();
+  if (guardado) ui('netName').value = guardado;
+  netStatus(net.on ? (net.isHost ? 'Tu sala está abierta: ' + net.code : 'Conectado a la sala ' + net.code) : 'Crea una sala o entra con un código', net.on);
+}
+function closeNetBox() { ui('netbox').style.display = 'none'; }
+function netTomarNombre() {
+  const n = (ui('netName').value || '').trim().slice(0, 12);
+  net.name = n || currentProfile || 'Jugador';
+  try { localStorage.setItem('tim_netname', net.name); } catch (e) {}
+}
+ui('friendsBtn').onclick = openNetBox;
+ui('netCloseBtn').onclick = closeNetBox;
+ui('netCreateBtn').onclick = () => { netTomarNombre(); netCreate(); };
+ui('netJoinBtn').onclick = () => { netTomarNombre(); netJoin(ui('netJoinCode').value); };
+ui('netPlayBtn').onclick = () => {   // a jugar: si no hay partida en curso, empieza una
+  closeNetBox();
+  if (!state.running) { if (hasSave()) continueGame(); else openNamebox('normal'); }
+};
+ui('netJoinCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') ui('netJoinBtn').click(); });
+ui('netName').addEventListener('keydown', e => e.stopPropagation());
+
+function netLeave() {
+  netSend({ t: 'bye', id: net.myId, name: net.name });
+  for (const c of net.conns) { try { c.close(); } catch (e) {} }
+  net.conns = []; netClearAvatars();
+  if (net.peer) { try { net.peer.destroy(); } catch (e) {} }
+  net.peer = null; net.on = false; net.isHost = false; net.code = null;
+  const hud = ui('nethud'); if (hud) hud.style.display = 'none';
 }
 
 function updateArrow() {

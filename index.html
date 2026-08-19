@@ -2893,6 +2893,40 @@ function buildEarthMountains() {
 buildCondoPark(); buildFunPark(); buildWaterPark(); buildEarthMountains();
 WATER_ZONES.push(POOL);   // en la piscina grande se nada igual que en el mar
 
+// ----- SENTARSE en el baño, la silla, el sofá o la cama (E) -----
+const SEAT_KEYS = ['bano', 'silla', 'sofa', 'cama'];
+let sitOn = null;              // mueble en el que estás sentado
+function nearestSeat(maxD = 2.6) {
+  let best = null, bd = maxD;
+  for (const o of placed) {
+    if (!SEAT_KEYS.includes(o.key)) continue;
+    const d = dist2D(player.position, o.mesh.position);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+function standUp(silent) {
+  if (!sitOn) return false;
+  const p = sitOn.mesh.position, era = sitOn.key;
+  sitOn = null;
+  player.position.set(p.x, p.y + PLAYER_EYE, p.z + 1.3);
+  if (!silent) {
+    state.hp = Math.min(100, state.hp + 8);
+    toast((era === 'bano' ? '🚽' : '🪑') + ' Te levantaste · descansaste un poco (+8 de vida)');
+    beep(520, .08, .04);
+  }
+  return true;
+}
+function trySit() {
+  if (sitOn) return standUp(false);
+  const seat = nearestSeat(); if (!seat) return false;
+  sitOn = seat;
+  toast(seat.key === 'bano' ? '🚽 Sentado en el baño · E para levantarte'
+    : seat.key === 'cama' ? '🛏️ Acostado · E para levantarte' : '🪑 Te sentaste · E para levantarte');
+  beep(380, .1, .04);
+  return true;
+}
+
 // ----- Subirte a las atracciones (E) y comprar en los puestos (E) -----
 const _seatPos = new THREE.Vector3();
 function nearestAttraction() {
@@ -4342,6 +4376,7 @@ function deleteObject() {
 function removePlaced(o) {
   scene.remove(o.mesh); if (o.light) scene.remove(o.light); if (o.bulb) scene.remove(o.bulb);
   if (o.mirrors) { const i = mirrorObjs.indexOf(o); if (i >= 0) mirrorObjs.splice(i, 1); o.mirrors.forEach(mi => { if (mi.dispose) mi.dispose(); }); }
+  if (sitOn === o) sitOn = null;   // te sacaron el mueble en el que estabas sentado
   if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
   if (o.aabbs) for (const b of o.aabbs) { const i = obstacles.indexOf(b); if (i >= 0) obstacles.splice(i, 1); }
   const i = placed.indexOf(o); if (i >= 0) placed.splice(i, 1);
@@ -5617,7 +5652,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { if (!tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -6072,7 +6107,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -6136,7 +6171,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
 function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; startMusic(); }
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
-  leaveParkRide(true);   // si estabas en una atracción, te bajas antes de guardar
+  leaveParkRide(true); standUp(true);   // si estabas en una atracción, te bajas antes de guardar
   saveGame();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   state.running = false; state.driving = false; state.cinematic = false; document.body.classList.remove('cine');
@@ -6178,7 +6213,7 @@ function startGame() {
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
   tennis.points = [0, 0]; tennis.games = [0, 0]; tennis.server = 0; tennis.serveIn = 1; drawTennisScore();
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
-  removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true);
+  removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true);
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;   // tecnología alien: se compra de nuevo
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
   houseTier = 0;
@@ -6830,7 +6865,7 @@ function loadGame() {
   removeAlienPet(); if (d.petAlien) spawnAlienPet();
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
-  leaveParkRide(true);
+  leaveParkRide(true); standUp(true);
   updateHouseAnchor();   // recalcula dónde está tu casa (en los planetas la construyes donde quieras)
   removeFloor2(); state.floor2Rot = d.floor2Rot || 0; if (d.hasFloor2) buildFloor2();
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
@@ -6879,7 +6914,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeFloor2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
@@ -7685,7 +7720,7 @@ function goToPlanet() {
   state.planetSky = P.sky; state.planetHazard = P.hazard; state.planetGrav = P.grav; state.planetCreature = P.creature;   // rasgos propios del planeta
   state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
-  clearPlants(); clearHelpers(); removePet(); removeFloor2(); leaveParkRide(true); clearCampfires(); dad.visible = true;
+  clearPlants(); clearHelpers(); removePet(); removeFloor2(); leaveParkRide(true); standUp(true); clearCampfires(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
   clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false; removeMount();   // cada planeta tiene su propio núcleo; la montura no viaja
   clearTitan(); titanTimer = 150 + Math.random() * 130;
@@ -8114,7 +8149,7 @@ function surviveNight() {
 }
 function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
-  state.driving = false; removeMount(); leaveParkRide(true);
+  state.driving = false; removeMount(); leaveParkRide(true); standUp(true);
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
   // En los planetas NO hay cárcel (ni policía): te rescata el cohete y despiertas ahí
   const alien = state.planet === 'platus';
@@ -8458,6 +8493,12 @@ function drawMinimap() {
 function updateMovement(dt) {
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
   if (typing) clearInput();   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
+  if (sitOn) {   // sentado: te quedas en el mueble hasta que te pares con E
+    const p = sitOn.mesh.position, rot = sitOn.mesh.rotation.y;
+    // un poco hacia el frente del mueble, para no quedar dentro del estanque/respaldo
+    player.position.set(p.x + Math.sin(rot) * .22, p.y + 1.05, p.z + Math.cos(rot) * .22);
+    camera.rotation.y = yaw; camera.rotation.x = pitch; return;
+  }
   if (parkRide) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // montado en una atracción: te lleva ella
   if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
   if (state.riding && mount) { updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
@@ -8721,7 +8762,10 @@ function updateContextPrompt() {
       let owned = null;
       for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
       const stand = nearestParkStand(), att = parkRide ? parkRide.att : nearestAttraction();
-      if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
+      const asiento = sitOn || nearestSeat();
+      if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
+      else if (asiento && !state.buildMode) action = { key: 'E', touch: '🪑', text: asiento.key === 'bano' ? 'Sentarte en el baño' : asiento.key === 'cama' ? 'Acostarte' : 'Sentarte' };
+      else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };
       else if (att) action = { key: 'E', touch: '🎟️', text: (att.slide ? 'Tirarte por ' : 'Subirte a ') + att.name + (att.price ? ' · boleto $' + att.price : ' · ¡gratis!') };
       else if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }

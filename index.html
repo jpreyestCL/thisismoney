@@ -636,6 +636,16 @@
   </div>
 </div>
 
+<div id="airportbox" style="position:absolute; inset:0; display:none; z-index:13; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all;">
+  <div style="width:min(94vw,460px); max-height:86vh; overflow-y:auto; background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:20px; color:#e2e8f0;">
+    <h2 style="margin:0 0 4px; color:#7dd3fc; text-align:center;">✈️ TICKETS DE AVIÓN</h2>
+    <p style="font-size:13px; opacity:.8; margin:0 0 12px; text-align:center;">Elige tu destino. En cada país la gente te habla en su idioma.</p>
+    <div id="airportList"></div>
+    <button class="btn secondary" id="airportClose" style="width:100%; margin-top:10px;">Cerrar</button>
+  </div>
+</div>
+<div id="flyfx" style="position:absolute; inset:0; display:none; z-index:15; background:rgba(2,6,23,.95); align-items:center; justify-content:center; color:#7dd3fc; font-size:26px; font-weight:900; text-align:center; pointer-events:none;"></div>
+
 <div class="screen hidden" id="jail">
   <h1 style="color:#fbbf24" id="jailTitle">CÁRCEL</h1>
   <p id="jailText">Te atraparon. Pagaste una multa del 20%, pero tu casa y tu progreso siguen en pie.</p>
@@ -3031,6 +3041,205 @@ function updateParks(dt) {
   }
 }
 
+// ===================================================================
+//  AEROPUERTO Y VIAJES A OTROS PAÍSES
+//  Terminal + aviones comerciales. Compras un ticket y viajas: en cada
+//  país la gente te habla EN SU IDIOMA (inglés, chino, ruso, francés…).
+// ===================================================================
+const AIRPORT = new THREE.Vector3(120, 0, -150);   // pista larga al sureste
+const COUNTRIES = [
+  { id: 'usa',    name: 'ESTADOS UNIDOS', flag: '🇺🇸', lang: 'inglés',  price: 1200, ground: 0x4f8a35, roof: 0xb91c1c, wall: 0xe2e8f0, sky: 0x87ceeb,
+    hola: ['Hello! Welcome to the United States!', 'Hi there, buddy!', 'Have a nice day!', 'Welcome, traveler!'] },
+  { id: 'china',  name: 'CHINA',          flag: '🇨🇳', lang: 'chino',   price: 2200, ground: 0x6b8f3a, roof: 0xdc2626, wall: 0xfde68a, sky: 0xbfd7ea,
+    hola: ['你好! 欢迎来到中国!', '你好吗?', '欢迎! 请进!', '谢谢你的来访!'] },
+  { id: 'rusia',  name: 'RUSIA',          flag: '🇷🇺', lang: 'ruso',    price: 2000, ground: 0xd8e4ec, roof: 0x1d4ed8, wall: 0xf8fafc, sky: 0xc7d9e8,
+    hola: ['Привет! Добро пожаловать в Россию!', 'Как дела?', 'Здравствуйте!', 'Хорошего дня!'] },
+  { id: 'francia',name: 'FRANCIA',        flag: '🇫🇷', lang: 'francés', price: 1600, ground: 0x6aa84f, roof: 0x334155, wall: 0xfdf6e3, sky: 0xa9d6f5,
+    hola: ['Bonjour! Bienvenue en France!', 'Ça va?', 'Enchanté!', 'Bonne journée!'] },
+  { id: 'japon',  name: 'JAPÓN',          flag: '🇯🇵', lang: 'japonés', price: 2400, ground: 0x5f9e46, roof: 0x991b1b, wall: 0xf1f5f9, sky: 0xd6e6f2,
+    hola: ['こんにちは! 日本へようこそ!', 'げんきですか?', 'ありがとう!', 'いってらっしゃい!'] },
+  { id: 'brasil', name: 'BRASIL',         flag: '🇧🇷', lang: 'portugués', price: 900, ground: 0x3f9142, roof: 0x16a34a, wall: 0xfef9c3, sky: 0x8ecae6,
+    hola: ['Olá! Bem-vindo ao Brasil!', 'Tudo bem?', 'Que bom te ver!', 'Bom dia!'] },
+];
+const COUNTRY_C = new THREE.Vector3(0, 0, -900);   // el país visitado se arma acá (fuera del mapa normal)
+let countryGroup = null, countryNPCs = [];
+const airportPlanes = [];
+
+// ---- Un avión comercial de bloques ----
+function makePlane(color) {
+  const g = new THREE.Group();
+  mcBox(g, 0, 4, 0, 4, 4, 22, 0xf1f5f9);                       // fuselaje
+  mcBox(g, 0, 4.6, -9, 3.2, 3.2, 4, 0xe2e8f0);                 // morro
+  for (let i = 0; i < 7; i++) mcBox(g, 1.6, 4.8, -6 + i * 2.2, 1.2, .9, 1.2, 0x93c5fd);   // ventanillas
+  for (let i = 0; i < 7; i++) mcBox(g, -1.6, 4.8, -6 + i * 2.2, 1.2, .9, 1.2, 0x93c5fd);
+  mcBox(g, 0, 3.4, 1, 26, .7, 4.4, color);                     // alas
+  for (const sx of [-6, 6]) { mcBox(g, sx, 2.4, 1, 2.6, 2.2, 3.4, 0x475569); }   // turbinas
+  mcBox(g, 0, 7.6, 9.5, .8, 5, 4, color);                      // cola
+  mcBox(g, 0, 4.2, 10, 9, .6, 2.6, color);
+  for (const sx of [-3.5, 3.5]) mcBox(g, sx, 1, 2, .5, 2, .5, 0x334155);   // tren de aterrizaje
+  mcBox(g, 0, 1.2, -6, .5, 2, .5, 0x334155);
+  return g;
+}
+function buildAirport() {
+  const g = new THREE.Group(); scene.add(g);
+  const cx = AIRPORT.x, cz = AIRPORT.z;
+  mcFloor(g, cx, cz, 130, 90, 0x9ca3af);                        // losa del aeropuerto
+  mcFloor(g, cx, cz + 26, 120, 22, 0x3f3f46, .1);               // pista
+  for (let i = -5; i <= 5; i++) mcFloor(g, cx + i * 10, cz + 26, 6, 1.2, 0xfef3c7, .12);   // línea de la pista
+  // Terminal
+  const t = new THREE.Group(); t.position.set(cx, 0, cz - 22); g.add(t);
+  mcBox(t, 0, 5, 0, 54, 10, 18, 0xdbe3ea);
+  mcBox(t, 0, 10.4, 0, 56, 1, 20, 0x94a3b8);
+  for (let i = -6; i <= 6; i++) mcBox(t, i * 4, 5, 9.2, 3, 6, .4, 0x9fd0ff);   // ventanales
+  mcBox(t, 0, 3, 9.4, 6, 6, .5, 0x1f2937);                                     // puerta
+  mcBox(t, 0, 13, 0, 6, 4, 6, 0x94a3b8); mcBox(t, 0, 16, 0, 3, 3, 3, 0x38bdf8);   // torre de control
+  mcSign(t, 0, 13.5, 10, 'AEROPUERTO', 0x38bdf8);
+  addObstacle(cx, cz - 22, 54, 18);
+  // Mesón de tickets (afuera, para atender con E)
+  mcBox(g, cx, 1.1, cz - 11, 8, 2.2, 2.4, 0x8b5a2b);
+  mcBox(g, cx, 2.5, cz - 11, 8.6, .5, 3, 0x38bdf8);
+  mcSign(g, cx, 4.4, cz - 11, 'TICKETS (E)', 0xfde047);
+  addObstacle(cx, cz - 11, 8, 2.4);
+  // Aviones estacionados
+  const colores = [0xdc2626, 0x2563eb, 0x16a34a, 0xf59e0b];
+  for (let i = 0; i < 4; i++) {
+    const p = makePlane(colores[i]);
+    p.position.set(cx - 45 + i * 30, 0, cz + 6); p.rotation.y = Math.PI;
+    g.add(p); airportPlanes.push(p);
+    addObstacle(p.position.x, p.position.z, 6, 20);
+  }
+  for (const [tx, tz] of [[-60, -35], [60, -35], [-60, 35], [60, 35]]) mcTree(g, cx + tx, cz + tz, 5);
+  return g;
+}
+
+// ---- El país que estás visitando ----
+function buildCountry(c) {
+  if (countryGroup) { scene.remove(countryGroup); countryGroup = null; }
+  countryNPCs.forEach(n => scene.remove(n)); countryNPCs = [];
+  const g = new THREE.Group(); scene.add(g); countryGroup = g;
+  const cx = COUNTRY_C.x, cz = COUNTRY_C.z;
+  mcFloor(g, cx, cz, 180, 180, c.ground);
+  mcFloor(g, cx, cz, 14, 160, 0x4b5563, .09);                   // calle principal
+  // aeropuerto de vuelta
+  mcFloor(g, cx, cz - 60, 60, 30, 0x9ca3af, .1);
+  const avion = makePlane(0x2563eb); avion.position.set(cx + 16, 0, cz - 60); g.add(avion);
+  mcBox(g, cx - 14, 1.1, cz - 52, 8, 2.2, 2.4, 0x8b5a2b);
+  mcSign(g, cx - 14, 4.4, cz - 52, 'VOLVER A CASA (E)', 0xfde047);
+  // casas del país (con su color y su techo)
+  for (let i = 0; i < 14; i++) {
+    const lado = i % 2 ? 1 : -1, fila = Math.floor(i / 2);
+    const hx = cx + lado * (16 + (fila % 3) * 10), hz = cz - 30 + fila * 16;
+    const w = 8 + (i % 3) * 2, h = 6 + (i % 4);
+    mcBox(g, hx, h / 2, hz, w, h, w, c.wall);
+    for (let k = 0; k < 4; k++) mcBox(g, hx, h + .4 + k * .9, hz, w + 1 - k * 1.6, .9, w + 1 - k * 1.6, c.roof);   // techo escalonado
+    mcBox(g, hx, 1.6, hz + w / 2, 2, 3.2, .4, 0x7c4a1e);
+    for (const sx of [-1, 1]) mcBox(g, hx + sx * (w / 4), 4, hz + w / 2, 1.6, 1.6, .3, 0x9fd0ff);
+    addObstacle(hx, hz, w, w);
+  }
+  // bandera gigante del país
+  mcBox(g, cx, 7, cz + 40, .8, 14, .8, 0xe5e7eb);
+  mcSign(g, cx, 15, cz + 40, c.flag + ' ' + c.name, 0xfde047);
+  for (const [tx, tz] of [[-40, -20], [40, -20], [-40, 30], [40, 30], [-55, 5], [55, 5]]) mcTree(g, cx + tx, cz + tz, 5);
+  // gente que habla el idioma del país (uno te recibe al bajar del avión)
+  const guia = makePerson(0x0f766e, 0xf1c27d);
+  guia.position.set(cx + 4, 0, cz - 36); guia.rotation.y = Math.PI;
+  const gt = makeSign(c.flag + ' guía', 0xfde047); gt.scale.set(.4, .4, .4); gt.position.set(0, 3, 0); gt.userData.billboard = true; guia.add(gt);
+  scene.add(guia); countryNPCs.push(guia); guia.userData.fijo = true;
+  for (let i = 0; i < 8; i++) {
+    const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
+    n.position.set(cx + (Math.random() * 50 - 25), 0, cz + (Math.random() * 70 - 40));
+    n.userData.country = c.id;
+    scene.add(n); countryNPCs.push(n);
+  }
+  return g;
+}
+function setCountryVisible(v) {
+  if (countryGroup) countryGroup.visible = v;
+  countryNPCs.forEach(n => n.visible = v);
+}
+function currentCountry() { return COUNTRIES.find(c => c.id === state.country) || null; }
+// Panel del mostrador de tickets
+function openAirport() {
+  if (state.country) return false;
+  releaseLock(); typing = true;
+  const box = ui('airportbox'), list = ui('airportList');
+  list.innerHTML = '';
+  for (const c of COUNTRIES) {
+    const row = document.createElement('button');
+    row.className = 'shopRow';
+    row.style.cssText = 'display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:8px; padding:10px; font-size:15px; font-weight:700; color:#fff; background:rgba(56,189,248,.15); margin-bottom:6px;';
+    row.innerHTML = '<span style="font-size:22px">' + c.flag + '</span><span style="flex:1">' + c.name + ' <small style="opacity:.7">· se habla ' + c.lang + '</small></span><span style="color:' + (state.money >= c.price ? '#4ade80' : '#f87171') + '">$' + c.price + '</span>';
+    row.onclick = () => flyTo(c);
+    list.appendChild(row);
+  }
+  box.style.display = 'flex';
+  return true;
+}
+function closeAirport() { ui('airportbox').style.display = 'none'; typing = false; }
+function tryAirport() {
+  if (state.planet !== 'tierra') return false;
+  if (state.country) {   // volver a casa desde el país
+    if (dist2D(player.position, { x: COUNTRY_C.x - 14, z: COUNTRY_C.z - 52 }) < 6) { flyHome(); return true; }
+    return false;
+  }
+  if (dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6) return openAirport();
+  return false;
+}
+function flyCinematic(txt, then) {
+  typing = true; ui('airportbox').style.display = 'none';
+  const fx = ui('flyfx'); fx.style.display = 'flex'; fx.textContent = txt;
+  beep(400, .2, .05); setTimeout(() => beep(520, .25, .05), 250);
+  setTimeout(() => { fx.style.display = 'none'; typing = false; then(); }, 2200);
+}
+function flyTo(c) {
+  if (state.money < c.price) { toast('💸 El ticket a ' + c.name + ' cuesta $' + c.price); return; }
+  addMoney(-c.price);
+  flyCinematic('✈️ Volando a ' + c.flag + ' ' + c.name + '…', () => {
+    state.country = c.id;
+    buildCountry(c); setCountryVisible(true);
+    setEarthWorld(false); setCityVisible(false);
+    scene.background.set(c.sky);
+    player.position.set(COUNTRY_C.x, PLAYER_EYE, COUNTRY_C.z - 40); yaw = Math.PI; pitch = 0;
+    dad.position.set(COUNTRY_C.x + 2, 0, COUNTRY_C.z - 38);
+    toast(c.flag + ' ¡Llegaste a ' + c.name + '! Acá se habla ' + c.lang + ' · habla con la gente (E) y vuelve en el avión');
+    phaseText(c.flag + ' ' + c.name);
+  });
+}
+function flyHome() {
+  const c = currentCountry();
+  flyCinematic('✈️ Volviendo a casa…', () => {
+    state.country = null;
+    setCountryVisible(false);
+    setEarthWorld(true); setCityVisible(true);
+    player.position.set(AIRPORT.x, PLAYER_EYE, AIRPORT.z - 6); yaw = 0;
+    dad.position.set(AIRPORT.x + 2, 0, AIRPORT.z - 5);
+    toast('🏠 ¡De vuelta en casa! ' + (c ? 'Volviste de ' + c.name : ''));
+  });
+}
+// La gente del país te saluda en su idioma
+function countryHello() {
+  const c = currentCountry(); if (!c) return false;
+  let best = null, bd = 12;   // en el país la gente saluda de lejos, es cosa de acercarse a la calle
+  for (const n of countryNPCs) { const d = dist2D(player.position, n.position); if (d < bd) { bd = d; best = n; } }
+  if (!best) return false;
+  say(c.flag + ' Vecino', c.hola[Math.floor(Math.random() * c.hola.length)]);
+  return true;
+}
+function updateCountryNPCs(dt) {
+  if (!state.country) return;
+  for (const n of countryNPCs) {
+    if (n.userData.fijo) continue;   // el guía se queda recibiendo en el aeropuerto
+    if (!n.userData.goal || n.position.distanceToSquared(n.userData.goal) < 1) {
+      n.userData.goal = new THREE.Vector3(COUNTRY_C.x + (Math.random() * 50 - 25), 0, COUNTRY_C.z + (Math.random() * 70 - 40));
+    }
+    moveToward(n, n.userData.goal, 1.4 * dt);
+    n.rotation.y = Math.atan2(n.userData.goal.x - n.position.x, n.userData.goal.z - n.position.z);
+    swingLimbs(n, dt);
+  }
+}
+
+buildAirport();
+
 // ---- Cierre del "mundo de la Tierra": todo lo agregado desde el marcador es terrestre ----
 scene.children.forEach(o => { if (!_preEarthChildren.has(o)) earthMeshes.push(o); });
 obstacles.slice(_preEarthObsN).forEach(o => earthObstacles.push(o));
@@ -5388,7 +5597,7 @@ const state = {
   incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
   album: {}, albumDone: false,   // álbum de criaturas alien (colección)
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
-  coreClaimed: false, relics: 0, trophies: 0, floor2Rot: 0,   // núcleo (reliquias) + trofeos + giro del 2º piso
+  coreClaimed: false, relics: 0, trophies: 0, floor2Rot: 0, country: null,   // país que estás visitando (aeropuerto)   // núcleo (reliquias) + trofeos + giro del 2º piso
   riding: false,   // montando una criatura firma domada
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
@@ -5682,7 +5891,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { if (!trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryAirport() && !countryHello() && !trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -6137,7 +6346,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryAirport() && !countryHello() && !trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -6224,7 +6433,7 @@ function startGame() {
   updateHouseAnchor();   // vuelve al marcador verde de la Tierra
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
-  state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
+  state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT; state.country = null; setCountryVisible(false);
   state.phase = 'DAY'; state.running = true; state.paused = false; ui('pause').style.display = 'none';
   state.cinematic = false; document.body.classList.remove('cine');
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
@@ -6955,7 +7164,7 @@ function resetAll() {
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires();
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
-  state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT;
+  state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT; state.country = null; setCountryVisible(false);
   state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false; state.cargo = {};
   resetWeather();
   removeRocket();
@@ -8341,6 +8550,7 @@ function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
   if (state.running && !state.paused && (state.phase === 'DAY' || state.phase === 'NIGHT')) {
+    updateCountryNPCs(dt);                 // la gente del país que estás visitando
     updateNet(dt);                         // amigos online: manda tu posición y mueve sus muñecos
     updateMirrors();                       // enciende el espejo más cercano (antes de dibujar tu cuerpo)
     updateMovement(dt);
@@ -8513,6 +8723,7 @@ function drawMinimap() {
   if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); }   // súper / armería / banco
   if (state.planet !== 'platus') {   // los tres parques
     icon(CONDO_PARK.x, CONDO_PARK.z, '🌳', 13); icon(FUN_PARK.x, FUN_PARK.z, '🎡', 15); icon(WATER_PARK.x, WATER_PARK.z, '🏊', 14);
+    icon(AIRPORT.x, AIRPORT.z, '✈️', 15);
   }
   if (state.planet === 'tierra' && state.blueprints.treasureMap) for (const s of worldSecrets) if (s.visible) icon(s.position.x, s.position.z, '❓', 11);
   icon(houseAnchor.x, houseAnchor.z, '🏠', 15);
@@ -8640,8 +8851,13 @@ function updateMovement(dt) {
     if (dd > COLI_R - 0.6) { const k = (COLI_R - 0.6) / dd; player.position.x = COLI_C.x + dx * k; player.position.z = COLI_C.z + dz * k; }
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
-  player.position.x = THREE.MathUtils.clamp(player.position.x, -230, 230);
-  player.position.z = THREE.MathUtils.clamp(player.position.z, -230, 230);
+  if (state.country) {   // de visita en otro país: los límites son los de ese lugar
+    player.position.x = THREE.MathUtils.clamp(player.position.x, COUNTRY_C.x - 85, COUNTRY_C.x + 85);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, COUNTRY_C.z - 85, COUNTRY_C.z + 85);
+  } else {
+    player.position.x = THREE.MathUtils.clamp(player.position.x, -230, 230);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, -230, 230);
+  }
   resolveCollisions();
   camera.rotation.y = yaw; camera.rotation.x = pitch;
 }
@@ -8759,7 +8975,7 @@ function netHandle(raw, fromConn) {
 }
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
-try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state }); } catch (e) {}
+try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw }); } catch (e) {}
 function netAddConn(c) {
   netStartTimer();
   net.conns.push(c);
@@ -8943,6 +9159,7 @@ function netTomarNombre() {
   net.name = n || currentProfile || 'Jugador';
   try { localStorage.setItem('tim_netname', net.name); } catch (e) {}
 }
+ui('airportClose').onclick = closeAirport;
 ui('friendsBtn').onclick = openNetBox;
 ui('netCloseBtn').onclick = closeNetBox;
 ui('netCreateBtn').onclick = () => { netTomarNombre(); netCreate(); };
@@ -9120,8 +9337,14 @@ function updateContextPrompt() {
       let owned = null;
       for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
       const stand = nearestParkStand(), att = parkRide ? parkRide.att : nearestAttraction();
+      const enMostrador = state.planet === 'tierra' && !state.country && dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6;
+      const enAvionVuelta = !!state.country && dist2D(player.position, { x: COUNTRY_C.x - 14, z: COUNTRY_C.z - 52 }) < 6;
       const asiento = sitOn || nearestSeat();
-      if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
+      const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
+      if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
+      else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };
+      else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
+      else if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
       else if (asiento && !state.buildMode) action = { key: 'E', touch: '🪑', text: asiento.key === 'bano' ? 'Sentarte en el baño' : asiento.key === 'cama' ? 'Acostarte' : 'Sentarte' };
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };

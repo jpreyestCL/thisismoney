@@ -43,7 +43,8 @@ export const HOUSE_VALUES = Object.freeze({
   cama: { comfort: 12 }, sofa: { comfort: 8 }, tele: { comfort: 7, energy: -3 },
   mesa: { comfort: 4, production: 2 }, silla: { comfort: 3 }, cuadro: { comfort: 3 }, planta: { comfort: 4 },
   heladera: { comfort: 5, production: 10, energy: -3 },
-  espejo: { comfort: 6 }, alfombra: { comfort: 7 },
+  espejo: { comfort: 6 }, alfombra: { comfort: 7 }, bano: { comfort: 10 },
+  wallMetal: { protection: 22 }, wallDoor: { protection: 6, comfort: 3 }, pilar: { protection: 5, comfort: 2 },
   laser: { protection: 15, energy: -5 }, torreta: { protection: 12 }, ballesta: { protection: 9 },
 });
 

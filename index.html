@@ -753,7 +753,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
-import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=6';
+import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=7';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -1212,6 +1212,9 @@ function addWallMesh(cx, cz, w, d, h, color, addColl) {
 const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'wallWood', name: 'Pared madera', price: 60,  value: 25,  color: 0x8b5a2b, build: true },
   { key: 'wallRock', name: 'Pared roca',   price: 120, value: 55,  color: 0x6b7280, build: true },
+  { key: 'wallMetal', name: 'Pared metal',  price: 500, value: 200, color: 0xb8c4d0, build: true },   // la más resistente (350 de vida)
+  { key: 'wallDoor', name: 'Pared puerta',  price: 260, value: 110, color: 0x8b5a2b, build: true },   // pared con el hueco listo para la puerta
+  { key: 'pilar',    name: 'Pilar',         price: 120, value: 50,  color: 0xd6d3d1, build: true },
   { key: 'door',     name: 'Puerta',       price: 90,  value: 45,  color: 0x6b4423, build: true },
   { key: 'roof',     name: 'Techo',        price: 200, value: 120, color: 0x475569, build: true },
   { key: 'lamp',     name: 'Lampara',      price: 150, value: 90,  color: 0xfde047, build: true },
@@ -1259,6 +1262,7 @@ const DECOR_ITEMS = [
   { key: 'planta', name: 'Planta',    price: 120,  value: 45,  color: 0x22c55e, build: true, deco: true },
   { key: 'espejo', name: 'Espejo',    price: 250,  value: 90,  color: 0xdbeafe, build: true, deco: true },
   { key: 'alfombra', name: 'Alfombra', price: 180, value: 70,  color: 0xb91c1c, build: true, deco: true },
+  { key: 'bano',   name: 'Baño',      price: 260,  value: 100, color: 0xf1f5f9, build: true, deco: true },
   { key: 'auto',   name: 'Auto',      price: 2000, color: 0xdc2626, car: true },
   { key: 'helicoptero', name: 'Helicóptero voxel', price: 4000, color: 0x16a34a, helicopter: true },
 ];
@@ -3960,7 +3964,7 @@ function updateMirrors() {
 // Centro de TU CASA. En la Tierra es el marcador verde fijo; en los planetas NO hay marcador,
 // así que es el centro de las piezas que construiste (si no, el segundo piso, la pintura y la
 // defensa nocturna miraban un punto vacío del mapa y nunca encontraban tu casa).
-const HOUSE_PIECES = ['wallWood', 'wallRock', 'door', 'roof'];
+const HOUSE_PIECES = ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof'];
 const houseAnchor = new THREE.Vector3(HOUSE.x, 0, HOUSE.z);
 function updateHouseAnchor() {
   if (state.planet !== 'platus') { houseAnchor.set(HOUSE.x, 0, HOUSE.z); return; }
@@ -3971,14 +3975,15 @@ function updateHouseAnchor() {
 let car = null;             // vehículo seleccionado (el último usado o comprado)
 const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
-  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera', 'espejo', 'alfombra'];
+  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera', 'espejo', 'alfombra',
+  'wallMetal', 'wallDoor', 'pilar', 'bano'];
 // Categorías del hotbar (18 slots no caben en pantalla, ni en celular ni en PC).
 // Se muestran las 3 pestañas + las piezas de la categoría activa: así TODOS los
 // materiales son alcanzables (antes los slots 10-18 quedaban fuera de pantalla).
 const BUILD_CATS = {
-  casa: ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'],
+  casa: ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'pilar', 'lamp', 'oven'],
   defensa: ['ballesta', 'torreta', 'laser'],
-  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'heladera'],
+  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'heladera', 'bano'],
   deco: ['window', 'cuadro', 'planta', 'espejo', 'alfombra'],
 };
 const BUILD_CAT_TABS = [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑'], ['deco', '🖼️']];
@@ -4114,14 +4119,30 @@ function objGeometry(key, variantId) {
   if (key === 'sofa') return new THREE.BoxGeometry(2, 0.55, 0.9);
   if (key === 'tele') return new THREE.BoxGeometry(1.6, 0.9, 0.12);
   if (key === 'planta') return new THREE.CylinderGeometry(0.32, 0.42, 0.6);
+  if (key === 'wallMetal') return new THREE.BoxGeometry(4, 3, 0.4);        // pared de metal (misma forma, más dura)
+  if (key === 'wallDoor') return new THREE.BoxGeometry(4, 0.55, 0.42);     // dintel: los pilares del marco se agregan aparte
+  if (key === 'pilar') return new THREE.BoxGeometry(0.7, 3.2, 0.7);        // columna
+  if (key === 'bano') return new THREE.BoxGeometry(0.7, 0.45, 0.85);       // taza del baño
   if (key === 'espejo') return new THREE.BoxGeometry(1.1, 1.7, 0.12);      // espejo de pared
   if (key === 'alfombra') return new THREE.BoxGeometry(2.6, 0.08, 1.8);    // alfombra al ras del suelo
   return new THREE.BoxGeometry(1, 1, 1);
 }
+// Los dos pilares del marco de la "pared puerta" (el hueco del medio queda libre)
+function addDoorFrameParts(target, color, ghost) {
+  const mk = (w, h, d, x, y) => {
+    const material = ghost
+      ? new THREE.MeshStandardMaterial({ color, transparent: true, opacity: .5 })
+      : mat(color);
+    const p = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    p.position.set(x, y, 0); p.castShadow = !ghost; target.add(p); return p;
+  };
+  for (const sx of [-1, 1]) mk(1.25, 2.45, 0.4, sx * 1.375, -1.5);   // pilares laterales
+  mk(4.2, 0.2, 0.5, 0, 0.3, 0);                                       // cornisa arriba
+}
 function objColor(key, variantId) { const variant = variantFor(key, variantId); return variant ? variant.color : SHOP.find(s => s.key === key).color; }
 const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
   window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4, heladera: 0.95,
-  espejo: 1.5, alfombra: 0.05 };
+  espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
 // Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
 function objMaterial(key, variantId) {
@@ -4148,6 +4169,7 @@ function refreshGhost() {
   const variant = currentBuildVariant();
   ghostMesh = new THREE.Mesh(objGeometry(key, variant && variant.id), new THREE.MeshStandardMaterial({ color: objColor(key, variant && variant.id), transparent: true, opacity: 0.5 }));
   ghostMesh.position.y = objY(key); ghost.add(ghostMesh);
+  if (key === 'wallDoor') addDoorFrameParts(ghostMesh, objColor(key), true);   // se ve el marco completo antes de colocar
 }
 refreshGhost();
 
@@ -4181,7 +4203,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
   const m = new THREE.Mesh(objGeometry(key, variant && variant.id), objMaterial(key, variant && variant.id));
   m.position.set(x, objY(key) + by, z); m.rotation.y = rot;
   m.castShadow = true; m.receiveShadow = true; scene.add(m);
-  const obj = { mesh: m, key, variant: variant && variant.id, baseY: by, hp: (hp != null ? hp : (key === 'wallRock' ? 200 : 100)) };
+  const obj = { mesh: m, key, variant: variant && variant.id, baseY: by, hp: (hp != null ? hp : (key === 'wallMetal' ? 350 : key === 'wallRock' ? 200 : 100)) };
   // ----- Muebles y decoración -----
   const legMat = mat(0x3f2a17);
   const legs = (hw, hd, len) => { for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len), legMat); l.position.set(sx * hw, -len / 2, sz * hd); m.add(l); } };
@@ -4218,6 +4240,26 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
     barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.15, 0.5); m.add(barrel);
     obj.ammo = key === 'laser' ? 12 : 5; obj.shotCd = 0; obj.reloading = false; obj.reloadT = 0;
   }
+  if (key === 'wallDoor') {   // pared con el hueco de la puerta: bloquea a los lados y deja pasar por el medio
+    addDoorFrameParts(m, objColor(key, variant && variant.id), false);
+    const c = Math.cos(rot), sn = Math.sin(rot);
+    obj.aabbs = [];
+    for (const sx of [-1.375, 1.375]) {
+      const px = m.position.x + sx * c, pz = m.position.z - sx * sn;
+      const w = 1.25 * Math.abs(c) + 0.4 * Math.abs(sn), d = 1.25 * Math.abs(sn) + 0.4 * Math.abs(c);
+      const box = { minX: px - w / 2, maxX: px + w / 2, minZ: pz - d / 2, maxZ: pz + d / 2, top: 3 };
+      if (!by) { obstacles.push(box); obj.aabbs.push(box); }
+    }
+  }
+  if (key === 'pilar') {   // base y capitel de la columna
+    for (const y of [-1.5, 1.5]) { const cap = new THREE.Mesh(new THREE.BoxGeometry(1, 0.22, 1), mat(0xe7e5e4)); cap.position.y = y; m.add(cap); }
+  }
+  if (key === 'bano') {   // estanque, tapa y rollo de papel
+    const est = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.75, 0.28), mat(0xf8fafc)); est.position.set(0, 0.55, -0.32); est.castShadow = true; m.add(est);
+    const tapa = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.6), mat(0xe2e8f0)); tapa.position.set(0, 0.26, 0.06); m.add(tapa);
+    const boton = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.06, 0.1), mat(0x94a3b8)); boton.position.set(0, 0.92, -0.32); m.add(boton);
+    const papel = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.12, 10), mat(0xffffff)); papel.rotation.z = Math.PI / 2; papel.position.set(0.48, 0.35, -0.1); m.add(papel);
+  }
   if (key === 'espejo') {   // marco de madera + luna que REFLEJA (te ves a ti mismo)
     const fr = mat(0x8b5a2b);
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.16), fr); b.position.set(x, y, -0.02); m.add(b); };
@@ -4244,7 +4286,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
   }
   // Las colisiones son en 2D (no distinguen pisos): una pared del 2º piso taparía el paso
   // abajo también, así que arriba las paredes se colocan pero sin caja de choque.
-  if ((key === 'wallWood' || key === 'wallRock') && !by) {
+  if ((key === 'wallWood' || key === 'wallRock' || key === 'wallMetal') && !by) {
     // bloquea al jugador y a los enemigos (caja que envuelve la pared en cualquier ángulo)
     const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
     const w = 4 * ca + 0.4 * sa;
@@ -4301,8 +4343,9 @@ function removePlaced(o) {
   scene.remove(o.mesh); if (o.light) scene.remove(o.light); if (o.bulb) scene.remove(o.bulb);
   if (o.mirrors) { const i = mirrorObjs.indexOf(o); if (i >= 0) mirrorObjs.splice(i, 1); o.mirrors.forEach(mi => { if (mi.dispose) mi.dispose(); }); }
   if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
+  if (o.aabbs) for (const b of o.aabbs) { const i = obstacles.indexOf(b); if (i >= 0) obstacles.splice(i, 1); }
   const i = placed.indexOf(o); if (i >= 0) placed.splice(i, 1);
-  if (['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'].includes(o.key)) houseTier = 0;  // se rompió: puedes volver a ganar el bono
+  if (['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'lamp', 'oven'].includes(o.key)) houseTier = 0;  // se rompió: puedes volver a ganar el bono
   updateHouseAnchor();
 }
 
@@ -4313,7 +4356,7 @@ function houseStats() {
   for (const o of placed) {
     if (dist2D(o.mesh.position, houseAnchor) >= 18) continue;
     counts[o.key] = (counts[o.key] || 0) + 1;
-    if (o.key === 'wallWood' || o.key === 'wallRock') walls++;
+    if (o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'wallMetal' || o.key === 'wallDoor') walls++;
     else if (o.key === 'door') doors++;
     else if (o.key === 'roof') roofs++;
     else if (o.key === 'lamp') lamps++;
@@ -5006,7 +5049,7 @@ function buildFloor2() {
   // Footprint REAL de tu casa: centroide y tamaño de las paredes/puertas que construiste (no el marcador verde)
   let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9, sx = 0, sz = 0, n = 0;
   for (const o of placed) {
-    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'door') && !o.baseY && dist2D(o.mesh.position, houseAnchor) < 20) {   // solo las del primer piso: son las que definen la planta
+    if ((o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'wallMetal' || o.key === 'wallDoor' || o.key === 'door') && !o.baseY && dist2D(o.mesh.position, houseAnchor) < 20) {   // solo las del primer piso: son las que definen la planta
       const p = o.mesh.position; minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); sx += p.x; sz += p.z; n++;
     }
   }
@@ -5022,11 +5065,11 @@ function buildFloor2() {
   mk(0.3, 2.4, sideWallLen, hw, baseY + 1.4, -accessGap / 2, 0xd6a35c);
   mk(hw * 2 + 0.6, 0.35, hd * 2 + 0.6, 0, baseY + 2.8, 0, 0x7c3f21);                   // techo del piso 2
   mk(1.2, 1, 0.12, 0, baseY + 1.5, -hd - 0.12, 0x9fd0ff);                              // ventanita
-  mk(hw * 2, 0.25, hd * 2, 0, baseY, 0, 0xa87c4a);                                     // piso/loza del 2º nivel
+  mk(hw * 2, 0.25, hd * 2, 0, baseY - 0.125, 0, 0xa87c4a);                             // piso/loza del 2º nivel (su cara superior queda justo en baseY)
   // ESCALERAS: escalones que suben por el lado +x hasta el segundo piso
   const steps = 8, sh = baseY / steps;
   for (let i = 0; i < steps; i++) mk(1.4, sh, 0.55, hw + 0.7, (i + 0.5) * sh, -hd + 0.6 + i * ((hd * 2 - 1.2) / steps), 0x8b5a2b);
-  mk(1.7, 0.24, 1.35, hw + .42, baseY, hd - .62, 0xa87c4a);                              // descanso de llegada
+  mk(1.7, 0.24, 1.35, hw + .42, baseY - 0.12, hd - .62, 0xa87c4a);                       // descanso de llegada
   const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, hd * 2), mat(0x5a3a1e)); rail.position.set(hw + 1.35, baseY - 0.4, 0); rail.rotation.x = -Math.atan2(baseY, hd * 2 - 1.2); g.add(rail);   // baranda
   const rot = state.floor2Rot || 0;
   g.position.set(bx, 0, bz); g.rotation.y = rot;   // 🔄 Girar piso 2: mueve la escalera de lado
@@ -6338,8 +6381,8 @@ ui('bankCloseBtn').onclick = closeBank;
 // ===================================================================
 // La carga del cohete SOBREVIVE al viaje (goToPlanet no la borra). Cárgalo en la Tierra
 // con comida/materiales/armas y sácalos en el planeta nuevo para sobrevivir más.
-const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶' };
-const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra' };
+const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽' };
+const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Pared metal', wallDoor: 'Pared puerta', pilar: 'Pilar', bano: 'Baño' };
 const INV_KEYS = ['food', 'semillas', 'semillas_zanahoria', 'semillas_trigo', 'semillas_tomate', 'carbon', ...BUILD_KEYS];
 function rocketRow(key, n, into) {
   const b = document.createElement('button');
@@ -7156,12 +7199,12 @@ function updateRiding(dt) {
 //  PINTAR LA CASA: un tarro pinta toda la casa del color elegido
 // ===================================================================
 function hasHouseToPaint() {
-  return placed.some(o => ['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 20);
+  return placed.some(o => ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'pilar', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 20);
 }
 function paintHouse(color, label) {
   let n = 0;
   for (const o of placed) {
-    if (['wallWood', 'wallRock', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 20) {
+    if (['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'pilar', 'roof', 'door'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 20) {
       o.mesh.material = mat(color); o.paint = color; n++;   // se guarda el color para no perder la pintura al salir
     }
   }
@@ -7281,7 +7324,7 @@ function sellHouse() {
   addMoney(price); beep(720, 0.18, 0.05);
   for (let i = placed.length - 1; i >= 0; i--) {   // el aldeano se queda la casa: quitamos las piezas
     const o = placed[i];
-    if (['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 18) removePlaced(o);
+    if (['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'lamp', 'oven'].includes(o.key) && dist2D(o.mesh.position, houseAnchor) < 18) removePlaced(o);
   }
   houseTier = 0;
   toast('🤝 ¡Le vendiste tu casa a un aldeano por $' + price + '! Construye otra y véndela de nuevo 🤑');
@@ -8000,7 +8043,7 @@ function updateNight(dt) {
     const flies = ud.fly;
     let blocked = null;
     if (!flies) { for (const o of placed) {
-      const isBarrier = !o.baseY && (o.key === 'wallWood' || o.key === 'wallRock' || (o.key === 'door' && !ud.opensDoors)); // los inteligentes abren puertas · las paredes del 2º piso no frenan a los de abajo
+      const isBarrier = !o.baseY && (o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'wallMetal' || (o.key === 'door' && !ud.opensDoors)); // los inteligentes abren puertas · las paredes del 2º piso no frenan a los de abajo
       if (isBarrier && o.hp > 0 && dist2D(e.position, o.mesh.position) < 2.2) blocked = o;
     } }
     if (flies) e.position.y = 3 + Math.sin(state.nightTime * 4 + i) * 0.3;   // flotar
@@ -8752,8 +8795,8 @@ function renderHUD() {
   if (showBar) {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
-    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶' };
-    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra' };
+    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽' };
+    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Metal', wallDoor: 'P. puerta', pilar: 'Pilar', bano: 'Baño' };
     let html = '';
     for (const [cat, em] of BUILD_CAT_TABS)   // pestañas de categoría (18 slots no caben en pantalla)
       html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;

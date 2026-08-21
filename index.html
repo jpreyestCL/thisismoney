@@ -6871,11 +6871,31 @@ try {
   perfMode = localStorage.getItem('tim_perf') === '1';
 } catch (e) {}
 function applyBtnScale() { document.documentElement.style.setProperty('--btnscale', btnScale); }
-function applyPerfMode() {   // modo rendimiento: sin sombras y resolución nativa 1x (para teléfonos lentos)
+let perfExtra = false;       // 2ª etapa del detector de lag: aún menos resolución y distancia
+function applyPerfMode() {   // modo rendimiento: sin sombras, menos resolución y menos distancia de dibujo
   sun.castShadow = !perfMode;
   renderer.shadowMap.enabled = !perfMode;
-  renderer.setPixelRatio(perfMode ? 1 : Math.min(devicePixelRatio, 2));
+  renderer.setPixelRatio(perfMode ? (perfExtra ? 0.75 : 1) : Math.min(devicePixelRatio, 2));
+  // la niebla tapa todo desde ~160: dibujar hasta 600 es puro gasto en equipos lentos
+  camera.far = perfMode ? (perfExtra ? 220 : 320) : 600; camera.updateProjectionMatrix();
   scene.traverse(o => { if (o.isMesh && o.material) o.material.needsUpdate = true; });
+}
+// ---- Detector de lag: si el juego va lento varios segundos, baja la calidad solo ----
+let fpsMedT = 0, fpsMedN = 0, fpsLento = 0, autoPerfStage = 0, autoPerfLock = false, fpsPrev = 0;
+function updateAutoPerf() {
+  if (!state.running || state.paused || autoPerfLock || autoPerfStage >= 2 || document.hidden) return;
+  const now = performance.now();
+  if (fpsPrev) { fpsMedT += now - fpsPrev; fpsMedN++; }
+  fpsPrev = now;
+  if (fpsMedT < 1000) return;                       // promedio cada 1 segundo
+  const fps = fpsMedN * 1000 / fpsMedT; fpsMedT = 0; fpsMedN = 0;
+  if (fps < 22) fpsLento++; else fpsLento = Math.max(0, fpsLento - 1);
+  if (fpsLento < 5) return;                         // 5 s seguidos de lag → actuar
+  fpsLento = 0; autoPerfStage++;
+  if (!perfMode) { perfMode = true; try { localStorage.setItem('tim_perf', '1'); } catch (e) {} }
+  else perfExtra = true;                            // ya estaba en rendimiento: 2ª etapa
+  applyPerfMode();
+  toast('🐢 El juego iba lento: bajé la calidad para que corra mejor (⚙️ pausa → Rendimiento)');
 }
 applyBtnScale(); if (perfMode) applyPerfMode();
 // Modo reloj: ahora que perfMode ya existe, aplicarlo (auto en pantallas diminutas) y engancharlo al botón + resize
@@ -6913,7 +6933,7 @@ ui('pauseResume').onclick = () => togglePause(false);
 ui('sensSlider').oninput = () => { lookMult = parseFloat(ui('sensSlider').value); ui('sensVal').textContent = lookMult.toFixed(1) + '×'; try { localStorage.setItem('tim_sens', String(lookMult)); } catch (e) {} };
 ui('btnSlider').oninput = () => { btnScale = parseFloat(ui('btnSlider').value); ui('btnVal').textContent = btnScale.toFixed(1) + '×'; applyBtnScale(); try { localStorage.setItem('tim_btnsize', String(btnScale)); } catch (e) {} };
 ui('pauseSound').onclick = () => { toggleSound(); ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO'; };
-ui('pausePerf').onclick = () => { perfMode = !perfMode; applyPerfMode(); try { localStorage.setItem('tim_perf', perfMode ? '1' : '0'); } catch (e) {} ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF'; };
+ui('pausePerf').onclick = () => { perfMode = !perfMode; perfExtra = false; autoPerfLock = true; applyPerfMode(); try { localStorage.setItem('tim_perf', perfMode ? '1' : '0'); } catch (e) {} ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF'; };   // si lo tocas a mano, el detector automático deja de meterse
 ui('pauseFoto').onclick = () => { togglePause(false); setTimeout(takePhoto, 100); };
 ui('pauseHelp').onclick = () => { togglePause(false); toggleHelp(true); };
 ui('pauseExit').onclick = () => { togglePause(false); saveAndExit(); };
@@ -8859,6 +8879,7 @@ let billboardTick = 0, hudTick = 0, minimapTick = 0;
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(clock.getDelta(), 0.05);
+  updateAutoPerf();   // si el juego va lento varios segundos, baja la calidad solo
   if (state.running && !state.paused && (state.phase === 'DAY' || state.phase === 'NIGHT')) {
     updateCountryNPCs(dt);                 // la gente del país que estás visitando
     updateNet(dt);                         // amigos online: manda tu posición y mueve sus muñecos
@@ -9338,7 +9359,7 @@ function netHandle(raw, fromConn) {
 }
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
-try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh }); } catch (e) {}
+try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage }); } catch (e) {}
 function netAddConn(c) {
   netStartTimer();
   net.conns.push(c);

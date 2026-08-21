@@ -4074,7 +4074,7 @@ function makeEggMesh(col) {
   }
 })();
 function refillEggs() { eggs.forEach(e => { e.ready = true; e.group.visible = state.planet === 'platus'; }); }
-function spawnEggPet(opts) {   // mascota nacida de un huevo: flota, sigue y pelea de noche
+function makeEggPetMesh(opts) {   // cuerpo + etiqueta de una mascota (lo usan las tuyas y las de tus amigos online)
   const rank = EGG_RANK[opts.tier] != null ? EGG_RANK[opts.tier] : 0;
   const def = EGG_TIERS[rank];
   const g = new THREE.Group();
@@ -4088,6 +4088,11 @@ function spawnEggPet(opts) {   // mascota nacida de un huevo: flota, sigue y pel
   }
   const tag = makeSign(def.emoji + ' ' + def.tier, opts.col);   // etiqueta flotante con la rareza
   tag.scale.set(.3, .3, .3); tag.position.y = 1.75 + rank * 0.12; g.add(tag);
+  return g;
+}
+function spawnEggPet(opts) {   // mascota nacida de un huevo: flota, sigue y pelea de noche
+  const def = EGG_TIERS[EGG_RANK[opts.tier] != null ? EGG_RANK[opts.tier] : 0];
+  const g = makeEggPetMesh(opts);
   g.position.set(player.position.x - 2 + Math.random() * 4, 0, player.position.z - 2 + Math.random() * 4);
   g.userData = { atkCd: 0, dmg: opts.dmg, tier: opts.tier, col: opts.col, spd: def.spd };   // las mejores rarezas corren más rápido
   scene.add(g); eggPets.push(g);
@@ -4096,12 +4101,16 @@ function spawnEggPet(opts) {   // mascota nacida de un huevo: flota, sigue y pel
 function clearEggPets() { eggPets.forEach(p => scene.remove(p)); eggPets.length = 0; }
 // ---- Punto de reunión de las mascotas: una banderita 🚩 donde se quedan cuidando ----
 let petFlag = null;
-function spawnPetFlag(x, z) {
-  removePetFlag();
+function makePetFlagMesh() {   // palo + banderita (también se usa para ver la de tus amigos online)
   const g = new THREE.Group();
   mcBox(g, 0, 1.1, 0, .18, 2.2, .18, 0xe5e7eb);     // palo
   mcBox(g, .55, 1.85, 0, 1.1, .7, .1, 0xef4444);    // banderita
   const gl = new THREE.PointLight(0xef4444, .5, 5); gl.position.y = 2; g.add(gl);
+  return g;
+}
+function spawnPetFlag(x, z) {
+  removePetFlag();
+  const g = makePetFlagMesh();
   g.position.set(x, 0, z);
   scene.add(g); petFlag = g;
 }
@@ -4446,12 +4455,12 @@ let car = null;             // vehículo seleccionado (el último usado o compra
 const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
   'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera', 'espejo', 'alfombra',
-  'wallMetal', 'wallDoor', 'pilar', 'bano'];
+  'wallMetal', 'wallDoor', 'pilar', 'bano', 'piso2'];
 // Categorías del hotbar (18 slots no caben en pantalla, ni en celular ni en PC).
 // Se muestran las 3 pestañas + las piezas de la categoría activa: así TODOS los
 // materiales son alcanzables (antes los slots 10-18 quedaban fuera de pantalla).
 const BUILD_CATS = {
-  casa: ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'pilar', 'lamp', 'oven'],
+  casa: ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'piso2', 'pilar', 'lamp', 'oven'],
   defensa: ['ballesta', 'torreta', 'laser'],
   muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'heladera', 'bano'],
   deco: ['window', 'cuadro', 'planta', 'espejo', 'alfombra'],
@@ -4595,6 +4604,7 @@ function objGeometry(key, variantId) {
   if (key === 'bano') return new THREE.BoxGeometry(0.7, 0.45, 0.85);       // taza del baño
   if (key === 'espejo') return new THREE.BoxGeometry(1.1, 1.7, 0.12);      // espejo de pared
   if (key === 'alfombra') return new THREE.BoxGeometry(2.6, 0.08, 1.8);    // alfombra al ras del suelo
+  if (key === 'piso2') return new THREE.BoxGeometry(5.6, 0.4, 5.6);        // vista previa del segundo piso (la loza)
   return new THREE.BoxGeometry(1, 1, 1);
 }
 // Los dos pilares del marco de la "pared puerta" (el hueco del medio queda libre)
@@ -4612,7 +4622,7 @@ function addDoorFrameParts(target, color, ghost) {
 function objColor(key, variantId) { const variant = variantFor(key, variantId); return variant ? variant.color : SHOP.find(s => s.key === key).color; }
 const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
   window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4, heladera: 0.95,
-  espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35 };
+  espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35, piso2: 3 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
 // Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
 function objMaterial(key, variantId) {
@@ -4803,6 +4813,16 @@ function placeObject() {
   if (activeBlueprintId) { placeBlueprint(); return; }
   const key = BUILD_KEYS[buildSel];
   if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
+  if (key === 'piso2') {   // pieza especial: se arma sobre la construcción a la que apuntas
+    const c = wallClusterAt(ghost.position.x, ghost.position.z);
+    if (!c.n) { toast('🏠 Apunta a una construcción con paredes para ponerle el segundo piso'); return; }
+    if (floors2.some(F => Math.hypot(F.data.bx - c.bx, F.data.bz - c.bz) < 10)) { toast('🏠 Esa construcción ya tiene segundo piso'); return; }
+    state.inv.piso2--;
+    buildFloor2At(ghost.position.x, ghost.position.z, 0);
+    netSend({ t: 'floor2', id: net.myId, list: state.floors2 });   // los amigos lo ven al tiro
+    toast('🏠 ¡Segundo piso colocado! Sube por la escalera · con B: 🔄 lo giras y 🗑️ lo guardas de vuelta');
+    return;
+  }
   state.inv[key]--;
   const variant = currentBuildVariant();
   const rot = wallSnap ? wallSnap.rot : buildRot;   // calzada: usa el ángulo de la pared vecina
@@ -5595,11 +5615,12 @@ function buildFloor2At(ax, az, rot) {
   floors2.push(F); syncFloor2State();
   return F;
 }
-function rebuildFloors2() {   // rearma los meshes desde state.floors2 (cargar partida / girar uno)
+function rebuildFloors2() {   // rearma los meshes desde state.floors2 (cargar partida / girar uno / mensaje online)
   floors2.forEach(F => scene.remove(F.group));
   const defs = (state.floors2 || []).slice();
   floors2 = []; playerFloor2 = null;
   defs.forEach(d => buildFloor2At(d.ax, d.az, d.rot || 0));
+  syncFloor2State();   // también con la lista vacía (p.ej. un amigo guardó el último piso)
 }
 function removeAllFloors2() { floors2.forEach(F => scene.remove(F.group)); floors2 = []; playerFloor2 = null; syncFloor2State(); }
 function nearestFloor2() {
@@ -5613,13 +5634,13 @@ function rotateFloor2() {
   if (!F) { toast('🏠 Todavía no tienes segundo piso'); return; }
   F.rot = ((F.rot || 0) + Math.PI / 2) % (Math.PI * 2);
   syncFloor2State(); rebuildFloors2(); beep(520, 0.08, 0.04);
+  netSend({ t: 'floor2', id: net.myId, list: state.floors2 });
   toast('🔄 Giraste el segundo piso · la escalera cambió de lado');
 }
-// Botón 🗑️: saca el segundo piso MÁS CERCANO y te devuelve la mitad de lo que costó
+// Botón 🗑️: saca el segundo piso MÁS CERCANO y lo guarda en tu mochila (puedes ponerlo en otra casa)
 function sellFloor2() {
   const F = nearestFloor2();
   if (!F) { toast('🏠 No tienes segundo piso que sacar'); return; }
-  const back = Math.floor((UNLOCK_ITEMS.find(i => i.key === 'piso2').price) / 2);
   let up = 0;   // lo que tenías arriba EN ESE piso vuelve a la mochila (si no, quedaría flotando en el aire)
   for (let i = placed.length - 1; i >= 0; i--) {
     const o = placed[i]; if (!o.baseY) continue;
@@ -5627,8 +5648,10 @@ function sellFloor2() {
     if (Math.abs(lx) <= F.data.hw + 1.5 && Math.abs(lz) <= F.data.hd + 1.5) { state.inv[o.key] = (state.inv[o.key] || 0) + 1; removePlaced(o); up++; }
   }
   scene.remove(F.group); floors2.splice(floors2.indexOf(F), 1); if (playerFloor2 === F) playerFloor2 = null;
-  syncFloor2State(); addMoney(back); beep(300, 0.12, 0.05);
-  toast('🗑️ Sacaste el segundo piso · te devolvieron $' + back + (up ? ' y ' + up + ' objeto(s) que tenías arriba' : ''));
+  state.inv.piso2 = (state.inv.piso2 || 0) + 1;
+  syncFloor2State(); beep(300, 0.12, 0.05);
+  netSend({ t: 'floor2', id: net.myId, list: state.floors2 });
+  toast('🗑️ Guardaste el segundo piso en tu mochila · colócalo en la construcción que quieras' + (up ? ' (+' + up + ' objeto(s) que tenías arriba)' : ''));
 }
 // Coordenadas locales de UN segundo piso (deshace su giro): sirven para caminar y para construir arriba
 function floor2LocalOf(f, x, z) {
@@ -7777,12 +7800,9 @@ function buyItem(item) {
     state.money -= item.price; spawnPet(); toast('🐶 ¡Perro guardián! Te sigue y pelea de noche'); return;
   }
   if (item.key === 'piso2') {
-    // se construye sobre la construcción junto a la que ESTÁS PARADO (tu casa u otra secundaria)
-    const c = wallClusterAt(player.position.x, player.position.z);
-    if (!c.n) { toast('🏠 Párate al lado de la construcción (con sus paredes puestas) donde quieres el segundo piso'); return; }
-    if (floors2.some(F => Math.hypot(F.data.bx - c.bx, F.data.bz - c.bz) < 10)) { toast('🏠 Esa construcción ya tiene segundo piso'); return; }
-    state.money -= item.price; buildFloor2At(player.position.x, player.position.z, 0);
-    toast('🏠 ¡Segundo piso construido! Sube por la escalera · arriba puedes poner muebles igual que abajo · con B: 🔄 lo giras y 🗑️ lo sacas · +$300 cada noche'); return;
+    // va a tu MOCHILA: lo colocas con B (pestaña 🏠) sobre la construcción que prefieras
+    state.money -= item.price; state.inv.piso2 = (state.inv.piso2 || 0) + 1;
+    toast('🏠 Segundo piso en tu mochila · con B elígelo en la pestaña 🏠 y colócalo apuntando a la construcción que quieras · +$300 cada noche'); return;
   }
   if (item.key === 'moto') {
     if (spawnCar({ moto: true })) state.money -= item.price;
@@ -9184,7 +9204,54 @@ function netAvatar(id, nombre) {
 }
 function netRemoveAvatar(id) {
   const p = net.players.get(id); if (!p) return;
+  (p.pets || []).forEach(q => scene.remove(q));   // sus mascotas y su banderita se van con él
+  if (p.flag) scene.remove(p.flag);
   scene.remove(p.group); net.players.delete(id);
+}
+// Autito/moto/heli simple que se le pone al muñeco del amigo cuando conduce
+function makeMiniCar(kind) {
+  const g = new THREE.Group();
+  if (kind === 2) {          // moto
+    mcBox(g, 0, .6, 0, .5, .5, 2.4, 0xef4444);
+    mcBox(g, 0, .3, 1, .3, .6, .6, 0x1f2937); mcBox(g, 0, .3, -1, .3, .6, .6, 0x1f2937);
+  } else if (kind === 3) {   // helicóptero
+    mcBox(g, 0, .9, 0, 1.6, 1.2, 3, 0x38bdf8);
+    mcBox(g, 0, 1.7, 0, .2, .1, 3.6, 0x94a3b8);   // rotor
+    mcBox(g, 0, .9, 2.2, .5, .5, 1.6, 0x0ea5e9);  // cola
+  } else {                   // auto
+    mcBox(g, 0, .7, 0, 1.8, .8, 3.4, 0x2563eb);
+    mcBox(g, 0, 1.3, .2, 1.4, .6, 1.6, 0x93c5fd);
+    for (const [sx, sz] of [[-.9, 1.2], [.9, 1.2], [-.9, -1.2], [.9, -1.2]]) mcBox(g, sx, .35, sz, .3, .7, .7, 0x1f2937);
+  }
+  return g;
+}
+function netCarView(p, kind) {
+  if ((p.carKind || 0) === kind) return;
+  if (p.carMesh) { p.group.remove(p.carMesh); p.carMesh = null; }
+  p.carKind = kind;
+  if (kind) { p.carMesh = makeMiniCar(kind); p.group.add(p.carMesh); }
+}
+// Mascotas de huevos y banderita 🚩 de un amigo: se crean/actualizan con cada foto que manda
+function netApplyPets(m) {
+  const p = netAvatar(m.id, m.name);
+  const list = m.list || [];
+  p.pets = p.pets || [];
+  while (p.pets.length > list.length) scene.remove(p.pets.pop());
+  for (let i = 0; i < list.length; i++) {
+    const d = list[i];
+    let q = p.pets[i];
+    if (!q || q.userData.tier !== d.tier) {
+      if (q) scene.remove(q);
+      q = makeEggPetMesh(d); q.userData = { tier: d.tier };
+      q.position.set(d.x, 0, d.z); scene.add(q); p.pets[i] = q;
+    }
+    q.userData.netTarget = q.userData.netTarget || new THREE.Vector3();
+    q.userData.netTarget.set(d.x, 0, d.z);
+  }
+  if (m.f) {
+    if (!p.flag) { p.flag = makePetFlagMesh(); scene.add(p.flag); }
+    p.flag.position.set(m.f[0], 0, m.f[1]);
+  } else if (p.flag) { scene.remove(p.flag); p.flag = null; }
 }
 function netClearAvatars() { for (const id of [...net.players.keys()]) netRemoveAvatar(id); }
 
@@ -9206,6 +9273,7 @@ function netHandle(raw, fromConn) {
     const p = netAvatar(m.id, m.name);
     p.target.set(m.x, m.y != null ? m.y : 0, m.z); p.yaw = m.yaw; p.last = performance.now();
     netGear(p, m.w, m.wc, m.ar || null);
+    netCarView(p, m.car || 0);
     if (m.name && m.name !== p.name) { p.name = m.name; p.group.remove(p.tag); const tg = makeSign(m.name, 0xfde047); tg.scale.set(.42, .42, .42); tg.position.set(0, 3.1, 0); tg.userData.billboard = true; p.group.add(tg); p.tag = tg; }
   } else if (m.t === 'place') {
     net.applying = true;
@@ -9241,6 +9309,11 @@ function netHandle(raw, fromConn) {
     for (const e of enemies) if (e.userData.netId === m.eid) { e.userData.lastHitBy = m.id; hitEnemy(e, m.dmg, null); break; }
   } else if (m.t === 'loot') {         // te tocó la plata del monstruo que mataste
     if (m.to === net.myId) { addMoney(m.m); floatText(player.position, '+$' + m.m, '#4ade80', 16); }
+  } else if (m.t === 'pets') {         // las mascotas de huevos (y la banderita) de un amigo
+    netApplyPets(m);
+  } else if (m.t === 'floor2') {       // los segundos pisos son parte del mundo compartido
+    net.applying = true;
+    try { state.floors2 = m.list || []; rebuildFloors2(); } finally { net.applying = false; }
   } else if (m.t === 'bye') {
     netRemoveAvatar(m.id);
     toast('👋 ' + (m.name || 'Un amigo') + ' salió de la sala');
@@ -9251,7 +9324,7 @@ function netHandle(raw, fromConn) {
 }
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
-try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets }); } catch (e) {}
+try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle }); } catch (e) {}
 function netAddConn(c) {
   netStartTimer();
   net.conns.push(c);
@@ -9332,7 +9405,8 @@ function netDadLerp(dt) {
 function netSendPos(force) {
   if (!net.on) return;
   netSend({ t: 'pos', id: net.myId, name: net.name, x: +player.position.x.toFixed(2), y: +(player.position.y - PLAYER_EYE).toFixed(2), z: +player.position.z.toFixed(2), yaw: +yaw.toFixed(2),
-    w: weaponKindFromName(state.weaponName), wc: weaponVisualColor, ar: armorTierFor(state.armorFactor) });   // arma y armadura, para que te vean equipado
+    w: weaponKindFromName(state.weaponName), wc: weaponVisualColor, ar: armorTierFor(state.armorFactor),   // arma y armadura, para que te vean equipado
+    car: state.driving && car ? (car.helicopter ? 3 : car.moto ? 2 : 1) : 0 });                            // conduciendo: que vean el vehículo, no a alguien "corriendo"
 }
 // Le pone al muñeco del amigo su armadura y su arma en la mano
 function netGear(p, arma, color, armadura) {
@@ -9351,6 +9425,12 @@ function netGear(p, arma, color, armadura) {
 function netTick() {
   if (!net.on || !state.running) return;
   netSendPos();
+  net.petsT = (net.petsT || 0) + 1;   // mascotas + banderita: 3 veces por segundo alcanza
+  if (net.petsT % 3 === 0 && (eggPets.length || state.petPoint || net.petsHad)) {
+    net.petsHad = eggPets.length > 0 || !!state.petPoint;   // un último aviso vacío para que se borren al perderlas
+    netSend({ t: 'pets', id: net.myId, list: eggPets.map(p => ({ x: +p.position.x.toFixed(1), z: +p.position.z.toFixed(1), tier: p.userData.tier, col: p.userData.col })),
+      f: state.petPoint ? [+state.petPoint.x.toFixed(1), +state.petPoint.z.toFixed(1)] : 0 });
+  }
   if (!net.isHost) return;
   net.tickN = (net.tickN || 0) + 1;
   netMobSnapshot();                                   // monstruos: 10 veces por segundo
@@ -9367,6 +9447,10 @@ function updateNet(dt) {
     p.group.rotation.y = p.yaw + Math.PI;
     const moviendo = p.group.position.distanceToSquared(p.target) > 0.01;
     swingLimbs(p.group, moviendo ? dt : 0);
+    if (p.pets) for (const q of p.pets) {   // sus mascotas flotan y lo siguen igual que las tuyas
+      if (q.userData.netTarget) q.position.lerp(q.userData.netTarget, Math.min(1, dt * 8));
+      q.position.y = 0.3 + Math.sin(performance.now() * 0.004 + q.position.x) * 0.12;
+    }
   }
   const hud = ui('nethud');
   if (hud) { hud.style.display = 'block'; setHTMLIfChanged(hud, '🌐 SALA <b>' + net.code + '</b> · ' + (net.players.size + 1) + ' jugando'); }
@@ -9393,6 +9477,7 @@ async function netCreate() {
         try {
           for (const o of placed) c.send(JSON.stringify({ t: 'place', id: net.myId, key: o.key, x: +o.mesh.position.x.toFixed(2), z: +o.mesh.position.z.toFixed(2), rot: o.mesh.rotation.y, variant: o.variant || null, baseY: o.baseY || 0 }));
           c.send(JSON.stringify({ t: 'phase', id: net.myId, phase: state.phase, dayTime: Math.round(state.dayTime), night: state.night }));
+          if (state.floors2 && state.floors2.length) c.send(JSON.stringify({ t: 'floor2', id: net.myId, list: state.floors2 }));   // los segundos pisos también
         } catch (e) {}
       });
     });

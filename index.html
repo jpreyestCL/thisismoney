@@ -4650,18 +4650,48 @@ function buildBaseY(x, z) {
   const f = floor2Data, { lx, lz } = floor2Local(x, z);
   return (Math.abs(lx) <= f.hw && Math.abs(lz) <= f.hd) ? f.baseY : 0;
 }
+// ---- Auto-calce de murallas: el fantasma se pega solo a la pared de al lado ----
+// Si apuntas cerca de una pared ya puesta, la nueva se calza en el hueco contiguo
+// (siguiendo la línea, o en escuadra de 90° en los extremos). El anillo se pone azul.
+const WALL_SNAP_KEYS = { wallWood: 1, wallRock: 1, wallMetal: 1, wallDoor: 1 };
+let wallSnap = null;   // {x, z, rot} cuando el fantasma quedó calzado con una pared vecina
+function computeWallSnap(tx, tz, by) {
+  if (!WALL_SNAP_KEYS[BUILD_KEYS[buildSel]]) return null;
+  let best = null, bd = 6;
+  for (const o of placed) {   // la pared YA puesta más cercana a donde apuntas
+    if (!WALL_SNAP_KEYS[o.key] || (o.baseY || 0) !== by) continue;
+    const d = Math.hypot(o.mesh.position.x - tx, o.mesh.position.z - tz);
+    if (d < bd) { bd = d; best = o; }
+  }
+  if (!best) return null;
+  const r = best.mesh.rotation.y, dirX = Math.cos(r), dirZ = -Math.sin(r);   // eje a lo largo de la pared (ancho 4)
+  const cand = [];
+  for (const s of [-1, 1]) cand.push({ x: best.mesh.position.x + dirX * 4 * s, z: best.mesh.position.z + dirZ * 4 * s, rot: r });   // seguir la línea
+  for (const s of [-1, 1]) for (const q of [-1, 1])   // esquinas: pared perpendicular pegada a cada extremo
+    cand.push({ x: best.mesh.position.x + dirX * 2 * s + dirZ * 2 * q, z: best.mesh.position.z + dirZ * 2 * s - dirX * 2 * q, rot: r + Math.PI / 2 });
+  let pick = null, pd = 2.6;   // solo calza si apuntas cerca del hueco libre
+  for (const c of cand) {
+    if (placed.some(o => WALL_SNAP_KEYS[o.key] && (o.baseY || 0) === by && Math.hypot(o.mesh.position.x - c.x, o.mesh.position.z - c.z) < 1.6)) continue;   // hueco ya ocupado
+    const d = Math.hypot(c.x - tx, c.z - tz);
+    if (d < pd) { pd = d; pick = c; }
+  }
+  return pick;
+}
 function updateBuild(dt) {
   const canBuild = state.buildMode && state.phase === 'DAY';
   if (canBuild) spinBuild(dt || 0);   // mantener el botón (o P/L) gira la pieza de a poco
   ghost.visible = canBuild && !activeBlueprintId; blueprintGhost.visible = canBuild && !!activeBlueprintId;
-  if (!canBuild) return;
+  if (!canBuild) { wallSnap = null; return; }
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const t = player.position.clone().addScaledVector(fwd, 5); t.y = 0;
   const by = buildBaseY(t.x, t.z);   // si estás en el segundo piso, se construye sobre la loza
-  if (activeBlueprintId) { blueprintGhost.position.set(t.x, by, t.z); blueprintGhost.rotation.y = buildRot; }
+  if (activeBlueprintId) { wallSnap = null; blueprintGhost.position.set(t.x, by, t.z); blueprintGhost.rotation.y = buildRot; }
   else {
-    ghost.position.set(t.x, by, t.z); ghost.rotation.y = buildRot;
-    const have = state.inv[BUILD_KEYS[buildSel]] > 0; ghostLine.material.color.set(have ? 0x4ade80 : 0xef4444);
+    wallSnap = computeWallSnap(t.x, t.z, by);
+    if (wallSnap) { ghost.position.set(wallSnap.x, by, wallSnap.z); ghost.rotation.y = wallSnap.rot; }
+    else { ghost.position.set(t.x, by, t.z); ghost.rotation.y = buildRot; }
+    const have = state.inv[BUILD_KEYS[buildSel]] > 0;
+    ghostLine.material.color.set(!have ? 0xef4444 : wallSnap ? 0x38bdf8 : 0x4ade80);   // azul = calzada con la vecina
   }
 }
 
@@ -4775,8 +4805,9 @@ function placeObject() {
   if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
   state.inv[key]--;
   const variant = currentBuildVariant();
-  spawnPlaced(key, ghost.position.x, ghost.position.z, buildRot, null, variant && variant.id, ghost.position.y);
-  netSend({ t: 'place', id: net.myId, key, x: +ghost.position.x.toFixed(2), z: +ghost.position.z.toFixed(2), rot: buildRot, variant: (variant && variant.id) || null, baseY: ghost.position.y });
+  const rot = wallSnap ? wallSnap.rot : buildRot;   // calzada: usa el ángulo de la pared vecina
+  spawnPlaced(key, ghost.position.x, ghost.position.z, rot, null, variant && variant.id, ghost.position.y);
+  netSend({ t: 'place', id: net.myId, key, x: +ghost.position.x.toFixed(2), z: +ghost.position.z.toFixed(2), rot, variant: (variant && variant.id) || null, baseY: ghost.position.y });
   const val = SHOP.find(s => s.key === key).value;
   addMoney(val);
   toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + (variant ? ' · ' + variant.name : '') + ' +$' + val);

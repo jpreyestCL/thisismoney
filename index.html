@@ -4049,11 +4049,11 @@ function updateBaseDefense(dt) {
 // Rarezas de peor a mejor: común → raro → épico → mítico → legendario
 const eggs = [], eggPets = [];
 const EGG_TIERS = [
-  { p: 0.45, tier: 'común',      emoji: '🐣', dmg: 25,  col: 0x84cc16 },   // 45%
-  { p: 0.70, tier: 'raro',       emoji: '💙', dmg: 40,  col: 0x22d3ee },   // 25%
-  { p: 0.85, tier: 'épico',      emoji: '💜', dmg: 60,  col: 0xa855f7 },   // 15%
-  { p: 0.95, tier: 'mítico',     emoji: '🔥', dmg: 85,  col: 0xf43f5e },   // 10%
-  { p: 1.00, tier: 'legendario', emoji: '🌟', dmg: 120, col: 0xfde047 },   //  5%
+  { p: 0.45, tier: 'común',      emoji: '🐣', dmg: 25,  spd: 3.8, col: 0x84cc16 },   // 45%
+  { p: 0.70, tier: 'raro',       emoji: '💙', dmg: 40,  spd: 4.6, col: 0x22d3ee },   // 25%
+  { p: 0.85, tier: 'épico',      emoji: '💜', dmg: 60,  spd: 5.5, col: 0xa855f7 },   // 15%
+  { p: 0.95, tier: 'mítico',     emoji: '🔥', dmg: 85,  spd: 6.5, col: 0xf43f5e },   // 10%
+  { p: 1.00, tier: 'legendario', emoji: '🌟', dmg: 120, spd: 7.8, col: 0xfde047 },   //  5%
 ];
 // rango de cada rareza (los nombres viejos 'rara'/'LEGENDARIA' vienen de saves antiguos)
 const EGG_RANK = { 'común': 0, 'raro': 1, 'rara': 1, 'épico': 2, 'mítico': 3, 'legendario': 4, 'LEGENDARIA': 4 };
@@ -4087,26 +4087,45 @@ function spawnEggPet(opts) {   // mascota nacida de un huevo: flota, sigue y pel
   const tag = makeSign(def.emoji + ' ' + def.tier, opts.col);   // etiqueta flotante con la rareza
   tag.scale.set(.3, .3, .3); tag.position.y = 1.75 + rank * 0.12; g.add(tag);
   g.position.set(player.position.x - 2 + Math.random() * 4, 0, player.position.z - 2 + Math.random() * 4);
-  g.userData = { atkCd: 0, dmg: opts.dmg, tier: opts.tier, col: opts.col };
+  g.userData = { atkCd: 0, dmg: opts.dmg, tier: opts.tier, col: opts.col, spd: def.spd };   // las mejores rarezas corren más rápido
   scene.add(g); eggPets.push(g);
   return g;
 }
 function clearEggPets() { eggPets.forEach(p => scene.remove(p)); eggPets.length = 0; }
 function updateEggPets(dt) {
-  for (const p of eggPets) {
+  const n = eggPets.length;
+  for (let i = 0; i < n; i++) {
+    const p = eggPets[i];
     p.position.y = 0.3 + Math.sin(performance.now() * 0.004 + p.position.x) * 0.12;
     let near = null, nd = 18;
     if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(p.position, e.position); if (d < nd) { nd = d; near = e; } }
+    const spd = p.userData.spd || 5;   // velocidad según rareza (mejor = más rápida)
     if (near) {
-      if (nd > 1.4) { moveToward(p, near.position, 5 * dt); p.rotation.y = Math.atan2(near.position.x - p.position.x, near.position.z - p.position.z); }
+      if (nd > 1.4) { moveToward(p, near.position, spd * dt); p.rotation.y = Math.atan2(near.position.x - p.position.x, near.position.z - p.position.z); }
       else { p.userData.atkCd -= dt; if (p.userData.atkCd <= 0) { p.userData.atkCd = 0.5; hitEnemy(near, p.userData.dmg, p.position); beep(600, 0.05, 0.045); } }
-    } else { const d = dist2D(p.position, player.position); if (d > 3.5) { moveToward(p, player.position, 5 * dt); p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z); } }
+    } else {
+      // cada mascota tiene su PROPIO puesto en un círculo alrededor del jugador (no se amontonan)
+      const ang = (i / Math.max(1, n)) * Math.PI * 2;
+      const goal = { x: player.position.x + Math.cos(ang) * 2.8, z: player.position.z + Math.sin(ang) * 2.8 };
+      if (dist2D(p.position, goal) > 0.5) { moveToward(p, goal, spd * dt); p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z); }
+    }
+  }
+  // separación: si dos mascotas quedan muy juntas (p.ej. atacando al mismo monstruo), se empujan
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const a = eggPets[i], b = eggPets[j];
+    const dx = b.position.x - a.position.x, dz = b.position.z - a.position.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 1.2) {
+      const nx = d > 0.001 ? dx / d : 1, nz = d > 0.001 ? dz / d : 0, push = (1.2 - d) * 0.5;
+      a.position.x -= nx * push; a.position.z -= nz * push;
+      b.position.x += nx * push; b.position.z += nz * push;
+    }
   }
 }
 function hatchEgg() {
   const r = Math.random(); const t = EGG_TIERS.find(x => r <= x.p) || EGG_TIERS[0];
   spawnEggPet(t);
-  toast('🐣 ¡Nació una mascota ' + t.emoji + ' ' + t.tier.toUpperCase() + '! (daño ' + t.dmg + ') Te sigue y pelea de noche');
+  toast('🐣 ¡Nació una mascota ' + t.emoji + ' ' + t.tier.toUpperCase() + '! (daño ' + t.dmg + ' · ⚡ velocidad ' + t.spd + ') Te sigue y pelea de noche');
   beep(700, 0.12, 0.05); setTimeout(() => beep(1000, 0.14, 0.05), 110);
   if (t.tier === 'épico') { coinBurst(player.position, 8); floatText(player.position, '💜 ¡ÉPICO!', '#a855f7', 20); vibr([30]); }
   else if (t.tier === 'mítico') { coinBurst(player.position, 14); floatText(player.position, '🔥 ¡MÍTICO!', '#f43f5e', 22); vibr([40, 30, 60]); }
@@ -9134,7 +9153,7 @@ function netHandle(raw, fromConn) {
 }
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
-try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw }); } catch (e) {}
+try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets }); } catch (e) {}
 function netAddConn(c) {
   netStartTimer();
   net.conns.push(c);

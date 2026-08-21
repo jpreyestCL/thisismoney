@@ -579,6 +579,7 @@
       <button type="button" class="tbtn" data-act="dadClean" aria-label="Papá limpiar">🧹<small>limpia</small></button>
       <button type="button" class="tbtn" data-act="dadArm" aria-label="Armar a papá">🔫<small>arma</small></button>
       <button type="button" class="tbtn" data-act="dadRest" aria-label="Papá descansar">😴<small>dormir</small></button>
+      <button type="button" class="tbtn" data-act="petPoint" aria-label="Marcar punto para las mascotas">🚩<small>mascotas</small></button>
       <button type="button" class="tbtn" data-act="math" aria-label="Desafío de matemáticas">🧮<small>mates</small></button>
       <button type="button" class="tbtn" data-act="helper" aria-label="Llamar ayudante">🧒<small>hijo</small></button>
       <button type="button" class="tbtn" data-act="rocket" aria-label="Usar cohete">🚀<small>cohete</small></button>
@@ -696,6 +697,7 @@
           <kbd>P · L</kbd><span>Girar la pieza al ángulo que quieras: un toque la mueve 15° y si mantienes apretado gira sin parar (igual que el botón 🔄 Girar).</span>
           <kbd>Q / K</kbd><span>Comer o plantar. Shift+K cambia entre manzana, zanahoria, trigo y tomate.</span>
           <kbd>C/V/O</kbd><span>Ordenar a papá: seguir, esperar o limpiar. G lo arma y Z lo deja descansar.</span>
+          <kbd>X</kbd><span>Fuera de construcción: planta una banderita 🚩 donde tus mascotas de huevos se quedan cuidando. X de nuevo las llama de vuelta.</span>
           <kbd>U / I</kbd><span>Abrir desafíos de mates o esta guía.</span>
           <kbd>N / R</kbd><span>Empezar la noche. En construcción, R cambia la variante; fuera de ella lanza el cohete.</span>
           <kbd>F5</kbd><span>Cambiar entre primera persona, tercera trasera y tercera frontal.</span>
@@ -4092,22 +4094,49 @@ function spawnEggPet(opts) {   // mascota nacida de un huevo: flota, sigue y pel
   return g;
 }
 function clearEggPets() { eggPets.forEach(p => scene.remove(p)); eggPets.length = 0; }
+// ---- Punto de reunión de las mascotas: una banderita 🚩 donde se quedan cuidando ----
+let petFlag = null;
+function spawnPetFlag(x, z) {
+  removePetFlag();
+  const g = new THREE.Group();
+  mcBox(g, 0, 1.1, 0, .18, 2.2, .18, 0xe5e7eb);     // palo
+  mcBox(g, .55, 1.85, 0, 1.1, .7, .1, 0xef4444);    // banderita
+  const gl = new THREE.PointLight(0xef4444, .5, 5); gl.position.y = 2; g.add(gl);
+  g.position.set(x, 0, z);
+  scene.add(g); petFlag = g;
+}
+function removePetFlag() { if (petFlag) { scene.remove(petFlag); petFlag = null; } }
+function clearPetPoint() { state.petPoint = null; removePetFlag(); }
+function togglePetPoint() {   // tecla 0 en PC / botón 🚩 en el panel ⋯ móvil
+  if (state.petPoint) { clearPetPoint(); toast('🚩 Banderita quitada: las mascotas te siguen de nuevo'); beep(500, .08, .05); return; }
+  if (!eggPets.length) { toast('🐣 Aún no tienes mascotas de huevos (encuéntralos explorando los planetas)'); return; }
+  const x = player.position.x - Math.sin(yaw) * 4, z = player.position.z - Math.cos(yaw) * 4;   // 4 bloques adelante tuyo
+  state.petPoint = { x, z };
+  spawnPetFlag(x, z);
+  toast('🚩 ¡Punto marcado! Las mascotas se quedan ahí cuidando · aprieta de nuevo para llamarlas');
+  beep(700, .1, .05);
+}
 function updateEggPets(dt) {
   const n = eggPets.length;
+  const anchor = state.petPoint || player.position;   // con banderita 🚩 se quedan cuidando ese punto
   for (let i = 0; i < n; i++) {
     const p = eggPets[i];
     p.position.y = 0.3 + Math.sin(performance.now() * 0.004 + p.position.x) * 0.12;
     let near = null, nd = 18;
-    if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(p.position, e.position); if (d < nd) { nd = d; near = e; } }
+    if (state.phase === 'NIGHT') for (const e of enemies) {
+      if (e.userData.type === 'bull') continue;
+      if (state.petPoint && dist2D(anchor, e.position) > 16) continue;   // de guardia: solo pelean cerca de la banderita
+      const d = dist2D(p.position, e.position); if (d < nd) { nd = d; near = e; }
+    }
     const spd = p.userData.spd || 5;   // velocidad según rareza (mejor = más rápida)
     if (near) {
       if (nd > 1.4) { moveToward(p, near.position, spd * dt); p.rotation.y = Math.atan2(near.position.x - p.position.x, near.position.z - p.position.z); }
       else { p.userData.atkCd -= dt; if (p.userData.atkCd <= 0) { p.userData.atkCd = 0.5; hitEnemy(near, p.userData.dmg, p.position); beep(600, 0.05, 0.045); } }
     } else {
-      // cada mascota tiene su PROPIO puesto en un círculo alrededor del jugador (no se amontonan)
+      // cada mascota tiene su PROPIO puesto en un círculo alrededor del ancla (no se amontonan)
       const ang = (i / Math.max(1, n)) * Math.PI * 2;
-      const goal = { x: player.position.x + Math.cos(ang) * 2.8, z: player.position.z + Math.sin(ang) * 2.8 };
-      if (dist2D(p.position, goal) > 0.5) { moveToward(p, goal, spd * dt); p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z); }
+      const goal = { x: anchor.x + Math.cos(ang) * 2.8, z: anchor.z + Math.sin(ang) * 2.8 };
+      if (dist2D(p.position, goal) > 0.5) { moveToward(p, goal, spd * dt); p.rotation.y = Math.atan2(anchor.x - p.position.x, anchor.z - p.position.z); }
     }
   }
   // separación: si dos mascotas quedan muy juntas (p.ej. atacando al mismo monstruo), se empujan
@@ -5772,7 +5801,7 @@ const state = {
   laserGun: false, hasShield: false, shieldHp: 0, shieldMax: 60, shieldCd: 0,   // pistola láser + escudo de energía
   planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1, planetCreature: 'yeti', inRuins: false, ruinsCleared: false,   // rasgos del planeta actual + ruinas
   contract: null,   // contrato activo del vendedor alien
-  incubTime: 0, eggQueue: 0,   // huevos alien: incubación en curso + cola
+  incubTime: 0, eggQueue: 0, petPoint: null,   // huevos alien: incubación + cola + banderita de reunión 🚩
   album: {}, albumDone: false,   // álbum de criaturas alien (colección)
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
   coreClaimed: false, relics: 0, trophies: 0, floor2Rot: 0, country: null,   // país que estás visitando (aeropuerto)   // núcleo (reliquias) + trofeos + giro del 2º piso
@@ -6079,6 +6108,7 @@ addEventListener('keydown', e => {
   if (e.code === 'BracketRight') cycleCrop(1);
   if (e.code === 'BracketLeft') cycleCrop(-1);
   if (e.code === 'KeyZ') toggleDadRest();   // papá descansa en sofá/cama (los monstruos no lo ven)
+  if (e.code === 'KeyX' && !state.buildMode) togglePetPoint();   // banderita 🚩: las mascotas se quedan en un punto (en construcción X quita piezas)
 });
 // Inventario tipo Minecraft: elegir un espacio (slot).
 // Los números son de la CATEGORÍA activa (1 = herramienta, 2..10 = piezas de la pestaña).
@@ -6548,6 +6578,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'dadClean': setDadMode('clean'); break;
       case 'dadArm': toggleDadArm(); break;
       case 'dadRest': toggleDadRest(); break;
+      case 'petPoint': togglePetPoint(); break;
       case 'math': openMathBox(); break;
       case 'helper': spawnHelper(); break;
       case 'rocket': tryLaunchRocket(); break;
@@ -6619,7 +6650,7 @@ function startGame() {
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.contract = null;   // sin contratos al empezar
-  clearEggPets(); state.incubTime = 0; state.eggQueue = 0;   // sin huevos/mascotas al empezar
+  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint();   // sin huevos/mascotas/banderita al empezar
   endEclipse(); state.coreClaimed = false; state.relics = 0; state.trophies = 0; removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
@@ -6714,7 +6745,7 @@ function saveGame() {
       helperWeapon: !!state.helperWeapon, helperArmor: !!state.helperArmor,   // arma/armadura de los hijos
       contract: state.contract || null,   // contrato del vendedor alien
       eggPets: eggPets.map(p => ({ dmg: p.userData.dmg, col: p.userData.col, tier: p.userData.tier })),   // mascotas nacidas de huevos
-      incubTime: state.incubTime || 0, eggQueue: state.eggQueue || 0,
+      incubTime: state.incubTime || 0, eggQueue: state.eggQueue || 0, petPoint: state.petPoint || null,
       coreClaimed: !!state.coreClaimed, relics: state.relics || 0, trophies: state.trophies || 0,
       dadMode: dad.userData.mode, dadArmed: !!dad.userData.armed, dadX: dad.position.x, dadZ: dad.position.z, dadArmor: state.dadArmor,   // papá: modo, arma, posición y armadura
       dadResting: !!dad.userData.resting,
@@ -7293,6 +7324,7 @@ function loadGame() {
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
   state.contract = d.contract || null;   // contrato del vendedor alien
   clearEggPets(); (d.eggPets || []).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
+  removePetFlag(); state.petPoint = d.petPoint || null; if (state.petPoint) spawnPetFlag(state.petPoint.x, state.petPoint.z);   // banderita de reunión
   state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0; state.trophies = d.trophies || 0;
   endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   (d.helpers || []).forEach(h => makeHelperAt(h.x, h.z));                   // reponer ayudantes (ya equipados)
@@ -7335,7 +7367,7 @@ function resetAll() {
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
-  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
+  clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint(); endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);

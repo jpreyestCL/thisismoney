@@ -4046,12 +4046,17 @@ function updateBaseDefense(dt) {
   }
 }
 // HUEVOS ALIEN: recógelos por el planeta; incuban solos y eclosionan en una mascota de rareza al azar (gacha)
+// Rarezas de peor a mejor: común → raro → épico → mítico → legendario
 const eggs = [], eggPets = [];
 const EGG_TIERS = [
-  { p: 0.60, tier: 'común',      dmg: 25, col: 0x84cc16 },
-  { p: 0.90, tier: 'rara',       dmg: 45, col: 0x22d3ee },
-  { p: 1.00, tier: 'LEGENDARIA', dmg: 80, col: 0xfde047 },
+  { p: 0.45, tier: 'común',      emoji: '🐣', dmg: 25,  col: 0x84cc16 },   // 45%
+  { p: 0.70, tier: 'raro',       emoji: '💙', dmg: 40,  col: 0x22d3ee },   // 25%
+  { p: 0.85, tier: 'épico',      emoji: '💜', dmg: 60,  col: 0xa855f7 },   // 15%
+  { p: 0.95, tier: 'mítico',     emoji: '🔥', dmg: 85,  col: 0xf43f5e },   // 10%
+  { p: 1.00, tier: 'legendario', emoji: '🌟', dmg: 120, col: 0xfde047 },   //  5%
 ];
+// rango de cada rareza (los nombres viejos 'rara'/'LEGENDARIA' vienen de saves antiguos)
+const EGG_RANK = { 'común': 0, 'raro': 1, 'rara': 1, 'épico': 2, 'mítico': 3, 'legendario': 4, 'LEGENDARIA': 4 };
 function makeEggMesh(col) {
   const g = new THREE.Group();
   const shell = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 14), new THREE.MeshStandardMaterial({ color: col || 0xe9d5ff, emissive: (col || 0x7c3aed), emissiveIntensity: .35, roughness: .5 }));
@@ -4068,10 +4073,19 @@ function makeEggMesh(col) {
 })();
 function refillEggs() { eggs.forEach(e => { e.ready = true; e.group.visible = state.planet === 'platus'; }); }
 function spawnEggPet(opts) {   // mascota nacida de un huevo: flota, sigue y pelea de noche
+  const rank = EGG_RANK[opts.tier] != null ? EGG_RANK[opts.tier] : 0;
+  const def = EGG_TIERS[rank];
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), new THREE.MeshStandardMaterial({ color: opts.col, emissive: opts.col, emissiveIntensity: .5, roughness: .4 })); body.position.y = 0.9; g.add(body);
-  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0x0f172a })); eye.position.set(0, 0.95, 0.32); g.add(eye);
-  const gl = new THREE.PointLight(opts.col, 0.5, 6); gl.position.y = 0.9; g.add(gl);
+  const k = 1 + rank * 0.14;   // mientras mejor la rareza, más grande y brillante
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 0), new THREE.MeshStandardMaterial({ color: opts.col, emissive: opts.col, emissiveIntensity: .5 + rank * .1, roughness: .4 })); body.position.y = 0.9; body.scale.setScalar(k); g.add(body);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0x0f172a })); eye.position.set(0, 0.9 + 0.05 * k, 0.32 * k); g.add(eye);
+  const gl = new THREE.PointLight(opts.col, 0.4 + rank * 0.15, 6 + rank); gl.position.y = 0.9; g.add(gl);
+  if (rank >= 3) {   // mítico y legendario llevan coronita
+    mcBox(g, 0, 0.9 + 0.55 * k, 0, .34, .12, .34, 0xfbbf24);
+    for (const sx of [-.12, 0, .12]) mcBox(g, sx, 0.9 + 0.65 * k, 0, .07, .12, .07, 0xfbbf24);
+  }
+  const tag = makeSign(def.emoji + ' ' + def.tier, opts.col);   // etiqueta flotante con la rareza
+  tag.scale.set(.3, .3, .3); tag.position.y = 1.75 + rank * 0.12; g.add(tag);
   g.position.set(player.position.x - 2 + Math.random() * 4, 0, player.position.z - 2 + Math.random() * 4);
   g.userData = { atkCd: 0, dmg: opts.dmg, tier: opts.tier, col: opts.col };
   scene.add(g); eggPets.push(g);
@@ -4092,9 +4106,11 @@ function updateEggPets(dt) {
 function hatchEgg() {
   const r = Math.random(); const t = EGG_TIERS.find(x => r <= x.p) || EGG_TIERS[0];
   spawnEggPet(t);
-  toast('🐣 ¡Nació una mascota ' + t.tier + '! Te sigue y pelea de noche');
+  toast('🐣 ¡Nació una mascota ' + t.emoji + ' ' + t.tier.toUpperCase() + '! (daño ' + t.dmg + ') Te sigue y pelea de noche');
   beep(700, 0.12, 0.05); setTimeout(() => beep(1000, 0.14, 0.05), 110);
-  if (t.tier === 'LEGENDARIA') { coinBurst(player.position, 22); floatText(player.position, '🌟 ¡LEGENDARIA!', '#fde047', 24); vibr([40, 30, 90]); }
+  if (t.tier === 'épico') { coinBurst(player.position, 8); floatText(player.position, '💜 ¡ÉPICO!', '#a855f7', 20); vibr([30]); }
+  else if (t.tier === 'mítico') { coinBurst(player.position, 14); floatText(player.position, '🔥 ¡MÍTICO!', '#f43f5e', 22); vibr([40, 30, 60]); }
+  else if (t.tier === 'legendario') { coinBurst(player.position, 22); floatText(player.position, '🌟 ¡LEGENDARIO!', '#fde047', 24); vibr([40, 30, 90]); setTimeout(() => beep(1300, 0.18, 0.05), 240); }
   discoverAlien('eggpet');
   if (state.eggQueue > 0) { state.eggQueue--; state.incubTime = 16; }
 }

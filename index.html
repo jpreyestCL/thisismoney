@@ -50,7 +50,7 @@
     background: rgba(0,0,0,.72); padding: 11px 22px; border-radius: 10px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: center; max-width: 86vw; }
   #toastStack { position: absolute; top: calc(50% - 34px); left: 50%; transform: translate(-50%,-100%); z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; pointer-events: none; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
+  body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
@@ -80,8 +80,13 @@
   .slot .nm { font-size: 8px; opacity: .75; margin-top: 1px; }
   .slot .ct { position: absolute; bottom: 1px; right: 4px; font-size: 12px; font-weight: 800; text-shadow: 0 1px 2px #000; }
   .slot .kk { position: absolute; top: 1px; left: 4px; font-size: 9px; opacity: .5; }
-  #rotateBtn, #deleteBtn, #blueprintBtn, #floor2RotBtn, #floor2DelBtn { position: absolute; right: 18px; left: auto; bottom: auto; display: none; pointer-events: all; cursor: pointer;
+  #rotateBtn, #deleteBtn, #blueprintBtn, #floor2RotBtn, #floor2DelBtn, #floor2WPlusBtn, #floor2WMinusBtn, #floor2DPlusBtn, #floor2DMinusBtn { position: absolute; right: 18px; left: auto; bottom: auto; display: none; pointer-events: all; cursor: pointer;
     color: #042; border: none; padding: 10px 20px; font-size: 15px; font-weight: 800; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+  #floor2WPlusBtn, #floor2WMinusBtn, #floor2DPlusBtn, #floor2DMinusBtn { padding: 7px 14px; font-size: 13px; color: #fff; }
+  #floor2WPlusBtn  { top: calc(50% + 178px); background: rgba(13,148,136,.85); }
+  #floor2WMinusBtn { top: calc(50% + 222px); background: rgba(13,148,136,.6); }
+  #floor2DPlusBtn  { top: calc(50% + 266px); background: rgba(147,51,234,.85); }
+  #floor2DMinusBtn { top: calc(50% + 310px); background: rgba(147,51,234,.6); }
   #blueprintBtn { top:calc(50% - 116px); background:oklch(76% .12 224); color:oklch(19% .025 235); }
   #rotateBtn { top: calc(50% - 56px); transform: none; background: rgba(34,197,94,.85); }
   #rotateBtn:hover { background: #22c55e; }
@@ -173,7 +178,7 @@
   body.touch .slot .ic { font-size: 17px; }
   body.touch .slot .nm { font-size: 7px; }
   body.touch .slot .ct { font-size: 10px; }
-  body.touch #rotateBtn, body.touch #deleteBtn, body.touch #blueprintBtn, body.touch #floor2RotBtn, body.touch #floor2DelBtn { display: none !important; }
+  body.touch #rotateBtn, body.touch #deleteBtn, body.touch #blueprintBtn, body.touch #floor2RotBtn, body.touch #floor2DelBtn, body.touch #floor2WPlusBtn, body.touch #floor2WMinusBtn, body.touch #floor2DPlusBtn, body.touch #floor2DMinusBtn { display: none !important; }
   body.touch #blueprintPanel { top:84px; left:6px; max-height:calc(100vh - 170px); }
   /* botones táctiles un poco más chicos para que quepan todos (incluido el panel "más") */
   body.touch .tbtn { width: calc(46px * var(--btnscale, 1)); height: calc(46px * var(--btnscale, 1)); font-size: calc(19px * var(--btnscale, 1)); }
@@ -452,6 +457,10 @@
   <button id="deleteBtn">🗑️ Quitar</button>
   <button id="floor2RotBtn">🔄 Girar piso 2</button>
   <button id="floor2DelBtn">🗑️ Sacar piso 2</button>
+  <button id="floor2WPlusBtn">↔️ Más ancho</button>
+  <button id="floor2WMinusBtn">↔️ Menos ancho</button>
+  <button id="floor2DPlusBtn">↕️ Más fondo</button>
+  <button id="floor2DMinusBtn">↕️ Menos fondo</button>
   <aside id="blueprintPanel" aria-label="Planos de construcción"><h2>📐 PLANOS</h2><p>Elige una estructura. Verás el conjunto antes de gastar materiales.</p><div id="blueprintList"></div><button class="bankBtn" id="blueprintClose" style="width:100%;margin-top:9px">Cerrar</button></aside>
   <div id="buyring">
     <svg width="90" height="90"><circle cx="45" cy="45" r="38" stroke="rgba(255,255,255,.2)" stroke-width="7" fill="none"/>
@@ -570,6 +579,10 @@
       <button type="button" class="tbtn" data-act="delete" aria-label="Quitar pieza">🗑️<small>borrar</small></button>
       <button type="button" class="tbtn" data-act="floor2Rot" aria-label="Girar el segundo piso">🔄<small>piso 2</small></button>
       <button type="button" class="tbtn" data-act="floor2Del" aria-label="Sacar el segundo piso">🏚️<small>sacar p2</small></button>
+      <button type="button" class="tbtn" data-act="floor2WPlus" aria-label="Piso 2 más ancho">↔️<small>+ancho</small></button>
+      <button type="button" class="tbtn" data-act="floor2WMinus" aria-label="Piso 2 menos ancho">↔️<small>-ancho</small></button>
+      <button type="button" class="tbtn" data-act="floor2DPlus" aria-label="Piso 2 más fondo">↕️<small>+fondo</small></button>
+      <button type="button" class="tbtn" data-act="floor2DMinus" aria-label="Piso 2 menos fondo">↕️<small>-fondo</small></button>
       <button type="button" class="tbtn" data-act="crop" aria-label="Cambiar semilla">🌾<small>semilla</small></button>
       <button type="button" class="tbtn" data-act="camera" aria-label="Cambiar cámara">📷<small>vista</small></button>
       <button type="button" class="tbtn" data-act="dodge" aria-label="Esquivar">💨<small>esquiva</small></button>
@@ -5592,7 +5605,7 @@ function updatePetAlien(dt) {
 // Cada uno se ancla al grupo de paredes junto al que estabas parado al comprarlo.
 let floors2 = [];            // [{ group, data:{bx,bz,hw,hd,baseY,rot,stairX,z0,z1}, ax, az, rot }]
 let playerFloor2 = null;     // el piso en el que estás arriba (null = en el suelo)
-function syncFloor2State() { state.hasFloor2 = floors2.length > 0; state.floors2 = floors2.map(F => ({ ax: F.ax, az: F.az, rot: F.rot || 0 })); }
+function syncFloor2State() { state.hasFloor2 = floors2.length > 0; state.floors2 = floors2.map(F => ({ ax: F.ax, az: F.az, rot: F.rot || 0, dw: F.dw || 0, dd: F.dd || 0 })); }
 // Paredes del primer piso cerca de un punto: definen la planta de esa construcción
 function wallClusterAt(ax, az) {
   let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9, sx = 0, sz = 0, n = 0;
@@ -5605,9 +5618,9 @@ function wallClusterAt(ax, az) {
   if (!n) return { bx: ax, bz: az, hw: 2.8, hd: 2.8, n: 0 };
   return { bx: sx / n, bz: sz / n, hw: Math.max(2.2, (maxX - minX) / 2 + 1), hd: Math.max(2.2, (maxZ - minZ) / 2 + 1), n };
 }
-function buildFloor2At(ax, az, rot) {
+function buildFloor2At(ax, az, rot, dw, dd) {   // dw/dd: agrandado o achicado a mano (botones ↔️ y ↕️)
   const c0 = wallClusterAt(ax, az);
-  const bx = c0.bx, bz = c0.bz, hw = c0.hw, hd = c0.hd;
+  const bx = c0.bx, bz = c0.bz, hw = Math.max(2.2, c0.hw + (dw || 0)), hd = Math.max(2.2, c0.hd + (dd || 0));
   const g = new THREE.Group();
   const mk = (w, h, d, x, y, z, color) => { const m2 = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m2.position.set(x, y, z); m2.castShadow = true; g.add(m2); };
   const baseY = 3;   // el primer piso mide ~3 de alto: el 2º va justo encima
@@ -5625,7 +5638,7 @@ function buildFloor2At(ax, az, rot) {
   const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, hd * 2), mat(0x5a3a1e)); rail.position.set(hw + 1.35, baseY - 0.4, 0); rail.rotation.x = -Math.atan2(baseY, hd * 2 - 1.2); g.add(rail);   // baranda
   g.position.set(bx, 0, bz); g.rotation.y = rot || 0;   // 🔄 Girar piso 2: mueve la escalera de lado
   scene.add(g);
-  const F = { group: g, data: { bx, bz, hw, hd, baseY, rot: rot || 0, stairX: hw + .7, z0: -hd + .3, z1: hd - .58 }, ax, az, rot: rot || 0 };
+  const F = { group: g, data: { bx, bz, hw, hd, baseY, rot: rot || 0, stairX: hw + .7, z0: -hd + .3, z1: hd - .58 }, ax, az, rot: rot || 0, dw: dw || 0, dd: dd || 0 };
   floors2.push(F); syncFloor2State();
   return F;
 }
@@ -5633,7 +5646,7 @@ function rebuildFloors2() {   // rearma los meshes desde state.floors2 (cargar p
   floors2.forEach(F => scene.remove(F.group));
   const defs = (state.floors2 || []).slice();
   floors2 = []; playerFloor2 = null;
-  defs.forEach(d => buildFloor2At(d.ax, d.az, d.rot || 0));
+  defs.forEach(d => buildFloor2At(d.ax, d.az, d.rot || 0, d.dw || 0, d.dd || 0));
   syncFloor2State();   // también con la lista vacía (p.ej. un amigo guardó el último piso)
 }
 function removeAllFloors2() { floors2.forEach(F => scene.remove(F.group)); floors2 = []; playerFloor2 = null; syncFloor2State(); }
@@ -5666,6 +5679,20 @@ function sellFloor2() {
   syncFloor2State(); beep(300, 0.12, 0.05);
   netSend({ t: 'floor2', id: net.myId, list: state.floors2 });
   toast('🗑️ Guardaste el segundo piso en tu mochila · colócalo en la construcción que quieras' + (up ? ' (+' + up + ' objeto(s) que tenías arriba)' : ''));
+}
+// Botones ↔️/↕️: agrandar o achicar el segundo piso más cercano, por los lados (ancho) o por delante (fondo)
+function resizeFloor2(axis, delta) {
+  const F = nearestFloor2();
+  if (!F) { toast('🏠 Todavía no tienes segundo piso'); return; }
+  const c = wallClusterAt(F.ax, F.az);
+  const base = axis === 'w' ? c.hw : c.hd;                  // tamaño natural (la planta de las paredes)
+  const k = axis === 'w' ? 'dw' : 'dd';
+  const next = Math.max(2.2 - base, Math.min(8, (F[k] || 0) + delta));   // ni más chico que 4.4 total ni gigante
+  if (next === (F[k] || 0)) { toast(delta > 0 ? '🏠 Ya está al máximo' : '🏠 Ya está al mínimo'); return; }
+  F[k] = next;
+  syncFloor2State(); rebuildFloors2(); beep(delta > 0 ? 560 : 420, .07, .04);
+  netSend({ t: 'floor2', id: net.myId, list: state.floors2 });
+  toast((axis === 'w' ? '↔️ ' : '↕️ ') + (delta > 0 ? 'Agrandaste' : 'Achicaste') + ' el segundo piso ' + (axis === 'w' ? 'por los lados' : 'por delante y atrás'));
 }
 // Coordenadas locales de UN segundo piso (deshace su giro): sirven para caminar y para construir arriba
 function floor2LocalOf(f, x, z) {
@@ -6446,6 +6473,10 @@ ui('blueprintList').addEventListener('click', e => { const button = e.target.clo
 ui('deleteBtn').onclick = deleteObject;
 ui('floor2RotBtn').onclick = rotateFloor2;
 ui('floor2DelBtn').onclick = sellFloor2;
+ui('floor2WPlusBtn').onclick = () => resizeFloor2('w', 1);
+ui('floor2WMinusBtn').onclick = () => resizeFloor2('w', -1);
+ui('floor2DPlusBtn').onclick = () => resizeFloor2('d', 1);
+ui('floor2DMinusBtn').onclick = () => resizeFloor2('d', -1);
 // Nueva partida: primero pregunta TU NOMBRE (cada jugador tiene su propia partida guardada)
 let pendingMode = 'normal';
 function openNamebox(mode) {
@@ -6671,6 +6702,10 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'delete': deleteObject(); break;
       case 'floor2Rot': rotateFloor2(); break;
       case 'floor2Del': sellFloor2(); break;
+      case 'floor2WPlus': resizeFloor2('w', 1); break;
+      case 'floor2WMinus': resizeFloor2('w', -1); break;
+      case 'floor2DPlus': resizeFloor2('d', 1); break;
+      case 'floor2DMinus': resizeFloor2('d', -1); break;
       case 'dadFollow': setDadMode('follow'); break;
       case 'dadStay': setDadMode('stay'); break;
       case 'dadClean': setDadMode('clean'); break;
@@ -6982,7 +7017,7 @@ ui('bankCloseBtn').onclick = closeBank;
 // ===================================================================
 // La carga del cohete SOBREVIVE al viaje (goToPlanet no la borra). Cárgalo en la Tierra
 // con comida/materiales/armas y sácalos en el planeta nuevo para sobrevivir más.
-const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽' };
+const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠' };
 const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Pared metal', wallDoor: 'Pared puerta', pilar: 'Pilar', bano: 'Baño' };
 const INV_KEYS = ['food', 'semillas', 'semillas_zanahoria', 'semillas_trigo', 'semillas_tomate', 'carbon', ...BUILD_KEYS];
 function rocketRow(key, n, into) {
@@ -9816,8 +9851,8 @@ function renderHUD() {
   if (showBar) {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
-    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽' };
-    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Metal', wallDoor: 'P. puerta', pilar: 'Pilar', bano: 'Baño' };
+    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠' };
+    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Metal', wallDoor: 'P. puerta', pilar: 'Pilar', bano: 'Baño', piso2: 'Piso 2' };
     let html = '';
     for (const [cat, em] of BUILD_CAT_TABS)   // pestañas de categoría (18 slots no caben en pantalla)
       html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;
@@ -9839,6 +9874,7 @@ function renderHUD() {
   ui('blueprintBtn').style.display = showBuildBtns; ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;
   const showFloor2Btns = (showBuildBtns === 'block' && state.hasFloor2) ? 'block' : 'none';   // solo con segundo piso puesto
   ui('floor2RotBtn').style.display = showFloor2Btns; ui('floor2DelBtn').style.display = showFloor2Btns;
+  for (const b of ['floor2WPlusBtn', 'floor2WMinusBtn', 'floor2DPlusBtn', 'floor2DMinusBtn']) ui(b).style.display = showFloor2Btns;
 
   // papá
   const modeTxt = dad.userData.protecting ? '🛡️ Protegiéndote' : ({ follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '');

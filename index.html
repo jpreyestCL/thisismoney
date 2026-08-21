@@ -4696,6 +4696,20 @@ function updateBuild(dt) {
   const t = player.position.clone().addScaledVector(fwd, 5); t.y = 0;
   const by = buildBaseY(t.x, t.z);   // si estás en el segundo piso, se construye sobre la loza
   if (activeBlueprintId) { wallSnap = null; blueprintGhost.position.set(t.x, by, t.z); blueprintGhost.rotation.y = buildRot; }
+  else if (BUILD_KEYS[buildSel] === 'piso2') {   // auto-calce del segundo piso: se centra solo sobre la construcción
+    wallSnap = null;
+    const c = wallClusterAt(t.x, t.z);
+    const libre = c.n > 0 && !floors2.some(F => Math.hypot(F.data.bx - c.bx, F.data.bz - c.bz) < 10);
+    if (libre) {   // el fantasma toma la posición Y EL TAMAÑO real de la planta de esa construcción
+      ghost.position.set(c.bx, 0, c.bz); ghost.rotation.y = 0;
+      if (ghostMesh) ghostMesh.scale.set(c.hw * 2 / 5.6, 1, c.hd * 2 / 5.6);
+    } else {
+      ghost.position.set(t.x, 0, t.z); ghost.rotation.y = buildRot;
+      if (ghostMesh) ghostMesh.scale.set(1, 1, 1);
+    }
+    const have = state.inv.piso2 > 0;
+    ghostLine.material.color.set(!have ? 0xef4444 : libre ? 0x38bdf8 : 0x4ade80);   // azul = calzado sobre la construcción
+  }
   else {
     wallSnap = computeWallSnap(t.x, t.z, by);
     if (wallSnap) { ghost.position.set(wallSnap.x, by, wallSnap.z); ghost.rotation.y = wallSnap.rot; }
@@ -9324,7 +9338,7 @@ function netHandle(raw, fromConn) {
 }
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
-try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle }); } catch (e) {}
+try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh }); } catch (e) {}
 function netAddConn(c) {
   netStartTimer();
   net.conns.push(c);

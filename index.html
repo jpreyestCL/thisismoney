@@ -3049,16 +3049,22 @@ function updateParks(dt) {
 const AIRPORT = new THREE.Vector3(120, 0, -150);   // pista larga al sureste
 const COUNTRIES = [
   { id: 'usa',    name: 'ESTADOS UNIDOS', flag: '🇺🇸', lang: 'inglés',  price: 1200, ground: 0x4f8a35, roof: 0xb91c1c, wall: 0xe2e8f0, sky: 0x87ceeb,
+    city: 'NUEVA YORK', monu: 'la Estatua de la Libertad',
     hola: ['Hello! Welcome to the United States!', 'Hi there, buddy!', 'Have a nice day!', 'Welcome, traveler!'] },
   { id: 'china',  name: 'CHINA',          flag: '🇨🇳', lang: 'chino',   price: 2200, ground: 0x6b8f3a, roof: 0xdc2626, wall: 0xfde68a, sky: 0xbfd7ea,
+    city: 'PEKÍN', monu: 'la Gran Muralla',
     hola: ['你好! 欢迎来到中国!', '你好吗?', '欢迎! 请进!', '谢谢你的来访!'] },
   { id: 'rusia',  name: 'RUSIA',          flag: '🇷🇺', lang: 'ruso',    price: 2000, ground: 0xd8e4ec, roof: 0x1d4ed8, wall: 0xf8fafc, sky: 0xc7d9e8,
+    city: 'MOSCÚ', monu: 'la Catedral de San Basilio',
     hola: ['Привет! Добро пожаловать в Россию!', 'Как дела?', 'Здравствуйте!', 'Хорошего дня!'] },
   { id: 'francia',name: 'FRANCIA',        flag: '🇫🇷', lang: 'francés', price: 1600, ground: 0x6aa84f, roof: 0x334155, wall: 0xfdf6e3, sky: 0xa9d6f5,
+    city: 'PARÍS', monu: 'la Torre Eiffel',
     hola: ['Bonjour! Bienvenue en France!', 'Ça va?', 'Enchanté!', 'Bonne journée!'] },
   { id: 'japon',  name: 'JAPÓN',          flag: '🇯🇵', lang: 'japonés', price: 2400, ground: 0x5f9e46, roof: 0x991b1b, wall: 0xf1f5f9, sky: 0xd6e6f2,
+    city: 'TOKIO', monu: 'el Monte Fuji y su pagoda',
     hola: ['こんにちは! 日本へようこそ!', 'げんきですか?', 'ありがとう!', 'いってらっしゃい!'] },
   { id: 'brasil', name: 'BRASIL',         flag: '🇧🇷', lang: 'portugués', price: 900, ground: 0x3f9142, roof: 0x16a34a, wall: 0xfef9c3, sky: 0x8ecae6,
+    city: 'RÍO DE JANEIRO', monu: 'el Cristo Redentor',
     hola: ['Olá! Bem-vindo ao Brasil!', 'Tudo bem?', 'Que bom te ver!', 'Bom dia!'] },
 ];
 const COUNTRY_C = new THREE.Vector3(0, 0, -900);   // el país visitado se arma acá (fuera del mapa normal)
@@ -3122,6 +3128,130 @@ function buildAirport() {
   return g;
 }
 
+// ---- Monumentos y lugares REALES de cada país (versión de bloques) ----
+// Cada país tiene una ciudad de verdad (Pekín, París, Nueva York…) con su
+// ícono más famoso construido con cubos, al fondo del pueblo.
+function buildLandmark(g, c, cx, cz, bloquea) {
+  const lx = cx, lz = cz + 66;   // zona de monumentos: el fondo del país, detrás de la bandera
+  if (c.id === 'usa') {
+    // NUEVA YORK: Estatua de la Libertad sobre su pedestal + rascacielos de Manhattan
+    const cobre = 0x2f9e77;
+    mcBox(g, lx, 1.5, lz, 12, 3, 12, 0x8fa3b5);              // isla/base
+    mcBox(g, lx, 4.5, lz, 7, 3, 7, 0xcbd5e1);                // pedestal
+    mcBox(g, lx, 8.5, lz, 3.2, 5, 3.2, cobre);               // túnica
+    mcBox(g, lx, 12, lz, 2.2, 2, 2.2, 0x37b287);             // cabeza
+    for (let i = -3; i <= 3; i++) mcBox(g, lx + i * .7, 13.6, lz, .35, 1.5 - Math.abs(i) * .25, .35, 0x37b287);   // corona
+    mcBox(g, lx + 2.1, 10.5, lz, .8, 6, .8, cobre);          // brazo en alto
+    mcBox(g, lx + 2.1, 14, lz, 1.3, 1.3, 1.3, 0xfbbf24);     // antorcha
+    mcBox(g, lx - 1.9, 9.5, lz - .6, .7, 2.6, 1.7, 0x26845f);// tablilla
+    bloquea(lx, lz, 12, 12);
+    for (const [sx, hh, col] of [[-30, 26, 0x64748b], [-18, 34, 0x475569], [18, 30, 0x526071], [30, 22, 0x6b7a8c]]) {   // rascacielos
+      mcBox(g, lx + sx, hh / 2, lz + 10, 9, hh, 9, col);
+      for (let k = 3; k < hh - 2; k += 4) for (const wx of [-2.6, 0, 2.6]) mcBox(g, lx + sx + wx, k, lz + 5.2, 1.4, 1.8, .3, 0xfde68a);
+      bloquea(lx + sx, lz + 10, 9, 9);
+    }
+  } else if (c.id === 'china') {
+    // PEKÍN: la Gran Muralla cruza todo el fondo + Templo del Cielo + farolitos rojos
+    for (let x = -80; x <= 80; x += 8) mcBox(g, lx + x, 3, lz + 12, 8.2, 6, 5, 0x9c9382);       // muralla
+    for (let x = -80; x <= 80; x += 4) mcBox(g, lx + x, 6.6, lz + 10, 1.4, 1.2, .8, 0x8a8272);  // almenas
+    for (const tx of [-64, 0, 64]) {                                                             // torres de vigilancia
+      mcBox(g, lx + tx, 5.5, lz + 12, 10, 11, 9, 0xa8a091);
+      mcBox(g, lx + tx, 11.6, lz + 12, 12, 1.2, 11, 0x7f1d1d);
+      mcBox(g, lx + tx, 12.9, lz + 12, 8, 1.4, 7, 0xb91c1c);
+    }
+    bloquea(lx, lz + 12, 168, 6);
+    // Templo del Cielo (terrazas blancas, muros rojos y techos azules)
+    mcBox(g, lx - 52, .8, lz - 6, 16, 1.6, 16, 0xe7e5e4);
+    mcBox(g, lx - 52, 2.2, lz - 6, 12, 1.2, 12, 0xf5f5f4);
+    mcBox(g, lx - 52, 5, lz - 6, 8, 4.5, 8, 0x9f1239);
+    mcBox(g, lx - 52, 7.6, lz - 6, 10.5, 1.3, 10.5, 0x1e40af);
+    mcBox(g, lx - 52, 9.4, lz - 6, 7.5, 1.3, 7.5, 0x1d4ed8);
+    mcBox(g, lx - 52, 11, lz - 6, 4.5, 1.3, 4.5, 0x2563eb);
+    mcBox(g, lx - 52, 12.2, lz - 6, 1, 1.2, 1, 0xfbbf24);
+    bloquea(lx - 52, lz - 6, 16, 16);
+    // farolitos rojos a lo largo de la calle principal del pueblo
+    for (const fz of [-30, -10, 10, 30]) for (const sx of [-8, 8]) {
+      mcBox(g, cx + sx, 3, cz + fz, .4, 6, .4, 0x57534e);
+      mcBox(g, cx + sx, 5.4, cz + fz, 1.4, 1.6, 1.4, 0xdc2626);
+      mcBox(g, cx + sx, 4.4, cz + fz, .9, .5, .9, 0xfbbf24);
+    }
+  } else if (c.id === 'rusia') {
+    // MOSCÚ: Catedral de San Basilio con cúpulas de colores + muralla del Kremlin
+    mcFloor(g, lx, lz, 46, 30, 0x9ca3af, .08);   // Plaza Roja adoquinada
+    const torre = (tx, tz, h, col) => {
+      mcBox(g, lx + tx, h / 2, lz + tz, 3, h, 3, 0xfef3c7);
+      mcBox(g, lx + tx, h + 1, lz + tz, 3.6, 2, 3.6, col);        // cúpula (bulbo)
+      mcBox(g, lx + tx, h + 2.6, lz + tz, 2.2, 1.4, 2.2, col);
+      mcBox(g, lx + tx, h + 3.8, lz + tz, .8, 1.4, .8, 0xfbbf24); // punta dorada
+    };
+    mcBox(g, lx, 2, lz, 14, 4, 14, 0xb91c1c);
+    torre(0, 0, 13, 0x16a34a);
+    torre(-5, -5, 8, 0xef4444); torre(5, -5, 9, 0x3b82f6);
+    torre(-5, 5, 9, 0xf59e0b); torre(5, 5, 8, 0x8b5cf6);
+    bloquea(lx, lz, 14, 14);
+    for (let x = -36; x <= 36; x += 6) mcBox(g, lx + x, 2.5, lz + 13, 6.2, 5, 2, 0x991b1b);   // muralla del Kremlin
+    for (const tx of [-36, 0, 36]) { mcBox(g, lx + tx, 6.5, lz + 13, 4, 4, 4, 0x7f1d1d); mcBox(g, lx + tx, 9.4, lz + 13, 1.6, 1.6, 1.6, 0xfacc15); }
+    bloquea(lx, lz + 13, 74, 2);
+  } else if (c.id === 'francia') {
+    // PARÍS: Torre Eiffel, Arco del Triunfo y un café con toldo
+    const fe = 0x8a6d3b;
+    for (const [sx, sz] of [[-6, -6], [6, -6], [-6, 6], [6, 6]]) mcBox(g, lx + sx, 3.5, lz + sz, 3, 7, 3, fe);   // 4 patas
+    mcBox(g, lx, 7.6, lz, 17, 1.4, 17, fe);       // 1ª plataforma
+    mcBox(g, lx, 11, lz, 8, 6, 8, fe);
+    mcBox(g, lx, 14.4, lz, 10, 1.2, 10, fe);      // 2ª plataforma
+    mcBox(g, lx, 18.5, lz, 4.5, 7, 4.5, fe);
+    mcBox(g, lx, 23.5, lz, 2.4, 3.4, 2.4, fe);
+    mcBox(g, lx, 26.6, lz, .8, 3, .8, fe);        // antena
+    bloquea(lx, lz, 17, 17);
+    const ax = lx - 40;                            // Arco del Triunfo
+    mcBox(g, ax - 4, 4.5, lz, 3.5, 9, 6, 0xd6cfc2);
+    mcBox(g, ax + 4, 4.5, lz, 3.5, 9, 6, 0xd6cfc2);
+    mcBox(g, ax, 10.5, lz, 12.5, 3.5, 6, 0xd6cfc2);
+    bloquea(ax - 4, lz, 3.5, 6); bloquea(ax + 4, lz, 3.5, 6);
+    const px = lx + 40;                            // café parisino
+    mcBox(g, px, 2.5, lz, 8, 5, 6, 0xf1e5cf);
+    for (let i = 0; i < 4; i++) mcBox(g, px - 3 + i * 2, 5.6, lz - 3.4, 2, .5, 1.6, i % 2 ? 0xdc2626 : 0xf8fafc);   // toldo
+    mcSign(g, px, 7, lz - 3, 'CAFÉ', 0xf8fafc);
+    bloquea(px, lz, 8, 6);
+  } else if (c.id === 'japon') {
+    // TOKIO: gran torii rojo, pagoda de 5 pisos, Monte Fuji al fondo y cerezos en flor
+    const rojo = 0xdc2626;
+    mcBox(g, lx - 4, 4, lz - 20, 1.4, 8, 1.4, rojo);   // torii (portal de entrada)
+    mcBox(g, lx + 4, 4, lz - 20, 1.4, 8, 1.4, rojo);
+    mcBox(g, lx, 8.3, lz - 20, 12, 1.2, 1.8, rojo);
+    mcBox(g, lx, 6.9, lz - 20, 9.5, .8, 1.4, 0x7f1d1d);
+    for (let p = 0; p < 5; p++) {                      // pagoda de 5 pisos
+      const y = 1.8 + p * 3.2, w = 9 - p * 1.4;
+      mcBox(g, lx - 26, y + 1, lz, w - 2, 2.4, w - 2, 0xf5f5f4);
+      mcBox(g, lx - 26, y + 2.6, lz, w, 1, w, rojo);
+    }
+    mcBox(g, lx - 26, 19, lz, .7, 3, .7, 0xfbbf24);
+    bloquea(lx - 26, lz, 9, 9);
+    for (let p = 0; p < 5; p++) mcBox(g, lx + 45, 2 + p * 3.6, lz + 8, 30 - p * 5.2, 4, 30 - p * 5.2, p < 3 ? 0x4b5563 : 0xf8fafc);   // Monte Fuji nevado
+    bloquea(lx + 45, lz + 8, 30, 30);
+    for (const [tx, tz] of [[-12, -34], [12, -30], [-8, -6], [14, -14]]) mcTree(g, lx + tx, lz + tz, 4, 0xf9a8d4);   // cerezos
+  } else if (c.id === 'brasil') {
+    // RÍO DE JANEIRO: Cristo Redentor en el Corcovado, Pan de Azúcar y playa de Copacabana
+    for (let p = 0; p < 4; p++) mcBox(g, lx, 1.7 + p * 3.2, lz + 6, 22 - p * 4.6, 3.4, 22 - p * 4.6, 0x3f6b3a);   // cerro del Corcovado
+    bloquea(lx, lz + 6, 22, 22);
+    const cy = 13.2;
+    mcBox(g, lx, cy + .8, lz + 6, 3, 1.6, 3, 0xd6d3d1);         // pedestal
+    mcBox(g, lx, cy + 3.4, lz + 6, 1.8, 3.6, 1.2, 0xe7e5e4);    // cuerpo
+    mcBox(g, lx, cy + 5.7, lz + 6, 1.1, 1.1, 1.1, 0xd6d3d1);    // cabeza
+    mcBox(g, lx, cy + 4.9, lz + 6, 7.5, .9, 1, 0xe7e5e4);       // brazos abiertos
+    for (let p = 0; p < 3; p++) mcBox(g, lx - 40, 2 + p * 3.4, lz + 8, 14 - p * 4, 4, 14 - p * 4, 0x6b7280);   // Pan de Azúcar
+    bloquea(lx - 40, lz + 8, 14, 14);
+    mcFloor(g, lx + 42, lz, 36, 22, 0xfde68a, .07);             // arena de Copacabana
+    mcFloor(g, lx + 42, lz + 15, 36, 8, 0x38bdf8, .06);         // mar
+    for (const [ux, uz, col] of [[34, -4, 0xef4444], [44, 2, 0x3b82f6], [52, -2, 0xf59e0b]]) {   // quitasoles
+      mcBox(g, lx + ux, 2, lz + uz, .3, 4, .3, 0xe7e5e4);
+      mcBox(g, lx + ux, 4.2, lz + uz, 3.2, .5, 3.2, col);
+    }
+    for (const tx of [30, 48, 56]) mcTree(g, lx + tx, lz - 9, 6, 0x22c55e);   // palmeras
+  }
+  mcSign(g, lx, 17, lz - 26, '🏙️ ' + c.city, 0xfde047);   // cartel con la ciudad real
+}
+
 // ---- El país que estás visitando ----
 let countryObstacles = [];
 function buildCountry(c) {
@@ -3150,6 +3280,8 @@ function buildCountry(c) {
   // bandera gigante del país
   mcBox(g, cx, 7, cz + 40, .8, 14, .8, 0xe5e7eb);
   mcSign(g, cx, 15, cz + 40, c.flag + ' ' + c.name, 0xfde047);
+  // monumentos REALES de la ciudad (Gran Muralla, Torre Eiffel, Cristo…)
+  buildLandmark(g, c, cx, cz, (x, z, w, d) => countryObstacles.push(addObstacle(x, z, w, d)));
   for (const [tx, tz] of [[-40, -20], [40, -20], [-40, 30], [40, 30], [-55, 5], [55, 5]]) mcTree(g, cx + tx, cz + tz, 5);
   // gente que habla el idioma del país (uno te recibe al bajar del avión)
   const guia = makePerson(0x0f766e, 0xf1c27d);
@@ -3179,7 +3311,7 @@ function openAirport() {
     const row = document.createElement('button');
     row.className = 'shopRow';
     row.style.cssText = 'display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:8px; padding:10px; font-size:15px; font-weight:700; color:#fff; background:rgba(56,189,248,.15); margin-bottom:6px;';
-    row.innerHTML = '<span style="font-size:22px">' + c.flag + '</span><span style="flex:1">' + c.name + ' <small style="opacity:.7">· se habla ' + c.lang + '</small></span><span style="color:' + (state.money >= c.price ? '#4ade80' : '#f87171') + '">$' + c.price + '</span>';
+    row.innerHTML = '<span style="font-size:22px">' + c.flag + '</span><span style="flex:1">' + c.name + ' <small style="opacity:.7">· ' + c.city + ' · se habla ' + c.lang + '</small></span><span style="color:' + (state.money >= c.price ? '#4ade80' : '#f87171') + '">$' + c.price + '</span>';
     row.onclick = () => flyTo(c);
     list.appendChild(row);
   }
@@ -3212,8 +3344,8 @@ function flyTo(c) {
     scene.background.set(c.sky);
     player.position.set(COUNTRY_C.x, PLAYER_EYE, COUNTRY_C.z - 56); yaw = Math.PI; pitch = 0;
     dad.position.set(COUNTRY_C.x + 2, 0, COUNTRY_C.z - 54);
-    toast(c.flag + ' ¡Llegaste a ' + c.name + '! Acá se habla ' + c.lang + ' · habla con la gente (E) y vuelve en el avión');
-    phaseText(c.flag + ' ' + c.name);
+    toast(c.flag + ' ¡Llegaste a ' + c.city + ', ' + c.name + '! Acá se habla ' + c.lang + ' · visita ' + c.monu + ' al fondo del pueblo');
+    phaseText(c.flag + ' ' + c.city);
   });
 }
 function flyHome() {

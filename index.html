@@ -5875,7 +5875,12 @@ function updateDad(dt) {
   const m = dad.userData.mode;
   if (m === 'follow') {
     const d = dist2D(dad.position, player.position);
-    if (d > 3) { moveToward(dad, player.position, 2.6 * dt); dad.rotation.y = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z); }
+    if (d > 40 && !state.inRuins && !state.inCastle && !state.inArena && !state.underground) {
+      // quedó MUY atrás (p.ej. al volver del aeropuerto o al viajar rápido): te alcanza solo
+      dad.position.set(player.position.x + 2, 0, player.position.z + 2);
+      floatText(dad.position, '💨 papá te alcanzó', '#e2e8f0', 15);
+    }
+    else if (d > 3) { moveToward(dad, player.position, 2.6 * dt); dad.rotation.y = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z); }
   } else if (m === 'clean') {
     const spot = nearestDirt();
     if (spot) {

@@ -6314,6 +6314,12 @@ function tryFocusedFurniture() {
   if (target.key === 'parlante_gamer') return useGamerSpeaker(target);
   return trySit(target);
 }
+function trySeatedGamerKeyboard() {
+  if (!sitOn) return false;
+  const target = aimedFurniture();
+  if (!target || target.key !== 'teclado_gamer') return false;
+  return useGamerKeyboard();
+}
 function toggleSound() {
   soundOn = !soundOn;
   if (!soundOn) { if (engineGain) engineGain.gain.value = 0; if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } if (speakerMusicTimer) { clearInterval(speakerMusicTimer); speakerMusicTimer = null; } }
@@ -6558,7 +6564,9 @@ canvas.addEventListener('mousedown', e => {
 });
 canvas.addEventListener('mouseup', e => {
   if (e.button === 2) { state.blocking = false; return; }
-  if (e.button !== 0) return; const held = (performance.now() - attackChargeStart) / 1000, power = combatIsActive() && held >= .65 && state.stamina >= 18 ? 2.2 : 1;
+  if (e.button !== 0) return;
+  if (trySeatedGamerKeyboard()) return;
+  const held = (performance.now() - attackChargeStart) / 1000, power = combatIsActive() && held >= .65 && state.stamina >= 18 ? 2.2 : 1;
   if (power > 1) { state.stamina -= 18; toast('⚔️ Ataque cargado'); }
   if (sportAction()) return; if (state.phase === 'NIGHT') attack(power); else attackNPC();
 });
@@ -6816,6 +6824,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       lookId = null;
       if (!quickTap) return;
       if (typing) { closeShopInput(); closeMathBox(); return; }   // tocar fuera del recuadro cierra el vendedor / los desafíos
+      if (trySeatedGamerKeyboard()) return;
       if (state.running && state.inCastle) attackCastleFoe();    // en el castillo, toque rápido = pegar al alien malo
       else if (state.running && state.phase === 'NIGHT') attack();   // toque rápido de noche = golpear monstruo
     }
@@ -6826,7 +6835,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
   function press(act) {
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
-      case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
+      case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
       case 'interact': if (!tryFocusedFurniture() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
@@ -9915,12 +9924,13 @@ function updateContextPrompt() {
       const stand = nearestParkStand(), att = parkRide ? parkRide.att : nearestAttraction();
       const enMostrador = state.planet === 'tierra' && !state.country && dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6;
       const enAvionVuelta = !!state.country && dist2D(player.position, { x: COUNTRY_C.x, z: COUNTRY_C.z - 73 }) < 6;
-      const furniture = sitOn ? sitOn : aimedFurniture();
+      const aimed = aimedFurniture(), furniture = sitOn ? sitOn : aimed;
       const asiento = furniture && SEAT_KEYS.includes(furniture.key) ? furniture : null;
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
       if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
       else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
+      else if (sitOn && aimed && aimed.key === 'teclado_gamer') action = { key: 'CLIC · E', touch: '👊', text: 'Usar teclado gamer · E para pararte' };
       else if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
       else if (furniture && furniture.key === 'teclado_gamer') action = { key: 'E', touch: '⌨️', text: 'Usar el teclado gamer' };
       else if (furniture && furniture.key === 'parlante_gamer') action = { key: 'E', touch: '🔊', text: activeGamerSpeaker === furniture ? 'Apagar la música gamer' : 'Encender la música gamer' };

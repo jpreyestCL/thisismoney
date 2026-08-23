@@ -1307,6 +1307,13 @@ const DECOR_ITEMS = [
   { key: 'espejo', name: 'Espejo',    price: 250,  value: 90,  color: 0xdbeafe, build: true, deco: true },
   { key: 'alfombra', name: 'Alfombra', price: 180, value: 70,  color: 0xb91c1c, build: true, deco: true },
   { key: 'bano',   name: 'Baño',      price: 260,  value: 100, color: 0xf1f5f9, build: true, deco: true },
+  { key: 'computador_gamer', name: 'Computador gamer', price: 1200, value: 450, color: 0x111827, build: true, deco: true },
+  { key: 'pc_gamer', name: 'PC gamer', price: 900, value: 340, color: 0x09090b, build: true, deco: true },
+  { key: 'silla_gamer', name: 'Silla gamer', price: 650, value: 250, color: 0xdc2626, build: true, deco: true },
+  { key: 'luces_gamer', name: 'Luces gamer', price: 300, value: 110, color: 0xa855f7, build: true, deco: true },
+  { key: 'teclado_gamer', name: 'Teclado gamer', price: 220, value: 80, color: 0x22d3ee, build: true, deco: true },
+  { key: 'parlante_gamer', name: 'Parlante gamer', price: 350, value: 130, color: 0x1f2937, build: true, deco: true },
+  { key: 'mesa_gamer', name: 'Mesa gamer', price: 750, value: 280, color: 0x18181b, build: true, deco: true },
   { key: 'auto',   name: 'Auto',      price: 2000, color: 0xdc2626, car: true },
   { key: 'helicoptero', name: 'Helicóptero voxel', price: 4000, color: 0x16a34a, helicopter: true },
 ];
@@ -2938,7 +2945,7 @@ buildCondoPark(); buildFunPark(); buildWaterPark(); buildEarthMountains();
 WATER_ZONES.push(POOL);   // en la piscina grande se nada igual que en el mar
 
 // ----- SENTARSE en el baño, la silla, el sofá o la cama (E) -----
-const SEAT_KEYS = ['bano', 'silla', 'sofa', 'cama'];
+const SEAT_KEYS = ['bano', 'silla', 'silla_gamer', 'sofa', 'cama'];
 let sitOn = null;              // mueble en el que estás sentado
 function nearestSeat(maxD = 2.6) {
   let best = null, bd = maxD;
@@ -4468,15 +4475,15 @@ let car = null;             // vehículo seleccionado (el último usado o compra
 const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
   'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera', 'espejo', 'alfombra',
-  'wallMetal', 'wallDoor', 'pilar', 'bano', 'piso2'];
+  'wallMetal', 'wallDoor', 'pilar', 'bano', 'piso2', 'computador_gamer', 'pc_gamer', 'silla_gamer', 'luces_gamer', 'teclado_gamer', 'parlante_gamer', 'mesa_gamer'];
 // Categorías del hotbar (18 slots no caben en pantalla, ni en celular ni en PC).
 // Se muestran las 3 pestañas + las piezas de la categoría activa: así TODOS los
 // materiales son alcanzables (antes los slots 10-18 quedaban fuera de pantalla).
 const BUILD_CATS = {
   casa: ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'piso2', 'pilar', 'lamp', 'oven'],
   defensa: ['ballesta', 'torreta', 'laser'],
-  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'heladera', 'bano'],
-  deco: ['window', 'cuadro', 'planta', 'espejo', 'alfombra'],
+  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'heladera', 'bano', 'mesa_gamer', 'silla_gamer', 'computador_gamer', 'pc_gamer', 'teclado_gamer', 'parlante_gamer'],
+  deco: ['window', 'cuadro', 'planta', 'espejo', 'alfombra', 'luces_gamer'],
 };
 const BUILD_CAT_TABS = [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑'], ['deco', '🖼️']];
 let buildCat = 'casa';
@@ -4618,6 +4625,13 @@ function objGeometry(key, variantId) {
   if (key === 'espejo') return new THREE.BoxGeometry(1.1, 1.7, 0.12);      // espejo de pared
   if (key === 'alfombra') return new THREE.BoxGeometry(2.6, 0.08, 1.8);    // alfombra al ras del suelo
   if (key === 'piso2') return new THREE.BoxGeometry(5.6, 0.4, 5.6);        // vista previa del segundo piso (la loza)
+  if (key === 'computador_gamer') return new THREE.BoxGeometry(1.25, 0.75, 0.16);
+  if (key === 'pc_gamer') return new THREE.BoxGeometry(0.62, 1.2, 0.72);
+  if (key === 'silla_gamer') return new THREE.BoxGeometry(0.75, 0.18, 0.75);
+  if (key === 'luces_gamer') return new THREE.BoxGeometry(2.8, 0.12, 0.12);
+  if (key === 'teclado_gamer') return new THREE.BoxGeometry(1.05, 0.1, 0.38);
+  if (key === 'parlante_gamer') return new THREE.BoxGeometry(0.65, 1.25, 0.55);
+  if (key === 'mesa_gamer') return new THREE.BoxGeometry(2.4, 0.16, 1.1);
   return new THREE.BoxGeometry(1, 1, 1);
 }
 // Los dos pilares del marco de la "pared puerta" (el hueco del medio queda libre)
@@ -4635,7 +4649,8 @@ function addDoorFrameParts(target, color, ghost) {
 function objColor(key, variantId) { const variant = variantFor(key, variantId); return variant ? variant.color : SHOP.find(s => s.key === key).color; }
 const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
   window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4, heladera: 0.95,
-  espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35, piso2: 3 };
+  espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35, piso2: 3,
+  computador_gamer: 0.8, pc_gamer: 0.6, silla_gamer: 0.5, luces_gamer: 1.8, teclado_gamer: 0.08, parlante_gamer: 0.65, mesa_gamer: 0.8 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
 // Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
 function objMaterial(key, variantId) {
@@ -4766,6 +4781,13 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY) {
   if (key === 'sofa') { const back = new THREE.Mesh(new THREE.BoxGeometry(2, 0.55, 0.2), mat(objColor(key))); back.position.set(0, 0.5, -0.35); m.add(back); for (const sx of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.9), mat(objColor(key))); arm.position.set(sx * 0.9, 0.2, 0); m.add(arm); } }
   if (key === 'tele') { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.75), new THREE.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x0ea5e9, emissiveIntensity: 0.4 })); scr.position.z = 0.07; m.add(scr); const st = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.3), legMat); st.position.y = -0.55; m.add(st); }
   if (key === 'planta') { const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10), mat(0x22c55e)); leaf.position.y = 0.55; leaf.scale.set(1, 1.3, 1); leaf.castShadow = true; m.add(leaf); }
+  if (key === 'mesa_gamer') { legs(1.05, 0.43, 0.75); const edge = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); edge.position.set(0, 0.02, 0.54); m.add(edge); }
+  if (key === 'silla_gamer') { legs(0.28, 0.28, 0.5); const back = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.15, 0.18), mat(0xdc2626)); back.position.set(0, 0.62, -0.3); m.add(back); const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.18, 0.2), mat(0x111827)); head.position.set(0, 0.95, -0.19); m.add(head); }
+  if (key === 'computador_gamer') { const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 0.58), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x7c3aed, emissiveIntensity: 0.9 })); screen.position.z = 0.085; m.add(screen); const stand = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.12), mat(0x27272a)); stand.position.y = -0.48; m.add(stand); }
+  if (key === 'pc_gamer') { for (const y of [-0.28, 0.25]) { const fan = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 8, 18), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 1.4 })); fan.rotation.y = Math.PI / 2; fan.position.set(0.32, y, 0); m.add(fan); } }
+  if (key === 'teclado_gamer') { for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) { const k = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.035, 0.07), mat((col + row) % 3 === 0 ? 0xa855f7 : (col + row) % 3 === 1 ? 0x22d3ee : 0xf43f5e)); k.position.set(-0.4 + col * 0.1, 0.065, -0.1 + row * 0.1); m.add(k); } }
+  if (key === 'parlante_gamer') { for (const y of [-0.3, 0.28]) { const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 20), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x7c3aed, emissiveIntensity: 0.8 })); cone.rotation.x = Math.PI / 2; cone.position.set(0, y, 0.295); m.add(cone); } }
+  if (key === 'luces_gamer') { const glow = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.07, 0.14), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 2 })); glow.position.z = 0.04; m.add(glow); const light = new THREE.PointLight(0xa855f7, 1.2, 7); light.position.set(0, 0.15, 0.5); m.add(light); }
   if (key === 'door') {
     const fr = new THREE.MeshStandardMaterial({ color: 0x4a2f15, roughness: 0.9 });
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.22), fr); b.position.set(x, y, 0); m.add(b); };
@@ -6350,6 +6372,9 @@ function shopIcon(item) {
   if (item.key === 'hijoarma') return '⚔️'; if (item.key === 'hijoarmadura') return '🛡️';
   if (item.key === 'perro') return '🐶'; if (item.key === 'laser') return '🔆'; if (item.key === 'piso2') return '🏠';
   if (item.key === 'moto') return '🏍️'; if (item.key === 'heladera') return '🧊';
+  if (item.key === 'computador_gamer') return '🖥️'; if (item.key === 'pc_gamer') return '🖥️';
+  if (item.key === 'silla_gamer') return '💺'; if (item.key === 'luces_gamer') return '🌈';
+  if (item.key === 'teclado_gamer') return '⌨️'; if (item.key === 'parlante_gamer') return '🔊'; if (item.key === 'mesa_gamer') return '🖥️';
   if (item.build) return '🧱'; return '🛒';
 }
 // Menú de tienda: una fila por producto; tocar = comprar (sin teclado)
@@ -7022,8 +7047,8 @@ ui('bankCloseBtn').onclick = closeBank;
 // ===================================================================
 // La carga del cohete SOBREVIVE al viaje (goToPlanet no la borra). Cárgalo en la Tierra
 // con comida/materiales/armas y sácalos en el planeta nuevo para sobrevivir más.
-const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠' };
-const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Pared metal', wallDoor: 'Pared puerta', pilar: 'Pilar', bano: 'Baño' };
+const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠', computador_gamer: '🖥️', pc_gamer: '🖥️', silla_gamer: '💺', luces_gamer: '🌈', teclado_gamer: '⌨️', parlante_gamer: '🔊', mesa_gamer: '🖥️' };
+const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Pared metal', wallDoor: 'Pared puerta', pilar: 'Pilar', bano: 'Baño', piso2: 'Piso 2', computador_gamer: 'Computador gamer', pc_gamer: 'PC gamer', silla_gamer: 'Silla gamer', luces_gamer: 'Luces gamer', teclado_gamer: 'Teclado gamer', parlante_gamer: 'Parlante gamer', mesa_gamer: 'Mesa gamer' };
 const INV_KEYS = ['food', 'semillas', 'semillas_zanahoria', 'semillas_trigo', 'semillas_tomate', 'carbon', ...BUILD_KEYS];
 function rocketRow(key, n, into) {
   const b = document.createElement('button');
@@ -9856,8 +9881,8 @@ function renderHUD() {
   if (showBar) {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
-    const ICON = { wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠' };
-    const NAME = { wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lampara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Metal', wallDoor: 'P. puerta', pilar: 'Pilar', bano: 'Baño', piso2: 'Piso 2' };
+    const ICON = INV_ICON;
+    const NAME = INV_LABEL;
     let html = '';
     for (const [cat, em] of BUILD_CAT_TABS)   // pestañas de categoría (18 slots no caben en pantalla)
       html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;

@@ -8,7 +8,7 @@ assert.ok(GAME_RULES.daySeconds < 300, 'el día no debe alargar demasiado el cic
 const early = roadmapFor(0);
 assert.equal(early.now.name, 'Primer hogar');
 assert.equal(early.next.at, 2500);
-assert.equal(roadmapFor(75000).next, null, 'la ruta debe poder completarse');
+assert.equal(roadmapFor(1000000).next, null, 'la ruta debe poder completarse al alcanzar el horizonte espacial');
 
 const sturdyHome = houseRatings({ wallRock: 4, roof: 1, cama: 1, oven: 1 });
 assert.ok(sturdyHome.protection >= 60);

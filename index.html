@@ -7138,6 +7138,7 @@ function setProfile(name) {
 
 // Ranking mundial trimestral. La identidad anónima distingue este navegador sin publicar datos privados.
 let leaderboardPlayerId = null, leaderboardLastSent = 0, leaderboardSort = 'money';
+const LEADERBOARD_API = location.protocol === 'file:' ? 'https://tim.strivexlatam.com/api/leaderboard' : '/api/leaderboard';
 try {
   leaderboardPlayerId = localStorage.getItem('tim_leaderboard_id');
   if (!leaderboardPlayerId) {
@@ -7151,7 +7152,7 @@ async function submitLeaderboard(force = false) {
   const now = Date.now(); if (!force && now - leaderboardLastSent < 60_000) return false;
   leaderboardLastSent = now;
   try {
-    const response = await fetch('/api/leaderboard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: leaderboardName, money: state.money, stage: state.stage }) });
+    const response = await fetch(LEADERBOARD_API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: leaderboardName, money: state.money, stage: state.stage }) });
     if (!response.ok) throw new Error('ranking ' + response.status);
     return true;
   } catch (e) { leaderboardLastSent = 0; return false; }
@@ -7174,7 +7175,7 @@ async function loadLeaderboard(sort = leaderboardSort) {
   leaderboardSort = sort; ui('rankingStatus').textContent = '';
   document.querySelectorAll('.ranking-tab').forEach(b => b.classList.toggle('active', b.dataset.ranking === sort));
   try {
-    const response = await fetch('/api/leaderboard?sort=' + encodeURIComponent(sort) + '&limit=100', { cache: 'no-store' });
+    const response = await fetch(LEADERBOARD_API + '?sort=' + encodeURIComponent(sort) + '&limit=100', { cache: 'no-store' });
     if (!response.ok) throw new Error('ranking ' + response.status);
     renderLeaderboard(await response.json());
   } catch (e) {

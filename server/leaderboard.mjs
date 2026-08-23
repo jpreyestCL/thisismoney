@@ -18,7 +18,7 @@ function quarter() {
 }
 function json(res, status, body) {
   const data = JSON.stringify(body);
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(data) });
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', 'content-length': Buffer.byteLength(data) });
   res.end(data);
 }
 function cleanName(value) {
@@ -73,6 +73,7 @@ async function submit(req, res) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
+    if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', 'access-control-max-age': '86400' }); return res.end(); }
     if (url.pathname === '/health' && req.method === 'GET') { await pool.query('select 1'); return json(res, 200, { ok: true }); }
     if (url.pathname !== '/leaderboard') return json(res, 404, { error: 'No encontrado' });
     if (req.method === 'GET') return await list(req, res, url);

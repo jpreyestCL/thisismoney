@@ -2382,9 +2382,10 @@ function makeBoat() {
   for(const x of [-4.7,4.7]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.22,1.3,20),mat(0x4b2a0d));rail.position.set(x,2.8,0);g.add(rail);}
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,12,8), mat(0x3f2818)); mast.position.set(0,8,0); g.add(mast);
   const sail = new THREE.Mesh(new THREE.PlaneGeometry(8,8), new THREE.MeshStandardMaterial({color:0xf5e6c8,side:THREE.DoubleSide})); sail.position.set(0,8.2,.1); g.add(sail);
+  const wheel=new THREE.Mesh(new THREE.TorusGeometry(.75,.1,6,12),mat(0x3f2818));wheel.position.set(0,3.5,7);wheel.rotation.y=Math.PI/2;g.add(wheel);
   return g;
 }
-function addBoatSailor(index){const sailor=makePerson(0xd6b98c,0x1d4ed8);sailor.scale.set(.72,.72,.72);sailor.position.set((index%2?1:-1)*2.2,2.2,-5+index*3);sailor.userData.deckTarget=new THREE.Vector2(sailor.position.x,sailor.position.z);boat.group.add(sailor);boat.sailors.push(sailor);}
+function addBoatSailor(index){const sailor=makePerson(0xd6b98c,0x1d4ed8);sailor.scale.set(.72,.72,.72);sailor.userData.pilot=index===0;sailor.position.set(index===0?0:(index%2?1:-1)*2.2,2.2,index===0?7:-5+index*3);sailor.userData.deckTarget=new THREE.Vector2(sailor.position.x,sailor.position.z);boat.group.add(sailor);boat.sailors.push(sailor);}
 function spawnBoat(restoring) {
   if (boat) return boat;
   const group = makeBoat(); group.position.set(-195, OCEAN.surface, BEACH.cz); scene.add(group);
@@ -2395,7 +2396,7 @@ function spawnBoat(restoring) {
 function toggleBoat() {
   if (!boat || state.planet !== 'tierra') return false;
   const d = dist2D(player.position, boat.group.position); if (!boat.sailing && d > 7) return false;
-  if (!boat.sailing) { if ((state.boatCrew || 0) < 1) { toast('👥 Contrata al menos 1 tripulante en el vendedor antes de zarpar'); return true; } boat.sailing = true; state.sailing = true; boat.deckPos.set(0,-6); toast('⛵ Zarparon · WASD camina por cubierta · flechas navegan · E desembarca'); }
+  if (!boat.sailing) { if ((state.boatCrew || 0) < 1) { toast('👥 Contrata al menos 1 tripulante en el vendedor antes de zarpar'); return true; } boat.sailing = true; state.sailing = true; boat.arrived=false;boat.deckPos.set(0,-6);const dx=TREASURE_ISLAND.x+TREASURE_ISLAND.w*.42-boat.group.position.x,dz=TREASURE_ISLAND.z-boat.group.position.z;boat.heading=Math.atan2(-dx,-dz);toast('⛵ El tripulante conduce directo a la isla · WASD camina · mueve el mouse para mirar · E desembarca'); }
   else { boat.sailing = false; state.sailing = false; const side = new THREE.Vector3(Math.cos(boat.heading),0,-Math.sin(boat.heading)); player.position.copy(boat.group.position).addScaledVector(side,5); player.position.y = inTreasureIsland(player.position.x, player.position.z) ? TREASURE_ISLAND.surface + PLAYER_EYE : OCEAN.surface + PLAYER_EYE; toast('⚓ Desembarcaste'); }
   return true;
 }
@@ -2409,14 +2410,14 @@ function updateOceanExpedition(dt) {
   oceanHazardCd=Math.max(0,oceanHazardCd-dt);
   if(swimmingOcean){state.hp-=1.15*dt;for(const shark of oceanSharks){if(dist2D(player.position,shark.position)<4&&oceanHazardCd<=0){oceanHazardCd=2.2;damagePlayer(16,shark.position);toast('🦈 ¡Un tiburón te mordió! Busca el barco');break;}}if(oceanHazardCd<=0&&Math.random()<dt*.18){oceanHazardCd=2;toast('🥶 El océano está helado · necesitas el barco');}}
   if (!boat || !boat.sailing) { updateTempleTraps(dt); return; }
-  const turn=(keys.ArrowLeft?-1:0)+(keys.ArrowRight?1:0)+touch.moveX;boat.throttle=THREE.MathUtils.clamp(boat.throttle+((keys.ArrowUp?1:0)-(keys.ArrowDown?1:0)+touch.moveY)*dt,-.45,1);if(keys.ArrowUp||keys.ArrowDown||Math.abs(touch.moveY)>.05){}else boat.throttle*=Math.pow(.985,dt*60);const throttle=boat.throttle;boat.heading-=turn*dt*1.05;boat.group.rotation.y=boat.heading;
+  const dockX=TREASURE_ISLAND.x+TREASURE_ISLAND.w*.42,dockZ=TREASURE_ISLAND.z,dx=dockX-boat.group.position.x,dz=dockZ-boat.group.position.z,dockDist=Math.hypot(dx,dz);let throttle=boat.arrived?0:1;if(dockDist<7){boat.arrived=true;throttle=0;if(!state.islandDiscovered){state.islandDiscovered=true;toast('🏝️ ¡Llegaron a la ISLA DEL TESORO! Pulsa E para desembarcar');phaseText('ISLA DESCUBIERTA');}}else{const desired=Math.atan2(-dx,-dz),delta=Math.atan2(Math.sin(desired-boat.heading),Math.cos(desired-boat.heading));boat.heading+=delta*Math.min(1,dt*1.8);}boat.throttle=throttle;boat.group.rotation.y=boat.heading;
   const speed = 10.5*(1+(state.boatCrew||0)*.08), fwd = new THREE.Vector3(-Math.sin(boat.heading),0,-Math.cos(boat.heading)); boat.group.position.addScaledVector(fwd, throttle*speed*dt);
   boat.group.position.x=THREE.MathUtils.clamp(boat.group.position.x,-1285,-190); boat.group.position.z=THREE.MathUtils.clamp(boat.group.position.z,OCEAN.cz-OCEAN.waterD*.46,OCEAN.cz+OCEAN.waterD*.46);
   boat.heading+=Math.sin(performance.now()*.0017)*dt*(storm ? .34 : .1);boat.group.position.z+=Math.sin(performance.now()*.0021)*dt*(storm ? 2.2 : .55);
   boat.group.position.y=OCEAN.surface+.3+Math.sin(performance.now()*.003)* (storm ? .9 : .32); boat.group.rotation.z=Math.sin(performance.now()*.0024)* (storm ? .16 : .055);
   boat.deckPos.x=THREE.MathUtils.clamp(boat.deckPos.x+((keys.KeyD?1:0)-(keys.KeyA?1:0))*dt*4.5,-3.8,3.8);boat.deckPos.y=THREE.MathUtils.clamp(boat.deckPos.y+((keys.KeyS?1:0)-(keys.KeyW?1:0))*dt*4.5,-8.5,8.5);
-  const deckWorld=new THREE.Vector3(boat.deckPos.x,4.05,boat.deckPos.y).applyAxisAngle(new THREE.Vector3(0,1,0),boat.heading);player.position.copy(boat.group.position).add(deckWorld);yaw=boat.heading;
-  for(const sailor of boat.sailors){let t=sailor.userData.deckTarget;if(!t||Math.hypot(t.x-sailor.position.x,t.y-sailor.position.z)<.4){t=new THREE.Vector2((Math.random()-.5)*7,(Math.random()-.5)*15);sailor.userData.deckTarget=t;}const dx=t.x-sailor.position.x,dz=t.y-sailor.position.z,len=Math.hypot(dx,dz)||1;sailor.position.x+=dx/len*dt*1.2;sailor.position.z+=dz/len*dt*1.2;sailor.rotation.y=Math.atan2(dx,dz);}
+  const deckWorld=new THREE.Vector3(boat.deckPos.x,4.05,boat.deckPos.y).applyAxisAngle(new THREE.Vector3(0,1,0),boat.heading);player.position.copy(boat.group.position).add(deckWorld);
+  for(const sailor of boat.sailors){if(sailor.userData.pilot){sailor.position.set(0,2.2,7);sailor.rotation.y=Math.PI;continue;}let t=sailor.userData.deckTarget;if(!t||Math.hypot(t.x-sailor.position.x,t.y-sailor.position.z)<.4){t=new THREE.Vector2((Math.random()-.5)*7,(Math.random()-.5)*15);sailor.userData.deckTarget=t;}const sx=t.x-sailor.position.x,sz=t.y-sailor.position.z,len=Math.hypot(sx,sz)||1;sailor.position.x+=sx/len*dt*1.2;sailor.position.z+=sz/len*dt*1.2;sailor.rotation.y=Math.atan2(sx,sz);}
   state.voyageDays=(state.voyageDays||0)+Math.abs(throttle)*dt/6; boat.days=state.voyageDays;
   oceanStormT-=dt; if(oceanStormT<=0){oceanStormT=35+Math.random()*45;if(Math.random()<.6){state.weather='rain';state.weatherLeft=28;ensureRain().visible=true;toast('⛈️ ¡TORMENTA EN ALTA MAR! Mantén el rumbo');}}
   if(storm){boat.hp-=Math.max(0,4-(state.boatCrew||0))*.12*dt;if(Math.random()<dt*.35)cameraShake=Math.max(cameraShake,.16);}

@@ -3571,6 +3571,7 @@ function setEarthWorld(v) {   // muestra/oculta la Tierra completa (con sus coli
 // ===================================================================
 const platusStuff = [], platusObstacles = [], coalRocks = [], campfires = [];
 const platusKeepers = [];   // posiciones del/los vendedor(es) zombi de Platus (para comprar con Y)
+let platusNuclear = null;
 let platusTrunkMat = null, platusBranchMat = null;   // materiales de los árboles muertos (se recolorean por planeta)
 function buildPlatus() {
   // árboles MUERTOS instanciados (troncos secos + ramas peladas): 2 draw calls
@@ -3629,6 +3630,17 @@ function buildPlatus() {
   const zt = makeSign('VENDEDOR ALIEN (Y)', 0xa78bfa); zt.scale.set(.45, .45, .45); zt.position.set(zx, 3.4, zz); zt.visible = false;
   scene.add(zt); platusStuff.push(zt);
   platusKeepers.push(new THREE.Vector3(zx, 0, zz));
+
+  // CENTRAL NUCLEAR: alimenta con energía visible a todo Platus y tiene un trabajador alien guardián.
+  const nuclear=new THREE.Group();nuclear.position.set(-58,0,-48);
+  const platform=new THREE.Mesh(new THREE.CylinderGeometry(13,14,1.2,16),mat(0x334155));platform.position.y=.6;nuclear.add(platform);
+  const reactor=new THREE.Mesh(new THREE.CylinderGeometry(3.6,4.3,8,18),new THREE.MeshStandardMaterial({color:0x475569,metalness:.65,roughness:.3}));reactor.position.y=4.8;reactor.castShadow=true;nuclear.add(reactor);
+  const core=new THREE.Mesh(new THREE.SphereGeometry(2.1,18,14),new THREE.MeshStandardMaterial({color:0x22d3ee,emissive:0x06b6d4,emissiveIntensity:2.4,transparent:true,opacity:.88}));core.position.y=5.2;nuclear.add(core);
+  const rings=[];for(const y of [2.2,5.2,8.2]){const ring=new THREE.Mesh(new THREE.TorusGeometry(4.5,.18,8,28),new THREE.MeshStandardMaterial({color:0xa3e635,emissive:0x22c55e,emissiveIntensity:1.7}));ring.rotation.x=Math.PI/2;ring.position.y=y;nuclear.add(ring);rings.push(ring);}
+  for(const x of [-8,8]){const tower=new THREE.Mesh(new THREE.CylinderGeometry(2.6,3.5,10,14),mat(0x64748b));tower.position.set(x,5,1);nuclear.add(tower);const steam=new THREE.Mesh(new THREE.SphereGeometry(1.7,10,8),new THREE.MeshBasicMaterial({color:0xcffafe,transparent:true,opacity:.28}));steam.position.set(x,11,1);nuclear.add(steam);}
+  const pylons=[],beams=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2,p=new THREE.Group(),pole=new THREE.Mesh(new THREE.CylinderGeometry(.18,.28,7,7),mat(0x64748b));pole.position.y=3.5;p.add(pole);const lamp=new THREE.PointLight(0x22d3ee,1.7,35);lamp.position.y=7;p.add(lamp);p.position.set(Math.cos(a)*115,0,Math.sin(a)*115);scene.add(p);p.visible=false;platusStuff.push(p);pylons.push(p);const pts=[new THREE.Vector3(-58,8,-48),new THREE.Vector3(p.position.x,7,p.position.z)],line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x22d3ee,transparent:true,opacity:.45}));line.visible=false;scene.add(line);platusStuff.push(line);beams.push(line);}
+  const guard=makePerson(0x4c1d95,0xa78bfa);guard.scale.set(1.15,1.2,1.15);guard.position.set(8,1.2,8);const helmet=new THREE.Mesh(new THREE.CylinderGeometry(.38,.48,.3,10),mat(0xfacc15));helmet.position.y=2.35;guard.add(helmet);const eye2=new THREE.Mesh(new THREE.SphereGeometry(.15,9,9),new THREE.MeshStandardMaterial({color:0x22d3ee,emissive:0x22d3ee,emissiveIntensity:1.2}));eye2.position.set(0,2.05,.36);guard.add(eye2);const tool=new THREE.Mesh(new THREE.BoxGeometry(.16,1.1,.16),mat(0x94a3b8));tool.position.set(.58,1.1,.15);tool.rotation.z=.35;guard.add(tool);nuclear.add(guard);
+  const sign2=makeSign('⚛ CENTRAL NUCLEAR · ENERGÍA DE PLATUS',0x22d3ee);sign2.scale.set(.48,.48,.48);sign2.position.set(0,12,-5);nuclear.add(sign2);nuclear.visible=false;scene.add(nuclear);platusStuff.push(nuclear);platusNuclear={group:nuclear,core,rings,beams,guard};
 }
 buildPlatus();
 // Empiezas en la Tierra: las montañas de Platus todavía no deben bloquear el paso
@@ -3928,6 +3940,7 @@ function setPlatusVisible(v) {
   if (!v) { for (const o of platusObstacles) { const i = obstacles.indexOf(o); if (i >= 0) obstacles.splice(i, 1); } }
   else { for (const o of platusObstacles) if (!obstacles.includes(o)) obstacles.push(o); }
   platusStuff.forEach(m => m.visible = v); crystals.forEach(c => c.group.visible = v && c.gems > 0); mushrooms.forEach(m => m.group.visible = v && m.ready); geodes.forEach(ge => ge.group.visible = v && ge.ready); eggs.forEach(e => e.group.visible = v && e.ready); platusSky.visible = v; if (ruinsEntrance) ruinsEntrance.visible = v; if (castleGate) castleGate.visible = v; if (coliGate) coliGate.visible = v; setFloatingVisible(v); }
+function updatePlatusNuclear(dt){if(!platusNuclear||state.planet!=='platus')return;const t=performance.now()*.001;platusNuclear.core.scale.setScalar(1+Math.sin(t*3)*.08);platusNuclear.core.material.emissiveIntensity=2.1+Math.sin(t*4)*.7;platusNuclear.rings.forEach((r,i)=>{r.rotation.z+=dt*(.45+i*.18);});platusNuclear.beams.forEach((b,i)=>{b.material.opacity=.28+Math.abs(Math.sin(t*2+i))*.45;});const g=platusNuclear.guard,a=t*.42;g.position.set(Math.cos(a)*9,0,Math.sin(a)*9);g.rotation.y=-a+Math.PI/2;swingLimbs(g,dt);}
 // GEODA GIGANTE: roca enorme; pégale muchas veces y al romperse EXPLOTA en un montón de gemas
 const geodes = [];
 (function buildGeodes() {
@@ -9602,6 +9615,7 @@ function loop() {
     updateTitanBoss(dt);                   // jefe TITÁN (kaiju gigante, raro)
     updateArena(dt);                       // coliseo alien: oleadas de enemigos
     updateFloatingWorld(dt);               // islas flotantes (cofres) + géiseres
+    updatePlatusNuclear(dt);               // reactor y trabajador alien que energizan todo Platus
     updateBaseDefense(dt);                 // torretas de la base espacial disparan de noche
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
@@ -9711,6 +9725,7 @@ function drawMinimap() {
     for (const is of floatIslands) { if (is.city) icon(is.x, is.z, '🏙️', 13); else if (is.ready) icon(is.x, is.z, '🏝️', 11); }
     for (const ge of geysers) dot(ge.x, ge.z, '#67e8f9', 2);
     if (state.baseLevel) icon(BASE_POS.x, BASE_POS.z, '🏕️', 13);
+    icon(-58,-48,'⚛️',15);
     for (const k of platusKeepers) icon(k.x, k.z, '👽', 13);
   }
   if (state.inCastle) {   // dentro del castillo: guía del laberinto (tesoros, aliens buenos/malos)

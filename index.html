@@ -1658,7 +1658,7 @@ function updateNPCs(dt) {
         else { b.thinkIn = 0; nx = n.position.x; nz = n.position.z; }
       }
       moved = nx !== n.position.x || nz !== n.position.z;
-      n.position.set(nx, 0, nz); n.rotation.y = Math.atan2(dx, dz);
+      n.position.set(nx, mountainHeightAt(nx, nz), nz); n.rotation.y = Math.atan2(dx, dz);
     } else {
       b.wait -= dt;
       if (b.wait <= 0 && distance <= .7) b.thinkIn = 0;
@@ -2177,7 +2177,7 @@ function updatePolice(dt) {
       moveToward(p, player.position, speed * dt);
       const face = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
       if (p.userData.car) {
-        p.userData.car.position.set(p.position.x, 0, p.position.z);
+        p.userData.car.position.set(p.position.x, mountainHeightAt(p.position.x, p.position.z), p.position.z);
         p.userData.car.rotation.y = face;
         if (p.userData.light) p.userData.light.material.color.setHex((Math.floor(performance.now() / 250) % 2) ? 0xef4444 : 0x3b82f6);   // sirena
       } else { p.rotation.y = face; swingLimbs(p, dt); }
@@ -5502,6 +5502,12 @@ function pickTarget(from, attacker) {
 function moveToward(e, target, step) {
   const dx = target.x - e.position.x, dz = target.z - e.position.z; const len = Math.hypot(dx, dz) || 1;
   e.position.x += (dx / len) * step; e.position.z += (dz / len) * step;
+  const ground = mountainHeightAt(e.position.x, e.position.z);
+  const isHoverPet = e === petAlien || eggPets.includes(e);
+  const flies = e.userData && (e.userData.fly || e.userData.ufo);
+  const hover = isHoverPet ? 0.3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.12
+    : flies ? 3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.3 : 0;
+  e.position.y = ground + hover;
 }
 function removeEnemy(i) { const e = enemies[i]; if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); enemies.splice(i, 1); }
 function killEnemy(e) { const i = enemies.indexOf(e); if (i >= 0) removeEnemy(i); }
@@ -5957,7 +5963,8 @@ function updateDad(dt) {
     const d = dist2D(dad.position, player.position);
     if (d > 40 && !state.inRuins && !state.inCastle && !state.inArena && !state.underground) {
       // quedó MUY atrás (p.ej. al volver del aeropuerto o al viajar rápido): te alcanza solo
-      dad.position.set(player.position.x + 2, 0, player.position.z + 2);
+      const dx = player.position.x + 2, dz = player.position.z + 2;
+      dad.position.set(dx, mountainHeightAt(dx, dz), dz);
       floatText(dad.position, '💨 papá te alcanzó', '#e2e8f0', 15);
     }
     else if (d > 3) { moveToward(dad, player.position, 2.6 * dt); dad.rotation.y = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z); }
@@ -8822,6 +8829,7 @@ function updateNight(dt) {
     const e = enemies[i], ud = e.userData;
     if (ud.type === 'bull') {
       e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
+      e.position.y = mountainHeightAt(e.position.x, e.position.z);
       if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
       if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8, e.position); removeEnemy(i); continue; }
       if (ud.life <= 0) removeEnemy(i); continue;
@@ -8848,7 +8856,7 @@ function updateNight(dt) {
       const isBarrier = !o.baseY && (o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'wallMetal' || (o.key === 'door' && !ud.opensDoors)); // los inteligentes abren puertas · las paredes del 2º piso no frenan a los de abajo
       if (isBarrier && o.hp > 0 && dist2D(e.position, o.mesh.position) < 2.2) blocked = o;
     } }
-    if (flies) e.position.y = 3 + Math.sin(state.nightTime * 4 + i) * 0.3;   // flotar
+    if (flies) e.position.y = mountainHeightAt(e.position.x, e.position.z) + 3 + Math.sin(state.nightTime * 4 + i) * 0.3;   // flotar sobre el terreno
     // monstruo volador: destruye las construcciones aéreas (techos) que encuentra
     if (ud.breaksAir && ud.attackCd <= 0) {
       let roof = null, rd = 4;
@@ -8863,6 +8871,7 @@ function updateNight(dt) {
         const dx = tgt.x - e.position.x, dz = tgt.z - e.position.z, len = Math.hypot(dx, dz) || 1, step = ud.speed * dt;
         e.position.x += (dx / len * .72 - dz / len * .69 * ud.flankSign) * step;
         e.position.z += (dz / len * .72 + dx / len * .69 * ud.flankSign) * step;
+        e.position.y = mountainHeightAt(e.position.x, e.position.z);
       } else moveToward(e, tgt, ud.speed * dt);
       e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
     } else if (ud.attackCd <= 0) {

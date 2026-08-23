@@ -43,7 +43,7 @@ async function list(req, res, url) {
   const order = sort === 'stage' ? 'best_stage desc, best_money desc' : sort === 'players' ? 'updated_at desc' : 'best_money desc, best_stage desc';
   const q = quarter();
   const [rows, count] = await Promise.all([
-    pool.query(`select display_name, best_money, best_stage, updated_at from leaderboard_scores where quarter = $1 order by ${order} limit $2`, [q, limit]),
+    pool.query(`select display_name, best_money, best_stage, creative, updated_at from leaderboard_scores where quarter = $1 order by ${order} limit $2`, [q, limit]),
     pool.query('select count(*)::int as total from leaderboard_scores where quarter = $1', [q]),
   ]);
   json(res, 200, { quarter: q, totalPlayers: count.rows[0].total, sort, players: rows.rows });
@@ -55,17 +55,19 @@ async function submit(req, res) {
   if (!/^[a-f0-9-]{36}$/i.test(playerId)) return json(res, 400, { error: 'Jugador inválido' });
   const money = Math.min(1_000_000_000_000, Math.max(0, Math.floor(Number(body.money) || 0)));
   const stage = Math.min(10_000, Math.max(1, Math.floor(Number(body.stage) || 1)));
+  const creative = body.creative === true;
   const fingerprint = crypto.createHash('sha256').update(clientKey(req)).digest('hex').slice(0, 24);
   await pool.query(
-    `insert into leaderboard_scores (quarter, player_id, display_name, best_money, best_stage, source_hash)
-     values ($1, $2::uuid, $3, $4, $5, $6)
+    `insert into leaderboard_scores (quarter, player_id, display_name, best_money, best_stage, creative, source_hash)
+     values ($1, $2::uuid, $3, $4, $5, $6, $7)
      on conflict (quarter, player_id) do update set
        display_name = excluded.display_name,
        best_money = greatest(leaderboard_scores.best_money, excluded.best_money),
        best_stage = greatest(leaderboard_scores.best_stage, excluded.best_stage),
+       creative = excluded.creative,
        source_hash = excluded.source_hash,
        updated_at = now()`,
-    [quarter(), playerId, cleanName(body.name), money, stage, fingerprint],
+    [quarter(), playerId, cleanName(body.name), money, stage, creative, fingerprint],
   );
   json(res, 200, { ok: true, quarter: quarter() });
 }

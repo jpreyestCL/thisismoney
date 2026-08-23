@@ -7149,12 +7149,12 @@ try {
   }
 } catch (e) {}
 async function submitLeaderboard(force = false) {
-  if (!leaderboardPlayerId || state.creative || !state.running) return false;
+  if (!leaderboardPlayerId || !state.running) return false;
   const leaderboardName = (typeof net !== 'undefined' && net.name) || currentProfile || 'Jugador';
   const now = Date.now(); if (!force && now - leaderboardLastSent < 60_000) return false;
   leaderboardLastSent = now;
   try {
-    const response = await fetch(LEADERBOARD_API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: leaderboardName, money: state.money, stage: state.stage }) });
+    const response = await fetch(LEADERBOARD_API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: leaderboardName, money: state.money, stage: state.stage, creative: !!state.creative }) });
     if (!response.ok) throw new Error('ranking ' + response.status);
     return true;
   } catch (e) { leaderboardLastSent = 0; return false; }
@@ -7167,7 +7167,7 @@ function renderLeaderboard(data) {
   data.players.forEach((p, index) => {
     const row = document.createElement('div'); row.className = 'ranking-row';
     const pos = document.createElement('span'); pos.className = 'rank-number'; pos.textContent = '#' + (index + 1);
-    const name = document.createElement('b'); name.textContent = p.display_name;
+    const name = document.createElement('b'); name.textContent = p.display_name + (p.creative ? ' 🎨' : '');
     const money = document.createElement('span'); money.className = 'rank-money'; money.textContent = '$' + Number(p.best_money || 0).toLocaleString('es-CL');
     const stage = document.createElement('span'); stage.className = 'rank-stage'; stage.textContent = '⭐ ' + Number(p.best_stage || 1);
     row.append(pos, name, money, stage); rows.appendChild(row);

@@ -4048,6 +4048,8 @@ function updateArena(dt) {
 }
 // ISLAS FLOTANTES + GÉISERES: plataformas en el cielo con cofres; los géiseres te LANZAN altísimo para alcanzarlas (baja gravedad)
 const floatIslands = [], geysers = [], floatingCitizens = [];
+let floatingCitizenAggro = 0;
+const floatingAlienWorld = new THREE.Vector3(), floatingAlienTarget = new THREE.Vector3();
 (function buildFloatingWorld() {
   for (let i = 0; i < 7; i++) {
     const a = Math.random() * Math.PI * 2, r = 22 + Math.random() * 150, y = 9 + Math.random() * 13, rad = 4 + Math.random() * 2.5;
@@ -4078,7 +4080,7 @@ const floatIslands = [], geysers = [], floatingCitizens = [];
     for (let n = 0; n < 5; n++) {
       const alien = makePerson(n % 2 ? 0x9333ea : 0x7c3aed, n % 2 ? 0x5b21b6 : 0x6d28d9); alien.scale.set(.9, .95, .9);
       const eye = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 8), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: .8 })); eye.position.set(0, 2.1, .34); alien.add(eye);
-      alien.userData.cityAngle = n / 5 * Math.PI * 2; alien.userData.cityRadius = 1.4 + (n % 2) * 1.2; alien.userData.cityY = y + 1.25; city.add(alien); floatingCitizens.push(alien);
+      alien.userData.cityAngle = n / 5 * Math.PI * 2; alien.userData.cityRadius = 1.4 + (n % 2) * 1.2; alien.userData.cityY = y + 1.25; alien.userData.attackCd = 0; city.add(alien); floatingCitizens.push(alien);
     }
     const beacon = new THREE.PointLight(0xf97316, 1.25, 10, 1.7); beacon.position.set(0, y + 4, 0); city.add(beacon);
     city.visible = false; scene.add(city);
@@ -4104,10 +4106,27 @@ function refillFloatingWorld() { floatIslands.forEach(is => { if (is.city) retur
 function updateFloatingWorld(dt) {
   if (state.planet !== 'platus') return;
   for (const ge of geysers) ge.col.scale.y = 1 + Math.abs(Math.sin(performance.now() * 0.006 + ge.x)) * 0.4;
+  floatingCitizenAggro = Math.max(0, floatingCitizenAggro - dt);
   for (const alien of floatingCitizens) {
-    alien.userData.cityAngle += dt * .35;
-    const a = alien.userData.cityAngle, r = alien.userData.cityRadius;
-    alien.position.set(Math.cos(a) * r, alien.userData.cityY, Math.sin(a) * r); alien.rotation.y = -a;
+    if (floatingCitizenAggro > 0) {
+      alien.getWorldPosition(floatingAlienWorld);
+      floatingAlienTarget.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
+      const dx = floatingAlienTarget.x - floatingAlienWorld.x, dy = floatingAlienTarget.y - floatingAlienWorld.y, dz = floatingAlienTarget.z - floatingAlienWorld.z, d = Math.hypot(dx, dy, dz) || 1;
+      if (d > 1.35) {
+        floatingAlienWorld.x += dx / d * 4.2 * dt; floatingAlienWorld.y += dy / d * 4.2 * dt; floatingAlienWorld.z += dz / d * 4.2 * dt;
+        alien.parent.worldToLocal(floatingAlienWorld); alien.position.copy(floatingAlienWorld);
+      } else {
+        alien.userData.attackCd -= dt;
+        if (alien.userData.attackCd <= 0) { alien.userData.attackCd = .85; damagePlayer(8, floatingAlienWorld); startEnemyAttack(alien); beep(155, .08, .04); }
+      }
+      alien.rotation.y = Math.atan2(dx, dz);
+    } else {
+      alien.userData.cityAngle += dt * .35;
+      const a = alien.userData.cityAngle, r = alien.userData.cityRadius;
+      alien.position.x += (Math.cos(a) * r - alien.position.x) * Math.min(1, dt * 2);
+      alien.position.y += (alien.userData.cityY - alien.position.y) * Math.min(1, dt * 2);
+      alien.position.z += (Math.sin(a) * r - alien.position.z) * Math.min(1, dt * 2); alien.rotation.y = -a;
+    }
     swingLimbs(alien, dt);
   }
   for (const is of floatIslands) {
@@ -4119,6 +4138,20 @@ function updateFloatingWorld(dt) {
       toast('🎁 ¡Cofre de la ISLA FLOTANTE! +$' + is.value); beep(820, 0.1, 0.05);
     }
   }
+}
+function tryHitFloatingCitizen(dmg) {
+  if (state.planet !== 'platus') return false;
+  const dir = new THREE.Vector3(); getAimDirection(dir);
+  let best = null, bestD = state.laserGun ? 30 : 4.5;
+  for (const alien of floatingCitizens) {
+    alien.getWorldPosition(floatingAlienWorld); const d = player.position.distanceTo(floatingAlienWorld);
+    if (d < bestD) { const to = floatingAlienWorld.clone().sub(player.position).normalize(); if (to.dot(dir) > .25) { best = alien; bestD = d; } }
+  }
+  if (!best) return false;
+  floatingCitizenAggro = 35; best.getWorldPosition(floatingAlienWorld); flashEnemy(best, true); setTimeout(() => flashEnemy(best, false), 130);
+  voxelImpact(floatingAlienWorld.clone().setY(floatingAlienWorld.y + 1), 0xef4444, 6); zombieHitSound(); floatText(floatingAlienWorld, '¡ALERTA ALIEN!', '#f87171', 15);
+  toast('🚨 ¡Golpeaste a un ciudadano! ¡Todos los aliens te persiguen!');
+  if (state.laserGun) shootBeam(floatingAlienWorld); return true;
 }
 function geyserBoost() {   // devuelve true si el jugador está sobre un géiser (para lanzarlo)
   if (state.planet !== 'platus') return false;
@@ -8880,6 +8913,7 @@ function attack(multiplier = 1) {
   if (state.inCastle) { attackCastleFoe(); return; }   // en el castillo, el golpe pega a los aliens malos
   if (state.inArena) { hitArenaFoe(); return; }        // en el coliseo, el golpe pega a los enemigos de la oleada
   if (titan && hitTitan(state.weaponDmg)) return;      // golpear al TITÁN
+  if (tryHitFloatingCitizen(Math.round(state.weaponDmg * multiplier))) return;
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
   const range = state.laserGun ? 30 : 5, dmg = Math.round(state.weaponDmg * multiplier);
   let best = null, bestD = range;
@@ -8909,7 +8943,7 @@ function attackNPC() {
   if (state.inCastle) { vmSwing = 1; beep(320, 0.05, 0.03); attackCastleFoe(); return; }   // en el castillo (de día también) el golpe pega a los aliens malos
   if (state.inArena) { vmSwing = 1; beep(320, 0.05, 0.03); hitArenaFoe(); return; }   // en el coliseo (de día también)
   if (titan && hitTitan(state.weaponDmg)) { vmSwing = 1; return; }   // golpear al TITÁN (de día también)
-  if (state.planet === 'platus') { vmSwing = 1; if (!tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus el golpe de día: GEODA · CRISTAL · CARBÓN
+  if (state.planet === 'platus') { vmSwing = 1; if (!tryHitFloatingCitizen(state.weaponDmg) && !tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus: ciudadanos, geodas, cristales o carbón
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
   const range = 4;
   let best = null, bestD = range;

@@ -4049,6 +4049,7 @@ function updateArena(dt) {
 // ISLAS FLOTANTES + GÉISERES: plataformas en el cielo con cofres; los géiseres te LANZAN altísimo para alcanzarlas (baja gravedad)
 const floatIslands = [], geysers = [], floatingCitizens = [];
 let floatingCitizenAggro = 0;
+let floatingAlienVolleyCd = 0;
 const floatingAlienWorld = new THREE.Vector3(), floatingAlienTarget = new THREE.Vector3();
 (function buildFloatingWorld() {
   for (let i = 0; i < 7; i++) {
@@ -4080,6 +4081,7 @@ const floatingAlienWorld = new THREE.Vector3(), floatingAlienTarget = new THREE.
     for (let n = 0; n < 8; n++) {
       const alien = makePerson(n % 2 ? 0x9333ea : 0x7c3aed, n % 2 ? 0x5b21b6 : 0x6d28d9); alien.scale.set(.9, .95, .9);
       const eye = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 8), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: .8 })); eye.position.set(0, 2.1, .34); alien.add(eye);
+      const gun = new THREE.Mesh(new THREE.BoxGeometry(.16, .22, .65), new THREE.MeshStandardMaterial({ color: 0x3f2a1d, emissive: 0xf97316, emissiveIntensity: .35 })); gun.position.set(0, -.48, .3); gun.rotation.x = -.25; alien.userData.limbs.armR.add(gun); alien.userData.alienGun = gun;
       const roamAngle = n / 8 * Math.PI * 2, roamRadius = rad * (.15 + (n % 4) * .08);
       alien.position.set(Math.cos(roamAngle) * roamRadius, y + 1.25, Math.sin(roamAngle) * roamRadius);
       alien.userData.cityY = y + 1.25; alien.userData.roamLimit = rad * .48; alien.userData.roamX = alien.position.x; alien.userData.roamZ = alien.position.z; alien.userData.roamWait = Math.random() * 2; alien.userData.attackCd = 0; city.add(alien); floatingCitizens.push(alien);
@@ -4109,6 +4111,7 @@ function updateFloatingWorld(dt) {
   if (state.planet !== 'platus') return;
   for (const ge of geysers) ge.col.scale.y = 1 + Math.abs(Math.sin(performance.now() * 0.006 + ge.x)) * 0.4;
   floatingCitizenAggro = Math.max(0, floatingCitizenAggro - dt);
+  floatingAlienVolleyCd = Math.max(0, floatingAlienVolleyCd - dt);
   for (const alien of floatingCitizens) {
     if (floatingCitizenAggro > 0) {
       alien.getWorldPosition(floatingAlienWorld);
@@ -4117,6 +4120,10 @@ function updateFloatingWorld(dt) {
       if (d > 1.35) {
         floatingAlienWorld.x += dx / d * 4.2 * dt; floatingAlienWorld.y += dy / d * 4.2 * dt; floatingAlienWorld.z += dz / d * 4.2 * dt;
         alien.parent.worldToLocal(floatingAlienWorld); alien.position.copy(floatingAlienWorld);
+        alien.userData.attackCd -= dt;
+        if (d < 18 && d > 3 && alien.userData.attackCd <= 0 && floatingAlienVolleyCd <= 0) {
+          alien.userData.attackCd = 1.4 + Math.random() * .8; floatingAlienVolleyCd = .28; alienShootPlayer(alien);
+        }
       } else {
         alien.userData.attackCd -= dt;
         if (alien.userData.attackCd <= 0) { alien.userData.attackCd = .85; damagePlayer(8, floatingAlienWorld); startEnemyAttack(alien); beep(155, .08, .04); }
@@ -4144,6 +4151,13 @@ function updateFloatingWorld(dt) {
       toast('🎁 ¡Cofre de la ISLA FLOTANTE! +$' + is.value); beep(820, 0.1, 0.05);
     }
   }
+}
+function alienShootPlayer(alien) {
+  alien.getWorldPosition(floatingAlienWorld); const from = floatingAlienWorld.clone().add(new THREE.Vector3(0, 1.15, 0));
+  const to = player.position.clone().add(new THREE.Vector3(0, -.45, 0)), dir = new THREE.Vector3().subVectors(to, from), len = dir.length() || 1;
+  const shot = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, len, 5), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
+  shot.position.copy(from).addScaledVector(dir, .5); shot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); scene.add(shot);
+  setTimeout(() => killMesh(shot), 110); damagePlayer(5, from); tone(520, .055, .035, 'square'); alien.userData.attackAnim = .22;
 }
 function tryHitFloatingCitizen(dmg) {
   if (state.planet !== 'platus') return false;

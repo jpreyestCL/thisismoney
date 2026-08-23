@@ -624,6 +624,7 @@
         <button class="btn" id="startBtn">NUEVA PARTIDA</button>
         <button class="btn secondary" id="creativeBtn">MODO CREATIVO</button>
         <button class="btn secondary" id="startGuideBtn">VER GUÍA</button>
+        <button class="btn secondary" id="startRankingBtn">🌎 RANKING MUNDIAL</button>
         <button class="btn secondary" id="friendsBtn">🌐 JUGAR CON AMIGOS</button>
       </div>
       <p id="bestline" style="display:none; color:var(--warning); font-weight:800; font-size:13px;"></p>
@@ -684,7 +685,10 @@
     <div class="ranking-row head"><span>Pos.</span><span>Jugador</span><span>Dinero</span><span>Etapa</span></div>
     <div id="rankingRows" style="max-height:52vh;overflow-y:auto"><div style="padding:24px;text-align:center;color:#94a3b8">Cargando ranking…</div></div>
     <div id="rankingStatus" style="min-height:18px;margin:8px 0;color:#fca5a5;font-size:12px;text-align:center"></div>
-    <button class="bankBtn" id="rankingClose" style="width:100%">Cerrar ✕</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="bankBtn" id="rankingRefresh">🔄 Actualizar</button>
+      <button class="bankBtn" id="rankingClose">Cerrar ✕</button>
+    </div>
   </div>
 </div>
 
@@ -6784,6 +6788,7 @@ function openNamebox(mode) {
 }
 ui('startBtn').onclick = () => openNamebox('normal');
 ui('creativeBtn').onclick = () => openNamebox('creative');
+ui('startRankingBtn').onclick = () => openLeaderboard();
 ui('nameCancel').onclick = () => { ui('namebox').style.display = 'none'; };
 ui('nameOk').onclick = () => {
   const name = (ui('nameInput').value.trim() || 'Jugador').slice(0, 12);
@@ -7174,12 +7179,14 @@ function renderLeaderboard(data) {
   });
 }
 async function loadLeaderboard(sort = leaderboardSort) {
-  leaderboardSort = sort; ui('rankingStatus').textContent = '';
+  leaderboardSort = sort; ui('rankingStatus').textContent = 'Actualizando…';
+  ui('rankingRows').innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8">Cargando ranking…</div>';
   document.querySelectorAll('.ranking-tab').forEach(b => b.classList.toggle('active', b.dataset.ranking === sort));
   try {
     const response = await fetch(LEADERBOARD_API + '?sort=' + encodeURIComponent(sort) + '&limit=100', { cache: 'no-store' });
     if (!response.ok) throw new Error('ranking ' + response.status);
     renderLeaderboard(await response.json());
+    ui('rankingStatus').textContent = 'Datos mundiales actualizados';
   } catch (e) {
     ui('rankingRows').innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8">No se pudo cargar la tabla mundial.</div>';
     ui('rankingStatus').textContent = 'Comprueba tu conexión a Internet e inténtalo otra vez.';
@@ -7197,6 +7204,7 @@ function tryLeaderboard() {
   openLeaderboard(); return true;
 }
 ui('rankingClose').onclick = closeLeaderboard;
+ui('rankingRefresh').onclick = () => loadLeaderboard(leaderboardSort);
 document.querySelectorAll('.ranking-tab').forEach(b => b.onclick = () => loadLeaderboard(b.dataset.ranking));
 
 function saveGame() {

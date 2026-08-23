@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'code=$?; echo "::error::Instalación del ranking falló en línea $LINENO (código $code): $BASH_COMMAND"; exit $code' ERR
 
 WEBROOT=/var/www/tim.strivexlatam.com
 SERVICE=thisismoney-leaderboard

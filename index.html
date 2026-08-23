@@ -4061,26 +4061,26 @@ const floatingAlienWorld = new THREE.Vector3(), floatingAlienTarget = new THREE.
     floatIslands.push({ x: g.position.x, z: g.position.z, top: y + 1.05, r: rad, group: g, chest, value: 0, ready: false });
   }
   // Ciudades nativas de Platus: grandes plataformas cafés, sin pasto ni hojas.
-  for (const [cx, cz, y, rad] of [[-58, -70, 14, 10], [86, 58, 19, 11], [-112, 82, 24, 9]]) {
+  for (const [cx, cz, y, rad] of [[-58, -70, 14, 16], [86, 58, 19, 18], [-112, 82, 24, 15]]) {
     const city = new THREE.Group(); city.position.set(cx, 0, cz);
     const rock = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad * .48, 3.4, 16), new THREE.MeshStandardMaterial({ color: 0x4a2f22, roughness: 1 })); rock.position.y = y - .7; rock.castShadow = true; city.add(rock);
     const soil = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, .45, 16), new THREE.MeshStandardMaterial({ color: 0x7a4930, roughness: 1 })); soil.position.y = y + 1.05; soil.receiveShadow = true; city.add(soil);
-    for (let b = 0; b < 6; b++) {
-      const a = b / 6 * Math.PI * 2, d = rad * .53, h = 2.8 + (b % 3) * .8;
+    for (let b = 0; b < 10; b++) {
+      const a = b / 10 * Math.PI * 2, d = rad * .62, h = 3.2 + (b % 4) * .85;
       const house = new THREE.Mesh(new THREE.BoxGeometry(2.5, h, 2.5), new THREE.MeshStandardMaterial({ color: b % 2 ? 0x6b3f28 : 0x8a5230, roughness: .9 })); house.position.set(Math.cos(a) * d, y + 1.25 + h / 2, Math.sin(a) * d); house.rotation.y = -a; house.castShadow = true; city.add(house);
       const roof = new THREE.Mesh(new THREE.ConeGeometry(2, 1.3, 4), new THREE.MeshStandardMaterial({ color: b % 2 ? 0x3f2a1d : 0x5c3523, metalness: .15, roughness: .85 })); roof.position.set(house.position.x, y + 1.25 + h + .65, house.position.z); roof.rotation.y = Math.PI / 4 - a; roof.castShadow = true; city.add(roof);
       const window = new THREE.Mesh(new THREE.PlaneGeometry(.65, .65), new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf97316, emissiveIntensity: .9 })); window.position.set(house.position.x - Math.sin(a) * 1.26, y + 2.5, house.position.z + Math.cos(a) * 1.26); window.rotation.y = -a; city.add(window);
     }
-    for (let t = 0; t < 4; t++) {   // árboles completamente secos: tronco y ramas, nunca verde
-      const a = t / 4 * Math.PI * 2 + .45, d = rad * .3, tree = new THREE.Group(); tree.position.set(Math.cos(a) * d, y + 1.25, Math.sin(a) * d);
+    for (let t = 0; t < 7; t++) {   // árboles completamente secos: tronco y ramas, nunca verde
+      const a = t / 7 * Math.PI * 2 + .45, d = rad * .38, tree = new THREE.Group(); tree.position.set(Math.cos(a) * d, y + 1.25, Math.sin(a) * d);
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.1, .18, 2.2, 6), mat(0x3b271c)); trunk.position.y = 1.1; tree.add(trunk);
       for (const s of [-1, 1]) { const branch = new THREE.Mesh(new THREE.CylinderGeometry(.045, .07, 1.15, 5), mat(0x4a2f22)); branch.position.set(s * .32, 1.9, 0); branch.rotation.z = s * .72; tree.add(branch); }
       city.add(tree);
     }
-    for (let n = 0; n < 5; n++) {
+    for (let n = 0; n < 8; n++) {
       const alien = makePerson(n % 2 ? 0x9333ea : 0x7c3aed, n % 2 ? 0x5b21b6 : 0x6d28d9); alien.scale.set(.9, .95, .9);
       const eye = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 8), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: .8 })); eye.position.set(0, 2.1, .34); alien.add(eye);
-      alien.userData.cityAngle = n / 5 * Math.PI * 2; alien.userData.cityRadius = 1.4 + (n % 2) * 1.2; alien.userData.cityY = y + 1.25; alien.userData.attackCd = 0; city.add(alien); floatingCitizens.push(alien);
+      alien.userData.cityAngle = n / 8 * Math.PI * 2; alien.userData.cityRadius = 2.2 + (n % 3) * 1.35; alien.userData.cityY = y + 1.25; alien.userData.attackCd = 0; city.add(alien); floatingCitizens.push(alien);
     }
     const beacon = new THREE.PointLight(0xf97316, 1.25, 10, 1.7); beacon.position.set(0, y + 4, 0); city.add(beacon);
     city.visible = false; scene.add(city);

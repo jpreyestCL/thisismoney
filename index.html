@@ -2348,12 +2348,17 @@ buildBeach();
 
 // OCÉANO Y EXPEDICIÓN: un viaje largo en barco hasta una isla enorme de tesoros.
 const TREASURE_ISLAND = { x: -1080, z: -155, w: 260, d: 240, surface: .72 };
-let boat = null, oceanStormT = 35, templeTrapT = 0;
-const oceanWaves = [], islandOres = [];
+let boat = null, oceanStormT = 35, templeTrapT = 0, oceanHazardCd = 0;
+const oceanWaves = [], oceanFish = [], oceanSharks = [], islandOres = [];
 function buildOceanExpedition() {
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(OCEAN.waterW, OCEAN.waterD), new THREE.MeshStandardMaterial({ color: 0x075985, transparent: true, opacity: .72, roughness: .18, metalness: .08, side: THREE.DoubleSide, depthWrite: false }));
+  const seabed = new THREE.Mesh(new THREE.BoxGeometry(OCEAN.waterW, .5, OCEAN.waterD), mat(0x23465a)); seabed.position.set(OCEAN.cx,OCEAN.bottom-.25,OCEAN.cz);scene.add(seabed);
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(OCEAN.waterW, OCEAN.waterD), new THREE.MeshStandardMaterial({ color: 0x075985, transparent: true, opacity: .86, roughness: .18, metalness: .08, side: THREE.DoubleSide, depthWrite: false }));
   water.rotation.x = -Math.PI / 2; water.position.set(OCEAN.cx, OCEAN.surface, OCEAN.cz); scene.add(water);
-  for (let i = 0; i < 48; i++) { const wave = new THREE.Mesh(new THREE.BoxGeometry(9 + Math.random() * 15, .08, .35), new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: .55 })); wave.position.set(-220 - Math.random() * 840, .62, OCEAN.cz + (Math.random() - .5) * 390); wave.userData.phase = Math.random() * 6.28; scene.add(wave); oceanWaves.push(wave); }
+  for (let i = 0; i < 110; i++) { const wave = new THREE.Mesh(new THREE.BoxGeometry(9 + Math.random() * 15, .08, .35), new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: .55 })); wave.position.set(-220 - Math.random() * 840, .62, OCEAN.cz + (Math.random() - .5) * 390); wave.userData.phase = Math.random() * 6.28; scene.add(wave); oceanWaves.push(wave); }
+  const kelpGeo=new THREE.BoxGeometry(.35,3,.35),kelpMat=mat(0x166534),kelp=new THREE.InstancedMesh(kelpGeo,kelpMat,100),matrix=new THREE.Matrix4();
+  for(let i=0;i<100;i++){matrix.makeTranslation(-240-Math.random()*780,OCEAN.bottom+1.5,OCEAN.cz+(Math.random()-.5)*380);kelp.setMatrixAt(i,matrix);}kelp.instanceMatrix.needsUpdate=true;scene.add(kelp);
+  for(let i=0;i<36;i++){const fish=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(.65,.3,1.15),mat(i%3===0?0xf59e0b:i%3===1?0x38bdf8:0xcbd5e1));fish.add(body);const tail=new THREE.Mesh(new THREE.ConeGeometry(.28,.55,4),body.material);tail.rotation.x=Math.PI/2;tail.position.z=-.75;fish.add(tail);fish.position.set(-250-Math.random()*760,-1-Math.random()*8,OCEAN.cz+(Math.random()-.5)*370);fish.userData.speed=1+Math.random()*2;scene.add(fish);oceanFish.push(fish);}
+  for(let i=0;i<7;i++){const shark=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.3,.65,3.4),mat(0x64748b));shark.add(body);const fin=new THREE.Mesh(new THREE.ConeGeometry(.55,1.1,4),mat(0x475569));fin.position.y=.75;shark.add(fin);shark.position.set(-300-Math.random()*700,-.9-Math.random()*2,OCEAN.cz+(Math.random()-.5)*340);shark.userData.speed=2.5+Math.random()*1.5;scene.add(shark);oceanSharks.push(shark);}
   const island = new THREE.Mesh(new THREE.CylinderGeometry(130, 118, 2.8, 24), new THREE.MeshStandardMaterial({ color: 0xb78b52, roughness: 1 })); island.scale.z = TREASURE_ISLAND.d / TREASURE_ISLAND.w; island.position.set(TREASURE_ISLAND.x, -.65, TREASURE_ISLAND.z); island.receiveShadow = true; scene.add(island);
   const grass = new THREE.Mesh(new THREE.CircleGeometry(124, 24), new THREE.MeshStandardMaterial({ color: 0x294b2a, roughness: 1 })); grass.scale.y = TREASURE_ISLAND.d / TREASURE_ISLAND.w; grass.rotation.x = -Math.PI / 2; grass.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface, TREASURE_ISLAND.z); scene.add(grass);
   // Bosque de árboles gigantes: copas densas y oscuras que bloquean la luz solar.
@@ -2399,11 +2404,17 @@ function inTreasureIsland(x,z) { return Math.abs(x-TREASURE_ISLAND.x)<TREASURE_I
 function updateOceanExpedition(dt) {
   const storm = boat && boat.sailing && state.weather === 'rain';
   for (const w of oceanWaves) { w.position.y = OCEAN.surface + .12 + Math.sin(performance.now()*.0025+w.userData.phase)*(storm ? .75 : .24); w.rotation.z = Math.sin(performance.now()*.0018+w.userData.phase)*.08; }
+  for(const fish of oceanFish){fish.position.x-=fish.userData.speed*dt;if(fish.position.x<-1140)fish.position.x=-230;fish.rotation.y=Math.PI/2;}
+  for(const shark of oceanSharks){shark.position.x-=shark.userData.speed*dt;if(shark.position.x<-1140)shark.position.x=-250;shark.rotation.y=Math.PI/2;}
+  const swimmingOcean=!!waterZoneAt(player.position.x,player.position.z)&&player.position.x<-220&&!state.sailing;
+  oceanHazardCd=Math.max(0,oceanHazardCd-dt);
+  if(swimmingOcean){state.hp-=1.15*dt;for(const shark of oceanSharks){if(dist2D(player.position,shark.position)<4&&oceanHazardCd<=0){oceanHazardCd=2.2;damagePlayer(16,shark.position);toast('🦈 ¡Un tiburón te mordió! Busca el barco');break;}}if(oceanHazardCd<=0&&Math.random()<dt*.18){oceanHazardCd=2;toast('🥶 El océano está helado · necesitas el barco');}}
   if (!boat || !boat.sailing) { updateTempleTraps(dt); return; }
   const turn = (keys.KeyA?-1:0)+(keys.KeyD?1:0)+touch.moveX, throttle = THREE.MathUtils.clamp((keys.KeyW?1:0)-(keys.KeyS?1:0)+touch.moveY,-1,1); boat.heading -= turn*dt*1.05; boat.group.rotation.y=boat.heading;
   const speed = 10.5*(1+(state.boatCrew||0)*.08), fwd = new THREE.Vector3(-Math.sin(boat.heading),0,-Math.cos(boat.heading)); boat.group.position.addScaledVector(fwd, throttle*speed*dt);
   boat.group.position.x=THREE.MathUtils.clamp(boat.group.position.x,-1200,-190); boat.group.position.z=THREE.MathUtils.clamp(boat.group.position.z,OCEAN.cz-OCEAN.waterD*.46,OCEAN.cz+OCEAN.waterD*.46);
-  boat.group.position.y=OCEAN.surface+.3+Math.sin(performance.now()*.003)* (storm ? .9 : .22); boat.group.rotation.z=Math.sin(performance.now()*.0024)* (storm ? .16 : .035);
+  boat.heading+=Math.sin(performance.now()*.0017)*dt*(storm ? .34 : .1);boat.group.position.z+=Math.sin(performance.now()*.0021)*dt*(storm ? 2.2 : .55);
+  boat.group.position.y=OCEAN.surface+.3+Math.sin(performance.now()*.003)* (storm ? .9 : .32); boat.group.rotation.z=Math.sin(performance.now()*.0024)* (storm ? .16 : .055);
   player.position.set(boat.group.position.x,boat.group.position.y+3,boat.group.position.z); yaw=boat.heading; state.voyageDays=(state.voyageDays||0)+Math.abs(throttle)*dt/6; boat.days=state.voyageDays;
   oceanStormT-=dt; if(oceanStormT<=0){oceanStormT=35+Math.random()*45;if(Math.random()<.6){state.weather='rain';state.weatherLeft=28;ensureRain().visible=true;toast('⛈️ ¡TORMENTA EN ALTA MAR! Mantén el rumbo');}}
   if(storm){boat.hp-=Math.max(0,4-(state.boatCrew||0))*.12*dt;if(Math.random()<dt*.35)cameraShake=Math.max(cameraShake,.16);}
@@ -2452,7 +2463,7 @@ function setCityVisible(v) {
   trafficLights.forEach(t => t.visible = v);
 }
 const roads = [
-  { cx: 0, cz: 0, len: 460, horizontal: true },     // avenida central este-oeste (llega al borde del mapa)
+  { cx: 0, cz: 0, len: 290, horizontal: true },     // termina antes de la costa: dentro del mar no hay calles
   { cx: 0, cz: 0, len: 460, horizontal: false },    // avenida central norte-sur (llega al borde del mapa)
   { cx: -55, cz: 50, len: 120, horizontal: true },  // ciudad
   { cx: -30, cz: 50, len: 116, horizontal: false }, // ciudad
@@ -3064,8 +3075,8 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
 function buildEarthMountains() {
   const g = new THREE.Group(); scene.add(g);
   const CERROS = [
-    [-198, -70, 34, 40, 1],   // cordillera del suroeste
-    [-172, -108, 26, 28, 2],
+    [-198, 118, 34, 40, 1],   // cordillera occidental, lejos del océano
+    [-168, 165, 26, 28, 2],
     [196, -150, 32, 36, 3],   // pico del sureste
     [70, 198, 30, 34, 4],     // cerro del norte
     [-118, 196, 26, 26, 5],   // cerro del noroeste
@@ -8273,6 +8284,10 @@ function updateDriving(dt) {
   car.reverse = throttle < -0.05; car.turbo = !!turbo;
   const prevX = car.group.position.x, prevZ = car.group.position.z;
   car.group.position.addScaledVector(fwd, move);
+  if (!car.helicopter && car.group.position.x < -188 && Math.abs(car.group.position.z - OCEAN.cz) < OCEAN.waterD / 2) {
+    car.group.position.set(prevX, car.group.position.y, prevZ); car.speed = 0;
+    car.oceanWarn = (car.oceanWarn || 0) - dt; if (car.oceanWarn <= 0) { car.oceanWarn = 2; toast('🌊 Los autos no pueden entrar al océano · usa un barco'); }
+  }
   car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -230, 230);
   car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, -230, 230);
   if (car.helicopter) {

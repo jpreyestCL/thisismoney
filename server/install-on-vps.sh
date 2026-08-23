@@ -21,7 +21,9 @@ sudo install -m 0644 thisismoney-leaderboard.service "/etc/systemd/system/$SERVI
 sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE"
 sudo systemctl stop "$SERVICE" || true
+sudo pkill -f '/var/www/tim.strivexlatam.com/server/leaderboard.mjs' || true
 sudo fuser -k 8787/tcp || true
+sleep 1
 sudo systemctl restart "$SERVICE"
 
 sudo install -m 0644 nginx-location.conf /etc/nginx/snippets/tim-leaderboard.conf

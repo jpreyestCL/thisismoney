@@ -652,7 +652,7 @@
 
 <div id="pacbox" style="position:fixed;inset:0;display:none;z-index:30;background:rgba(2,6,23,.92);align-items:center;justify-content:center;pointer-events:all;">
   <div style="width:min(94vw,520px);background:#050816;border:3px solid #facc15;border-radius:16px;padding:14px;text-align:center;box-shadow:0 0 30px rgba(250,204,21,.35)">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:#facc15;font-size:20px">🟡 PAC-MAN GAMER</b><span id="pacScore" style="font-weight:800">Puntos: 0 · Vidas: 3</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:#facc15;font-size:20px">🟡 PAC-MAN GAMER</b><span id="pacScore" style="font-weight:800">Puntos: 0 · Vidas: 5</span></div>
     <canvas id="pacCanvas" width="442" height="338" style="width:min(88vw,442px);margin-top:10px;background:#000;border-radius:8px;image-rendering:pixelated"></canvas>
     <div style="font-size:12px;opacity:.75;margin:6px 0">Flechas o WASD para moverte · come todos los puntos · evita los fantasmas</div>
     <div id="pacControls" style="display:grid;grid-template-columns:repeat(3,48px);justify-content:center;gap:4px;margin:8px auto">
@@ -6324,7 +6324,7 @@ let pacTimer = null, pacState = null;
 function pacOpen() {
   releaseLock(); typing = true; for (const k in keys) keys[k] = false;
   const dots = new Set(); PAC_MAZE.forEach((row, y) => [...row].forEach((cell, x) => { if (cell === '.') dots.add(x + ',' + y); }));
-  pacState = { player: { x: 1, y: 1 }, dir: { x: 0, y: 0 }, next: { x: 0, y: 0 }, ghosts: [{ x: 15, y: 11, c: '#ef4444' }, { x: 1, y: 11, c: '#ec4899' }, { x: 15, y: 1, c: '#22d3ee' }], dots, score: 0, lives: 3, tick: 0 };
+  pacState = { player: { x: 1, y: 1 }, dir: { x: 0, y: 0 }, next: { x: 0, y: 0 }, ghosts: [{ x: 15, y: 11, c: '#ef4444' }, { x: 1, y: 11, c: '#22d3ee' }], dots, score: 0, lives: 5, tick: 0 };
   ui('pacbox').style.display = 'flex'; pacDraw();
   if (pacTimer) clearInterval(pacTimer); pacTimer = setInterval(pacStep, 145);
   toast('🕹️ ¡Pac-Man iniciado en el computador gamer!');
@@ -6338,10 +6338,10 @@ function pacStep() {
   if (pacFree(s.player.x + s.next.x, s.player.y + s.next.y)) s.dir = s.next;
   if (pacFree(s.player.x + s.dir.x, s.player.y + s.dir.y)) { s.player.x += s.dir.x; s.player.y += s.dir.y; }
   const dot = s.player.x + ',' + s.player.y; if (s.dots.delete(dot)) { s.score += 10; tone(740 + (s.score % 40), .035, .025, 'square'); }
-  for (const g of s.ghosts) {
+  if (s.tick % 2 === 0) for (const g of s.ghosts) {   // modo fácil: los fantasmas avanzan a la mitad de velocidad
     const choices = [[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dz]) => pacFree(g.x + dx, g.y + dz));
     choices.sort((a,b) => (Math.abs(g.x+a[0]-s.player.x)+Math.abs(g.y+a[1]-s.player.y))-(Math.abs(g.x+b[0]-s.player.x)+Math.abs(g.y+b[1]-s.player.y)));
-    const pick = Math.random() < .68 ? choices[0] : choices[(Math.random() * choices.length) | 0]; if (pick) { g.x += pick[0]; g.y += pick[1]; }
+    const pick = Math.random() < .42 ? choices[0] : choices[(Math.random() * choices.length) | 0]; if (pick) { g.x += pick[0]; g.y += pick[1]; }
   }
   if (s.ghosts.some(g => g.x === s.player.x && g.y === s.player.y)) { s.lives--; tone(110,.35,.06,'sawtooth'); s.player.x = s.player.y = 1; s.dir = {x:0,y:0}; if (s.lives <= 0) { toast('👻 Fin del juego · conseguiste ' + s.score + ' puntos'); pacClose(); return; } }
   if (!s.dots.size) { addMoney(250); toast('🏆 ¡Ganaste Pac-Man! +$250'); tone(880,.2,.06,'triangle'); pacClose(); return; }

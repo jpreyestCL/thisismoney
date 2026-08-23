@@ -650,6 +650,19 @@
   </div>
 </div>
 
+<div id="pacbox" style="position:fixed;inset:0;display:none;z-index:30;background:rgba(2,6,23,.92);align-items:center;justify-content:center;pointer-events:all;">
+  <div style="width:min(94vw,520px);background:#050816;border:3px solid #facc15;border-radius:16px;padding:14px;text-align:center;box-shadow:0 0 30px rgba(250,204,21,.35)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:#facc15;font-size:20px">🟡 PAC-MAN GAMER</b><span id="pacScore" style="font-weight:800">Puntos: 0 · Vidas: 3</span></div>
+    <canvas id="pacCanvas" width="442" height="338" style="width:min(88vw,442px);margin-top:10px;background:#000;border-radius:8px;image-rendering:pixelated"></canvas>
+    <div style="font-size:12px;opacity:.75;margin:6px 0">Flechas o WASD para moverte · come todos los puntos · evita los fantasmas</div>
+    <div id="pacControls" style="display:grid;grid-template-columns:repeat(3,48px);justify-content:center;gap:4px;margin:8px auto">
+      <span></span><button class="bankBtn" data-pac="up">▲</button><span></span>
+      <button class="bankBtn" data-pac="left">◀</button><button class="bankBtn" data-pac="down">▼</button><button class="bankBtn" data-pac="right">▶</button>
+    </div>
+    <button class="bankBtn" id="pacClose" style="width:100%">Cerrar juego ✕</button>
+  </div>
+</div>
+
 <div id="airportbox" style="position:absolute; inset:0; display:none; z-index:13; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all;">
   <div style="width:min(94vw,460px); max-height:86vh; overflow-y:auto; background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:20px; color:#e2e8f0;">
     <h2 style="margin:0 0 4px; color:#7dd3fc; text-align:center;">✈️ TICKETS DE AVIÓN</h2>
@@ -6302,8 +6315,51 @@ function useGamerSpeaker(speaker) {
   else { startGamerSpeaker(speaker); toast('🔊 ¡Música gamer encendida! Pulsa E para apagarla'); }
   return true;
 }
+const PAC_MAZE = [
+  '#################','#.......#.......#','#.###.#.#.#.###.#','#.....#...#.....#','###.#.#####.#.###',
+  '#...#...#...#...#','#.#####.#.#####.#','#...............#','#.###.#####.###.#','#...#...#...#...#',
+  '###.###.#.###.###','#...............#','#################'
+];
+let pacTimer = null, pacState = null;
+function pacOpen() {
+  releaseLock(); typing = true; for (const k in keys) keys[k] = false;
+  const dots = new Set(); PAC_MAZE.forEach((row, y) => [...row].forEach((cell, x) => { if (cell === '.') dots.add(x + ',' + y); }));
+  pacState = { player: { x: 1, y: 1 }, dir: { x: 0, y: 0 }, next: { x: 0, y: 0 }, ghosts: [{ x: 15, y: 11, c: '#ef4444' }, { x: 1, y: 11, c: '#ec4899' }, { x: 15, y: 1, c: '#22d3ee' }], dots, score: 0, lives: 3, tick: 0 };
+  ui('pacbox').style.display = 'flex'; pacDraw();
+  if (pacTimer) clearInterval(pacTimer); pacTimer = setInterval(pacStep, 145);
+  toast('🕹️ ¡Pac-Man iniciado en el computador gamer!');
+  return true;
+}
+function pacClose() { if (pacTimer) { clearInterval(pacTimer); pacTimer = null; } ui('pacbox').style.display = 'none'; typing = false; }
+function pacFree(x, y) { return PAC_MAZE[y] && PAC_MAZE[y][x] && PAC_MAZE[y][x] !== '#'; }
+function pacMove(dir) { if (pacState) pacState.next = dir; }
+function pacStep() {
+  const s = pacState; if (!s) return; s.tick++;
+  if (pacFree(s.player.x + s.next.x, s.player.y + s.next.y)) s.dir = s.next;
+  if (pacFree(s.player.x + s.dir.x, s.player.y + s.dir.y)) { s.player.x += s.dir.x; s.player.y += s.dir.y; }
+  const dot = s.player.x + ',' + s.player.y; if (s.dots.delete(dot)) { s.score += 10; tone(740 + (s.score % 40), .035, .025, 'square'); }
+  for (const g of s.ghosts) {
+    const choices = [[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dz]) => pacFree(g.x + dx, g.y + dz));
+    choices.sort((a,b) => (Math.abs(g.x+a[0]-s.player.x)+Math.abs(g.y+a[1]-s.player.y))-(Math.abs(g.x+b[0]-s.player.x)+Math.abs(g.y+b[1]-s.player.y)));
+    const pick = Math.random() < .68 ? choices[0] : choices[(Math.random() * choices.length) | 0]; if (pick) { g.x += pick[0]; g.y += pick[1]; }
+  }
+  if (s.ghosts.some(g => g.x === s.player.x && g.y === s.player.y)) { s.lives--; tone(110,.35,.06,'sawtooth'); s.player.x = s.player.y = 1; s.dir = {x:0,y:0}; if (s.lives <= 0) { toast('👻 Fin del juego · conseguiste ' + s.score + ' puntos'); pacClose(); return; } }
+  if (!s.dots.size) { addMoney(250); toast('🏆 ¡Ganaste Pac-Man! +$250'); tone(880,.2,.06,'triangle'); pacClose(); return; }
+  pacDraw();
+}
+function pacDraw() {
+  const s = pacState, cv = ui('pacCanvas'); if (!s || !cv) return; const c = cv.getContext('2d'), cell = 26;
+  c.clearRect(0,0,cv.width,cv.height); c.fillStyle='#000'; c.fillRect(0,0,cv.width,cv.height);
+  for (let y=0;y<PAC_MAZE.length;y++) for (let x=0;x<PAC_MAZE[y].length;x++) { if (PAC_MAZE[y][x]==='#') { c.fillStyle='#1d4ed8'; c.fillRect(x*cell+2,y*cell+2,cell-4,cell-4); } else if (s.dots.has(x+','+y)) { c.fillStyle='#fde68a'; c.beginPath(); c.arc(x*cell+13,y*cell+13,2.8,0,Math.PI*2); c.fill(); } }
+  c.fillStyle='#facc15'; c.beginPath(); c.arc(s.player.x*cell+13,s.player.y*cell+13,10,0.18+(s.tick%2)*.18,Math.PI*2-0.18-(s.tick%2)*.18); c.lineTo(s.player.x*cell+13,s.player.y*cell+13); c.fill();
+  for (const g of s.ghosts) { c.fillStyle=g.c; c.beginPath(); c.arc(g.x*cell+13,g.y*cell+12,9,Math.PI,0); c.fillRect(g.x*cell+4,g.y*cell+12,18,10); c.fill(); c.fillStyle='#fff'; c.fillRect(g.x*cell+8,g.y*cell+10,4,5); c.fillRect(g.x*cell+15,g.y*cell+10,4,5); }
+  ui('pacScore').textContent = 'Puntos: '+s.score+' · Vidas: '+s.lives;
+}
+ui('pacClose').onclick = pacClose;
+ui('pacControls').querySelectorAll('[data-pac]').forEach(b => b.onclick = () => { const d={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}}; pacMove(d[b.dataset.pac]); });
+addEventListener('keydown', e => { if (ui('pacbox').style.display !== 'flex') return; const d={ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1],ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0]}; if (e.code==='Escape') pacClose(); else if (d[e.code]) pacMove({x:d[e.code][0],y:d[e.code][1]}); e.preventDefault(); e.stopImmediatePropagation(); });
 function aimedFurniture(maxD = 4.5) {
-  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer']);
+  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer', 'computador_gamer']);
   const origin = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
   let best = null, bestScore = -Infinity;
   for (const o of placed) {
@@ -6319,13 +6375,16 @@ function tryFocusedFurniture() {
   const target = aimedFurniture(); if (!target) return false;
   if (target.key === 'teclado_gamer') return useGamerKeyboard();
   if (target.key === 'parlante_gamer') return useGamerSpeaker(target);
+  if (target.key === 'computador_gamer') return pacOpen();
   return trySit(target);
 }
 function trySeatedGamerKeyboard() {
   if (!sitOn) return false;
   const target = aimedFurniture();
-  if (!target || target.key !== 'teclado_gamer') return false;
-  return useGamerKeyboard();
+  if (!target) return false;
+  if (target.key === 'teclado_gamer') return useGamerKeyboard();
+  if (target.key === 'computador_gamer') return pacOpen();
+  return false;
 }
 function toggleSound() {
   soundOn = !soundOn;
@@ -9940,9 +9999,11 @@ function updateContextPrompt() {
       else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
       else if (sitOn && aimed && aimed.key === 'teclado_gamer') action = { key: 'CLIC · E', touch: '👊', text: 'Usar teclado gamer · E para pararte' };
+      else if (sitOn && aimed && aimed.key === 'computador_gamer') action = { key: 'CLIC · E', touch: '👊', text: 'Jugar Pac-Man · E para pararte' };
       else if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
       else if (furniture && furniture.key === 'teclado_gamer') action = { key: 'E', touch: '⌨️', text: 'Usar el teclado gamer' };
       else if (furniture && furniture.key === 'parlante_gamer') action = { key: 'E', touch: '🔊', text: activeGamerSpeaker === furniture ? 'Apagar la música gamer' : 'Encender la música gamer' };
+      else if (furniture && furniture.key === 'computador_gamer') action = { key: 'E', touch: '🕹️', text: 'Jugar Pac-Man' };
       else if (asiento && !state.buildMode) action = { key: 'E', touch: '🪑', text: asiento.key === 'bano' ? 'Sentarte en el baño' : asiento.key === 'cama' ? 'Acostarte' : 'Sentarte' };
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };

@@ -1355,6 +1355,7 @@ const DECOR_ITEMS = [
   { key: 'luces_gamer', name: 'Luces gamer', price: 300, value: 110, color: 0xa855f7, build: true, deco: true },
   { key: 'teclado_gamer', name: 'Teclado gamer', price: 220, value: 80, color: 0x22d3ee, build: true, deco: true },
   { key: 'parlante_gamer', name: 'Parlante gamer', price: 350, value: 130, color: 0x1f2937, build: true, deco: true },
+  { key: 'alexa', name: 'Alexa inteligente', price: 500, value: 190, color: 0x111827, build: true, deco: true },
   { key: 'mesa_gamer', name: 'Mesa gamer', price: 750, value: 280, color: 0x18181b, build: true, deco: true },
   { key: 'auto',   name: 'Auto',      price: 2000, color: 0xdc2626, car: true },
   { key: 'barco',  name: 'Barco de expedición', price: 3000, color: 0x8b5a2b, boat: true },
@@ -4728,14 +4729,14 @@ let car = null;             // vehículo seleccionado (el último usado o compra
 const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
   'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'planta', 'laser', 'heladera', 'espejo', 'alfombra',
-  'wallMetal', 'wallDoor', 'pilar', 'bano', 'piso2', 'computador_gamer', 'pc_gamer', 'silla_gamer', 'luces_gamer', 'teclado_gamer', 'parlante_gamer', 'mesa_gamer'];
+  'wallMetal', 'wallDoor', 'pilar', 'bano', 'piso2', 'computador_gamer', 'pc_gamer', 'silla_gamer', 'luces_gamer', 'teclado_gamer', 'parlante_gamer', 'alexa', 'mesa_gamer'];
 // Categorías del hotbar (18 slots no caben en pantalla, ni en celular ni en PC).
 // Se muestran las 3 pestañas + las piezas de la categoría activa: así TODOS los
 // materiales son alcanzables (antes los slots 10-18 quedaban fuera de pantalla).
 const BUILD_CATS = {
   casa: ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'piso2', 'pilar', 'lamp', 'oven'],
   defensa: ['ballesta', 'torreta', 'laser'],
-  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'heladera', 'bano', 'mesa_gamer', 'silla_gamer', 'computador_gamer', 'pc_gamer', 'teclado_gamer', 'parlante_gamer'],
+  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'heladera', 'bano', 'mesa_gamer', 'silla_gamer', 'computador_gamer', 'pc_gamer', 'teclado_gamer', 'parlante_gamer', 'alexa'],
   deco: ['window', 'cuadro', 'planta', 'espejo', 'alfombra', 'luces_gamer'],
 };
 const BUILD_CAT_TABS = [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑'], ['deco', '🖼️']];
@@ -4884,6 +4885,7 @@ function objGeometry(key, variantId) {
   if (key === 'luces_gamer') return new THREE.BoxGeometry(2.8, 0.12, 0.12);
   if (key === 'teclado_gamer') return new THREE.BoxGeometry(1.05, 0.1, 0.38);
   if (key === 'parlante_gamer') return new THREE.BoxGeometry(0.65, 1.25, 0.55);
+  if (key === 'alexa') return new THREE.CylinderGeometry(.32, .36, .72, 18);
   if (key === 'mesa_gamer') return new THREE.BoxGeometry(2.4, 0.16, 1.1);
   return new THREE.BoxGeometry(1, 1, 1);
 }
@@ -4903,7 +4905,7 @@ function objColor(key, variantId) { const variant = variantFor(key, variantId); 
 const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
   window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, planta: 0.4, heladera: 0.95,
   espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35, piso2: 3,
-  computador_gamer: 0.66, pc_gamer: 0.6, silla_gamer: 0.5, luces_gamer: 1.8, teclado_gamer: 0.08, parlante_gamer: 0.65, mesa_gamer: 0.8 };
+  computador_gamer: 0.66, pc_gamer: 0.6, silla_gamer: 0.5, luces_gamer: 1.8, teclado_gamer: 0.08, parlante_gamer: 0.65, alexa: 0.38, mesa_gamer: 0.8 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
 // Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
 function objMaterial(key, variantId) {
@@ -5112,6 +5114,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY) {
   if (key === 'pc_gamer') { for (const y of [-0.28, 0.25]) { const fan = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 8, 18), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 1.4 })); fan.rotation.y = Math.PI / 2; fan.position.set(0.32, y, 0); m.add(fan); (obj.rgbParts = obj.rgbParts || []).push(fan); } }
   if (key === 'teclado_gamer') { for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) { const k = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.035, 0.07), mat((col + row) % 3 === 0 ? 0xa855f7 : (col + row) % 3 === 1 ? 0x22d3ee : 0xf43f5e)); k.position.set(-0.4 + col * 0.1, 0.065, -0.1 + row * 0.1); k.userData.rgbOff = col + row; k.userData.restY = k.position.y; m.add(k); (obj.rgbParts = obj.rgbParts || []).push(k); } }
   if (key === 'parlante_gamer') { for (const y of [-0.3, 0.28]) { const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 20), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x7c3aed, emissiveIntensity: 0.8 })); cone.rotation.x = Math.PI / 2; cone.position.set(0, y, 0.295); m.add(cone); (obj.rgbParts = obj.rgbParts || []).push(cone); } }
+  if (key === 'alexa') { const ring=new THREE.Mesh(new THREE.TorusGeometry(.27,.035,8,24),new THREE.MeshStandardMaterial({color:0x22d3ee,emissive:0x22d3ee,emissiveIntensity:1.8}));ring.rotation.x=Math.PI/2;ring.position.y=.38;m.add(ring);const dot=new THREE.Mesh(new THREE.SphereGeometry(.045,8,8),mat(0x38bdf8));dot.position.set(0,.39,.18);m.add(dot);obj.rgbParts=[ring]; }
   if (key === 'luces_gamer') { const glow = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.07, 0.14), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 2 })); glow.position.z = 0.04; m.add(glow); const light = new THREE.PointLight(0xa855f7, 1.2, 7); light.position.set(0, 0.15, 0.5); m.add(light); obj.rgbParts = [glow]; obj.rgbLight = light; }
   if (key === 'door') {
     const fr = new THREE.MeshStandardMaterial({ color: 0x4a2f15, roughness: 0.9 });
@@ -6607,6 +6610,9 @@ function useGamerSpeaker(speaker) {
   else { startGamerSpeaker(speaker); toast('🔊 ¡Música gamer encendida! Pulsa E para apagarla'); }
   return true;
 }
+function alexaSpeak(text){toast('🔵 Alexa: '+text);if('speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='es-CL';u.rate=1.02;speechSynthesis.speak(u);}}
+function handleAlexaRequest(alexa,raw){const q=(raw||'').trim().toLowerCase();if(!q){alexaSpeak('No alcancé a escuchar. Pulsa E para intentarlo de nuevo.');return;}if(/para|detén|deten|apaga|silencio/.test(q)&&/música|musica|canción|cancion/.test(q)){stopGamerSpeaker();alexaSpeak('Música apagada.');return;}if(/música|musica|canción|cancion|reggaet|épica|epica|pon |reproduce/.test(q)){startGamerSpeaker(alexa);alexaSpeak('Reproduciendo una canción reggaetonera y épica.');return;}let answer='Esa pregunta todavía no me la sé, pero puedo decirte la hora, tu dinero, tu etapa, el clima o reproducir música.';if(/hora/.test(q))answer='Son las '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});else if(/dinero|plata|saldo/.test(q))answer='Tienes '+Math.round(state.money)+' dólares.';else if(/etapa|nivel/.test(q))answer='Vas en la etapa '+state.stage+'.';else if(/clima|tiempo/.test(q))answer=state.weather==='rain'?'Está lloviendo.':'Ahora está despejado.';else if(/cómo te llamas|como te llamas|quién eres|quien eres/.test(q))answer='Soy Alexa, tu asistente de This is Money.';else if(/zombi/.test(q))answer=state.stage>=20?'Desde la etapa veinte también aparece el zombi bombardero.':'Los zombis salen de noche. Prepárate antes de que oscurezca.';else if(/qué puedo|que puedo|ayuda/.test(q))answer='Puedes pedirme música o preguntarme la hora, tu dinero, la etapa, el clima o sobre zombis.';alexaSpeak(answer);}
+function useAlexa(alexa){releaseLock();const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(Recognition){const rec=new Recognition();typing=true;rec.lang='es-CL';rec.interimResults=false;alexaSpeak('Te escucho.');rec.onresult=e=>handleAlexaRequest(alexa,e.results[0][0].transcript);rec.onerror=()=>{const q=prompt('Alexa no pudo usar el micrófono. Escribe tu pregunta o canción:','Pon música épica');handleAlexaRequest(alexa,q);};rec.onend=()=>{typing=false;};try{rec.start();}catch(e){typing=false;handleAlexaRequest(alexa,prompt('Escríbele a Alexa:','¿Cuánto dinero tengo?'));}}else handleAlexaRequest(alexa,prompt('Escríbele a Alexa:','Pon música reggaetonera'));return true;}
 const PAC_MAZE = [
   '#################','#.......#.......#','#.###.#.#.#.###.#','#.....#...#.....#','###.#.#####.#.###',
   '#...#...#...#...#','#.#####.#.#####.#','#...............#','#.###.#####.###.#','#...#...#...#...#',
@@ -6651,7 +6657,7 @@ ui('pacClose').onclick = pacClose;
 ui('pacControls').querySelectorAll('[data-pac]').forEach(b => b.onclick = () => { const d={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}}; pacMove(d[b.dataset.pac]); });
 addEventListener('keydown', e => { if (ui('pacbox').style.display !== 'flex') return; const d={ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1],ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0]}; if (e.code==='Escape') pacClose(); else if (d[e.code]) pacMove({x:d[e.code][0],y:d[e.code][1]}); e.preventDefault(); e.stopImmediatePropagation(); });
 function aimedFurniture(maxD = 4.5) {
-  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer', 'computador_gamer']);
+  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer', 'computador_gamer', 'alexa']);
   const origin = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
   let best = null, bestScore = -Infinity;
   for (const o of placed) {
@@ -6667,6 +6673,7 @@ function tryFocusedFurniture() {
   const target = aimedFurniture(); if (!target) return false;
   if (target.key === 'teclado_gamer') return useGamerKeyboard(target);
   if (target.key === 'parlante_gamer') return useGamerSpeaker(target);
+  if (target.key === 'alexa') return useAlexa(target);
   if (target.key === 'computador_gamer') return pacOpen();
   return trySit(target);
 }
@@ -6864,7 +6871,7 @@ function shopIcon(item) {
   if (item.key === 'moto') return '🏍️'; if (item.key === 'heladera') return '🧊';
   if (item.key === 'computador_gamer') return '🖥️'; if (item.key === 'pc_gamer') return '🖥️';
   if (item.key === 'silla_gamer') return '💺'; if (item.key === 'luces_gamer') return '🌈';
-  if (item.key === 'teclado_gamer') return '⌨️'; if (item.key === 'parlante_gamer') return '🔊'; if (item.key === 'mesa_gamer') return '🖥️';
+  if (item.key === 'teclado_gamer') return '⌨️'; if (item.key === 'parlante_gamer') return '🔊'; if (item.key === 'alexa') return '🔵'; if (item.key === 'mesa_gamer') return '🖥️';
   if (item.build) return '🧱'; return '🛒';
 }
 // Menú de tienda: una fila por producto; tocar = comprar (sin teclado)
@@ -7609,8 +7616,8 @@ ui('bankCloseBtn').onclick = closeBank;
 // ===================================================================
 // La carga del cohete SOBREVIVE al viaje (goToPlanet no la borra). Cárgalo en la Tierra
 // con comida/materiales/armas y sácalos en el planeta nuevo para sobrevivir más.
-const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠', computador_gamer: '🖥️', pc_gamer: '🖥️', silla_gamer: '💺', luces_gamer: '🌈', teclado_gamer: '⌨️', parlante_gamer: '🔊', mesa_gamer: '🖥️' };
-const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Pared metal', wallDoor: 'Pared puerta', pilar: 'Pilar', bano: 'Baño', piso2: 'Piso 2', computador_gamer: 'Computador gamer', pc_gamer: 'PC gamer', silla_gamer: 'Silla gamer', luces_gamer: 'Luces gamer', teclado_gamer: 'Teclado gamer', parlante_gamer: 'Parlante gamer', mesa_gamer: 'Mesa gamer' };
+const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠', computador_gamer: '🖥️', pc_gamer: '🖥️', silla_gamer: '💺', luces_gamer: '🌈', teclado_gamer: '⌨️', parlante_gamer: '🔊', alexa: '🔵', mesa_gamer: '🖥️' };
+const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Pared metal', wallDoor: 'Pared puerta', pilar: 'Pilar', bano: 'Baño', piso2: 'Piso 2', computador_gamer: 'Computador gamer', pc_gamer: 'PC gamer', silla_gamer: 'Silla gamer', luces_gamer: 'Luces gamer', teclado_gamer: 'Teclado gamer', parlante_gamer: 'Parlante gamer', alexa: 'Alexa inteligente', mesa_gamer: 'Mesa gamer' };
 const INV_KEYS = ['food', 'semillas', 'semillas_zanahoria', 'semillas_trigo', 'semillas_tomate', 'carbon', ...BUILD_KEYS];
 function rocketRow(key, n, into) {
   const b = document.createElement('button');
@@ -10481,6 +10488,7 @@ function updateContextPrompt() {
       else if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
       else if (furniture && furniture.key === 'teclado_gamer') action = { key: 'E', touch: '⌨️', text: 'Usar el teclado gamer' };
       else if (furniture && furniture.key === 'parlante_gamer') action = { key: 'E', touch: '🔊', text: activeGamerSpeaker === furniture ? 'Apagar la música gamer' : 'Encender la música gamer' };
+      else if (furniture && furniture.key === 'alexa') action = { key: 'E', touch: '🔵', text: 'Hablar con Alexa' };
       else if (furniture && furniture.key === 'computador_gamer') action = { key: 'E', touch: '🕹️', text: 'Jugar Pac-Man' };
       else if (asiento && !state.buildMode) action = { key: 'E', touch: '🪑', text: asiento.key === 'bano' ? 'Sentarte en el baño' : asiento.key === 'cama' ? 'Acostarte' : 'Sentarte' };
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };

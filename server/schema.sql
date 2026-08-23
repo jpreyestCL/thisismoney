@@ -15,6 +15,10 @@ create table if not exists leaderboard_scores (
 alter table leaderboard_scores
   add column if not exists creative boolean not null default false;
 
+-- Versiones antiguas no enviaban el modo; sus cifras de dinero infinito se corrigen al migrar.
+update leaderboard_scores set creative = true
+  where best_money >= 999999999;
+
 create index if not exists leaderboard_money_idx
   on leaderboard_scores (quarter, best_money desc, best_stage desc);
 create index if not exists leaderboard_stage_idx

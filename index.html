@@ -7343,8 +7343,8 @@ try {
   }
 } catch (e) {}
 async function submitLeaderboard(force = false) {
-  if (!leaderboardPlayerId || !state.running) return false;
-  const leaderboardName = (typeof net !== 'undefined' && net.name) || currentProfile || 'Jugador';
+  if (!leaderboardPlayerId || !state.running || state.creative) return false;
+  const leaderboardName = currentProfile || (typeof net !== 'undefined' && net.name) || 'Jugador';
   const now = Date.now(); if (!force && now - leaderboardLastSent < 60_000) return false;
   leaderboardLastSent = now;
   try {

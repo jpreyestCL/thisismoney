@@ -43,8 +43,8 @@ async function list(req, res, url) {
   const order = sort === 'stage' ? 'best_stage desc, best_money desc' : sort === 'players' ? 'updated_at desc' : 'best_money desc, best_stage desc';
   const q = quarter();
   const [rows, count] = await Promise.all([
-    pool.query(`select display_name, best_money, best_stage, creative, updated_at from leaderboard_scores where quarter = $1 order by ${order} limit $2`, [q, limit]),
-    pool.query('select count(*)::int as total from leaderboard_scores where quarter = $1', [q]),
+    pool.query(`select display_name, best_money, best_stage, creative, updated_at from leaderboard_scores where quarter = $1 and creative = false order by ${order} limit $2`, [q, limit]),
+    pool.query('select count(*)::int as total from leaderboard_scores where quarter = $1 and creative = false', [q]),
   ]);
   json(res, 200, { quarter: q, totalPlayers: count.rows[0].total, sort, players: rows.rows });
 }

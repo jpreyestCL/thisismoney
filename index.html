@@ -2348,7 +2348,7 @@ buildBeach();
 
 // OCÉANO Y EXPEDICIÓN: un viaje largo en barco hasta una isla enorme de tesoros.
 const TREASURE_ISLAND = { x: -1080, z: -155, w: 260, d: 240, surface: .72 };
-let boat = null, oceanStormT = 35, templeTrapT = 0, oceanHazardCd = 0;
+let boat = null, oceanStormT = 35, templeTrapT = 0, oceanHazardCd = 0, oceanCurrentWarnAt = 0;
 const oceanWaves = [], oceanFish = [], oceanSharks = [], islandOres = [];
 function buildOceanExpedition() {
   const seabed = new THREE.Mesh(new THREE.BoxGeometry(OCEAN.waterW, .5, OCEAN.waterD), mat(0x23465a)); seabed.position.set(OCEAN.cx,OCEAN.bottom-.25,OCEAN.cz);scene.add(seabed);
@@ -9763,6 +9763,11 @@ function updateMovement(dt) {
     const swimUp = keys['Space'] || touch.jumpHeld, swimDown = keys['ControlLeft'] || keys['ControlRight'] || touch.crouch;
     const vertical = (swimUp ? 3.8 : 0) - (swimDown ? 3.8 : .7);
     player.position.y = THREE.MathUtils.clamp(player.position.y + vertical * dt, zone.bottom + PLAYER_EYE, zone.surface + PLAYER_EYE);
+    if (zone === OCEAN && player.position.x < -275 && !state.sailing) {
+      player.position.x = -275; player.position.z += Math.sin(performance.now() * .006) * dt * 3;
+      cameraShake = Math.max(cameraShake, .09);
+      if (performance.now() - oceanCurrentWarnAt > 3000) { oceanCurrentWarnAt = performance.now(); toast('🌊 ¡La corriente de aguas profundas no te deja avanzar! Necesitas el barco'); beep(145,.15,.04); }
+    }
     state.underwater = player.position.y < zone.surface - .05;
     grounded = player.position.y <= zone.bottom + PLAYER_EYE + .01; vy = 0; touch.jump = false;
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;

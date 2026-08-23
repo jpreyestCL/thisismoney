@@ -61,5 +61,6 @@ for attempt in 1 2 3 4 5; do
 done
 sudo systemctl --no-pager --full status "$SERVICE" || true
 sudo journalctl -u "$SERVICE" -n 30 --no-pager || true
+sudo journalctl -u "$SERVICE" -n 12 --no-pager | while IFS= read -r line; do echo "::error::$line"; done
 echo '::error::La API del ranking no pudo conectarse a PostgreSQL o iniciar en el puerto 8787'
 exit 1

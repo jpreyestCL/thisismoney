@@ -19,7 +19,9 @@ test -d "$MODULE_DIR/pg"
 sudo chmod -R a+rX "$MODULE_DIR" package.json leaderboard.mjs
 sudo install -m 0644 thisismoney-leaderboard.service "/etc/systemd/system/$SERVICE.service"
 sudo systemctl daemon-reload
-sudo systemctl enable --now "$SERVICE"
+sudo systemctl enable "$SERVICE"
+sudo systemctl stop "$SERVICE" || true
+sudo fuser -k 8787/tcp || true
 sudo systemctl restart "$SERVICE"
 
 sudo install -m 0644 nginx-location.conf /etc/nginx/snippets/tim-leaderboard.conf

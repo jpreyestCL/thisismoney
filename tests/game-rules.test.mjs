@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { CHAPTERS, GAME_RULES, houseRatings, nightDuration, roadmapFor } from '../src/game-config.js';
+import { CHAPTERS, GAME_RULES, houseRatings, monsterKillReward, nightDuration, roadmapFor } from '../src/game-config.js';
 
 assert.equal(nightDuration(1), 90, 'la primera noche debe ser breve');
 assert.equal(nightDuration(2), 180, 'las noches normales deben durar tres minutos');
@@ -17,5 +17,8 @@ assert.ok(sturdyHome.production > 0);
 assert.ok(sturdyHome.score > sturdyHome.protection);
 assert.equal(CHAPTERS.length, 8);
 assert.ok(CHAPTERS.every(chapter => chapter.goal && chapter.reward > 0 && chapter.blueprint));
+
+assert.equal(monsterKillReward(1), 1, 'un monstruo inicial debe entregar solo una moneda');
+assert.ok(monsterKillReward(100, 20) <= 10, 'ni una etapa muy alta debe convertir monstruos normales en una gran fuente de dinero');
 
 console.log('game rules: ok');

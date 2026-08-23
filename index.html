@@ -55,6 +55,13 @@
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
   .bankBtn { pointer-events: all; cursor: pointer; background: rgba(250,204,21,.18); border: 1px solid #facc15; color: #fff; padding: 10px 6px; font-size: 13px; font-weight: 800; border-radius: 9px; }
+  .ranking-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:12px 0; }
+  .ranking-tab.active { background:rgba(56,189,248,.3); border-color:#38bdf8; }
+  .ranking-row { display:grid; grid-template-columns:36px minmax(90px,1fr) 100px 72px; gap:8px; align-items:center; padding:8px 6px; border-bottom:1px solid rgba(148,163,184,.18); font-size:13px; }
+  .ranking-row.head { color:#7dd3fc; font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+  .ranking-row .rank-number { color:#facc15; font-weight:900; text-align:center; }
+  .ranking-row .rank-money { color:#4ade80; font-weight:800; text-align:right; }
+  .ranking-row .rank-stage { color:#c4b5fd; font-weight:800; text-align:right; }
   #dadhud { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; }
   #dadhud b { color: #38bdf8; }
   #gearhud { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; text-align: right; }
@@ -663,6 +670,24 @@
   </div>
 </div>
 
+<div id="rankingBox" style="position:fixed;inset:0;display:none;z-index:31;background:rgba(2,6,23,.92);align-items:center;justify-content:center;pointer-events:all;">
+  <div style="width:min(94vw,650px);max-height:88vh;overflow:hidden;background:#07111f;border:3px solid #38bdf8;border-radius:16px;padding:16px;box-shadow:0 0 34px rgba(56,189,248,.3);text-align:left">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div><h2 style="margin:0;color:#7dd3fc">🌎 RANKING MUNDIAL</h2><small id="rankingQuarter" style="color:#94a3b8">Trimestre actual</small></div>
+      <b id="rankingTotal" style="color:#facc15">0 jugadores</b>
+    </div>
+    <div class="ranking-tabs">
+      <button class="bankBtn ranking-tab active" data-ranking="money">💵 Más dinero</button>
+      <button class="bankBtn ranking-tab" data-ranking="stage">⭐ Mayor etapa</button>
+      <button class="bankBtn ranking-tab" data-ranking="players">👥 Jugadores</button>
+    </div>
+    <div class="ranking-row head"><span>Pos.</span><span>Jugador</span><span>Dinero</span><span>Etapa</span></div>
+    <div id="rankingRows" style="max-height:52vh;overflow-y:auto"><div style="padding:24px;text-align:center;color:#94a3b8">Cargando ranking…</div></div>
+    <div id="rankingStatus" style="min-height:18px;margin:8px 0;color:#fca5a5;font-size:12px;text-align:center"></div>
+    <button class="bankBtn" id="rankingClose" style="width:100%">Cerrar ✕</button>
+  </div>
+</div>
+
 <div id="airportbox" style="position:absolute; inset:0; display:none; z-index:13; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all;">
   <div style="width:min(94vw,460px); max-height:86vh; overflow-y:auto; background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:20px; color:#e2e8f0;">
     <h2 style="margin:0 0 4px; color:#7dd3fc; text-align:center;">✈️ TICKETS DE AVIÓN</h2>
@@ -810,7 +835,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
-import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, nightDuration, roadmapFor } from './src/game-config.js?v=7';
+import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=8';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -1474,6 +1499,22 @@ function makeStore(cx, cz, items, title, roofColor) {
 }
 const SUPER_B_POS = makeStore(-2, -40, STORE_B, 'ARMERIA', 0x6d28d9);
 makeStore(40, -22, STORE_A, 'SUPER', 0xdc2626);
+// Tabla mundial: está afuera, al costado oeste del súper principal.
+const LEADERBOARD_POS = new THREE.Vector3(25, 0, -22);
+const leaderboardBoard = new THREE.Group();
+{
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(6.4, 3.6, .28), mat(0x082f49));
+  panel.position.y = 3.1; panel.castShadow = true; leaderboardBoard.add(panel);
+  for (const x of [-2.65, 2.65]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(.3, 3.2, .3), mat(0x475569));
+    post.position.set(x, 1.6, 0); post.castShadow = true; leaderboardBoard.add(post);
+  }
+  const title = makeSign('RANKING MUNDIAL (E)', 0x38bdf8);
+  title.scale.set(.7, .7, .7); title.position.set(0, 3.65, .2); leaderboardBoard.add(title);
+  const lines = makeSign('DINERO  ·  ETAPA  ·  TRIMESTRE', 0xfacc15);
+  lines.scale.set(.43, .43, .43); lines.position.set(0, 2.65, .2); leaderboardBoard.add(lines);
+}
+leaderboardBoard.position.copy(LEADERBOARD_POS); scene.add(leaderboardBoard);
 
 // ===================================================================
 //  LA CIUDAD (casas que no se entran + gente que no te ataca)
@@ -5444,14 +5485,13 @@ function hitEnemy(e, dmg, fromPos) {
 // Botín al matar: escala con la etapa, 10% de kill DORADO (x5), piñata y bono por combo
 function killLoot(e) {
   const c = addCombo();
-  let m = 2 + state.stage;                                   // matar monstruos paga MUY poco: la plata sale del trabajo
-  m = Math.round(m * (1 + Math.min(0.5, (c - 1) * 0.1)));   // el combo paga hasta +50%
+  let m = monsterKillReward(state.stage, c);                  // incluso en etapas altas, un monstruo normal paga muy poco
   const golden = Math.random() < 0.10;
   if (golden) m *= 2;
-  if (e.userData.bossKill) { m += 100; state.chapterFlags.bossDefeated = true; toast('⚔️ ¡Derrotaste al JEFE! +$100 extra'); coinBurst(e.position, 16); }
-  if (e.userData.ufoKill) { m += 150; toast('🛸 ¡DERRIBASTE EL OVNI JEFE! +$150 extra'); coinBurst(e.position, 24); }
+  if (e.userData.bossKill) { m += 30; state.chapterFlags.bossDefeated = true; toast('⚔️ ¡Derrotaste al JEFE! +$30 extra'); coinBurst(e.position, 16); }
+  if (e.userData.ufoKill) { m += 50; toast('🛸 ¡DERRIBASTE EL OVNI JEFE! +$50 extra'); coinBurst(e.position, 24); }
   if (e.userData.pinata) {
-    m += 60 + 12 * state.stage;
+    m += 20 + Math.min(40, 2 * state.stage);
     toast('🪅 ¡Reventaste la PIÑATA! +$' + m); coinBurst(e.position, 20);
     tone(660, .1, .06, 'triangle'); setTimeout(() => tone(990, .14, .06, 'triangle'), 100);
   } else if (golden) {
@@ -6437,6 +6477,7 @@ const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jump
 addEventListener('keydown', e => {
   if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
+  if (e.code === 'Escape' && ui('rankingBox').style.display === 'flex') { closeLeaderboard(); return; }
   if (e.code === 'Escape' && ui('blueprintPanel').style.display === 'block') { closeBlueprintPanel(); return; }
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
@@ -6470,7 +6511,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { if (!tryFocusedFurniture() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -6936,7 +6977,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryFocusedFurniture() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -7093,6 +7134,65 @@ function setProfile(name) {
   try { if (hasSave() && ui('continueBtn')) ui('continueBtn').style.display = ''; } catch (e) {}
 })();
 
+// Ranking mundial trimestral. La identidad anónima distingue este navegador sin publicar datos privados.
+let leaderboardPlayerId = null, leaderboardLastSent = 0, leaderboardSort = 'money';
+try {
+  leaderboardPlayerId = localStorage.getItem('tim_leaderboard_id');
+  if (!leaderboardPlayerId) {
+    leaderboardPlayerId = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+    localStorage.setItem('tim_leaderboard_id', leaderboardPlayerId);
+  }
+} catch (e) {}
+async function submitLeaderboard(force = false) {
+  if (!leaderboardPlayerId || state.creative || !currentProfile || !state.running) return false;
+  const now = Date.now(); if (!force && now - leaderboardLastSent < 60_000) return false;
+  leaderboardLastSent = now;
+  try {
+    const response = await fetch('/api/leaderboard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: currentProfile, money: state.money, stage: state.stage }) });
+    if (!response.ok) throw new Error('ranking ' + response.status);
+    return true;
+  } catch (e) { leaderboardLastSent = 0; return false; }
+}
+function renderLeaderboard(data) {
+  ui('rankingQuarter').textContent = 'Tabla trimestral · ' + (data.quarter || 'actual');
+  ui('rankingTotal').textContent = (data.totalPlayers || 0) + ((data.totalPlayers || 0) === 1 ? ' jugador' : ' jugadores');
+  const rows = ui('rankingRows'); rows.replaceChildren();
+  if (!data.players || !data.players.length) { const empty = document.createElement('div'); empty.style.cssText = 'padding:24px;text-align:center;color:#94a3b8'; empty.textContent = 'Todavía no hay jugadores en este trimestre.'; rows.appendChild(empty); return; }
+  data.players.forEach((p, index) => {
+    const row = document.createElement('div'); row.className = 'ranking-row';
+    const pos = document.createElement('span'); pos.className = 'rank-number'; pos.textContent = '#' + (index + 1);
+    const name = document.createElement('b'); name.textContent = p.display_name;
+    const money = document.createElement('span'); money.className = 'rank-money'; money.textContent = '$' + Number(p.best_money || 0).toLocaleString('es-CL');
+    const stage = document.createElement('span'); stage.className = 'rank-stage'; stage.textContent = '⭐ ' + Number(p.best_stage || 1);
+    row.append(pos, name, money, stage); rows.appendChild(row);
+  });
+}
+async function loadLeaderboard(sort = leaderboardSort) {
+  leaderboardSort = sort; ui('rankingStatus').textContent = '';
+  document.querySelectorAll('.ranking-tab').forEach(b => b.classList.toggle('active', b.dataset.ranking === sort));
+  try {
+    const response = await fetch('/api/leaderboard?sort=' + encodeURIComponent(sort) + '&limit=100', { cache: 'no-store' });
+    if (!response.ok) throw new Error('ranking ' + response.status);
+    renderLeaderboard(await response.json());
+  } catch (e) {
+    ui('rankingRows').innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8">No se pudo cargar la tabla mundial.</div>';
+    ui('rankingStatus').textContent = 'Comprueba tu conexión a Internet e inténtalo otra vez.';
+  }
+}
+async function openLeaderboard() {
+  releaseLock(); typing = true; for (const k in keys) keys[k] = false;
+  ui('rankingBox').style.display = 'flex';
+  await submitLeaderboard(true); await loadLeaderboard(leaderboardSort);
+  return true;
+}
+function closeLeaderboard() { ui('rankingBox').style.display = 'none'; typing = false; }
+function tryLeaderboard() {
+  if (state.planet !== 'tierra' || dist2D(player.position, LEADERBOARD_POS) >= 6) return false;
+  openLeaderboard(); return true;
+}
+ui('rankingClose').onclick = closeLeaderboard;
+document.querySelectorAll('.ranking-tab').forEach(b => b.onclick = () => loadLeaderboard(b.dataset.ranking));
+
 function saveGame() {
   if (!state.running || state.phase === 'OVER') return;
   try {
@@ -7147,6 +7247,7 @@ function saveGame() {
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
     };
     localStorage.setItem(saveKey(), JSON.stringify(data));
+    submitLeaderboard();
   } catch (e) {}
 }
 function hasSave() { return getProfiles().some(n => { try { return !!localStorage.getItem(profileKey(n)); } catch (e) { return false; } }); }
@@ -10026,10 +10127,12 @@ function updateContextPrompt() {
       const stand = nearestParkStand(), att = parkRide ? parkRide.att : nearestAttraction();
       const enMostrador = state.planet === 'tierra' && !state.country && dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6;
       const enAvionVuelta = !!state.country && dist2D(player.position, { x: COUNTRY_C.x, z: COUNTRY_C.z - 73 }) < 6;
+      const nearLeaderboard = state.planet === 'tierra' && dist2D(player.position, LEADERBOARD_POS) < 6;
       const aimed = aimedFurniture(), furniture = sitOn ? sitOn : aimed;
       const asiento = furniture && SEAT_KEYS.includes(furniture.key) ? furniture : null;
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
-      if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
+      if (nearLeaderboard) action = { key: 'E', touch: '🏆', text: 'Ver ranking mundial trimestral' };
+      else if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
       else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
       else if (sitOn && aimed && aimed.key === 'teclado_gamer') action = { key: 'CLIC · E', touch: '👊', text: 'Usar teclado gamer · E para pararte' };

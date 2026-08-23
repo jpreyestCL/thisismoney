@@ -36,6 +36,9 @@ jobs:
           echo "✅ desplegado. contenido:"
           ls -la "$WEBROOT"
 
+      - name: Instalar API mundial y preparar PostgreSQL
+        run: bash /var/www/tim.strivexlatam.com/server/install-on-vps.sh
+
       - name: Verificar sitio en vivo
         run: |
           set -euo pipefail
@@ -46,3 +49,8 @@ jobs:
             https://tim.strivexlatam.com/index.html)
           echo "index.html -> HTTP $code"
           test "$code" = "200"
+          api_code=$(curl -s -o /dev/null -w '%{http_code}' \
+            --resolve tim.strivexlatam.com:443:127.0.0.1 \
+            https://tim.strivexlatam.com/api/leaderboard/health)
+          echo "leaderboard -> HTTP $api_code"
+          test "$api_code" = "200"

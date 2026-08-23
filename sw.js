@@ -1,7 +1,7 @@
 // Service worker de This is Money: el juego funciona OFFLINE una vez visitado.
 // - index.html: red primero (para recibir las actualizaciones del deploy), caché de respaldo
 // - assets y CDN de three.js: caché primero (no cambian casi nunca)
-const VERSION = 'tim-v9';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
+const VERSION = 'tim-v10';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg',
   './src/game-config.js', './assets/img_58.png', './assets/edificio.glb', './assets/tienda.glb', './assets/papa_anim.glb'];
 
@@ -17,6 +17,7 @@ self.addEventListener('fetch', e => {
   // sus propias solicitudes. Cachearlas aquí provoca errores y ruido en consola.
   const allowedOrigin = url.origin === self.location.origin || url.origin === 'https://unpkg.com';
   if (!['http:', 'https:'].includes(url.protocol) || !allowedOrigin) return;
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;   // rankings y otras API: siempre van a la red
   const needsFreshCode = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname === '/' || url.pathname.endsWith('.js');
   if (needsFreshCode) {   // red primero: HTML y módulos siempre coordinados
     const cacheKey = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname === '/' ? './index.html' : e.request;

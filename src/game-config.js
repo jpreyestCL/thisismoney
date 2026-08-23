@@ -60,6 +60,12 @@ export function nightDuration(nightNumber) {
   return nightNumber <= 1 ? GAME_RULES.firstNightSeconds : GAME_RULES.nightSeconds;
 }
 
+// Los monstruos dan monedas pequeñas: trabajar, construir y superar la noche son la economía principal.
+export function monsterKillReward(stage, combo = 1) {
+  const base = 1 + Math.min(7, Math.floor((Math.max(1, stage) - 1) / 5));
+  return Math.round(base * (1 + Math.min(0.25, (Math.max(1, combo) - 1) * 0.05)));
+}
+
 export function roadmapFor(totalEarned) {
   const achieved = PROGRESSION.filter(item => totalEarned >= item.at);
   const upcoming = PROGRESSION.filter(item => totalEarned < item.at);

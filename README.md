@@ -81,12 +81,15 @@ Touch devices are detected automatically (`pointer: coarse`) and get: a virtual 
 
 ### Saves and settings
 
-Everything is stored in `localStorage` — there is no server and no account:
+Game saves stay in `localStorage`; the public quarterly leaderboard is the only shared server data:
 
 - `tim_save_<name>` — one save per named profile (money, stats, inventory, house, vehicles, plants, helpers, dad, campfires, mines, planet, bank…)
 - `tim_profiles`, `tim_profile` — the profile list and the last one used
 - `tim_best`, `tim_daily` — personal record and daily streak
 - `tim_sound`, `tim_perf`, `tim_sens`, `tim_btnsize` — sound, performance mode, look sensitivity, button size
+- `tim_leaderboard_id` — anonymous browser ID used to update the PostgreSQL leaderboard
+
+The leaderboard API lives in `server/`, listens only on `127.0.0.1`, and is exposed by nginx at `/api/leaderboard`. PostgreSQL stores each player's best money and highest stage per calendar quarter.
 
 There is also a **game code**: the save can be copied/pasted as base64 from the pause menu to move a game between devices.
 
@@ -186,12 +189,15 @@ Se detecta pantalla táctil automáticamente (`pointer: coarse`): joystick virtu
 
 ### Guardado y ajustes
 
-Todo se guarda en `localStorage`; no hay servidor ni cuentas:
+Las partidas se guardan en `localStorage`; la tabla trimestral mundial es el único dato compartido en el servidor:
 
 - `tim_save_<nombre>` — una partida por perfil (plata, stats, inventario, casa, vehículos, plantas, ayudantes, papá, fogatas, minas, planeta, banco…)
 - `tim_profiles`, `tim_profile` — lista de perfiles y el último usado
 - `tim_best`, `tim_daily` — récord personal y racha diaria
 - `tim_sound`, `tim_perf`, `tim_sens`, `tim_btnsize` — sonido, modo rendimiento, sensibilidad de la mirada, tamaño de botones
+- `tim_leaderboard_id` — identificador anónimo del navegador para actualizar el ranking PostgreSQL
+
+La API del ranking vive en `server/`, escucha únicamente en `127.0.0.1` y nginx la publica como `/api/leaderboard`. PostgreSQL guarda el mejor dinero y la etapa más alta de cada jugador por trimestre calendario.
 
 También existe el **código de partida**: desde el menú de pausa puedes copiar/pegar el save en base64 para llevarlo a otro dispositivo.
 

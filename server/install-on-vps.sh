@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WEBROOT=/var/www/tim.strivexlatam.com
+SERVICE=thisismoney-leaderboard
+APP_USER=timleaderboard
+
+sudo -n true
+if ! id "$APP_USER" >/dev/null 2>&1; then sudo useradd --system --home /nonexistent --shell /usr/sbin/nologin "$APP_USER"; fi
+if ! sudo -u postgres psql -tAc "select 1 from pg_roles where rolname='$APP_USER'" | grep -q 1; then sudo -u postgres createuser "$APP_USER"; fi
+if ! sudo -u postgres psql -tAc "select 1 from pg_database where datname='thisismoney'" | grep -q 1; then sudo -u postgres createdb --owner="$APP_USER" thisismoney; fi
+sudo -u "$APP_USER" psql -v ON_ERROR_STOP=1 -d thisismoney -f "$WEBROOT/server/schema.sql"
+
+cd "$WEBROOT/server"
+npm install --omit=dev --ignore-scripts
+sudo install -m 0644 thisismoney-leaderboard.service "/etc/systemd/system/$SERVICE.service"
+sudo systemctl daemon-reload
+sudo systemctl enable --now "$SERVICE"
+sudo systemctl restart "$SERVICE"
+
+sudo install -m 0644 nginx-location.conf /etc/nginx/snippets/tim-leaderboard.conf
+SITE_LINK=$(grep -RslE 'root[[:space:]]+/var/www/tim\.strivexlatam\.com' /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null | head -n 1)
+if [ -z "$SITE_LINK" ]; then echo 'No se encontró el sitio nginx de This is Money' >&2; exit 1; fi
+SITE_FILE=$(readlink -f "$SITE_LINK")
+if ! grep -q 'tim-leaderboard.conf' "$SITE_FILE"; then
+  sudo cp "$SITE_FILE" "$SITE_FILE.before-leaderboard"
+  sudo python3 - "$SITE_FILE" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+lines = path.read_text().splitlines(keepends=True)
+root_line = next(i for i, line in enumerate(lines) if '/var/www/tim.strivexlatam.com' in line and 'root' in line)
+depth = 0
+server_depth = None
+for i, line in enumerate(lines):
+    depth += line.count('{') - line.count('}')
+    if i == root_line:
+        server_depth = depth
+        break
+if server_depth is None:
+    raise SystemExit('No se pudo ubicar el bloque server')
+for i in range(root_line + 1, len(lines)):
+    next_depth = depth + lines[i].count('{') - lines[i].count('}')
+    if next_depth < server_depth:
+        lines.insert(i, '    include /etc/nginx/snippets/tim-leaderboard.conf;\n')
+        path.write_text(''.join(lines))
+        break
+    depth = next_depth
+else:
+    raise SystemExit('No se encontró el cierre del bloque server')
+PY
+fi
+
+sudo nginx -t
+sudo systemctl reload nginx
+curl -fsS http://127.0.0.1:8787/health

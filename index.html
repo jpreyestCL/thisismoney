@@ -7146,11 +7146,12 @@ try {
   }
 } catch (e) {}
 async function submitLeaderboard(force = false) {
-  if (!leaderboardPlayerId || state.creative || !currentProfile || !state.running) return false;
+  if (!leaderboardPlayerId || state.creative || !state.running) return false;
+  const leaderboardName = (typeof net !== 'undefined' && net.name) || currentProfile || 'Jugador';
   const now = Date.now(); if (!force && now - leaderboardLastSent < 60_000) return false;
   leaderboardLastSent = now;
   try {
-    const response = await fetch('/api/leaderboard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: currentProfile, money: state.money, stage: state.stage }) });
+    const response = await fetch('/api/leaderboard', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: leaderboardName, money: state.money, stage: state.stage }) });
     if (!response.ok) throw new Error('ranking ' + response.status);
     return true;
   } catch (e) { leaderboardLastSent = 0; return false; }

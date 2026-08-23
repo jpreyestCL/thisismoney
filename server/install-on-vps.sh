@@ -22,10 +22,10 @@ sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE"
 sudo systemctl stop "$SERVICE" || true
 sudo pkill -f '/var/www/tim.strivexlatam.com/server/leaderboard.mjs' || true
-PORT_PIDS=$(sudo ss -ltnp 'sport = :8787' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u)
+PORT_PIDS=$(sudo ss -ltnp 'sport = :8788' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u)
 for pid in $PORT_PIDS; do sudo kill "$pid" || true; done
 sleep 1
-PORT_PIDS=$(sudo ss -ltnp 'sport = :8787' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u)
+PORT_PIDS=$(sudo ss -ltnp 'sport = :8788' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u)
 for pid in $PORT_PIDS; do sudo kill -9 "$pid" || true; done
 sudo systemctl restart "$SERVICE"
 
@@ -66,11 +66,11 @@ fi
 sudo nginx -t
 sudo systemctl reload nginx
 for attempt in 1 2 3 4 5; do
-  if curl -fsS http://127.0.0.1:8787/health; then exit 0; fi
+  if curl -fsS http://127.0.0.1:8788/health; then exit 0; fi
   sleep 1
 done
 sudo systemctl --no-pager --full status "$SERVICE" || true
 sudo journalctl -u "$SERVICE" -n 30 --no-pager || true
 sudo journalctl -u "$SERVICE" -n 12 --no-pager | while IFS= read -r line; do echo "::error::$line"; done
-echo '::error::La API del ranking no pudo conectarse a PostgreSQL o iniciar en el puerto 8787'
+echo '::error::La API del ranking no pudo conectarse a PostgreSQL o iniciar en el puerto 8788'
 exit 1

@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import pg from 'pg';
 
 const { Pool } = pg;
-const PORT = Number(process.env.PORT || 8787);
+const PORT = Number(process.env.PORT || 8788);
 const pool = new Pool({
   ...(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : { host: '/var/run/postgresql', database: 'thisismoney', user: 'timleaderboard' }),
   max: 10,

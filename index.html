@@ -4502,6 +4502,7 @@ homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
 // ===================================================================
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
+const rgbPlaced = [];       // piezas gamer con luces RGB: cambian de color solas
 const mirrorObjs = [];      // espejos colocados (solo el más cercano refleja de verdad, por rendimiento)
 let mirrorNear = false;     // true si estás frente a un espejo (ahí se muestra tu cuerpo para verte)
 const _mirrorTmp = new THREE.Vector3();
@@ -4913,13 +4914,15 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY) {
   if (key === 'sofa') { const back = new THREE.Mesh(new THREE.BoxGeometry(2, 0.55, 0.2), mat(objColor(key))); back.position.set(0, 0.5, -0.35); m.add(back); for (const sx of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.9), mat(objColor(key))); arm.position.set(sx * 0.9, 0.2, 0); m.add(arm); } }
   if (key === 'tele') { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.75), new THREE.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x0ea5e9, emissiveIntensity: 0.4 })); scr.position.z = 0.07; m.add(scr); const st = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.3), legMat); st.position.y = -0.55; m.add(st); }
   if (key === 'planta') { const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10), mat(0x22c55e)); leaf.position.y = 0.55; leaf.scale.set(1, 1.3, 1); leaf.castShadow = true; m.add(leaf); }
-  if (key === 'mesa_gamer') { legs(1.05, 0.43, 0.75); const edge = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); edge.position.set(0, 0.02, 0.54); m.add(edge); }
-  if (key === 'silla_gamer') { legs(0.28, 0.28, 0.5); const back = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.15, 0.18), mat(0xdc2626)); back.position.set(0, 0.62, -0.3); m.add(back); const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.18, 0.2), mat(0x111827)); head.position.set(0, 0.95, -0.19); m.add(head); }
-  if (key === 'computador_gamer') { const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 0.58), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x7c3aed, emissiveIntensity: 0.9 })); screen.position.z = 0.085; m.add(screen); const stand = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.12), mat(0x27272a)); stand.position.y = -0.48; m.add(stand); }
-  if (key === 'pc_gamer') { for (const y of [-0.28, 0.25]) { const fan = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 8, 18), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 1.4 })); fan.rotation.y = Math.PI / 2; fan.position.set(0.32, y, 0); m.add(fan); } }
-  if (key === 'teclado_gamer') { for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) { const k = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.035, 0.07), mat((col + row) % 3 === 0 ? 0xa855f7 : (col + row) % 3 === 1 ? 0x22d3ee : 0xf43f5e)); k.position.set(-0.4 + col * 0.1, 0.065, -0.1 + row * 0.1); m.add(k); } }
-  if (key === 'parlante_gamer') { for (const y of [-0.3, 0.28]) { const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 20), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x7c3aed, emissiveIntensity: 0.8 })); cone.rotation.x = Math.PI / 2; cone.position.set(0, y, 0.295); m.add(cone); } }
-  if (key === 'luces_gamer') { const glow = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.07, 0.14), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 2 })); glow.position.z = 0.04; m.add(glow); const light = new THREE.PointLight(0xa855f7, 1.2, 7); light.position.set(0, 0.15, 0.5); m.add(light); }
+  if (key === 'mesa_gamer') { legs(1.05, 0.43, 0.75); const edge = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); edge.position.set(0, 0.02, 0.54); m.add(edge); obj.rgbParts = [edge]; }
+  if (key === 'silla_gamer') { legs(0.28, 0.28, 0.5); const back = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.15, 0.18), mat(0xdc2626)); back.position.set(0, 0.62, -0.3); m.add(back); const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.18, 0.2), mat(0x111827)); head.position.set(0, 0.95, -0.19); m.add(head);
+    const franja = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.04), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); franja.position.set(0, 0.62, -0.4); m.add(franja); obj.rgbParts = [franja]; }
+  if (key === 'computador_gamer') { const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 0.58), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x7c3aed, emissiveIntensity: 0.9 })); screen.position.z = 0.085; m.add(screen); const stand = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.12), mat(0x27272a)); stand.position.y = -0.48; m.add(stand);
+    const luzAtras = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.55, 0.03), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 1.3 })); luzAtras.position.z = -0.1; m.add(luzAtras); obj.rgbParts = [luzAtras]; }
+  if (key === 'pc_gamer') { for (const y of [-0.28, 0.25]) { const fan = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.025, 8, 18), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 1.4 })); fan.rotation.y = Math.PI / 2; fan.position.set(0.32, y, 0); m.add(fan); (obj.rgbParts = obj.rgbParts || []).push(fan); } }
+  if (key === 'teclado_gamer') { for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) { const k = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.035, 0.07), mat((col + row) % 3 === 0 ? 0xa855f7 : (col + row) % 3 === 1 ? 0x22d3ee : 0xf43f5e)); k.position.set(-0.4 + col * 0.1, 0.065, -0.1 + row * 0.1); k.userData.rgbOff = col + row; m.add(k); (obj.rgbParts = obj.rgbParts || []).push(k); } }
+  if (key === 'parlante_gamer') { for (const y of [-0.3, 0.28]) { const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 20), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x7c3aed, emissiveIntensity: 0.8 })); cone.rotation.x = Math.PI / 2; cone.position.set(0, y, 0.295); m.add(cone); (obj.rgbParts = obj.rgbParts || []).push(cone); } }
+  if (key === 'luces_gamer') { const glow = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.07, 0.14), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 2 })); glow.position.z = 0.04; m.add(glow); const light = new THREE.PointLight(0xa855f7, 1.2, 7); light.position.set(0, 0.15, 0.5); m.add(light); obj.rgbParts = [glow]; obj.rgbLight = light; }
   if (key === 'door') {
     const fr = new THREE.MeshStandardMaterial({ color: 0x4a2f15, roughness: 0.9 });
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.22), fr); b.position.set(x, y, 0); m.add(b); };
@@ -4986,6 +4989,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY) {
     obstacles.push(obj.aabb);
   }
   placed.push(obj);
+  if (obj.rgbParts) rgbPlaced.push(obj);   // set gamer: sus luces laten con updateGamerRGB
   updateHouseAnchor();   // tu casa puede haber crecido/moverse (en los planetas no hay marcador fijo)
   return obj;
 }
@@ -5061,6 +5065,7 @@ function deleteObject() {
 function removePlaced(o) {
   if (activeGamerSpeaker === o) stopGamerSpeaker();
   scene.remove(o.mesh); if (o.light) scene.remove(o.light); if (o.bulb) scene.remove(o.bulb);
+  const ir = rgbPlaced.indexOf(o); if (ir >= 0) rgbPlaced.splice(ir, 1);   // deja de animarse su RGB
   if (o.mirrors) { const i = mirrorObjs.indexOf(o); if (i >= 0) mirrorObjs.splice(i, 1); o.mirrors.forEach(mi => { if (mi.dispose) mi.dispose(); }); }
   if (sitOn === o) sitOn = null;   // te sacaron el mueble en el que estabas sentado
   if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
@@ -9360,7 +9365,7 @@ function loop() {
   }
   for (const e of enemies) swingLimbs(e, dt);
   if (state.running) updatePlayerCamera(dt);
-  billboardTick += dt; if (billboardTick >= .05) { updateBillboards(billboardTick); billboardTick = 0; }
+  billboardTick += dt; if (billboardTick >= .05) { updateBillboards(billboardTick); updateGamerRGB(); billboardTick = 0; }
   updateFloats(dt); updateCoins(dt); updateCombo(dt); updateImpactVoxels(dt);   // feedback de combate y recompensas
   updateSky(dt);
   hudTick += dt; if (hudTick >= .067) { renderHUD(); hudTick = 0; }
@@ -9773,7 +9778,7 @@ function netHandle(raw, fromConn) {
 }
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
-try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage }); } catch (e) {}
+try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey }); } catch (e) {}
 function netAddConn(c) {
   netStartTimer();
   net.conns.push(c);
@@ -10064,6 +10069,20 @@ function resolveCollisions() {
       const pz = Math.abs(up) < Math.abs(down) ? up : down;
       if (Math.abs(px) < Math.abs(pz)) p.x += px; else p.z += pz;
     }
+  }
+}
+// Las luces del set gamer cambian de color solas (arcoíris que corre por teclas, fans y tiras)
+function updateGamerRGB() {
+  if (!rgbPlaced.length) return;
+  const t = performance.now() * 0.0009, col = new THREE.Color();
+  for (const o of rgbPlaced) {
+    const parts = o.rgbParts; if (!parts) continue;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i], off = p.userData.rgbOff != null ? p.userData.rgbOff : i;
+      col.setHSL((t + off * 0.07) % 1, .85, .55);
+      p.material.color.copy(col); if (p.material.emissive) p.material.emissive.copy(col);
+    }
+    if (o.rgbLight) o.rgbLight.color.copy(col);
   }
 }
 function updateBillboards(dt) {

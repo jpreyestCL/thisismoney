@@ -4061,7 +4061,7 @@ const floatingAlienWorld = new THREE.Vector3(), floatingAlienTarget = new THREE.
     floatIslands.push({ x: g.position.x, z: g.position.z, top: y + 1.05, r: rad, group: g, chest, value: 0, ready: false });
   }
   // Ciudades nativas de Platus: grandes plataformas cafés, sin pasto ni hojas.
-  for (const [cx, cz, y, rad] of [[-58, -70, 14, 16], [86, 58, 19, 18], [-112, 82, 24, 15]]) {
+  for (const [cx, cz, y, rad] of [[-58, -70, 14, 16], [86, 58, 19, 18], [-112, 82, 24, 15], [135, -75, 17, 17], [-25, 140, 21, 16]]) {
     const city = new THREE.Group(); city.position.set(cx, 0, cz);
     const rock = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad * .48, 3.4, 16), new THREE.MeshStandardMaterial({ color: 0x4a2f22, roughness: 1 })); rock.position.y = y - .7; rock.castShadow = true; city.add(rock);
     const soil = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, .45, 16), new THREE.MeshStandardMaterial({ color: 0x7a4930, roughness: 1 })); soil.position.y = y + 1.05; soil.receiveShadow = true; city.add(soil);
@@ -4096,7 +4096,7 @@ const floatingAlienWorld = new THREE.Vector3(), floatingAlienTarget = new THREE.
     g.visible = false; scene.add(g);
     geysers.push({ x: g.position.x, z: g.position.z, group: g, col });
   }
-  for (const [x, z] of [[-58, -70], [86, 58], [-112, 82]]) {   // ascensor natural bajo cada ciudad
+  for (const [x, z] of [[-58, -70], [86, 58], [-112, 82], [135, -75], [-25, 140]]) {   // ascensor natural bajo cada ciudad
     const g = new THREE.Group(); g.position.set(x, 0, z);
     const col = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.8, 5, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: .3, side: THREE.DoubleSide })); col.position.y = 2.5; g.add(col);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(1.55, .25, 8, 20), new THREE.MeshStandardMaterial({ color: 0x92400e, emissive: 0xf97316, emissiveIntensity: .7 })); ring.rotation.x = Math.PI / 2; ring.position.y = .2; g.add(ring);

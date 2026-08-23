@@ -54,4 +54,11 @@ fi
 
 sudo nginx -t
 sudo systemctl reload nginx
-curl -fsS http://127.0.0.1:8787/health
+for attempt in 1 2 3 4 5; do
+  if curl -fsS http://127.0.0.1:8787/health; then exit 0; fi
+  sleep 1
+done
+sudo systemctl --no-pager --full status "$SERVICE" || true
+sudo journalctl -u "$SERVICE" -n 30 --no-pager || true
+echo '::error::La API del ranking no pudo conectarse a PostgreSQL o iniciar en el puerto 8787'
+exit 1

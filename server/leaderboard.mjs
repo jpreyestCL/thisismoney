@@ -5,7 +5,7 @@ import pg from 'pg';
 const { Pool } = pg;
 const PORT = Number(process.env.PORT || 8787);
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql:///thisismoney',
+  ...(process.env.DATABASE_URL ? { connectionString: process.env.DATABASE_URL } : { host: '/var/run/postgresql', database: 'thisismoney', user: 'timleaderboard' }),
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,

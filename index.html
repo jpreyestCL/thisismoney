@@ -2348,9 +2348,9 @@ function buildBeach() {
 buildBeach();
 
 // OCÉANO Y EXPEDICIÓN: un viaje largo en barco hasta una isla enorme de tesoros.
-const TREASURE_ISLAND = { x: -1080, z: -155, w: 260, d: 240, surface: .72 };
+const TREASURE_ISLAND = { x: -1060, z: -155, w: 380, d: 350, surface: .72 };
 let boat = null, oceanStormT = 35, templeTrapT = 0, oceanHazardCd = 0, oceanCurrentWarnAt = 0;
-const oceanWaves = [], oceanFish = [], oceanSharks = [], islandOres = [];
+const oceanWaves = [], oceanFish = [], oceanSharks = [], islandOres = [], islandTemples = [];
 function buildOceanExpedition() {
   const seabed = new THREE.Mesh(new THREE.BoxGeometry(OCEAN.waterW, .5, OCEAN.waterD), mat(0x23465a)); seabed.position.set(OCEAN.cx,OCEAN.bottom-.25,OCEAN.cz);scene.add(seabed);
   const water = new THREE.Mesh(new THREE.PlaneGeometry(OCEAN.waterW, OCEAN.waterD), new THREE.MeshStandardMaterial({ color: 0x075985, transparent: true, opacity: .86, roughness: .18, metalness: .08, side: THREE.DoubleSide, depthWrite: false }));
@@ -2360,44 +2360,42 @@ function buildOceanExpedition() {
   for(let i=0;i<100;i++){matrix.makeTranslation(-240-Math.random()*780,OCEAN.bottom+1.5,OCEAN.cz+(Math.random()-.5)*380);kelp.setMatrixAt(i,matrix);}kelp.instanceMatrix.needsUpdate=true;scene.add(kelp);
   for(let i=0;i<36;i++){const fish=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(.65,.3,1.15),mat(i%3===0?0xf59e0b:i%3===1?0x38bdf8:0xcbd5e1));fish.add(body);const tail=new THREE.Mesh(new THREE.ConeGeometry(.28,.55,4),body.material);tail.rotation.x=Math.PI/2;tail.position.z=-.75;fish.add(tail);fish.position.set(-250-Math.random()*760,-1-Math.random()*8,OCEAN.cz+(Math.random()-.5)*370);fish.userData.speed=1+Math.random()*2;scene.add(fish);oceanFish.push(fish);}
   for(let i=0;i<7;i++){const shark=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.3,.65,3.4),mat(0x64748b));shark.add(body);const fin=new THREE.Mesh(new THREE.ConeGeometry(.55,1.1,4),mat(0x475569));fin.position.y=.75;shark.add(fin);shark.position.set(-300-Math.random()*700,-.9-Math.random()*2,OCEAN.cz+(Math.random()-.5)*340);shark.userData.speed=2.5+Math.random()*1.5;scene.add(shark);oceanSharks.push(shark);}
-  const island = new THREE.Mesh(new THREE.CylinderGeometry(130, 118, 2.8, 24), new THREE.MeshStandardMaterial({ color: 0xb78b52, roughness: 1 })); island.scale.z = TREASURE_ISLAND.d / TREASURE_ISLAND.w; island.position.set(TREASURE_ISLAND.x, -.65, TREASURE_ISLAND.z); island.receiveShadow = true; scene.add(island);
-  const grass = new THREE.Mesh(new THREE.CircleGeometry(124, 24), new THREE.MeshStandardMaterial({ color: 0x294b2a, roughness: 1 })); grass.scale.y = TREASURE_ISLAND.d / TREASURE_ISLAND.w; grass.rotation.x = -Math.PI / 2; grass.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface, TREASURE_ISLAND.z); scene.add(grass);
+  const island = new THREE.Mesh(new THREE.CylinderGeometry(190, 178, 2.8, 28), new THREE.MeshStandardMaterial({ color: 0xb78b52, roughness: 1 })); island.scale.z = TREASURE_ISLAND.d / TREASURE_ISLAND.w; island.position.set(TREASURE_ISLAND.x, -.65, TREASURE_ISLAND.z); island.receiveShadow = true; scene.add(island);
+  const grass = new THREE.Mesh(new THREE.CircleGeometry(184, 28), new THREE.MeshStandardMaterial({ color: 0x294b2a, roughness: 1 })); grass.scale.y = TREASURE_ISLAND.d / TREASURE_ISLAND.w; grass.rotation.x = -Math.PI / 2; grass.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface, TREASURE_ISLAND.z); scene.add(grass);
   // Bosque de árboles gigantes: copas densas y oscuras que bloquean la luz solar.
-  for (let i = 0; i < 38; i++) { const a = Math.random() * Math.PI * 2, r = 30 + Math.random() * 85, x = TREASURE_ISLAND.x + Math.cos(a) * r, z = TREASURE_ISLAND.z + Math.sin(a) * r * .82, g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.1, 16 + Math.random() * 8, 8), mat(0x3f2818)); trunk.position.y = 9; trunk.castShadow = true; g.add(trunk);
-    for (let c = 0; c < 3; c++) { const crown = new THREE.Mesh(new THREE.SphereGeometry(6 + Math.random() * 3, 10, 8), mat(0x102f1b)); crown.position.set((c - 1) * 4, 18 + Math.random() * 5, (Math.random() - .5) * 5); crown.castShadow = true; g.add(crown); }
+  for (let i = 0; i < 105; i++) { const a = Math.random() * Math.PI * 2, r = 25 + Math.random() * 145, x = TREASURE_ISLAND.x + Math.cos(a) * r, z = TREASURE_ISLAND.z + Math.sin(a) * r * .86, g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2.6, 22 + Math.random() * 12, 8), mat(0x3f2818)); trunk.position.y = 12; trunk.castShadow = true; g.add(trunk);
+    for (let c = 0; c < 5; c++) { const crown = new THREE.Mesh(new THREE.SphereGeometry(8 + Math.random() * 4, 10, 8), mat(0x102f1b)); crown.position.set((c - 2) * 4.5, 25 + Math.random() * 7, (Math.random() - .5) * 8); crown.castShadow = true; g.add(crown); }
     g.position.set(x, TREASURE_ISLAND.surface, z); scene.add(g);
   }
   // Mina abierta con vetas de oro y diamante repartidas por una zona amplia.
-  for (let i = 0; i < 22; i++) { const diamond = i % 5 === 0, ore = new THREE.Mesh(new THREE.DodecahedronGeometry(.9 + Math.random() * .55), new THREE.MeshStandardMaterial({ color: diamond ? 0x22d3ee : 0xfacc15, emissive: diamond ? 0x0891b2 : 0xca8a04, emissiveIntensity: .55, roughness: .6 })); ore.position.set(TREASURE_ISLAND.x - 75 + Math.random() * 65, TREASURE_ISLAND.surface + .65, TREASURE_ISLAND.z - 72 + Math.random() * 145); ore.userData.hp = 3; ore.userData.diamond = diamond; ore.castShadow = true; scene.add(ore); islandOres.push(ore); }
-  // Templo central con corredores, columnas y lanzadores de flechas.
-  const temple = new THREE.Group(); temple.position.set(TREASURE_ISLAND.x + 48, TREASURE_ISLAND.surface, TREASURE_ISLAND.z);
-  const base = new THREE.Mesh(new THREE.BoxGeometry(48, 2.4, 42), mat(0x6b6250)); base.position.y = 1.2; temple.add(base);
-  for (const [x,z] of [[-18,-15],[-18,15],[18,-15],[18,15],[-6,-15],[-6,15],[6,-15],[6,15]]) { const col = new THREE.Mesh(new THREE.BoxGeometry(2.5, 11, 2.5), mat(0x514b3f)); col.position.set(x, 7.5, z); col.castShadow = true; temple.add(col); }
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(50, 2, 44), mat(0x3f3a32)); roof.position.y = 14; roof.castShadow = true; temple.add(roof);
-  const sign = makeSign('TEMPLO DE LAS FLECHAS', 0xf59e0b); sign.scale.set(.5,.5,.5); sign.position.set(0, 17, 0); temple.add(sign); scene.add(temple);
+  for (let i = 0; i < 68; i++) { const diamond = i % 5 === 0, ore = new THREE.Mesh(new THREE.DodecahedronGeometry(.9 + Math.random() * .55), new THREE.MeshStandardMaterial({ color: diamond ? 0x22d3ee : 0xfacc15, emissive: diamond ? 0x0891b2 : 0xca8a04, emissiveIntensity: .55, roughness: .6 })); ore.position.set(TREASURE_ISLAND.x - 155 + Math.random() * 270, TREASURE_ISLAND.surface + .65, TREASURE_ISLAND.z - 140 + Math.random() * 280); ore.userData.hp = 3; ore.userData.diamond = diamond; ore.castShadow = true; scene.add(ore); islandOres.push(ore); }
+  // Varios templos repartidos por la isla, todos con trampas de flechas.
+  for (const [tx,tz] of [[-90,-85],[55,-90],[90,25],[-35,95],[25,15]]) { const temple=new THREE.Group(); temple.position.set(TREASURE_ISLAND.x+tx,TREASURE_ISLAND.surface,TREASURE_ISLAND.z+tz); const base=new THREE.Mesh(new THREE.BoxGeometry(36,2.4,32),mat(0x6b6250));base.position.y=1.2;temple.add(base);for(const [x,z] of [[-13,-11],[-13,11],[13,-11],[13,11],[-4,-11],[-4,11],[4,-11],[4,11]]){const col=new THREE.Mesh(new THREE.BoxGeometry(2.2,11,2.2),mat(0x514b3f));col.position.set(x,7.5,z);col.castShadow=true;temple.add(col);}const roof=new THREE.Mesh(new THREE.BoxGeometry(38,2,34),mat(0x3f3a32));roof.position.y=14;roof.castShadow=true;temple.add(roof);const sign=makeSign('TEMPLO',0xf59e0b);sign.scale.set(.42,.42,.42);sign.position.set(0,17,0);temple.add(sign);scene.add(temple);islandTemples.push(temple.position.clone()); }
 }
 buildOceanExpedition();
 function makeBoat() {
   const g = new THREE.Group(), wood = mat(0x713f12);
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(5.5, 1.5, 11), wood); hull.position.y = .8; hull.castShadow = true; g.add(hull);
-  const bow = new THREE.Mesh(new THREE.ConeGeometry(3.85, 4, 4), wood); bow.rotation.x = Math.PI / 2; bow.rotation.y = Math.PI / 4; bow.position.set(0, .8, 7); g.add(bow);
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(5, .3, 9), mat(0xc08457)); deck.position.y = 1.65; g.add(deck);
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.13,.18,8,8), mat(0x3f2818)); mast.position.set(0,5,0); g.add(mast);
-  const sail = new THREE.Mesh(new THREE.PlaneGeometry(5,5.5), new THREE.MeshStandardMaterial({color:0xf5e6c8,side:THREE.DoubleSide})); sail.position.set(0,5.3,.1); g.add(sail);
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 22), wood); hull.position.y = 1; hull.castShadow = true; g.add(hull);
+  const bow = new THREE.Mesh(new THREE.ConeGeometry(6.9, 7, 4), wood); bow.rotation.x = Math.PI / 2; bow.rotation.y = Math.PI / 4; bow.position.set(0, 1, 14); g.add(bow);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(9.2, .35, 20), mat(0xc08457)); deck.position.y = 2.15; deck.receiveShadow=true; g.add(deck);
+  for(const x of [-4.7,4.7]){const rail=new THREE.Mesh(new THREE.BoxGeometry(.22,1.3,20),mat(0x4b2a0d));rail.position.set(x,2.8,0);g.add(rail);}
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,12,8), mat(0x3f2818)); mast.position.set(0,8,0); g.add(mast);
+  const sail = new THREE.Mesh(new THREE.PlaneGeometry(8,8), new THREE.MeshStandardMaterial({color:0xf5e6c8,side:THREE.DoubleSide})); sail.position.set(0,8.2,.1); g.add(sail);
   return g;
 }
+function addBoatSailor(index){const sailor=makePerson(0xd6b98c,0x1d4ed8);sailor.scale.set(.72,.72,.72);sailor.position.set((index%2?1:-1)*2.2,2.2,-5+index*3);sailor.userData.deckTarget=new THREE.Vector2(sailor.position.x,sailor.position.z);boat.group.add(sailor);boat.sailors.push(sailor);}
 function spawnBoat(restoring) {
   if (boat) return boat;
   const group = makeBoat(); group.position.set(-195, OCEAN.surface, BEACH.cz); scene.add(group);
-  boat = { group, hp: 100, maxHp: 100, heading: -Math.PI / 2, crew: state.boatCrew || 0, days: state.voyageDays || 0, sailing: false }; group.rotation.y = boat.heading;
-  for(let i=0;i<(state.boatCrew||0);i++){const sailor=makePerson(0xd6b98c,0x1d4ed8);sailor.scale.set(.72,.72,.72);sailor.position.set((i-1.5)*.8,1.7,-1);group.add(sailor);}
+  boat = { group, hp: 100, maxHp: 100, heading: -Math.PI / 2, crew: state.boatCrew || 0, days: state.voyageDays || 0, sailing: false, sailors:[], deckPos:new THREE.Vector2(0,-6), throttle:0 }; group.rotation.y = boat.heading;
+  for(let i=0;i<(state.boatCrew||0);i++)addBoatSailor(i);
   if (!restoring) toast('⛵ Barco entregado en la costa · contrata tripulación y pulsa E para navegar'); return boat;
 }
 function toggleBoat() {
   if (!boat || state.planet !== 'tierra') return false;
   const d = dist2D(player.position, boat.group.position); if (!boat.sailing && d > 7) return false;
-  if (!boat.sailing) { if ((state.boatCrew || 0) < 1) { toast('👥 Contrata al menos 1 tripulante en el vendedor antes de zarpar'); return true; } boat.sailing = true; state.sailing = true; toast('⛵ Zarparon · WASD navega · E permite desembarcar'); }
+  if (!boat.sailing) { if ((state.boatCrew || 0) < 1) { toast('👥 Contrata al menos 1 tripulante en el vendedor antes de zarpar'); return true; } boat.sailing = true; state.sailing = true; boat.deckPos.set(0,-6); toast('⛵ Zarparon · WASD camina por cubierta · flechas navegan · E desembarca'); }
   else { boat.sailing = false; state.sailing = false; const side = new THREE.Vector3(Math.cos(boat.heading),0,-Math.sin(boat.heading)); player.position.copy(boat.group.position).addScaledVector(side,5); player.position.y = inTreasureIsland(player.position.x, player.position.z) ? TREASURE_ISLAND.surface + PLAYER_EYE : OCEAN.surface + PLAYER_EYE; toast('⚓ Desembarcaste'); }
   return true;
 }
@@ -2411,19 +2409,22 @@ function updateOceanExpedition(dt) {
   oceanHazardCd=Math.max(0,oceanHazardCd-dt);
   if(swimmingOcean){state.hp-=1.15*dt;for(const shark of oceanSharks){if(dist2D(player.position,shark.position)<4&&oceanHazardCd<=0){oceanHazardCd=2.2;damagePlayer(16,shark.position);toast('🦈 ¡Un tiburón te mordió! Busca el barco');break;}}if(oceanHazardCd<=0&&Math.random()<dt*.18){oceanHazardCd=2;toast('🥶 El océano está helado · necesitas el barco');}}
   if (!boat || !boat.sailing) { updateTempleTraps(dt); return; }
-  const turn = (keys.KeyA?-1:0)+(keys.KeyD?1:0)+touch.moveX, throttle = THREE.MathUtils.clamp((keys.KeyW?1:0)-(keys.KeyS?1:0)+touch.moveY,-1,1); boat.heading -= turn*dt*1.05; boat.group.rotation.y=boat.heading;
+  const turn=(keys.ArrowLeft?-1:0)+(keys.ArrowRight?1:0)+touch.moveX;boat.throttle=THREE.MathUtils.clamp(boat.throttle+((keys.ArrowUp?1:0)-(keys.ArrowDown?1:0)+touch.moveY)*dt,-.45,1);if(keys.ArrowUp||keys.ArrowDown||Math.abs(touch.moveY)>.05){}else boat.throttle*=Math.pow(.985,dt*60);const throttle=boat.throttle;boat.heading-=turn*dt*1.05;boat.group.rotation.y=boat.heading;
   const speed = 10.5*(1+(state.boatCrew||0)*.08), fwd = new THREE.Vector3(-Math.sin(boat.heading),0,-Math.cos(boat.heading)); boat.group.position.addScaledVector(fwd, throttle*speed*dt);
-  boat.group.position.x=THREE.MathUtils.clamp(boat.group.position.x,-1200,-190); boat.group.position.z=THREE.MathUtils.clamp(boat.group.position.z,OCEAN.cz-OCEAN.waterD*.46,OCEAN.cz+OCEAN.waterD*.46);
+  boat.group.position.x=THREE.MathUtils.clamp(boat.group.position.x,-1245,-190); boat.group.position.z=THREE.MathUtils.clamp(boat.group.position.z,OCEAN.cz-OCEAN.waterD*.46,OCEAN.cz+OCEAN.waterD*.46);
   boat.heading+=Math.sin(performance.now()*.0017)*dt*(storm ? .34 : .1);boat.group.position.z+=Math.sin(performance.now()*.0021)*dt*(storm ? 2.2 : .55);
   boat.group.position.y=OCEAN.surface+.3+Math.sin(performance.now()*.003)* (storm ? .9 : .32); boat.group.rotation.z=Math.sin(performance.now()*.0024)* (storm ? .16 : .055);
-  player.position.set(boat.group.position.x,boat.group.position.y+3,boat.group.position.z); yaw=boat.heading; state.voyageDays=(state.voyageDays||0)+Math.abs(throttle)*dt/6; boat.days=state.voyageDays;
+  boat.deckPos.x=THREE.MathUtils.clamp(boat.deckPos.x+((keys.KeyD?1:0)-(keys.KeyA?1:0))*dt*4.5,-3.8,3.8);boat.deckPos.y=THREE.MathUtils.clamp(boat.deckPos.y+((keys.KeyS?1:0)-(keys.KeyW?1:0))*dt*4.5,-8.5,8.5);
+  const deckWorld=new THREE.Vector3(boat.deckPos.x,4.05,boat.deckPos.y).applyAxisAngle(new THREE.Vector3(0,1,0),boat.heading);player.position.copy(boat.group.position).add(deckWorld);yaw=boat.heading;
+  for(const sailor of boat.sailors){let t=sailor.userData.deckTarget;if(!t||Math.hypot(t.x-sailor.position.x,t.y-sailor.position.z)<.4){t=new THREE.Vector2((Math.random()-.5)*7,(Math.random()-.5)*15);sailor.userData.deckTarget=t;}const dx=t.x-sailor.position.x,dz=t.y-sailor.position.z,len=Math.hypot(dx,dz)||1;sailor.position.x+=dx/len*dt*1.2;sailor.position.z+=dz/len*dt*1.2;sailor.rotation.y=Math.atan2(dx,dz);}
+  state.voyageDays=(state.voyageDays||0)+Math.abs(throttle)*dt/6; boat.days=state.voyageDays;
   oceanStormT-=dt; if(oceanStormT<=0){oceanStormT=35+Math.random()*45;if(Math.random()<.6){state.weather='rain';state.weatherLeft=28;ensureRain().visible=true;toast('⛈️ ¡TORMENTA EN ALTA MAR! Mantén el rumbo');}}
   if(storm){boat.hp-=Math.max(0,4-(state.boatCrew||0))*.12*dt;if(Math.random()<dt*.35)cameraShake=Math.max(cameraShake,.16);}
   if(boat.hp<=0){scene.remove(boat.group);boat=null;state.sailing=false;state.hp=Math.max(20,state.hp-35);player.position.set(-195,PLAYER_EYE,-145);toast('🌊 La tormenta derribó el barco. La tripulación te rescató en la costa');}
   else if(inTreasureIsland(boat.group.position.x,boat.group.position.z)&&!state.islandDiscovered){state.islandDiscovered=true;toast('🏝️ ¡Tras '+Math.max(1,Math.floor(state.voyageDays))+' días encontraron la ISLA DEL TESORO!');phaseText('ISLA DESCUBIERTA');}
 }
 function tryMineIslandOre(){if(!inTreasureIsland(player.position.x,player.position.z))return false;let best=null,bd=5;for(const o of islandOres){if(!o.visible)continue;const d=dist2D(player.position,o.position);if(d<bd){best=o;bd=d;}}if(!best)return false;best.userData.hp--;voxelImpact(best.position, best.userData.diamond?0x22d3ee:0xfacc15,7);if(best.userData.hp<=0){best.visible=false;const reward=best.userData.diamond?2500:1200;addMoney(reward);toast((best.userData.diamond?'💎 Diamante':'🪙 Oro')+' de la isla +$'+reward);}return true;}
-function updateTempleTraps(dt){if(!inTreasureIsland(player.position.x,player.position.z)||Math.abs(player.position.x-(TREASURE_ISLAND.x+48))>25||Math.abs(player.position.z-TREASURE_ISLAND.z)>23)return;templeTrapT-=dt;if(templeTrapT<=0){templeTrapT=1.8;damagePlayer(7,new THREE.Vector3(TREASURE_ISLAND.x+48,2,TREASURE_ISLAND.z));toast('🏹 ¡Trampa de flechas del templo!');beep(240,.08,.04);}}
+function updateTempleTraps(dt){if(!inTreasureIsland(player.position.x,player.position.z))return;let nearby=null;for(const t of islandTemples)if(Math.abs(player.position.x-t.x)<20&&Math.abs(player.position.z-t.z)<18){nearby=t;break;}if(!nearby)return;templeTrapT-=dt;if(templeTrapT<=0){templeTrapT=1.8;damagePlayer(7,new THREE.Vector3(nearby.x,2,nearby.z));toast('🏹 ¡Trampa de flechas del templo!');beep(240,.08,.04);}}
 
 // ===================================================================
 //  CALLES, TRÁFICO, AUTOS ESTACIONADOS Y SEMÁFOROS (rescatado del historial)
@@ -5339,11 +5340,20 @@ function checkConstructionBonus() {
 // ===================================================================
 const enemies = [];
 const projectiles = [];
+const bombProjectiles = [];
+const bombCraters = [];
 
 function makeZombie() {   // zombi verde tipo Minecraft (de bloques)
   const g = makePerson(0x4d7c0f, 0x84cc16);
   // brazos al frente
   if (g.userData.limbs) { g.userData.limbs.armL.rotation.x = -1.4; g.userData.limbs.armR.rotation.x = -1.4; }
+  return g;
+}
+function makeBomberZombie() {
+  const g = makeZombie(), bomb = new THREE.Mesh(new THREE.SphereGeometry(.32, 12, 10), mat(0x111827));
+  bomb.position.set(.62, 1.35, .35); bomb.castShadow = true; g.add(bomb);
+  const fuse = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, .3, 6), mat(0x78350f)); fuse.position.set(.62, 1.72, .35); fuse.rotation.z = -.35; g.add(fuse);
+  const spark = new THREE.Mesh(new THREE.SphereGeometry(.07, 6, 6), new THREE.MeshBasicMaterial({ color:0xf97316 })); spark.position.set(.68, 1.87, .35); g.add(spark);
   return g;
 }
 function makeSmart() {    // zombi inteligente (bata clara)
@@ -5520,6 +5530,7 @@ const ENEMY_DEFS = {
   mole:          { make: makeMole,          hp: 20,  spd: () => 2.8,           dmg: 20, barY: 1.9, mole: true },
   moleBoss:      { make: makeMoleBoss,      hp: 160, spd: () => 2.2,           dmg: 20, barY: 3.4, mole: true, boss: true },
   ant:           { make: makeAnt,           hp: 30,  spd: () => 2.6,           dmg: 17, barY: 2.2, poison: true },
+  bomber:        { make: makeBomberZombie,  hp: 85,  spd: () => 1.7,           dmg: 24, barY: 3.8, bomber: true },
   flyer:         { make: makeFlyer,         hp: 60,  spd: () => 3.2,           dmg: 20, barY: 4.6, fly: true, breaksAir: true },
   alien:         { make: makeAlien,         hp: 90,  spd: () => 2.4,           dmg: 18, barY: 3.2 },
   alienBig:      { make: makeAlienBig,      hp: 140, spd: () => 2.2,           dmg: 24, barY: 4.0 },
@@ -5551,10 +5562,10 @@ function unlockedTypes() {
   if (S >= 15) pool.push('ant');             // etapa 15: hormiga (veneno)
   if (S >= 16) pool.push('ogre');            // etapa 16+: ogros (legado, muy fuertes)
   if (S >= 18) pool.push('dragon');          // etapa 18+: dragones (legado, vuelan)
-  if (S >= 20) pool.push('flyer');           // etapa 20: monstruo volador
+  if (S >= 20) pool.push('flyer', 'bomber'); // etapa 20: volador y zombi bombardero
   return pool;
 }
-const ENEMY_WEIGHT = { zombie: 5, zombieArmored: 4, smart: 4, smartArmored: 3, toro: 2, toroArmored: 2, mole: 3, moleBoss: 1, ant: 3, flyer: 2, ghost: 2, ogre: 1, dragon: 1 };
+const ENEMY_WEIGHT = { zombie: 5, zombieArmored: 4, smart: 4, smartArmored: 3, toro: 2, toroArmored: 2, mole: 3, moleBoss: 1, ant: 3, flyer: 2, bomber: 2, ghost: 2, ogre: 1, dragon: 1 };
 function pickEnemyType() {
   if (state.planet === 'platus') {   // planetas alien: criatura firma del planeta + aliens (y siguen saliendo los de la Tierra)
     const r = Math.random(), cr = state.planetCreature;
@@ -5570,7 +5581,7 @@ function pickEnemyType() {
 }
 const ENEMY_LEVELS = {
   zombie:1, smart:2, zombieArmored:2, smartArmored:3, mole:2, ant:3, ghost:3, sporeling:2, fogGhost:3,
-  toro:3, toroArmored:4, flyer:4, alien:3, alienBig:4, yeti:4, floater:3, sandCrawler:3,
+  toro:3, toroArmored:4, flyer:4, bomber:4, alien:3, alienBig:4, yeti:4, floater:3, sandCrawler:3,
   moleBoss:5, ogre:5, dragon:5, lavaWorm:5, ufo:5,
 };
 const ENEMY_LEVEL_COLORS = [0x94a3b8, 0x84cc16, 0x38bdf8, 0xa78bfa, 0xf59e0b];
@@ -5604,6 +5615,7 @@ function spawnEnemy(type, atPos) {
   if (def.poison) data.poison = true;
   if (def.fly) data.fly = true;
   if (def.breaksAir) data.breaksAir = true;
+  if (def.bomber) { data.bomber = true; data.bombCd = 1.5 + Math.random() * 2; }
   if (def.ufo) data.ufo = true;
   data.role = def.commander || def.boss ? 'leader' : def.breaksAir || def.opensDoors ? 'breaker' : data.speed > 2.4 ? 'scout' : 'brute';
   if (atPos) e.position.copy(atPos);
@@ -5790,7 +5802,12 @@ function moveToward(e, target, step) {
 }
 function removeEnemy(i) { const e = enemies[i]; if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); enemies.splice(i, 1); }
 function killEnemy(e) { const i = enemies.indexOf(e); if (i >= 0) removeEnemy(i); }
-function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; netMobs.clear(); projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; removeChest(); clearMeteorShower(); }   // netMobs.clear(): los monstruos del anfitrión se vuelven a recibir enseguida
+function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; netMobs.clear(); projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; bombProjectiles.forEach(p => scene.remove(p)); bombProjectiles.length = 0; removeChest(); clearMeteorShower(); }   // netMobs.clear(): los monstruos del anfitrión se vuelven a recibir enseguida
+function throwZombieBomb(e,target){const p=new THREE.Group(),shell=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),mat(0x111827));shell.castShadow=true;p.add(shell);const fuse=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.22,6),mat(0x92400e));fuse.position.y=.3;fuse.rotation.z=.35;p.add(fuse);p.add(new THREE.PointLight(0xff6b00,1.5,4));p.position.set(e.position.x,e.position.y+1.7,e.position.z);const flight=1.15,ground=mountainHeightAt(target.x,target.z),gravity=11;p.userData.vel=new THREE.Vector3((target.x-p.position.x)/flight,(ground+.15-p.position.y+.5*gravity*flight*flight)/flight,(target.z-p.position.z)/flight);p.userData.life=flight;scene.add(p);bombProjectiles.push(p);beep(180,.12,.05);}
+function spawnBombCrater(x,z){const g=new THREE.Group(),pit=new THREE.Mesh(new THREE.CircleGeometry(2.35,20),new THREE.MeshStandardMaterial({color:0x160c06,roughness:1}));pit.rotation.x=-Math.PI/2;pit.position.y=.025;g.add(pit);for(let k=0;k<10;k++){const a=k/10*Math.PI*2,rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.34+Math.random()*.22,0),mat(0x4a2c17));rock.position.set(Math.cos(a)*(2.05+Math.random()*.35),.12,Math.sin(a)*(2.05+Math.random()*.35));rock.scale.y=.55;g.add(rock);}g.position.set(x,mountainHeightAt(x,z),z);scene.add(g);bombCraters.push(g);}
+function explodeZombieBomb(p){const pos=p.position.clone();pos.y=mountainHeightAt(pos.x,pos.z);voxelImpact(pos.clone().setY(pos.y+.3),0xf97316,18);cameraShake=Math.max(cameraShake,.45);beep(65,.45,.12);if(dist2D(pos,player.position)<4.5)damagePlayer(24,pos);if(dad.visible&&!dad.userData.resting&&dist2D(pos,dad.position)<4.5)damageDad(18,pos);spawnBombCrater(pos.x,pos.z);}
+function updateBombProjectiles(dt){for(let i=bombProjectiles.length-1;i>=0;i--){const p=bombProjectiles[i],ud=p.userData;ud.vel.y-=11*dt;p.position.addScaledVector(ud.vel,dt);p.rotation.x+=dt*7;p.rotation.z+=dt*5;ud.life-=dt;if(ud.life<=0||p.position.y<=mountainHeightAt(p.position.x,p.position.z)+.12){explodeZombieBomb(p);scene.remove(p);bombProjectiles.splice(i,1);}}}
+function clearBombCraters(){bombCraters.forEach(c=>scene.remove(c));bombCraters.length=0;}
 function updateProjectiles(dt) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i], ud = p.userData;
@@ -7860,7 +7877,7 @@ function answerMath(v) {
 // ===================================================================
 //  BESTIARIO (colección de monstruos) y RÉCORD personal
 // ===================================================================
-const ENEMY_NAMES = { zombie: 'Zombi', zombieArmored: 'Zombi blindado', smart: 'Zombi inteligente', smartArmored: 'Inteligente blindado', toro: 'Toro', toroArmored: 'Toro blindado', mole: 'Topo', moleBoss: 'Topo jefe', ant: 'Hormiga', flyer: 'Volador', ghost: 'Fantasma', ogre: 'Ogro', dragon: 'Dragón', alien: 'Alien', alienBig: 'Alien grande', ufo: 'OVNI jefe', yeti: 'Yeti', sporeling: 'Hongo tóxico', floater: 'Medusa flotante', fogGhost: 'Fantasma de niebla', sandCrawler: 'Escorpión', lavaWorm: 'Gusano de lava' };
+const ENEMY_NAMES = { zombie: 'Zombi', zombieArmored: 'Zombi blindado', smart: 'Zombi inteligente', smartArmored: 'Inteligente blindado', toro: 'Toro', toroArmored: 'Toro blindado', mole: 'Topo', moleBoss: 'Topo jefe', ant: 'Hormiga', flyer: 'Volador', bomber: 'Zombi bombardero', ghost: 'Fantasma', ogre: 'Ogro', dragon: 'Dragón', alien: 'Alien', alienBig: 'Alien grande', ufo: 'OVNI jefe', yeti: 'Yeti', sporeling: 'Hongo tóxico', floater: 'Medusa flotante', fogGhost: 'Fantasma de niebla', sandCrawler: 'Escorpión', lavaWorm: 'Gusano de lava' };
 function recordKill(e) {   // registra el kill en el bestiario; la 1ª vez de cada tipo paga $100
   const t = e.userData.type;
   if (!ENEMY_NAMES[t]) return;
@@ -8453,7 +8470,7 @@ function buyItem(item) {
     if (!boat) { toast('⛵ Primero compra el barco de expedición'); return; }
     if ((state.boatCrew || 0) >= 4) { toast('👥 Ya tienes la tripulación completa (4)'); return; }
     state.money -= item.price; state.boatCrew = (state.boatCrew || 0) + 1; boat.crew = state.boatCrew;
-    const sailor = makePerson(0xd6b98c, 0x1d4ed8); sailor.scale.set(.72,.72,.72); sailor.position.set((state.boatCrew-2.5)*.8,1.7,-1); boat.group.add(sailor);
+    addBoatSailor(state.boatCrew-1);
     toast('🧑‍✈️ Tripulante contratado ('+state.boatCrew+'/4) · protege y acelera el barco'); return;
   }
   if (item.helicopter) {
@@ -9277,6 +9294,7 @@ function updateNight(dt) {
     const tgt = pickTarget(e.position, e);
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
+    if(ud.bomber){const ideal=12;if(d>ideal+2)moveToward(e,tgt,ud.speed*dt);else if(d<ideal-3)moveToward(e,tgt,-ud.speed*dt);e.rotation.y=Math.atan2(tgt.x-e.position.x,tgt.z-e.position.z);ud.bombCd-=dt;if(ud.bombCd<=0&&d<24){startEnemyAttack(e);throwZombieBomb(e,tgt);ud.bombCd=4.5+Math.random()*1.5;}continue;}
     if (ud.commander) {   // toro / toro con armadura: comandante que manda embestidas
       const ideal = 12;
       if (d > ideal + 3) moveToward(e, tgt, ud.speed * dt); else if (d < ideal - 3) moveToward(e, tgt, -ud.speed * dt);
@@ -9321,11 +9339,13 @@ function updateNight(dt) {
   }
   updateDefenses(dt);
   updateProjectiles(dt);
+  updateBombProjectiles(dt);
   if (state.nightTime >= duration) surviveNight();
 }
 
 function surviveNight() {
   clearWaves();
+  clearBombCraters();
   tutorialEvent('nightSurvived');
   const hs = houseStats();
   let reward = 100 * state.stage + (hs.ready ? 150 : 0) + Math.min(1200, hs.score * 8);
@@ -9829,7 +9849,7 @@ function updateMovement(dt) {
     player.position.x = THREE.MathUtils.clamp(player.position.x, COUNTRY_C.x - 85, COUNTRY_C.x + 85);
     player.position.z = THREE.MathUtils.clamp(player.position.z, COUNTRY_C.z - 85, COUNTRY_C.z + 85);
   } else {
-    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1220 : -230, 230);
+    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1260 : -230, 230);
     player.position.z = THREE.MathUtils.clamp(player.position.z, -365, 230);
   }
   resolveCollisions();
@@ -9965,7 +9985,7 @@ function netHandle(raw, fromConn) {
   } else if (m.t === 'phase') {          // el anfitrión manda el día/noche
     if (net.isHost) return;
     if (m.phase === 'NIGHT' && state.phase !== 'NIGHT') startNight();
-    else if (m.phase === 'DAY' && state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = m.dayTime || 0; toast('☀️ ¡Amaneció! (lo marcó el anfitrión)'); }
+    else if (m.phase === 'DAY' && state.phase === 'NIGHT') { clearWaves(); clearBombCraters(); state.phase = 'DAY'; state.dayTime = m.dayTime || 0; toast('☀️ ¡Amaneció! (lo marcó el anfitrión)'); }
     if (m.phase === 'DAY') state.dayTime = m.dayTime || state.dayTime;
   } else if (m.t === 'plant') {
     net.applying = true; try { spawnPlant(m.x, m.z, 0, 0, m.crop || 'apple'); } finally { net.applying = false; }

@@ -1357,6 +1357,8 @@ const DECOR_ITEMS = [
   { key: 'parlante_gamer', name: 'Parlante gamer', price: 350, value: 130, color: 0x1f2937, build: true, deco: true },
   { key: 'mesa_gamer', name: 'Mesa gamer', price: 750, value: 280, color: 0x18181b, build: true, deco: true },
   { key: 'auto',   name: 'Auto',      price: 2000, color: 0xdc2626, car: true },
+  { key: 'barco',  name: 'Barco de expedición', price: 3000, color: 0x8b5a2b, boat: true },
+  { key: 'tripulante', name: 'Contratar tripulante', price: 600, color: 0xfbbf24, crew: true },
   { key: 'helicoptero', name: 'Helicóptero voxel', price: 4000, color: 0x16a34a, helicopter: true },
 ];
 // Pintura: un tarro pinta la casa entera del color elegido. Todos los colores, $400 c/u.
@@ -2308,10 +2310,12 @@ buildDesert(-165, 140);   // segundo desierto en las afueras del mapa agrandado
 
 // Playa y mar voxel: costa de arena, agua profunda, fondo marino y algas de bloques.
 const BEACH = { cx: -165, cz: -155, waterW: 64, waterD: 48, surface: .48, bottom: -5 };
+const OCEAN = { cx: -650, cz: -155, waterW: 1000, waterD: 420, surface: .48, bottom: -12 };
 // Zonas donde se puede NADAR (el mar y, más abajo, la piscina del parque acuático)
-const WATER_ZONES = [BEACH];
+const WATER_ZONES = [BEACH, OCEAN];
 function waterZoneAt(x, z) {
   if (state.planet !== 'tierra') return null;
+  if (typeof TREASURE_ISLAND !== 'undefined' && inTreasureIsland(x, z)) return null;
   for (const w of WATER_ZONES) if (Math.abs(x - w.cx) < w.waterW / 2 && Math.abs(z - w.cz) < w.waterD / 2) return w;
   return null;
 }
@@ -2341,6 +2345,73 @@ function buildBeach() {
   }
 }
 buildBeach();
+
+// OCÉANO Y EXPEDICIÓN: un viaje largo en barco hasta una isla enorme de tesoros.
+const TREASURE_ISLAND = { x: -1080, z: -155, w: 260, d: 240, surface: .72 };
+let boat = null, oceanStormT = 35, templeTrapT = 0;
+const oceanWaves = [], islandOres = [];
+function buildOceanExpedition() {
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(OCEAN.waterW, OCEAN.waterD), new THREE.MeshStandardMaterial({ color: 0x075985, transparent: true, opacity: .72, roughness: .18, metalness: .08, side: THREE.DoubleSide, depthWrite: false }));
+  water.rotation.x = -Math.PI / 2; water.position.set(OCEAN.cx, OCEAN.surface, OCEAN.cz); scene.add(water);
+  for (let i = 0; i < 48; i++) { const wave = new THREE.Mesh(new THREE.BoxGeometry(9 + Math.random() * 15, .08, .35), new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: .55 })); wave.position.set(-220 - Math.random() * 840, .62, OCEAN.cz + (Math.random() - .5) * 390); wave.userData.phase = Math.random() * 6.28; scene.add(wave); oceanWaves.push(wave); }
+  const island = new THREE.Mesh(new THREE.CylinderGeometry(130, 118, 2.8, 24), new THREE.MeshStandardMaterial({ color: 0xb78b52, roughness: 1 })); island.scale.z = TREASURE_ISLAND.d / TREASURE_ISLAND.w; island.position.set(TREASURE_ISLAND.x, -.65, TREASURE_ISLAND.z); island.receiveShadow = true; scene.add(island);
+  const grass = new THREE.Mesh(new THREE.CircleGeometry(124, 24), new THREE.MeshStandardMaterial({ color: 0x294b2a, roughness: 1 })); grass.scale.y = TREASURE_ISLAND.d / TREASURE_ISLAND.w; grass.rotation.x = -Math.PI / 2; grass.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface, TREASURE_ISLAND.z); scene.add(grass);
+  // Bosque de árboles gigantes: copas densas y oscuras que bloquean la luz solar.
+  for (let i = 0; i < 38; i++) { const a = Math.random() * Math.PI * 2, r = 30 + Math.random() * 85, x = TREASURE_ISLAND.x + Math.cos(a) * r, z = TREASURE_ISLAND.z + Math.sin(a) * r * .82, g = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.1, 16 + Math.random() * 8, 8), mat(0x3f2818)); trunk.position.y = 9; trunk.castShadow = true; g.add(trunk);
+    for (let c = 0; c < 3; c++) { const crown = new THREE.Mesh(new THREE.SphereGeometry(6 + Math.random() * 3, 10, 8), mat(0x102f1b)); crown.position.set((c - 1) * 4, 18 + Math.random() * 5, (Math.random() - .5) * 5); crown.castShadow = true; g.add(crown); }
+    g.position.set(x, TREASURE_ISLAND.surface, z); scene.add(g);
+  }
+  // Mina abierta con vetas de oro y diamante repartidas por una zona amplia.
+  for (let i = 0; i < 22; i++) { const diamond = i % 5 === 0, ore = new THREE.Mesh(new THREE.DodecahedronGeometry(.9 + Math.random() * .55), new THREE.MeshStandardMaterial({ color: diamond ? 0x22d3ee : 0xfacc15, emissive: diamond ? 0x0891b2 : 0xca8a04, emissiveIntensity: .55, roughness: .6 })); ore.position.set(TREASURE_ISLAND.x - 75 + Math.random() * 65, TREASURE_ISLAND.surface + .65, TREASURE_ISLAND.z - 72 + Math.random() * 145); ore.userData.hp = 3; ore.userData.diamond = diamond; ore.castShadow = true; scene.add(ore); islandOres.push(ore); }
+  // Templo central con corredores, columnas y lanzadores de flechas.
+  const temple = new THREE.Group(); temple.position.set(TREASURE_ISLAND.x + 48, TREASURE_ISLAND.surface, TREASURE_ISLAND.z);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(48, 2.4, 42), mat(0x6b6250)); base.position.y = 1.2; temple.add(base);
+  for (const [x,z] of [[-18,-15],[-18,15],[18,-15],[18,15],[-6,-15],[-6,15],[6,-15],[6,15]]) { const col = new THREE.Mesh(new THREE.BoxGeometry(2.5, 11, 2.5), mat(0x514b3f)); col.position.set(x, 7.5, z); col.castShadow = true; temple.add(col); }
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(50, 2, 44), mat(0x3f3a32)); roof.position.y = 14; roof.castShadow = true; temple.add(roof);
+  const sign = makeSign('TEMPLO DE LAS FLECHAS', 0xf59e0b); sign.scale.set(.5,.5,.5); sign.position.set(0, 17, 0); temple.add(sign); scene.add(temple);
+}
+buildOceanExpedition();
+function makeBoat() {
+  const g = new THREE.Group(), wood = mat(0x713f12);
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(5.5, 1.5, 11), wood); hull.position.y = .8; hull.castShadow = true; g.add(hull);
+  const bow = new THREE.Mesh(new THREE.ConeGeometry(3.85, 4, 4), wood); bow.rotation.x = Math.PI / 2; bow.rotation.y = Math.PI / 4; bow.position.set(0, .8, 7); g.add(bow);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(5, .3, 9), mat(0xc08457)); deck.position.y = 1.65; g.add(deck);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.13,.18,8,8), mat(0x3f2818)); mast.position.set(0,5,0); g.add(mast);
+  const sail = new THREE.Mesh(new THREE.PlaneGeometry(5,5.5), new THREE.MeshStandardMaterial({color:0xf5e6c8,side:THREE.DoubleSide})); sail.position.set(0,5.3,.1); g.add(sail);
+  return g;
+}
+function spawnBoat(restoring) {
+  if (boat) return boat;
+  const group = makeBoat(); group.position.set(-195, OCEAN.surface, BEACH.cz); scene.add(group);
+  boat = { group, hp: 100, maxHp: 100, heading: -Math.PI / 2, crew: state.boatCrew || 0, days: state.voyageDays || 0, sailing: false }; group.rotation.y = boat.heading;
+  for(let i=0;i<(state.boatCrew||0);i++){const sailor=makePerson(0xd6b98c,0x1d4ed8);sailor.scale.set(.72,.72,.72);sailor.position.set((i-1.5)*.8,1.7,-1);group.add(sailor);}
+  if (!restoring) toast('⛵ Barco entregado en la costa · contrata tripulación y pulsa E para navegar'); return boat;
+}
+function toggleBoat() {
+  if (!boat || state.planet !== 'tierra') return false;
+  const d = dist2D(player.position, boat.group.position); if (!boat.sailing && d > 7) return false;
+  if (!boat.sailing) { if ((state.boatCrew || 0) < 1) { toast('👥 Contrata al menos 1 tripulante en el vendedor antes de zarpar'); return true; } boat.sailing = true; state.sailing = true; toast('⛵ Zarparon · WASD navega · E permite desembarcar'); }
+  else { boat.sailing = false; state.sailing = false; const side = new THREE.Vector3(Math.cos(boat.heading),0,-Math.sin(boat.heading)); player.position.copy(boat.group.position).addScaledVector(side,5); player.position.y = inTreasureIsland(player.position.x, player.position.z) ? TREASURE_ISLAND.surface + PLAYER_EYE : OCEAN.surface + PLAYER_EYE; toast('⚓ Desembarcaste'); }
+  return true;
+}
+function inTreasureIsland(x,z) { return Math.abs(x-TREASURE_ISLAND.x)<TREASURE_ISLAND.w*.48 && Math.abs(z-TREASURE_ISLAND.z)<TREASURE_ISLAND.d*.46; }
+function updateOceanExpedition(dt) {
+  const storm = boat && boat.sailing && state.weather === 'rain';
+  for (const w of oceanWaves) { w.position.y = OCEAN.surface + .12 + Math.sin(performance.now()*.0025+w.userData.phase)*(storm ? .75 : .24); w.rotation.z = Math.sin(performance.now()*.0018+w.userData.phase)*.08; }
+  if (!boat || !boat.sailing) { updateTempleTraps(dt); return; }
+  const turn = (keys.KeyA?-1:0)+(keys.KeyD?1:0)+touch.moveX, throttle = THREE.MathUtils.clamp((keys.KeyW?1:0)-(keys.KeyS?1:0)+touch.moveY,-1,1); boat.heading -= turn*dt*1.05; boat.group.rotation.y=boat.heading;
+  const speed = 10.5*(1+(state.boatCrew||0)*.08), fwd = new THREE.Vector3(-Math.sin(boat.heading),0,-Math.cos(boat.heading)); boat.group.position.addScaledVector(fwd, throttle*speed*dt);
+  boat.group.position.x=THREE.MathUtils.clamp(boat.group.position.x,-1200,-190); boat.group.position.z=THREE.MathUtils.clamp(boat.group.position.z,OCEAN.cz-OCEAN.waterD*.46,OCEAN.cz+OCEAN.waterD*.46);
+  boat.group.position.y=OCEAN.surface+.3+Math.sin(performance.now()*.003)* (storm ? .9 : .22); boat.group.rotation.z=Math.sin(performance.now()*.0024)* (storm ? .16 : .035);
+  player.position.set(boat.group.position.x,boat.group.position.y+3,boat.group.position.z); yaw=boat.heading; state.voyageDays=(state.voyageDays||0)+Math.abs(throttle)*dt/6; boat.days=state.voyageDays;
+  oceanStormT-=dt; if(oceanStormT<=0){oceanStormT=35+Math.random()*45;if(Math.random()<.6){state.weather='rain';state.weatherLeft=28;ensureRain().visible=true;toast('⛈️ ¡TORMENTA EN ALTA MAR! Mantén el rumbo');}}
+  if(storm){boat.hp-=Math.max(0,4-(state.boatCrew||0))*.12*dt;if(Math.random()<dt*.35)cameraShake=Math.max(cameraShake,.16);}
+  if(boat.hp<=0){scene.remove(boat.group);boat=null;state.sailing=false;state.hp=Math.max(20,state.hp-35);player.position.set(-195,PLAYER_EYE,-145);toast('🌊 La tormenta derribó el barco. La tripulación te rescató en la costa');}
+  else if(inTreasureIsland(boat.group.position.x,boat.group.position.z)&&!state.islandDiscovered){state.islandDiscovered=true;toast('🏝️ ¡Tras '+Math.max(1,Math.floor(state.voyageDays))+' días encontraron la ISLA DEL TESORO!');phaseText('ISLA DESCUBIERTA');}
+}
+function tryMineIslandOre(){if(!inTreasureIsland(player.position.x,player.position.z))return false;let best=null,bd=5;for(const o of islandOres){if(!o.visible)continue;const d=dist2D(player.position,o.position);if(d<bd){best=o;bd=d;}}if(!best)return false;best.userData.hp--;voxelImpact(best.position, best.userData.diamond?0x22d3ee:0xfacc15,7);if(best.userData.hp<=0){best.visible=false;const reward=best.userData.diamond?2500:1200;addMoney(reward);toast((best.userData.diamond?'💎 Diamante':'🪙 Oro')+' de la isla +$'+reward);}return true;}
+function updateTempleTraps(dt){if(!inTreasureIsland(player.position.x,player.position.z)||Math.abs(player.position.x-(TREASURE_ISLAND.x+48))>25||Math.abs(player.position.z-TREASURE_ISLAND.z)>23)return;templeTrapT-=dt;if(templeTrapT<=0){templeTrapT=1.8;damagePlayer(7,new THREE.Vector3(TREASURE_ISLAND.x+48,2,TREASURE_ISLAND.z));toast('🏹 ¡Trampa de flechas del templo!');beep(240,.08,.04);}}
 
 // ===================================================================
 //  CALLES, TRÁFICO, AUTOS ESTACIONADOS Y SEMÁFOROS (rescatado del historial)
@@ -6636,7 +6707,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { if (!tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!toggleBoat() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -6747,6 +6818,7 @@ function renderContractRow(list) {   // fila del contrato arriba de la tienda (s
 }
 function shopIcon(item) {
   if (item.key === 'helicoptero') return '🚁';
+  if (item.boat) return '⛵'; if (item.crew) return '🧑‍✈️';
   if (item.key === 'jetpack') return '🚀'; if (item.key === 'laserpistol') return '🔫';
   if (item.key === 'escudo') return '🛡️'; if (item.key === 'alienpet') return '👽';
   if (item.key === 'baseespacial') return '🏕️'; if (item.key === 'basetorreta') return '🔫'; if (item.key === 'basegenerador') return '⚡';
@@ -7102,7 +7174,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!toggleBoat() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -7191,6 +7263,7 @@ function startGame() {
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPlants(); clearHelpers();
+  if (boat) { scene.remove(boat.group); boat = null; } state.boatCrew = 0; state.voyageDays = 0; state.islandDiscovered = false; state.sailing = false;
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   updateHouseAnchor();   // vuelve al marcador verde de la Tierra
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
@@ -7338,6 +7411,7 @@ function saveGame() {
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
       placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, mountY: o.mountY || 0, rot: o.mesh.rotation.y, hp: o.hp, paint: o.paint != null ? o.paint : null })),
       vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, moto: !!v.moto, helicopter: !!v.helicopter })),
+      boat: boat ? { x: boat.group.position.x, z: boat.group.position.z, heading: boat.heading, hp: boat.hp } : null, boatCrew: state.boatCrew || 0, voyageDays: state.voyageDays || 0, islandDiscovered: !!state.islandDiscovered,
       car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
       pet: !!pet, hasFloor2: !!state.hasFloor2, floor2Rot: state.floor2Rot || 0, floors2: state.floors2 || [], unlocked: state.unlocked || {},   // desbloqueos del medio juego (floors2: TODOS los segundos pisos)
       petAlien: !!petAlien, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
@@ -7943,6 +8017,8 @@ function loadGame() {
   state.planetCreature = (PLANETS.find(p => p.name === state.planetName) || {}).creature || 'yeti';
   state.cargo = d.cargo || {};
   state.bank = d.bank || 0; state.debt = d.debt || 0;
+  state.boatCrew=d.boatCrew||0;state.voyageDays=d.voyageDays||0;state.islandDiscovered=!!d.islandDiscovered;state.sailing=false;
+  if(boat){scene.remove(boat.group);boat=null;}if(d.boat){spawnBoat(true);boat.group.position.set(d.boat.x,OCEAN.surface,d.boat.z);boat.heading=d.boat.heading||-Math.PI/2;boat.group.rotation.y=boat.heading;boat.hp=d.boat.hp||100;}
   resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
   clearHoles(); (d.holes || []).forEach(o => spawnHole(o.x, o.z, o.depth, o.tunnels)); state.underground = false; state.groundY = 0; state.shelterHole = null;   // minas voxel (nunca cargas bajo tierra)
@@ -8352,6 +8428,17 @@ function buyItem(item) {
   }
   if (item.car) {
     if (spawnCar()) state.money -= item.price; return;
+  }
+  if (item.boat) {
+    if (boat) { toast('⛵ Ya tienes un barco de expedición'); return; }
+    state.money -= item.price; spawnBoat(false); return;
+  }
+  if (item.crew) {
+    if (!boat) { toast('⛵ Primero compra el barco de expedición'); return; }
+    if ((state.boatCrew || 0) >= 4) { toast('👥 Ya tienes la tripulación completa (4)'); return; }
+    state.money -= item.price; state.boatCrew = (state.boatCrew || 0) + 1; boat.crew = state.boatCrew;
+    const sailor = makePerson(0xd6b98c, 0x1d4ed8); sailor.scale.set(.72,.72,.72); sailor.position.set((state.boatCrew-2.5)*.8,1.7,-1); boat.group.add(sailor);
+    toast('🧑‍✈️ Tripulante contratado ('+state.boatCrew+'/4) · protege y acelera el barco'); return;
   }
   if (item.helicopter) {
     if (spawnCar({ helicopter: true })) state.money -= item.price;
@@ -8943,7 +9030,7 @@ function attack(multiplier = 1) {
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
   if (best) { hitEnemy(best, dmg, p); if (state.laserGun) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
-  else if (!tryHitGeode() && !tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // en Platus: geoda · cráter · cristal · carbón
+  else if (!tryMineIslandOre() && !tryHitGeode() && !tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // isla o recursos de Platus
 }
 // Rayo láser: línea roja del jugador al enemigo (breve destello)
 function shootBeam(target) {
@@ -8964,6 +9051,7 @@ function attackNPC() {
   if (state.inArena) { vmSwing = 1; beep(320, 0.05, 0.03); hitArenaFoe(); return; }   // en el coliseo (de día también)
   if (titan && hitTitan(state.weaponDmg)) { vmSwing = 1; return; }   // golpear al TITÁN (de día también)
   if (state.planet === 'platus') { vmSwing = 1; if (!tryHitFloatingCitizen(state.weaponDmg) && !tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus: ciudadanos, geodas, cristales o carbón
+  if (tryMineIslandOre()) { vmSwing=1; beep(310,.06,.035); return; }
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
   const range = 4;
   let best = null, bestD = range;
@@ -9467,6 +9555,7 @@ function loop() {
     updateBaseDefense(dt);                 // torretas de la base espacial disparan de noche
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
+    updateOceanExpedition(dt);             // barco, oleaje, tormentas y trampas de la isla
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
     if (state.creative) { state.hp = 100; state.dadHp = 100; if (state.hunger < 20) state.hunger = 20; }   // creativo: no se puede morir (ni tú ni el papá)
@@ -9605,6 +9694,7 @@ function drawMinimap() {
 
 function updateMovement(dt) {
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
+  if (state.sailing) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }
   if (typing) clearInput();   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
   if (sitOn) {   // sentado: te quedas en el mueble hasta que te pares con E
     const p = sitOn.mesh.position, rot = sitOn.mesh.rotation.y;
@@ -9678,6 +9768,7 @@ function updateMovement(dt) {
   vy -= grav * dt; player.position.y += vy * dt;
   // suelo efectivo: el piso normal o el TOPE de una isla flotante debajo (para pararte encima)
   let floorY = standY;
+  if (state.planet === 'tierra' && inTreasureIsland(player.position.x, player.position.z)) floorY = TREASURE_ISLAND.surface + (crouch ? CROUCH_EYE : PLAYER_EYE);
   if (state.planet === 'platus' && !state.underground && !state.inCastle && !state.inArena && !state.inRuins) {
     const eye = crouch ? CROUCH_EYE : PLAYER_EYE;
     for (const is of floatIslands) { if (Math.hypot(player.position.x - is.x, player.position.z - is.z) < is.r) { const top = is.top + eye; if (player.position.y >= top - 0.7 && top > floorY) floorY = top; } }
@@ -9717,8 +9808,8 @@ function updateMovement(dt) {
     player.position.x = THREE.MathUtils.clamp(player.position.x, COUNTRY_C.x - 85, COUNTRY_C.x + 85);
     player.position.z = THREE.MathUtils.clamp(player.position.z, COUNTRY_C.z - 85, COUNTRY_C.z + 85);
   } else {
-    player.position.x = THREE.MathUtils.clamp(player.position.x, -230, 230);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, -230, 230);
+    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1220 : -230, 230);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, -365, 230);
   }
   resolveCollisions();
   camera.rotation.y = yaw; camera.rotation.x = pitch;
@@ -10285,8 +10376,9 @@ function updateSky(dt) {
   scene.background.lerp(target, 0.04); scene.fog.color.copy(scene.background);
   const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1.0;   // NEBULA: planeta oscuro y neblinoso
   const enclosed = playerInClosedRoom();
-  ambient.intensity += ((enclosed ? 0.012 : (night ? 0.25 : 1.0 * dim)) - ambient.intensity) * 0.08;
-  sun.intensity += ((enclosed ? 0.015 : (night ? 0.15 : 1.0 * dim)) - sun.intensity) * 0.08;
+  const islandShade = state.planet === 'tierra' && inTreasureIsland(player.position.x, player.position.z);
+  ambient.intensity += ((enclosed ? 0.012 : islandShade ? .16 : (night ? 0.25 : 1.0 * dim)) - ambient.intensity) * 0.08;
+  sun.intensity += ((enclosed ? 0.015 : islandShade ? .08 : (night ? 0.15 : 1.0 * dim)) - sun.intensity) * 0.08;
   for (const o of placed) if (o.light) { const desired = state.worldEvent && state.worldEvent.id === 'blackout' ? 0 : ((night || enclosed) ? 4.5 : 0); o.light.intensity += (desired - o.light.intensity) * 0.08; }
   if (state.eclipse > 0) {   // ECLIPSE: todo se oscurece de golpe
     scene.background.lerp(SKY_ECLIPSE, 0.12); scene.fog.color.copy(scene.background);
@@ -10385,14 +10477,14 @@ function renderHUD() {
   ui('ui-stamina-label').textContent = state.blocking ? 'BLOQUEANDO' : (state.dodgeCd > 0 ? 'RECARGANDO' : 'RESISTENCIA');
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
   ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(currentNightLength() - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(currentDayLength() - state.dayTime) : '--');
-  const speedometer = ui('speedometer'), showingSpeed = !!(state.driving && car);
+  const speedometer = ui('speedometer'), showingSpeed = !!((state.driving && car) || (state.sailing && boat));
   speedometer.style.display = showingSpeed ? 'flex' : 'none';
   if (showingSpeed) {
-    ui('speedValue').textContent = Math.round((car.speed || 0) * 3.6);
-    ui('speedMode').textContent = car.helicopter ? 'VELOCIDAD AÉREA' : (car.reverse ? 'REVERSA' : (car.turbo ? 'TURBO' : 'VELOCIDAD'));
-    speedometer.classList.toggle('turbo', !!car.turbo);
+    ui('speedValue').textContent = state.sailing ? 'DÍA '+Math.max(1,Math.floor(state.voyageDays||0)) : Math.round((car.speed || 0) * 3.6);
+    ui('speedMode').textContent = state.sailing ? 'BARCO '+Math.max(0,Math.round(boat.hp))+'% · '+(state.boatCrew||0)+' TRIP.' : car.helicopter ? 'VELOCIDAD AÉREA' : (car.reverse ? 'REVERSA' : (car.turbo ? 'TURBO' : 'VELOCIDAD'));
+    speedometer.classList.toggle('turbo', state.sailing ? state.weather==='rain' : !!car.turbo);
   }
-  document.body.classList.toggle('building', !!state.buildMode); document.body.classList.toggle('vehicle', !!state.driving); document.body.classList.toggle('sporting', !!state.sportGame);
+  document.body.classList.toggle('building', !!state.buildMode); document.body.classList.toggle('vehicle', !!(state.driving || state.sailing)); document.body.classList.toggle('sporting', !!state.sportGame);
   const sportHud = ui('sportHud'), sportGame = state.sportGame;
   sportHud.style.display = sportGame ? 'block' : 'none';
   if (sportGame) {

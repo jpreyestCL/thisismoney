@@ -2968,9 +2968,9 @@ function standUp(silent) {
   }
   return true;
 }
-function trySit() {
+function trySit(targetSeat) {
   if (sitOn) return standUp(false);
-  const seat = nearestSeat(); if (!seat) return false;
+  const seat = targetSeat || nearestSeat(); if (!seat) return false;
   sitOn = seat;
   toast(seat.key === 'bano' ? '🚽 Sentado en el baño · E para levantarte'
     : seat.key === 'cama' ? '🛏️ Acostado · E para levantarte' : '🪑 Te sentaste · E para levantarte');
@@ -6282,27 +6282,37 @@ function stopGamerSpeaker() {
   if (speakerMusicTimer) { clearInterval(speakerMusicTimer); speakerMusicTimer = null; }
   startMusic();
 }
-function nearestGamerObject(key, maxD = 3.2) {
-  let best = null, bd = maxD;
-  for (const o of placed) if (o.key === key) { const d = dist2D(player.position, o.mesh.position); if (d < bd) { best = o; bd = d; } }
-  return best;
-}
 function zombieHitSound() {
   tone(145, .055, .05, 'square'); setTimeout(() => tone(92, .075, .04, 'triangle'), 28);
 }
-function tryGamerKeyboard() {
-  const keyboard = nearestGamerObject('teclado_gamer'); if (!keyboard) return false;
-  const speaker = nearestGamerObject('parlante_gamer');
-  if (speaker && dist2D(player.position, speaker.mesh.position) < dist2D(player.position, keyboard.mesh.position)) return false;
+function useGamerKeyboard() {
   for (let i = 0; i < 6; i++) setTimeout(() => tone(980 + Math.random() * 380, .025, .028, i % 2 ? 'triangle' : 'square'), i * 45);
   toast('⌨️ Escribiste en el teclado gamer');
   return true;
 }
-function tryGamerSpeaker() {
-  const speaker = nearestGamerObject('parlante_gamer'); if (!speaker) return false;
+function useGamerSpeaker(speaker) {
   if (activeGamerSpeaker === speaker) { stopGamerSpeaker(); toast('🔇 Música gamer apagada'); }
   else { startGamerSpeaker(speaker); toast('🔊 ¡Música gamer encendida! Pulsa E para apagarla'); }
   return true;
+}
+function aimedFurniture(maxD = 4.5) {
+  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer']);
+  const origin = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
+  let best = null, bestScore = -Infinity;
+  for (const o of placed) {
+    if (!allowed.has(o.key)) continue;
+    const to = new THREE.Vector3().subVectors(o.mesh.position, origin), d = to.length(); if (d > maxD || d < .05) continue;
+    const dot = to.multiplyScalar(1 / d).dot(dir), score = dot - d * .012;
+    if (dot > .68 && score > bestScore) { best = o; bestScore = score; }
+  }
+  return best;
+}
+function tryFocusedFurniture() {
+  if (sitOn) return standUp(false);   // levantarse siempre gana; ningún teclado/parlante puede robar E
+  const target = aimedFurniture(); if (!target) return false;
+  if (target.key === 'teclado_gamer') return useGamerKeyboard();
+  if (target.key === 'parlante_gamer') return useGamerSpeaker(target);
+  return trySit(target);
 }
 function toggleSound() {
   soundOn = !soundOn;
@@ -6354,7 +6364,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { if (!tryGamerKeyboard() && !tryGamerSpeaker() && !tryAirport() && !countryHello() && !trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryFocusedFurniture() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -6817,7 +6827,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryGamerKeyboard() && !tryGamerSpeaker() && !tryAirport() && !countryHello() && !trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryFocusedFurniture() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -9905,12 +9915,15 @@ function updateContextPrompt() {
       const stand = nearestParkStand(), att = parkRide ? parkRide.att : nearestAttraction();
       const enMostrador = state.planet === 'tierra' && !state.country && dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6;
       const enAvionVuelta = !!state.country && dist2D(player.position, { x: COUNTRY_C.x, z: COUNTRY_C.z - 73 }) < 6;
-      const asiento = sitOn || nearestSeat();
+      const furniture = sitOn ? sitOn : aimedFurniture();
+      const asiento = furniture && SEAT_KEYS.includes(furniture.key) ? furniture : null;
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
       if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
       else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
       else if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
+      else if (furniture && furniture.key === 'teclado_gamer') action = { key: 'E', touch: '⌨️', text: 'Usar el teclado gamer' };
+      else if (furniture && furniture.key === 'parlante_gamer') action = { key: 'E', touch: '🔊', text: activeGamerSpeaker === furniture ? 'Apagar la música gamer' : 'Encender la música gamer' };
       else if (asiento && !state.buildMode) action = { key: 'E', touch: '🪑', text: asiento.key === 'bano' ? 'Sentarte en el baño' : asiento.key === 'cama' ? 'Acostarte' : 'Sentarte' };
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };

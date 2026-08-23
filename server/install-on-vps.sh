@@ -13,8 +13,10 @@ if ! sudo -u postgres psql -tAc "select 1 from pg_database where datname='thisis
 sudo -u "$APP_USER" psql -v ON_ERROR_STOP=1 -d thisismoney -f "$WEBROOT/server/schema.sql"
 
 cd "$WEBROOT/server"
-npm install --omit=dev --ignore-scripts
-sudo chmod -R a+rX node_modules package.json leaderboard.mjs
+npm install --prefix "$WEBROOT/server" --omit=dev --ignore-scripts --no-package-lock
+MODULE_DIR=$(npm root --prefix "$WEBROOT/server")
+test -d "$MODULE_DIR/pg"
+sudo chmod -R a+rX "$MODULE_DIR" package.json leaderboard.mjs
 sudo install -m 0644 thisismoney-leaderboard.service "/etc/systemd/system/$SERVICE.service"
 sudo systemctl daemon-reload
 sudo systemctl enable --now "$SERVICE"

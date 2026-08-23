@@ -10087,6 +10087,42 @@ function updateBillboards(dt) {
 
   });
 }
+// Una habitación solo queda a oscuras si el jugador está bajo un techo y hay una
+// pared en cada dirección. Se recalcula pocas veces por segundo para cuidar los FPS.
+let closedRoomCheckAt = 0, closedRoomResult = false;
+function playerInClosedRoom() {
+  const now = performance.now();
+  if (now - closedRoomCheckAt < 180) return closedRoomResult;
+  closedRoomCheckAt = now; closedRoomResult = false;
+  const px = player.position.x, pz = player.position.z;
+  let floorY = null;
+  for (const o of placed) {
+    if (o.key !== 'roof') continue;
+    const dx = px - o.mesh.position.x, dz = pz - o.mesh.position.z;
+    const c = Math.cos(-o.mesh.rotation.y), s = Math.sin(-o.mesh.rotation.y);
+    const lx = dx * c - dz * s, lz = dx * s + dz * c;
+    if (Math.abs(lx) <= 2.45 && Math.abs(lz) <= 2.45 && player.position.y < o.mesh.position.y) { floorY = o.baseY || 0; break; }
+  }
+  if (floorY == null) return false;
+  const blocked = [false, false, false, false], rays = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (const o of placed) {
+    if (!WALL_SNAP_KEYS[o.key] || Math.abs((o.baseY || 0) - floorY) > 0.1) continue;
+    const a = o.mesh.rotation.y, ux = Math.cos(a) * 2.15, uz = -Math.sin(a) * 2.15;
+    const ax = o.mesh.position.x - ux, az = o.mesh.position.z - uz, bx = o.mesh.position.x + ux, bz = o.mesh.position.z + uz;
+    for (let i = 0; i < rays.length; i++) {
+      if (blocked[i]) continue;
+      const rx = rays[i][0] * 10, rz = rays[i][1] * 10;
+      const den = rx * (bz - az) - rz * (bx - ax);
+      if (Math.abs(den) < 0.0001) continue;
+      const qx = ax - px, qz = az - pz;
+      const t = (qx * (bz - az) - qz * (bx - ax)) / den;
+      const u = (qx * rz - qz * rx) / den;
+      if (t >= 0 && t <= 1 && u >= 0 && u <= 1) blocked[i] = true;
+    }
+  }
+  closedRoomResult = blocked.every(Boolean);
+  return closedRoomResult;
+}
 function updateSky(dt) {
   if (state.cinematic) {
     scene.background.setHex(0x020617); scene.fog.color.setHex(0x020617); scene.fog.near=220; scene.fog.far=600;
@@ -10100,9 +10136,10 @@ function updateSky(dt) {
   const target = night ? SKY_NIGHT : base;
   scene.background.lerp(target, 0.04); scene.fog.color.copy(scene.background);
   const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1.0;   // NEBULA: planeta oscuro y neblinoso
-  ambient.intensity += ((night ? 0.25 : 1.0 * dim) - ambient.intensity) * 0.04;
-  sun.intensity += ((night ? 0.15 : 1.0 * dim) - sun.intensity) * 0.04;
-  for (const o of placed) if (o.light) { const desired = state.worldEvent && state.worldEvent.id === 'blackout' ? 0 : (night ? 4.5 : 0); o.light.intensity += (desired - o.light.intensity) * 0.05; }
+  const enclosed = playerInClosedRoom();
+  ambient.intensity += ((enclosed ? 0.012 : (night ? 0.25 : 1.0 * dim)) - ambient.intensity) * 0.08;
+  sun.intensity += ((enclosed ? 0.015 : (night ? 0.15 : 1.0 * dim)) - sun.intensity) * 0.08;
+  for (const o of placed) if (o.light) { const desired = state.worldEvent && state.worldEvent.id === 'blackout' ? 0 : ((night || enclosed) ? 4.5 : 0); o.light.intensity += (desired - o.light.intensity) * 0.08; }
   if (state.eclipse > 0) {   // ECLIPSE: todo se oscurece de golpe
     scene.background.lerp(SKY_ECLIPSE, 0.12); scene.fog.color.copy(scene.background);
     ambient.intensity += (0.18 - ambient.intensity) * 0.1; sun.intensity += (0.1 - sun.intensity) * 0.1;

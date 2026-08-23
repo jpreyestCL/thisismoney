@@ -22,8 +22,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE"
 sudo systemctl stop "$SERVICE" || true
 sudo pkill -f '/var/www/tim.strivexlatam.com/server/leaderboard.mjs' || true
-sudo fuser -k 8787/tcp || true
+PORT_PIDS=$(sudo ss -ltnp 'sport = :8787' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u)
+for pid in $PORT_PIDS; do sudo kill "$pid" || true; done
 sleep 1
+PORT_PIDS=$(sudo ss -ltnp 'sport = :8787' | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | sort -u)
+for pid in $PORT_PIDS; do sudo kill -9 "$pid" || true; done
 sudo systemctl restart "$SERVICE"
 
 sudo install -m 0644 nginx-location.conf /etc/nginx/snippets/tim-leaderboard.conf

@@ -2497,8 +2497,11 @@ function insideBuilding(x, z) {
   }
   return false;
 }
+let trafficTerrainFrame = 0;
 function updateTraffic(dt) {
-  for (const car of traffic) {
+  trafficTerrainFrame++;
+  for (let carIndex = 0; carIndex < traffic.length; carIndex++) {
+    const car = traffic[carIndex];
     if (!car.userData.moving) continue;
     if (carAhead(car) || stoppedByLight(car)) continue;
     const r = car.userData.road, spd = car.userData.speed; let dir = car.userData.dir;
@@ -2522,9 +2525,8 @@ function updateTraffic(dt) {
       if (car.position.z > r.cz + r.len / 2) car.position.z = r.cz - r.len / 2;
       else if (car.position.z < r.cz - r.len / 2) car.position.z = r.cz + r.len / 2;
     }
-    car.position.y = mountainHeightAt(car.position.x, car.position.z);   // los autos eléctricos del tránsito también suben cerros
+    if ((trafficTerrainFrame + carIndex) % 2 === 0) car.position.y = mountainHeightAt(car.position.x, car.position.z);   // reparte el cálculo entre cuadros
   }
-  for (const car of parkedCars) car.position.y = mountainHeightAt(car.position.x, car.position.z);
 }
 // Peatones cerca de las avenidas centrales (para verlos al conducir)
 function spawnPedestrians() {
@@ -8127,7 +8129,10 @@ function updateCar(dt) {
   if (!vehicles.length) return;
   if (!state.driving && engineGain) engineGain.gain.value = 0;   // apagar motor al bajarse
   for (const v of vehicles.slice()) {
-    if (!v.helicopter && (!state.driving || v !== car)) v.group.position.y = mountainHeightAt(v.group.position.x, v.group.position.z);
+    if (!v.helicopter && (!state.driving || v !== car)) {
+      v.terrainTick = (v.terrainTick || 0) - dt;
+      if (v.terrainTick <= 0) { v.terrainTick = 1; v.group.position.y = mountainHeightAt(v.group.position.x, v.group.position.z); }
+    }
     v.bar.g.position.set(v.group.position.x, v.group.position.y + 3.3, v.group.position.z);
     const f = Math.max(0, v.hp / v.maxHp); v.bar.fg.scale.x = f || 0.001;
     v.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : f > 0.25 ? 0xf59e0b : 0xef4444);

@@ -4884,7 +4884,9 @@ function placeObject() {
     const [lx, lz] = slots[key], c = Math.cos(desk.mesh.rotation.y), s = Math.sin(desk.mesh.rotation.y);
     placeX = desk.mesh.position.x + lx * c + lz * s;
     placeZ = desk.mesh.position.z - lx * s + lz * c;
-    placeRot = desk.mesh.rotation.y; mountY = 0.88;
+    // La posición se encaja en la mesa, pero el objeto conserva el giro elegido:
+    // así la PC, el monitor y el teclado pueden rotarse 360° independientemente.
+    mountY = 0.88;
   }
   state.inv[key]--;
   const variant = currentBuildVariant();

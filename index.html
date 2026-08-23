@@ -2522,7 +2522,9 @@ function updateTraffic(dt) {
       if (car.position.z > r.cz + r.len / 2) car.position.z = r.cz - r.len / 2;
       else if (car.position.z < r.cz - r.len / 2) car.position.z = r.cz + r.len / 2;
     }
+    car.position.y = mountainHeightAt(car.position.x, car.position.z);   // los autos eléctricos del tránsito también suben cerros
   }
+  for (const car of parkedCars) car.position.y = mountainHeightAt(car.position.x, car.position.z);
 }
 // Peatones cerca de las avenidas centrales (para verlos al conducir)
 function spawnPedestrians() {
@@ -8074,6 +8076,10 @@ function updateDriving(dt) {
     car.group.position.y = THREE.MathUtils.clamp(car.group.position.y + rise * 12 * dt, 0, 45);
     for (const rotor of car.rotors) rotor.rotation.y += dt * (state.driving ? 22 : 5);
     touch.jump = false;   // cada toque del botón ⬆️ da impulso de ascenso también en celular
+  } else {
+    // Autos y motos siguen la altura continua del terreno, igual que los personajes.
+    // Así no chocan contra una "pared" invisible al entrar a una montaña ni quedan enterrados.
+    car.group.position.y = mountainHeightAt(car.group.position.x, car.group.position.z);
   }
   // chocar con paredes / edificios cuando el vehículo está cerca del suelo
   const R = 1.5;
@@ -8119,6 +8125,7 @@ function updateCar(dt) {
   if (!vehicles.length) return;
   if (!state.driving && engineGain) engineGain.gain.value = 0;   // apagar motor al bajarse
   for (const v of vehicles.slice()) {
+    if (!v.helicopter && (!state.driving || v !== car)) v.group.position.y = mountainHeightAt(v.group.position.x, v.group.position.z);
     v.bar.g.position.set(v.group.position.x, v.group.position.y + 3.3, v.group.position.z);
     const f = Math.max(0, v.hp / v.maxHp); v.bar.fg.scale.x = f || 0.001;
     v.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : f > 0.25 ? 0xf59e0b : 0xef4444);

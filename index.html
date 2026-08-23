@@ -6386,6 +6386,11 @@ function trySeatedGamerKeyboard() {
   if (target.key === 'computador_gamer') return pacOpen();
   return false;
 }
+function trySeatedPacman() {
+  if (!sitOn) return false;
+  const target = aimedFurniture();
+  return !!(target && target.key === 'computador_gamer' && pacOpen());
+}
 function toggleSound() {
   soundOn = !soundOn;
   if (!soundOn) { if (engineGain) engineGain.gain.value = 0; if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } if (speakerMusicTimer) { clearInterval(speakerMusicTimer); speakerMusicTimer = null; } }
@@ -6419,6 +6424,7 @@ addEventListener('keydown', e => {
   if (!state.running) return;
   if (e.code === 'KeyY') { openShopInput(); return; }   // abrir vendedor (comprar escribiendo)
   if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
+  if (e.code === 'KeyI' && trySeatedPacman()) return;   // sentado y mirando el computador: jugar Pac-Man
   if (e.code === 'KeyN') tryStartNight();
   if (e.code === 'AltLeft' || e.code === 'AltRight') { e.preventDefault(); dodge(); }
   if (e.code === 'KeyB') { state.buildMode = !state.buildMode; if (!state.buildMode) { activeBlueprintId = null; blueprintGhost.visible = false; } toast(state.buildMode ? '🔨 Construcción activa · F coloca · X quita · G planos · 🔄 (o P/L) gira la pieza al ángulo que quieras' : 'Modo construir OFF'); }
@@ -9999,7 +10005,7 @@ function updateContextPrompt() {
       else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
       else if (sitOn && aimed && aimed.key === 'teclado_gamer') action = { key: 'CLIC · E', touch: '👊', text: 'Usar teclado gamer · E para pararte' };
-      else if (sitOn && aimed && aimed.key === 'computador_gamer') action = { key: 'CLIC · E', touch: '👊', text: 'Jugar Pac-Man · E para pararte' };
+      else if (sitOn && aimed && aimed.key === 'computador_gamer') action = { key: 'I · E', touch: '👊', text: 'I juega Pac-Man · E para pararte' };
       else if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
       else if (furniture && furniture.key === 'teclado_gamer') action = { key: 'E', touch: '⌨️', text: 'Usar el teclado gamer' };
       else if (furniture && furniture.key === 'parlante_gamer') action = { key: 'E', touch: '🔊', text: activeGamerSpeaker === furniture ? 'Apagar la música gamer' : 'Encender la música gamer' };

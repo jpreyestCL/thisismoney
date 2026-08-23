@@ -14,6 +14,7 @@ sudo -u "$APP_USER" psql -v ON_ERROR_STOP=1 -d thisismoney -f "$WEBROOT/server/s
 
 cd "$WEBROOT/server"
 npm install --omit=dev --ignore-scripts
+chmod -R a+rX node_modules package.json leaderboard.mjs
 sudo install -m 0644 thisismoney-leaderboard.service "/etc/systemd/system/$SERVICE.service"
 sudo systemctl daemon-reload
 sudo systemctl enable --now "$SERVICE"

@@ -4739,11 +4739,12 @@ function clampBlueprintToFloor2(group) {
   const c = Math.cos(f.rot || 0), s = Math.sin(f.rot || 0);
   group.position.x += dx * c + dz * s; group.position.z += -dx * s + dz * c;
 }
-// ---- Auto-calce de murallas: el fantasma se pega solo a la pared de al lado ----
+// ---- Auto-calce de murallas y techos ----
 // Si apuntas cerca de una pared ya puesta, la nueva se calza en el hueco contiguo
-// (siguiendo la línea, o en escuadra de 90° en los extremos). El anillo se pone azul.
+// (siguiendo la línea, o en escuadra de 90° en los extremos). Los techos se centran
+// sobre el conjunto de paredes del mismo piso. El anillo se pone azul.
 const WALL_SNAP_KEYS = { wallWood: 1, wallRock: 1, wallMetal: 1, wallDoor: 1 };
-let wallSnap = null;   // {x, z, rot} cuando el fantasma quedó calzado con una pared vecina
+let wallSnap = null;   // {x, z, rot} cuando el fantasma quedó calzado con otra pieza
 function computeWallSnap(tx, tz, by) {
   if (!WALL_SNAP_KEYS[BUILD_KEYS[buildSel]]) return null;
   let best = null, bd = 6;
@@ -4765,6 +4766,33 @@ function computeWallSnap(tx, tz, by) {
     if (d < pd) { pd = d; pick = c; }
   }
   return pick;
+}
+function computeRoofSnap(tx, tz, by) {
+  if (BUILD_KEYS[buildSel] !== 'roof') return null;
+  const walls = placed.filter(o => WALL_SNAP_KEYS[o.key] && (o.baseY || 0) === by);
+  let seed = null, seedD = 7;
+  for (const o of walls) {
+    const d = Math.hypot(o.mesh.position.x - tx, o.mesh.position.z - tz);
+    if (d < seedD) { seedD = d; seed = o; }
+  }
+  if (!seed) return null;
+  const cluster = [seed], pending = [seed], unseen = new Set(walls.filter(o => o !== seed));
+  while (pending.length) {   // reúne solo las paredes conectadas a la que estás apuntando
+    const current = pending.pop();
+    for (const o of [...unseen]) if (dist2D(current.mesh.position, o.mesh.position) <= 4.6) {
+      unseen.delete(o); cluster.push(o); pending.push(o);
+    }
+  }
+  if (cluster.length < 2) return null;
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const o of cluster) {
+    minX = Math.min(minX, o.mesh.position.x); maxX = Math.max(maxX, o.mesh.position.x);
+    minZ = Math.min(minZ, o.mesh.position.z); maxZ = Math.max(maxZ, o.mesh.position.z);
+  }
+  const snap = { x: (minX + maxX) / 2, z: (minZ + maxZ) / 2, rot: buildRot };
+  if (Math.hypot(snap.x - tx, snap.z - tz) > 4.2) return null;
+  if (placed.some(o => o.key === 'roof' && (o.baseY || 0) === by && dist2D(o.mesh.position, snap) < 2)) return null;
+  return snap;
 }
 function updateBuild(dt) {
   const canBuild = state.buildMode && state.phase === 'DAY';
@@ -4790,7 +4818,7 @@ function updateBuild(dt) {
     ghostLine.material.color.set(!have ? 0xef4444 : libre ? 0x38bdf8 : 0x4ade80);   // azul = calzado sobre la construcción
   }
   else {
-    wallSnap = computeWallSnap(t.x, t.z, by);
+    wallSnap = computeWallSnap(t.x, t.z, by) || computeRoofSnap(t.x, t.z, by);
     if (wallSnap) { ghost.position.set(wallSnap.x, by, wallSnap.z); ghost.rotation.y = wallSnap.rot; }
     else { ghost.position.set(t.x, by, t.z); ghost.rotation.y = buildRot; }
     if (playerFloor2 && by === playerFloor2.data.baseY) {

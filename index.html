@@ -4442,6 +4442,17 @@ function spawnCampfire(x, z) {   // crea la fogata (usado al hacerla y al cargar
   return g;
 }
 function clearCampfires() { campfires.forEach(c => scene.remove(c)); campfires.length = 0; }
+function removeCampfire(fire, broadcast = true) {
+  const i = campfires.indexOf(fire); if (i < 0) return false;
+  if (broadcast) netSend({ t: 'fireRemove', id: net.myId, x: +fire.position.x.toFixed(2), z: +fire.position.z.toFixed(2) });
+  scene.remove(fire); campfires.splice(i, 1); return true;
+}
+function removeNearestCampfire(maxDistance = 4) {
+  let nearest = null, best = maxDistance;
+  for (const fire of campfires) { const d = dist2D(player.position, fire.position); if (d < best) { best = d; nearest = fire; } }
+  if (!nearest) return false;
+  removeCampfire(nearest); toast('🔥 Fogata quitada'); beep(180, 0.08, 0.04); return true;
+}
 function makeCampfire() {   // botón 🔥 (o F en Platus sin construir): 3 de carbón -> fogata delante tuyo
   if (state.planet !== 'platus') { toast('🔥 Las fogatas sirven en los planetas alien (para el frío/veneno)'); return; }
   if ((state.inv.carbon || 0) < 3) { toast('🔥 Necesitas 3 de CARBÓN para una fogata: pica las rocas negras a golpes 👊'); return; }
@@ -6512,7 +6523,12 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyB') { state.buildMode = !state.buildMode; if (!state.buildMode) { activeBlueprintId = null; blueprintGhost.visible = false; } toast(state.buildMode ? '🔨 Construcción activa · F coloca · X quita · G planos · 🔄 (o P/L) gira la pieza al ángulo que quieras' : 'Modo construir OFF'); }
   // P / L: mantenerlas apretadas gira la pieza hacia un lado o el otro (lo aplica spinBuild)
   if (e.code === 'KeyF') { if (state.planet === 'platus' && !state.buildMode) makeCampfire(); else placeObject(); }   // en Platus (sin construir) F = FOGATA
-  if (e.code === 'KeyX') deleteObject();
+  if (e.code === 'KeyX') {
+    if (e.repeat) return;
+    if (state.buildMode) deleteObject();
+    else if (!removeNearestCampfire()) togglePetPoint();
+    return;
+  }
   if (e.code === 'KeyC') setDadMode('follow');
   if (e.code === 'KeyV') setDadMode('stay');
   if (e.code === 'KeyO') setDadMode('clean');
@@ -6534,7 +6550,6 @@ addEventListener('keydown', e => {
   if (e.code === 'BracketRight') cycleCrop(1);
   if (e.code === 'BracketLeft') cycleCrop(-1);
   if (e.code === 'KeyZ') toggleDadRest();   // papá descansa en sofá/cama (los monstruos no lo ven)
-  if (e.code === 'KeyX' && !state.buildMode) togglePetPoint();   // banderita 🚩: las mascotas se quedan en un punto (en construcción X quita piezas)
 });
 // Inventario tipo Minecraft: elegir un espacio (slot).
 // Los números son de la CATEGORÍA activa (1 = herramienta, 2..10 = piezas de la pestaña).
@@ -9752,6 +9767,9 @@ function netHandle(raw, fromConn) {
     net.applying = true; try { spawnHole(m.x, m.z, m.d || 1, null); } finally { net.applying = false; }
   } else if (m.t === 'fire') {
     net.applying = true; try { spawnCampfire(m.x, m.z); } finally { net.applying = false; }
+  } else if (m.t === 'fireRemove') {
+    const fire = campfires.find(f => Math.abs(f.position.x - m.x) < .3 && Math.abs(f.position.z - m.z) < .3);
+    if (fire) removeCampfire(fire, false);
   } else if (m.t === 'paint') {
     net.applying = true; try { paintHouse(m.c, m.n || 'color'); } finally { net.applying = false; }
   } else if (m.t === 'dad') {

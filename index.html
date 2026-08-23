@@ -5382,13 +5382,13 @@ function hitEnemy(e, dmg, fromPos) {
   if (e.userData.remote) {   // el monstruo es del anfitrión: él decide si muere
     netSend({ t: 'hit', id: net.myId, eid: e.userData.netId, dmg });
     e.userData.flash = 0.15; e.userData.hitPulse = .2;
-    beep(180, 0.05, 0.035); hitConfirm(dmg, false);
+    zombieHitSound(); hitConfirm(dmg, false);
     floatText(e.position, '-' + Math.round(dmg), '#fbbf24', 13);
     return false;
   }
   e.userData.hp -= dmg; e.userData.flash = 0.15; e.userData.hitPulse = .2;
   if (fromPos) { const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1; e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6; }
-  beep(180, 0.05, 0.035);
+  zombieHitSound();
   hitConfirm(dmg, e.userData.hp <= 0);
   voxelImpact(e.position.clone().setY(Math.max(.6, (e.userData.barY || 3) * .48)), e.userData.hp <= 0 ? 0xfde047 : 0xef4444, e.userData.hp <= 0 ? 12 : 6);
   floatText(e.position, '-' + Math.round(dmg), '#fbbf24', 13);   // número de daño flotante
@@ -6260,7 +6260,9 @@ function startMusic() {
     if (state.phase === 'NIGHT' && state.hordeOn && i % 2 === 0) tone(65, .08, .012, 'square');                // pulso sutil durante la horda final
   }, 400);
 }
-const GAMER_SONG = [0, 4, 7, 12, 7, 4, 2, 5, 9, 14, 9, 5, 0, 7, 12, 16];
+// Tema original: dembow marcado + bajo menor + fanfarria épica (sin usar una canción existente).
+const GAMER_SONG = [0, 3, 7, 10, 7, 12, 10, 7, 0, 3, 7, 15, 12, 10, 7, 3];
+const DEMBOW_KICK = new Set([0, 3, 6, 10, 14]), DEMBOW_SNARE = new Set([4, 7, 12, 15]);
 function startGamerSpeaker(speaker) {
   activeGamerSpeaker = speaker; speakerMusicStep = 0;
   if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
@@ -6268,10 +6270,12 @@ function startGamerSpeaker(speaker) {
   if (!soundOn) return;
   speakerMusicTimer = setInterval(() => {
     if (!soundOn || !state.running || state.paused || document.hidden || !activeGamerSpeaker) return;
-    const i = speakerMusicStep++ % GAMER_SONG.length, base = 220;
-    tone(base * Math.pow(2, GAMER_SONG[i] / 12), .2, .035, i % 4 ? 'square' : 'sawtooth');
-    if (i % 4 === 0) tone(82.41, .18, .025, 'triangle');
-  }, 230);
+    const i = speakerMusicStep++ % GAMER_SONG.length, base = 146.83;
+    if (DEMBOW_KICK.has(i)) { tone(58, .11, .065, 'sine'); tone(base / 2 * Math.pow(2, GAMER_SONG[i] / 12), .2, .04, 'triangle'); }
+    if (DEMBOW_SNARE.has(i)) { tone(185, .055, .038, 'square'); tone(310, .035, .018, 'sawtooth'); }
+    if (i % 2) tone(1450, .018, .012, 'square');
+    if (i % 2 === 0) tone(base * Math.pow(2, GAMER_SONG[i] / 12), .2, .026, i % 4 ? 'square' : 'sawtooth');
+  }, 180);
 }
 function stopGamerSpeaker() {
   activeGamerSpeaker = null;
@@ -6283,10 +6287,16 @@ function nearestGamerObject(key, maxD = 3.2) {
   for (const o of placed) if (o.key === key) { const d = dist2D(player.position, o.mesh.position); if (d < bd) { best = o; bd = d; } }
   return best;
 }
-function gamerKeyboardClick(e) {
-  if (!state.running || e.repeat || !nearestGamerObject('teclado_gamer')) return;
-  const pitch = 1050 + Math.random() * 320;
-  tone(pitch, .025, .028, 'square'); setTimeout(() => tone(pitch * .72, .018, .018, 'triangle'), 18);
+function zombieHitSound() {
+  tone(145, .055, .05, 'square'); setTimeout(() => tone(92, .075, .04, 'triangle'), 28);
+}
+function tryGamerKeyboard() {
+  const keyboard = nearestGamerObject('teclado_gamer'); if (!keyboard) return false;
+  const speaker = nearestGamerObject('parlante_gamer');
+  if (speaker && dist2D(player.position, speaker.mesh.position) < dist2D(player.position, keyboard.mesh.position)) return false;
+  for (let i = 0; i < 6; i++) setTimeout(() => tone(980 + Math.random() * 380, .025, .028, i % 2 ? 'triangle' : 'square'), i * 45);
+  toast('⌨️ Escribiste en el teclado gamer');
+  return true;
 }
 function tryGamerSpeaker() {
   const speaker = nearestGamerObject('parlante_gamer'); if (!speaker) return false;
@@ -6310,7 +6320,6 @@ let typing = false;   // true mientras el input del vendedor está abierto (bloq
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
 addEventListener('keydown', e => {
-  gamerKeyboardClick(e);
   if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('blueprintPanel').style.display === 'block') { closeBlueprintPanel(); return; }
@@ -6345,7 +6354,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { if (!tryGamerSpeaker() && !tryAirport() && !countryHello() && !trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { if (!tryGamerKeyboard() && !tryGamerSpeaker() && !tryAirport() && !countryHello() && !trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -6808,7 +6817,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryGamerSpeaker() && !tryAirport() && !countryHello() && !trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryGamerKeyboard() && !tryGamerSpeaker() && !tryAirport() && !countryHello() && !trySit() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;

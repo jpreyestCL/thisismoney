@@ -4685,8 +4685,46 @@ refreshGhost();
 // (así se pueden poner muebles y adornos en el segundo piso igual que en el primero).
 function buildBaseY(x, z) {
   if (!playerFloor2) return 0;
-  const f = playerFloor2.data, { lx, lz } = floor2LocalOf(f, x, z);
-  return (Math.abs(lx) <= f.hw && Math.abs(lz) <= f.hd) ? f.baseY : 0;
+  return playerFloor2.data.baseY;
+}
+// Mantiene la huella completa del objeto dentro de las murallas del segundo piso.
+// Antes solo se comprobaba el centro, por eso los objetos grandes atravesaban los bordes.
+function clampBuildToFloor2(x, z, rot, key) {
+  if (!playerFloor2) return { x, z };
+  const f = playerFloor2.data, geometry = objGeometry(key);
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox, w = box.max.x - box.min.x, d = box.max.z - box.min.z;
+  geometry.dispose();
+  const rel = rot - (f.rot || 0), c = Math.abs(Math.cos(rel)), s = Math.abs(Math.sin(rel));
+  const ex = w * c / 2 + d * s / 2, ez = w * s / 2 + d * c / 2, margin = 0.24;
+  const local = floor2LocalOf(f, x, z);
+  const limitX = Math.max(0, f.hw - ex - margin), limitZ = Math.max(0, f.hd - ez - margin);
+  const lx = THREE.MathUtils.clamp(local.lx, -limitX, limitX), lz = THREE.MathUtils.clamp(local.lz, -limitZ, limitZ);
+  const fc = Math.cos(f.rot || 0), fs = Math.sin(f.rot || 0);
+  return { x: f.bx + lx * fc + lz * fs, z: f.bz - lx * fs + lz * fc };
+}
+function clampBlueprintToFloor2(group) {
+  if (!playerFloor2) return;
+  const f = playerFloor2.data, margin = 0.24;
+  group.updateMatrixWorld(true);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  group.traverse(child => {
+    if (!child.geometry) return;
+    if (!child.geometry.boundingBox) child.geometry.computeBoundingBox();
+    const b = child.geometry.boundingBox;
+    for (const x of [b.min.x, b.max.x]) for (const z of [b.min.z, b.max.z]) {
+      const p = new THREE.Vector3(x, 0, z).applyMatrix4(child.matrixWorld), q = floor2LocalOf(f, p.x, p.z);
+      minX = Math.min(minX, q.lx); maxX = Math.max(maxX, q.lx); minZ = Math.min(minZ, q.lz); maxZ = Math.max(maxZ, q.lz);
+    }
+  });
+  if (!Number.isFinite(minX)) return;
+  let dx = 0, dz = 0;
+  if (maxX - minX > (f.hw - margin) * 2) dx = -(minX + maxX) / 2;
+  else if (minX < -f.hw + margin) dx = -f.hw + margin - minX; else if (maxX > f.hw - margin) dx = f.hw - margin - maxX;
+  if (maxZ - minZ > (f.hd - margin) * 2) dz = -(minZ + maxZ) / 2;
+  else if (minZ < -f.hd + margin) dz = -f.hd + margin - minZ; else if (maxZ > f.hd - margin) dz = f.hd - margin - maxZ;
+  const c = Math.cos(f.rot || 0), s = Math.sin(f.rot || 0);
+  group.position.x += dx * c + dz * s; group.position.z += -dx * s + dz * c;
 }
 // ---- Auto-calce de murallas: el fantasma se pega solo a la pared de al lado ----
 // Si apuntas cerca de una pared ya puesta, la nueva se calza en el hueco contiguo
@@ -4723,7 +4761,7 @@ function updateBuild(dt) {
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const t = player.position.clone().addScaledVector(fwd, 5); t.y = 0;
   const by = buildBaseY(t.x, t.z);   // si estás en el segundo piso, se construye sobre la loza
-  if (activeBlueprintId) { wallSnap = null; blueprintGhost.position.set(t.x, by, t.z); blueprintGhost.rotation.y = buildRot; }
+  if (activeBlueprintId) { wallSnap = null; blueprintGhost.position.set(t.x, by, t.z); blueprintGhost.rotation.y = buildRot; if (playerFloor2) clampBlueprintToFloor2(blueprintGhost); }
   else if (BUILD_KEYS[buildSel] === 'piso2') {   // auto-calce del segundo piso: se centra solo sobre la construcción
     wallSnap = null;
     const c = wallClusterAt(t.x, t.z);
@@ -4742,6 +4780,10 @@ function updateBuild(dt) {
     wallSnap = computeWallSnap(t.x, t.z, by);
     if (wallSnap) { ghost.position.set(wallSnap.x, by, wallSnap.z); ghost.rotation.y = wallSnap.rot; }
     else { ghost.position.set(t.x, by, t.z); ghost.rotation.y = buildRot; }
+    if (playerFloor2 && by === playerFloor2.data.baseY) {
+      const safe = clampBuildToFloor2(ghost.position.x, ghost.position.z, ghost.rotation.y, BUILD_KEYS[buildSel]);
+      ghost.position.x = safe.x; ghost.position.z = safe.z;
+    }
     const have = state.inv[BUILD_KEYS[buildSel]] > 0;
     ghostLine.material.color.set(!have ? 0xef4444 : wallSnap ? 0x38bdf8 : 0x4ade80);   // azul = calzada con la vecina
   }

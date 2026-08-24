@@ -760,7 +760,7 @@
         <p>Las acciones frecuentes están cerca de la mano izquierda. Las acciones avanzadas aparecen en contexto.</p>
         <div class="key-list">
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
-          <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras del súper.</span>
+          <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Su sueldo es $10 por día.</span>
           <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
@@ -1425,6 +1425,12 @@ function updateButler(dt) {
     else if (butler.userData.task === 'return') { butler.userData.task = 'idle'; const order = butler.userData.order; butler.userData.order = null; toast(order && order.bought ? '🤵 Pedido entregado en tu inventario: ' + order.bought + ' × ' + order.item.name : '🤵 Ya estoy de vuelta en casa'); }
   }
   swingLimbs(butler, dt);
+}
+function payButlerDailyWage() {
+  const wage = 10, paid = Math.min(wage, Math.max(0, state.money));
+  state.money -= paid;
+  if (paid === wage) setTimeout(() => toast('🤵 Sueldo diario del mayordomo: -$10'), 900);
+  else setTimeout(() => toast('🤵 Sueldo del mayordomo: -$' + Math.floor(paid) + ' · faltaron $' + Math.ceil(wage - paid)), 900);
 }
 const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
   { key: 'pala_madera',    name: 'Pala madera',    price: 200, color: 0x8b5a2b, dmg: 1 },
@@ -9568,6 +9574,7 @@ function surviveNight() {
   } else if (state.streak) { state.streak = 0; toast('💔 La casa recibió daño: se cortó la racha'); }
   reward = Math.round(reward * (1 + 0.1 * Math.min(10, state.streak || 0)));   // la racha paga hasta el doble
   addMoney(reward);
+  payButlerDailyWage();                                      // $10 una sola vez al comenzar cada día nuevo
   if (state.baseGenerator && state.planet === 'platus') {   // generador de la base espacial: renta pasiva por noche sobrevivida en Platus
     const gen = 300 + 100 * state.stage; addMoney(gen);
     setTimeout(() => toast('⚡ +$' + gen + ' del GENERADOR de tu base espacial'), 5000);

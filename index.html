@@ -1769,6 +1769,7 @@ function initCitizenBrain(n, center, radius) {
 }
 function citizenPointBlocked(x, z) {
   if (Math.abs(x) > 228 || Math.abs(z) > 228) return true;
+  if (typeof insidePlayerStructure === 'function' && insidePlayerStructure(x,z,.35)) return true;
   return obstacles.some(o => x > o.minX - .48 && x < o.maxX + .48 && z > o.minZ - .48 && z < o.maxZ + .48);
 }
 function chooseCitizenGoal(n) {
@@ -2378,6 +2379,8 @@ function tryRob() {
 
 // Árboles (en la Tierra)
 const decor = [];
+let worldTreeTrunks=null,worldTreeLeaves=null;
+const worldTreeSpots=[];
 function buildTrees() {   // árboles INSTANCIADOS: ~100 árboles en solo 2 draw calls (rinde mejor en celular)
   const spots = [];
   const plant = (r0, r1) => {
@@ -2390,8 +2393,9 @@ function buildTrees() {   // árboles INSTANCIADOS: ~100 árboles en solo 2 draw
   };
   for (let i = 0; i < 36; i++) plant(28, 88);     // anillo cercano (como antes)
   for (let i = 0; i < 70; i++) plant(95, 220);    // afueras: bosque del mapa agrandado
-  const trunks = new THREE.InstancedMesh(new THREE.BoxGeometry(.8, 3, .8), mat(0x6b4423), spots.length);
-  const leaves = new THREE.InstancedMesh(new THREE.BoxGeometry(3.6, 3.6, 3.6), mat(0x2d5016), spots.length);
+  worldTreeSpots.push(...spots);
+  const trunks = worldTreeTrunks = new THREE.InstancedMesh(new THREE.BoxGeometry(.8, 3, .8), mat(0x6b4423), spots.length);
+  const leaves = worldTreeLeaves = new THREE.InstancedMesh(new THREE.BoxGeometry(3.6, 3.6, 3.6), mat(0x2d5016), spots.length);
   trunks.castShadow = true; leaves.castShadow = true;
   const m4 = new THREE.Matrix4();
   spots.forEach(([x, z], i) => {
@@ -2605,7 +2609,8 @@ const trafficExclusionZones = [
   { minX: 40 - 13.5, maxX: 40 + 13.5, minZ: -22 - 13.5, maxZ: -22 + 13.5 },
 ];
 function insideTrafficExclusion(x, z) {
-  return trafficExclusionZones.some(o => x > o.minX && x < o.maxX && z > o.minZ && z < o.maxZ);
+  return trafficExclusionZones.some(o => x > o.minX && x < o.maxX && z > o.minZ && z < o.maxZ) ||
+    (typeof insidePlayerStructure === 'function' && insidePlayerStructure(x,z,2.6));
 }
 function placeOnRoad(car, r, t, laneOff, dir) {
   if (r.horizontal) { car.position.set(r.cx - r.len / 2 + t * r.len, 0, r.cz + laneOff); car.userData.heading = dir > 0 ? Math.PI / 2 : -Math.PI / 2; }
@@ -4826,6 +4831,16 @@ homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
 // ===================================================================
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
+let playerStructureZones=[];
+function insidePlayerStructure(x,z,margin=0){return playerStructureZones.some(q=>x>q.minX-margin&&x<q.maxX+margin&&z>q.minZ-margin&&z<q.maxZ+margin);}
+function rebuildPlayerStructureZones(){
+  const walls=placed.filter(o=>!o.baseY&&WALL_SNAP_KEYS[o.key]),unseen=new Set(walls),zones=[];
+  while(unseen.size){const seed=unseen.values().next().value,group=[seed],pending=[seed];unseen.delete(seed);while(pending.length){const a=pending.pop();for(const b of [...unseen])if(dist2D(a.mesh.position,b.mesh.position)<5.2){unseen.delete(b);group.push(b);pending.push(b);}}
+    if(group.length<2)continue;let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;for(const o of group){const r=o.mesh.rotation.y,ex=Math.abs(Math.cos(r))*2+Math.abs(Math.sin(r))*.25,ez=Math.abs(Math.sin(r))*2+Math.abs(Math.cos(r))*.25;minX=Math.min(minX,o.mesh.position.x-ex);maxX=Math.max(maxX,o.mesh.position.x+ex);minZ=Math.min(minZ,o.mesh.position.z-ez);maxZ=Math.max(maxZ,o.mesh.position.z+ez);}zones.push({minX:minX-.65,maxX:maxX+.65,minZ:minZ-.65,maxZ:maxZ+.65});}
+  playerStructureZones=zones;
+  if(worldTreeTrunks&&worldTreeLeaves){const matrix=new THREE.Matrix4();for(let i=0;i<worldTreeSpots.length;i++){const [x,z]=worldTreeSpots[i],hidden=insidePlayerStructure(x,z,1.4);matrix.makeTranslation(x,hidden?-100:1.5,z);worldTreeTrunks.setMatrixAt(i,matrix);matrix.makeTranslation(x,hidden?-100:4.2,z);worldTreeLeaves.setMatrixAt(i,matrix);}worldTreeTrunks.instanceMatrix.needsUpdate=true;worldTreeLeaves.instanceMatrix.needsUpdate=true;}
+  if(typeof parkedCars!=='undefined')for(const parked of parkedCars)if(insidePlayerStructure(parked.position.x,parked.position.z,2)){const road=parked.userData.road;for(let i=0;i<12;i++){placeOnRoad(parked,road,(i+.5)/12,4.4,1);if(!insidePlayerStructure(parked.position.x,parked.position.z,2)&&!insideBuilding(parked.position.x,parked.position.z))break;}const ob=parked.userData.obstacle;if(ob){const longZ=parked.userData.heading===0,w=longZ?2.2:4.6,d=longZ?4.6:2.2;ob.minX=parked.position.x-w/2;ob.maxX=parked.position.x+w/2;ob.minZ=parked.position.z-d/2;ob.maxZ=parked.position.z+d/2;}}
+}
 const rgbPlaced = [];       // piezas gamer con luces RGB: cambian de color solas
 const mirrorObjs = [];      // espejos colocados (solo el más cercano refleja de verdad, por rendimiento)
 let mirrorNear = false;     // true si estás frente a un espejo (ahí se muestra tu cuerpo para verte)
@@ -5351,6 +5366,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY) {
     obstacles.push(obj.aabb);
   }
   placed.push(obj);
+  if (WALL_SNAP_KEYS[key] && !by) rebuildPlayerStructureZones();
   if (obj.rgbParts) rgbPlaced.push(obj);   // set gamer: sus luces laten con updateGamerRGB
   updateHouseAnchor();   // tu casa puede haber crecido/moverse (en los planetas no hay marcador fijo)
   return obj;
@@ -5456,6 +5472,7 @@ function removePlaced(o) {
   if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
   if (o.aabbs) for (const b of o.aabbs) { const i = obstacles.indexOf(b); if (i >= 0) obstacles.splice(i, 1); }
   const i = placed.indexOf(o); if (i >= 0) placed.splice(i, 1);
+  if (WALL_SNAP_KEYS[o.key] && !o.baseY) rebuildPlayerStructureZones();
   if (['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'lamp', 'oven'].includes(o.key)) houseTier = 0;  // se rompió: puedes volver a ganar el bono
   updateHouseAnchor();
 }

@@ -6665,7 +6665,7 @@ function ensureEngine() {
 
 // --- Música ambiental (día tranquila, noche tensa); se puede silenciar ---
 let musicTimer = null, musicStep = 0;
-let speakerMusicTimer = null, speakerMusicStep = 0, activeGamerSpeaker = null;
+let speakerMusicTimer = null, speakerMusicStep = 0, speakerMusicEndStep = Infinity, speakerMusicFinished = null, activeGamerSpeaker = null;
 // Música por contexto: día alegre (mayor), noche tensa (menor) y Platus desolado (lento y raro).
 // Dos voces: melodía + bajo cada 2 pasos.
 const MUSIC = {
@@ -6690,8 +6690,10 @@ function startMusic() {
 // Tema original: dembow marcado + bajo menor + fanfarria épica (sin usar una canción existente).
 const GAMER_SONG = [0, 3, 7, 10, 7, 12, 10, 7, 0, 3, 7, 15, 12, 10, 7, 3];
 const DEMBOW_KICK = new Set([0, 3, 6, 10, 14]), DEMBOW_SNARE = new Set([4, 7, 12, 15]);
-function startGamerSpeaker(speaker) {
+function startGamerSpeaker(speaker, durationMs, onFinished) {
   activeGamerSpeaker = speaker; speakerMusicStep = 0;
+  speakerMusicEndStep = durationMs > 0 ? Math.max(1, Math.ceil(durationMs / 180)) : Infinity;
+  speakerMusicFinished = typeof onFinished === 'function' ? onFinished : null;
   if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
   if (speakerMusicTimer) clearInterval(speakerMusicTimer);
   if (!soundOn) return;
@@ -6702,12 +6704,16 @@ function startGamerSpeaker(speaker) {
     if (DEMBOW_SNARE.has(i)) { tone(185, .055, .038, 'square'); tone(310, .035, .018, 'sawtooth'); }
     if (i % 2) tone(1450, .018, .012, 'square');
     if (i % 2 === 0) tone(base * Math.pow(2, GAMER_SONG[i] / 12), .2, .026, i % 4 ? 'square' : 'sawtooth');
+    if (speakerMusicStep >= speakerMusicEndStep) {
+      const done = speakerMusicFinished; stopGamerSpeaker(false); if (done) done();
+    }
   }, 180);
 }
-function stopGamerSpeaker() {
+function stopGamerSpeaker(resumeAmbient = true) {
   activeGamerSpeaker = null;
   if (speakerMusicTimer) { clearInterval(speakerMusicTimer); speakerMusicTimer = null; }
-  startMusic();
+  speakerMusicEndStep = Infinity; speakerMusicFinished = null;
+  if (resumeAmbient) startMusic();
 }
 function zombieHitSound() {
   tone(145, .055, .05, 'square'); setTimeout(() => tone(92, .075, .04, 'triangle'), 28);
@@ -6731,7 +6737,8 @@ function alexaSpeak(text){toast('🔵 Alexa: '+text);if('speechSynthesis'in wind
 let alexaAudio=null,alexaJsonpN=0;
 function alexaJsonp(url){return new Promise((resolve,reject)=>{const cb='__alexaJsonp'+(++alexaJsonpN),s=document.createElement('script'),done=()=>{delete window[cb];s.remove();};window[cb]=data=>{done();resolve(data);};s.onerror=()=>{done();reject(new Error('network'));};s.src=url+(url.includes('?')?'&':'?')+'callback='+cb;document.head.appendChild(s);setTimeout(()=>{if(window[cb]){done();reject(new Error('timeout'));}},9000);});}
 function stopAlexaMusic(){if(alexaAudio){alexaAudio.onended=null;alexaAudio.onerror=null;alexaAudio.pause();alexaAudio=null;}if(activeGamerSpeaker)stopGamerSpeaker();}
-async function alexaPlaySong(alexa,q){const term=q.replace(/^(alexa[, ]*)?/,'').replace(/\b(pon|reproduce|toca|música|musica|canción|cancion|quiero escuchar|por favor)\b/g,' ').replace(/\s+/g,' ').trim();if(!term){startGamerSpeaker(alexa);alexaSpeak('Reproduciendo música completa y continua, reggaetonera y épica.');return;}alexaSpeak('Buscando '+term+'.');try{const data=await alexaJsonp('https://itunes.apple.com/search?media=music&entity=song&limit=1&country=CL&term='+encodeURIComponent(term));const song=data.results&&data.results[0];if(!song||!song.previewUrl){startGamerSpeaker(alexa);alexaSpeak('No encontré esa canción exacta. Puse una mezcla completa para que la música no se corte.');return;}stopAlexaMusic();const audio=new Audio(song.previewUrl.replace(/^http:/,'https:'));alexaAudio=audio;audio.volume=.72;audio.onended=()=>{if(alexaAudio!==audio)return;alexaAudio=null;startGamerSpeaker(alexa);alexaSpeak('Terminó la muestra oficial. Continúo con una mezcla completa para que la música no se detenga.');};audio.onerror=()=>{if(alexaAudio!==audio)return;alexaAudio=null;startGamerSpeaker(alexa);alexaSpeak('La muestra no pudo continuar. Puse una mezcla completa sin cortes.');};await audio.play();alexaSpeak('Reproduciendo '+song.trackName+' de '+song.artistName+'. Después de la muestra continuaré automáticamente con música completa.');}catch(e){startGamerSpeaker(alexa);alexaSpeak('El catálogo no respondió. Puse una mezcla completa para que la música siga sonando.');}}
+function alexaPlayCompleteMix(alexa,durationMs,title){startGamerSpeaker(alexa,durationMs,()=>{alexaSpeak('Terminó '+(title||'la canción')+'.');});}
+async function alexaPlaySong(alexa,q){const term=q.replace(/^(alexa[, ]*)?/,'').replace(/\b(pon|reproduce|toca|música|musica|canción|cancion|quiero escuchar|por favor)\b/g,' ').replace(/\s+/g,' ').trim();if(!term){stopAlexaMusic();alexaPlayCompleteMix(alexa,180000,'la canción');alexaSpeak('Reproduciendo una canción reggaetonera y épica completa. Se detendrá solamente cuando termine.');return;}alexaSpeak('Buscando '+term+'.');try{const data=await alexaJsonp('https://itunes.apple.com/search?media=music&entity=song&limit=1&country=CL&term='+encodeURIComponent(term));const song=data.results&&data.results[0];if(!song||!song.previewUrl){stopAlexaMusic();alexaPlayCompleteMix(alexa,180000,'la canción');alexaSpeak('No encontré esa canción exacta. Reproduciré una canción completa sin cortes.');return;}stopAlexaMusic();const audio=new Audio(song.previewUrl.replace(/^http:/,'https:'));alexaAudio=audio;audio.volume=.72;audio.onended=()=>{if(alexaAudio!==audio)return;const heardMs=Math.max(0,(audio.duration||30)*1000);alexaAudio=null;const remaining=Math.max(1000,Math.min(360000,(song.trackTimeMillis||180000)-heardMs));alexaPlayCompleteMix(alexa,remaining,song.trackName);};audio.onerror=()=>{if(alexaAudio!==audio)return;alexaAudio=null;alexaPlayCompleteMix(alexa,Math.min(360000,song.trackTimeMillis||180000),song.trackName);};await audio.play();alexaSpeak('Reproduciendo '+song.trackName+' de '+song.artistName+' sin detenerse hasta el final.');}catch(e){stopAlexaMusic();alexaPlayCompleteMix(alexa,180000,'la canción');alexaSpeak('El catálogo no respondió. Reproduciré una canción completa sin cortes.');}}
 async function alexaWorldAnswer(q){try{const term=q.replace(/^(alexa[, ]*)?/,'').replace(/^(qué|que|quién|quien|cuándo|cuando|dónde|donde|cómo|como)\s+(es|fue|son|era)?\s*/,'').replace(/^(dime|cuéntame|cuentame)\s+(sobre|acerca de)?\s*/,'').trim();const data=await alexaJsonp('https://es.wikipedia.org/w/api.php?action=query&format=json&generator=search&gsrlimit=1&prop=extracts&exintro=1&explaintext=1&redirects=1&origin=*&gsrsearch='+encodeURIComponent(term));const pages=data.query&&data.query.pages,article=pages&&pages[Object.keys(pages)[0]],text=article&&article.extract;if(!text)throw new Error('empty');alexaSpeak(text.split(/(?<=[.!?])\s+/).slice(0,2).join(' ').slice(0,420));}catch(e){alexaSpeak('No encontré una respuesta confiable. Prueba haciendo la pregunta de otra forma.');}}
 async function handleAlexaRequest(alexa,raw){const q=(raw||'').trim().toLowerCase();if(!q){alexaSpeak('No alcancé a escuchar. Pulsa E para intentarlo de nuevo.');return;}if(/para|detén|deten|apaga|silencio/.test(q)&&/música|musica|canción|cancion/.test(q)){stopAlexaMusic();alexaSpeak('Música apagada.');return;}if(/música|musica|canción|cancion|reggaet|épica|epica|pon |reproduce|toca /.test(q)){await alexaPlaySong(alexa,q);return;}let answer=null;if(/hora/.test(q))answer='Son las '+new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});else if(/dinero|plata|saldo/.test(q))answer='Tienes '+Math.round(state.money)+' dólares.';else if(/etapa|nivel/.test(q))answer='Vas en la etapa '+state.stage+'.';else if(/clima|tiempo/.test(q))answer=state.weather==='rain'?'Está lloviendo.':'Ahora está despejado.';else if(/cómo te llamas|como te llamas|quién eres|quien eres/.test(q))answer='Soy Alexa, tu asistente de This is Money.';else if(/zombi/.test(q))answer=state.stage>=20?'Desde la etapa veinte también aparece el zombi bombardero.':'Los zombis salen de noche. Prepárate antes de que oscurezca.';else if(/qué puedo|que puedo|ayuda/.test(q))answer='Puedes pedirme canciones por título y artista, o preguntarme sobre el juego y sobre temas del mundo.';if(answer)alexaSpeak(answer);else await alexaWorldAnswer(q);}
 async function useAlexa(alexa){releaseLock();typing=true;const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition){typing=false;alexaSpeak('Este navegador no incluye reconocimiento de voz. Abre el juego desde Chrome o Edge para usar el micrófono.');return true;}try{if(!navigator.mediaDevices?.getUserMedia)throw new Error('media-unsupported');const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});stream.getTracks().forEach(t=>t.stop());const rec=new Recognition();rec.lang='es-CL';rec.continuous=false;rec.interimResults=false;rec.maxAlternatives=1;let heard=false;rec.onstart=()=>toast('🔵 Alexa está escuchando… habla ahora');rec.onresult=e=>{heard=true;handleAlexaRequest(alexa,e.results[0][0].transcript);};rec.onerror=e=>{heard=true;const messages={'no-speech':'No escuché ninguna voz. Acércate y pulsa E para intentar otra vez.','audio-capture':'El micrófono está ocupado o no está disponible.','not-allowed':'No tengo permiso para usar el micrófono.','service-not-allowed':'El navegador bloqueó el servicio de reconocimiento de voz.','network':'El servicio de voz no pudo conectarse a Internet.'};alexaSpeak(messages[e.error]||'No pude reconocer la voz. Inténtalo otra vez.');};rec.onend=()=>{typing=false;if(!heard)alexaSpeak('Dejé de escuchar. Pulsa E para volver a intentarlo.');};rec.start();}catch(e){typing=false;const denied=e&&e.name==='NotAllowedError';alexaSpeak(denied?'El permiso del micrófono está bloqueado para esta página.':'No encontré un micrófono disponible. Revisa que no lo esté usando otra aplicación.');}return true;}
@@ -6832,7 +6839,7 @@ function trySeatedPacman() {
 function toggleSound() {
   soundOn = !soundOn;
   if (!soundOn) { if (engineGain) engineGain.gain.value = 0; if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } if (speakerMusicTimer) { clearInterval(speakerMusicTimer); speakerMusicTimer = null; } }
-  else if (activeGamerSpeaker) startGamerSpeaker(activeGamerSpeaker); else startMusic();
+  else if (activeGamerSpeaker) startGamerSpeaker(activeGamerSpeaker, Number.isFinite(speakerMusicEndStep) ? Math.max(180, (speakerMusicEndStep - speakerMusicStep) * 180) : undefined, speakerMusicFinished); else startMusic();
   const b = ui('soundBtn'); if (b) b.textContent = soundOn ? '🔊' : '🔇';
   try { localStorage.setItem('tim_sound', soundOn ? '1' : '0'); } catch (e) {}
 }

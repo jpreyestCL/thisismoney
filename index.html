@@ -760,6 +760,7 @@
         <p>Las acciones frecuentes están cerca de la mano izquierda. Las acciones avanzadas aparecen en contexto.</p>
         <div class="key-list">
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
+          <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras del súper.</span>
           <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
@@ -1338,6 +1339,93 @@ const STORE_A = [   // SÚPER 1: construcción y comida
   { key: 'traje',    name: 'Trajes espaciales', price: 2000, color: 0xe5e7eb },
   { key: 'rocket',   name: 'Cohete',       price: 15000, color: 0xf97316 },
 ];
+
+// Mayordomo: recibe órdenes con Espacio ×3, hace las compras con la plata del jugador
+// y vuelve físicamente desde el súper para entregar el pedido.
+const butler = makePerson(0x111827, 0xd6b98c);
+butler.position.set(HOUSE.x + 3, 0, HOUSE.z + 2);
+butler.userData.task = 'idle'; butler.userData.order = null;
+const butlerShirt = new THREE.Mesh(new THREE.BoxGeometry(.34, .58, .44), mat(0xf8fafc));
+butlerShirt.position.set(0, 1.43, .02); butler.add(butlerShirt);
+const butlerBow = new THREE.Mesh(new THREE.BoxGeometry(.3, .13, .48), mat(0xdc2626));
+butlerBow.position.set(0, 1.66, .02); butler.add(butlerBow);
+const butlerTag = makeSign('MAYORDOMO', 0xf8fafc);
+butlerTag.scale.set(.42, .42, .42); butlerTag.position.set(0, 3, 0); butler.add(butlerTag);
+scene.add(butler);
+const BUTLER_HOME = new THREE.Vector3(HOUSE.x + 3, 0, HOUSE.z + 2);
+const BUTLER_SUPER = new THREE.Vector3(40, 0, -31);
+let butlerSpaceTaps = [];
+
+function normalizeButlerText(value) {
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+const BUTLER_NUMBER_WORDS = { un:1, uno:1, una:1, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8, nueve:9, diez:10 };
+const BUTLER_ALIASES = {
+  wallWood:['pared madera','pared de madera','paredes madera','paredes de madera'],
+  wallRock:['pared roca','pared de roca','paredes roca','paredes de roca','pared piedra','pared de piedra'],
+  wallMetal:['pared metal','pared de metal','paredes de metal'], wallDoor:['pared puerta','pared con puerta'],
+  lamp:['lampara','lamparas','luz'], roof:['techo','techos'], door:['puerta','puertas'], oven:['horno','hornos'],
+  semillas:['semillas de manzana'], semillas_zanahoria:['semillas de zanahoria'], semillas_trigo:['semillas de trigo'], semillas_tomate:['semillas de tomate']
+};
+function butlerFindItem(text) {
+  let best = null, bestLength = 0;
+  for (const item of STORE_A) {
+    const names = [normalizeButlerText(item.name), ...(BUTLER_ALIASES[item.key] || [])];
+    for (const name of names) if (name && text.includes(name) && name.length > bestLength) { best = item; bestLength = name.length; }
+  }
+  return best;
+}
+function butlerQuantity(text) {
+  const digit = text.match(/\b(\d+)\b/); if (digit) return Math.max(1, Math.min(20, +digit[1]));
+  for (const [word, value] of Object.entries(BUTLER_NUMBER_WORDS)) if (new RegExp('\\b' + word + '\\b').test(text)) return value;
+  return 1;
+}
+function resetButler() {
+  butler.position.copy(BUTLER_HOME); butler.position.y = mountainHeightAt(BUTLER_HOME.x, BUTLER_HOME.z);
+  butler.userData.task = 'idle'; butler.userData.order = null; butlerSpaceTaps.length = 0;
+}
+function requestButlerOrder() {
+  if (!state.running || state.planet !== 'tierra') { toast('🤵 El mayordomo te espera en tu casa de la Tierra'); return; }
+  typing = true; releaseLock();
+  const answer = prompt('🤵 Mayordomo: ¿Qué quieres que haga?', 'Ve al súper y compra 3 paredes de madera');
+  typing = false;
+  if (!answer || !answer.trim()) { toast('🤵 Muy bien, seguiré esperando en casa'); return; }
+  const text = normalizeButlerText(answer), item = butlerFindItem(text);
+  if (item) {
+    let qty = butlerQuantity(text);
+    if (['dadgun','dadarmor','hijoarma','hijoarmadura','traje','rocket'].includes(item.key)) qty = 1;
+    const total = item.price * qty;
+    if (state.money < total) { toast('🤵 Ese pedido cuesta $' + total + ' y tienes $' + Math.floor(state.money)); return; }
+    butler.userData.order = { item, qty }; butler.userData.task = 'toStore';
+    toast('🤵 Iré al súper por ' + qty + ' × ' + item.name + ' ($' + total + ')'); return;
+  }
+  if (text.includes('sigueme') || text.includes('acompaname')) { butler.userData.task = 'follow'; butler.userData.order = null; toast('🤵 Te seguiré'); return; }
+  if (text.includes('casa') || text.includes('vuelve') || text.includes('espera') || text.includes('quedate')) { butler.userData.task = 'return'; butler.userData.order = null; toast('🤵 Volveré a casa'); return; }
+  if (text.includes('super')) { butler.userData.task = 'visitStore'; butler.userData.order = null; toast('🤵 Iré al súper'); return; }
+  toast('🤵 Puedo comprar cualquier producto del súper, seguirte o volver a casa. Dime, por ejemplo: «compra 4 paredes de roca»');
+}
+function updateButler(dt) {
+  butler.visible = state.planet === 'tierra'; if (!butler.visible) return;
+  let target = null;
+  if (butler.userData.task === 'toStore' || butler.userData.task === 'visitStore') target = BUTLER_SUPER;
+  else if (butler.userData.task === 'return') target = BUTLER_HOME;
+  else if (butler.userData.task === 'follow') {
+    if (dist2D(butler.position, player.position) > 3) target = player.position;
+  }
+  if (target) {
+    const d = dist2D(butler.position, target);
+    if (d > 1.1) { moveToward(butler, target, Math.min(d, 4.2 * dt)); butler.rotation.y = Math.atan2(target.x - butler.position.x, target.z - butler.position.z); }
+    else if (butler.userData.task === 'toStore') {
+      const order = butler.userData.order; let bought = 0;
+      if (order) for (let i = 0; i < order.qty; i++) { const before = state.money; buyItem(order.item); if (state.money >= before) break; bought++; }
+      if (order) order.bought = bought;
+      butler.userData.task = 'return';
+      toast(bought ? '🤵 Compré ' + bought + ' × ' + order.item.name + '. Voy de regreso a casa' : '🤵 No pude completar la compra. Regresaré a casa');
+    } else if (butler.userData.task === 'visitStore') { butler.userData.task = 'idle'; toast('🤵 Ya llegué al súper'); }
+    else if (butler.userData.task === 'return') { butler.userData.task = 'idle'; const order = butler.userData.order; butler.userData.order = null; toast(order && order.bought ? '🤵 Pedido entregado en tu inventario: ' + order.bought + ' × ' + order.item.name : '🤵 Ya estoy de vuelta en casa'); }
+  }
+  swingLimbs(butler, dt);
+}
 const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
   { key: 'pala_madera',    name: 'Pala madera',    price: 200, color: 0x8b5a2b, dmg: 1 },
   { key: 'pala_metal',     name: 'Pala metal',     price: 400, color: 0x9ca3af, dmg: 4 },
@@ -6770,6 +6858,11 @@ addEventListener('keydown', e => {
   if (e.code === 'F5' && state.running && !typing) { e.preventDefault(); cycleCameraMode(); return; }
   if (state.paused) return;   // en pausa el teclado no hace nada (solo Esc, arriba)
   if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
+  if (e.code === 'Space' && !e.repeat && state.running) {
+    const now = performance.now();
+    butlerSpaceTaps = butlerSpaceTaps.filter(t => now - t < 850); butlerSpaceTaps.push(now);
+    if (butlerSpaceTaps.length >= 3) { butlerSpaceTaps.length = 0; keys.Space = false; e.preventDefault(); requestButlerOrder(); return; }
+  }
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
   if (!state.running) return;
@@ -7358,6 +7451,7 @@ function startGame() {
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   updateHouseAnchor();   // vuelve al marcador verde de la Tierra
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
+  resetButler();
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT; state.country = null; setCountryVisible(false);
   state.phase = 'DAY'; state.running = true; state.paused = false; ui('pause').style.display = 'none';
@@ -8180,6 +8274,7 @@ function resetAll() {
   victims.forEach(v => v.userData.robbed = false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires();
+  resetButler();
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT; state.country = null; setCountryVisible(false);
   state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false; state.cargo = {};
@@ -9611,6 +9706,7 @@ function loop() {
     if (!netGuest()) updateDad(dt);        // en una sala online el papá lo maneja el anfitrión
     dadWalkBob(dt);
     updateHelpers(dt);
+    updateButler(dt);
     updatePet(dt);                         // perro guardián (desbloqueo $50k)
     updatePetAlien(dt);                    // mascota alien (tecnología de Platus)
     updateShield(dt);                      // recarga del escudo de energía
@@ -9783,6 +9879,7 @@ function drawMinimap() {
   icon(houseAnchor.x, houseAnchor.z, '🏠', 15);
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
   if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
+  if (butler.visible) icon(butler.position.x, butler.position.z, '🤵', 12);
   if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.ufo) icon(e.position.x, e.position.z, '🛸', 14); else dot(e.position.x, e.position.z, '#ef4444', 2); }
   // policía: solo aparece cuando estás BUSCADO; se resalta con un aro rojo
   if (police.length) {

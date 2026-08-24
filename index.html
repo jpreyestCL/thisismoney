@@ -5117,7 +5117,7 @@ function clampBlueprintToFloor2(group) {
   const c = Math.cos(f.rot || 0), s = Math.sin(f.rot || 0);
   group.position.x += dx * c + dz * s; group.position.z += -dx * s + dz * c;
 }
-// ---- Auto-calce de murallas y techos ----
+// ---- Auto-calce de murallas, puertas y techos ----
 // Si apuntas cerca de una pared ya puesta, la nueva se calza en el hueco contiguo
 // (siguiendo la línea, o en escuadra de 90° en los extremos). Los techos se centran
 // sobre el conjunto de paredes del mismo piso. El anillo se pone azul.
@@ -5144,6 +5144,17 @@ function computeWallSnap(tx, tz, by) {
     if (d < pd) { pd = d; pick = c; }
   }
   return pick;
+}
+function computeDoorSnap(tx, tz, by) {
+  if (BUILD_KEYS[buildSel] !== 'door') return null;
+  let best = null, bestD = 3.2;
+  for (const frame of placed) {
+    if (frame.key !== 'wallDoor' || (frame.baseY || 0) !== by) continue;
+    if (placed.some(o => o.key === 'door' && (o.baseY || 0) === by && dist2D(o.mesh.position, frame.mesh.position) < .35)) continue;
+    const d = Math.hypot(frame.mesh.position.x - tx, frame.mesh.position.z - tz);
+    if (d < bestD) { bestD = d; best = frame; }
+  }
+  return best ? { x:best.mesh.position.x, z:best.mesh.position.z, rot:best.mesh.rotation.y } : null;
 }
 function computeRoofSnap(tx, tz, by) {
   if (BUILD_KEYS[buildSel] !== 'roof') return null;
@@ -5196,7 +5207,7 @@ function updateBuild(dt) {
     ghostLine.material.color.set(!have ? 0xef4444 : libre ? 0x38bdf8 : 0x4ade80);   // azul = calzado sobre la construcción
   }
   else {
-    wallSnap = computeWallSnap(t.x, t.z, by) || computeRoofSnap(t.x, t.z, by);
+    wallSnap = computeWallSnap(t.x, t.z, by) || computeDoorSnap(t.x, t.z, by) || computeRoofSnap(t.x, t.z, by);
     if (wallSnap) { ghost.position.set(wallSnap.x, by, wallSnap.z); ghost.rotation.y = wallSnap.rot; }
     else { ghost.position.set(t.x, by, t.z); ghost.rotation.y = buildRot; }
     if (playerFloor2 && by === playerFloor2.data.baseY) {

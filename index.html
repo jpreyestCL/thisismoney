@@ -1450,6 +1450,7 @@ const DECOR_ITEMS = [
   { key: 'sofa',   name: 'Sofá',      price: 300,  value: 120, color: 0x10b981, build: true, deco: true },
   { key: 'tele',   name: 'Televisor', price: 400,  value: 150, color: 0x1f2937, build: true, deco: true },
   { key: 'mesa_tele', name: 'Mesa para tele', price: 350, value: 130, color: 0x5b3a24, build: true, deco: true },
+  { key: 'play_gamer', name: 'Play gamer con controles', price: 650, value: 240, color: 0xf1f5f9, build: true, deco: true },
   { key: 'planta', name: 'Planta',    price: 120,  value: 45,  color: 0x22c55e, build: true, deco: true },
   { key: 'espejo', name: 'Espejo',    price: 250,  value: 90,  color: 0xdbeafe, build: true, deco: true },
   { key: 'alfombra', name: 'Alfombra', price: 180, value: 70,  color: 0xb91c1c, build: true, deco: true },
@@ -4846,7 +4847,7 @@ function updateHouseAnchor() {
 let car = null;             // vehículo seleccionado (el último usado o comprado)
 const vehicles = [];        // todos los vehículos propios: puedes conservar tantos como quieras
 const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'ballesta', 'torreta',
-  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'mesa_tele', 'planta', 'laser', 'heladera', 'espejo', 'alfombra',
+  'window', 'cuadro', 'mesa', 'silla', 'cama', 'sofa', 'tele', 'mesa_tele', 'play_gamer', 'planta', 'laser', 'heladera', 'espejo', 'alfombra',
   'wallMetal', 'wallDoor', 'pilar', 'bano', 'piso2', 'computador_gamer', 'pc_gamer', 'silla_gamer', 'luces_gamer', 'teclado_gamer', 'parlante_gamer', 'alexa', 'mesa_gamer'];
 // Categorías del hotbar (18 slots no caben en pantalla, ni en celular ni en PC).
 // Se muestran las 3 pestañas + las piezas de la categoría activa: así TODOS los
@@ -4854,7 +4855,7 @@ const BUILD_KEYS = ['wallWood', 'wallRock', 'door', 'roof', 'lamp', 'oven', 'bal
 const BUILD_CATS = {
   casa: ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'piso2', 'pilar', 'lamp', 'oven'],
   defensa: ['ballesta', 'torreta', 'laser'],
-  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'mesa_tele', 'heladera', 'bano', 'mesa_gamer', 'silla_gamer', 'computador_gamer', 'pc_gamer', 'teclado_gamer', 'parlante_gamer', 'alexa'],
+  muebles: ['mesa', 'silla', 'cama', 'sofa', 'tele', 'mesa_tele', 'play_gamer', 'heladera', 'bano', 'mesa_gamer', 'silla_gamer', 'computador_gamer', 'pc_gamer', 'teclado_gamer', 'parlante_gamer', 'alexa'],
   deco: ['window', 'cuadro', 'planta', 'espejo', 'alfombra', 'luces_gamer'],
 };
 const BUILD_CAT_TABS = [['casa', '🏠'], ['defensa', '🛡️'], ['muebles', '🪑'], ['deco', '🖼️']];
@@ -4990,6 +4991,7 @@ function objGeometry(key, variantId) {
   if (key === 'sofa') return new THREE.BoxGeometry(2, 0.55, 0.9);
   if (key === 'tele') return new THREE.BoxGeometry(1.6, 0.9, 0.12);
   if (key === 'mesa_tele') return new THREE.BoxGeometry(2.2, 0.18, 0.72);
+  if (key === 'play_gamer') return new THREE.BoxGeometry(.68, .16, .48);
   if (key === 'planta') return new THREE.CylinderGeometry(0.32, 0.42, 0.6);
   if (key === 'wallMetal') return new THREE.BoxGeometry(4, 3, 0.4);        // pared de metal (misma forma, más dura)
   if (key === 'wallDoor') return new THREE.BoxGeometry(4, 0.55, 0.42);     // dintel: los pilares del marco se agregan aparte
@@ -5022,7 +5024,7 @@ function addDoorFrameParts(target, color, ghost) {
 }
 function objColor(key, variantId) { const variant = variantFor(key, variantId); return variant ? variant.color : SHOP.find(s => s.key === key).color; }
 const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
-  window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, mesa_tele: 0.72, planta: 0.4, heladera: 0.95,
+  window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, mesa_tele: 0.72, play_gamer: 0.12, planta: 0.4, heladera: 0.95,
   espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35, piso2: 3,
   computador_gamer: 0.66, pc_gamer: 0.6, silla_gamer: 0.5, luces_gamer: 1.8, teclado_gamer: 0.08, parlante_gamer: 0.65, alexa: 0.38, mesa_gamer: 0.8 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
@@ -5229,6 +5231,15 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY) {
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.92, .12, .58), mat(0x3f2a17)); shelf.position.y = -.36; m.add(shelf);
     for (const sx of [-1, 1]) { const drawer = new THREE.Mesh(new THREE.BoxGeometry(.72, .3, .08), mat(0x754c29)); drawer.position.set(sx * .48, -.16, .37); m.add(drawer); const handle = new THREE.Mesh(new THREE.BoxGeometry(.22, .045, .05), mat(0xfbbf24)); handle.position.set(sx * .48, -.16, .43); m.add(handle); }
   }
+  if (key === 'play_gamer') {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(.62, .025, .5), new THREE.MeshStandardMaterial({ color:0x2563eb, emissive:0x2563eb, emissiveIntensity:1.4 })); stripe.position.y=.09; m.add(stripe); obj.rgbParts=[stripe];
+    for (const sx of [-1, 1]) {
+      const pad = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(.42,.1,.22),mat(sx < 0 ? 0x1f2937 : 0xf8fafc)); pad.add(body);
+      for (const bx of [-.11,.11]) { const grip=new THREE.Mesh(new THREE.BoxGeometry(.11,.08,.2),mat(sx < 0 ? 0x111827 : 0xdbeafe));grip.position.set(bx,-.06,.08);grip.rotation.z=bx*.8;pad.add(grip); }
+      for (const bx of [-.09,.09]) { const stick=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.045,10),mat(0x0f172a));stick.position.set(bx,.07,0);pad.add(stick); }
+      pad.position.set(sx*.42,.16,.36); pad.rotation.y=sx*.16; m.add(pad);
+    }
+  }
   if (key === 'planta') { const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10), mat(0x22c55e)); leaf.position.y = 0.55; leaf.scale.set(1, 1.3, 1); leaf.castShadow = true; m.add(leaf); }
   if (key === 'mesa_gamer') { legs(1.05, 0.43, 0.75); const edge = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); edge.position.set(0, 0.02, 0.54); m.add(edge); obj.rgbParts = [edge]; }
   if (key === 'silla_gamer') { legs(0.28, 0.28, 0.5); const back = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.15, 0.18), mat(0xdc2626)); back.position.set(0, 0.62, -0.3); m.add(back); const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.18, 0.2), mat(0x111827)); head.position.set(0, 0.95, -0.19); m.add(head);
@@ -5335,6 +5346,18 @@ function placeObject() {
     if (!tvTable) { toast('📺 Coloca primero una MESA PARA TELE y apunta cerca de ella'); return; }
     if (placed.some(o => o.key === 'tele' && (o.baseY || 0) === (tvTable.baseY || 0) && dist2D(o.mesh.position, tvTable.mesh.position) < .35)) { toast('📺 Esa mesa ya tiene un televisor'); return; }
     placeX = tvTable.mesh.position.x; placeZ = tvTable.mesh.position.z; placeRot = tvTable.mesh.rotation.y; mountY = .22;
+  }
+  if (key === 'play_gamer') {
+    let tvTable = null, best = 3;
+    for (const o of placed) {
+      if (o.key !== 'mesa_tele' || Math.abs((o.baseY || 0) - ghost.position.y) > .2) continue;
+      const d = dist2D(o.mesh.position, ghost.position); if (d < best) { best = d; tvTable = o; }
+    }
+    if (!tvTable) { toast('🎮 Coloca primero una MESA PARA TELE y apunta cerca de ella'); return; }
+    if (placed.some(o => o.key === 'play_gamer' && (o.baseY || 0) === (tvTable.baseY || 0) && dist2D(o.mesh.position, tvTable.mesh.position) < 1.3)) { toast('🎮 Esa mesa ya tiene una Play gamer'); return; }
+    const c = Math.cos(tvTable.mesh.rotation.y), s = Math.sin(tvTable.mesh.rotation.y), lx = -.68, lz = .03;
+    placeX = tvTable.mesh.position.x + lx * c + lz * s; placeZ = tvTable.mesh.position.z - lx * s + lz * c;
+    placeRot = tvTable.mesh.rotation.y; mountY = .79;
   }
   if (['computador_gamer', 'pc_gamer', 'teclado_gamer'].includes(key)) {
     let desk = null, best = 3;
@@ -7039,7 +7062,7 @@ function shopIcon(item) {
   if (item.key === 'moto') return '🏍️'; if (item.key === 'heladera') return '🧊';
   if (item.key === 'computador_gamer') return '🖥️'; if (item.key === 'pc_gamer') return '🖥️';
   if (item.key === 'silla_gamer') return '💺'; if (item.key === 'luces_gamer') return '🌈';
-  if (item.key === 'teclado_gamer') return '⌨️'; if (item.key === 'parlante_gamer') return '🔊'; if (item.key === 'alexa') return '🔵'; if (item.key === 'mesa_gamer') return '🖥️'; if (item.key === 'mesa_tele') return '📺';
+  if (item.key === 'teclado_gamer') return '⌨️'; if (item.key === 'parlante_gamer') return '🔊'; if (item.key === 'alexa') return '🔵'; if (item.key === 'mesa_gamer') return '🖥️'; if (item.key === 'mesa_tele') return '📺'; if (item.key === 'play_gamer') return '🎮';
   if (item.build) return '🧱'; return '🛒';
 }
 // Menú de tienda: una fila por producto; tocar = comprar (sin teclado)
@@ -7785,8 +7808,8 @@ ui('bankCloseBtn').onclick = closeBank;
 // ===================================================================
 // La carga del cohete SOBREVIVE al viaje (goToPlanet no la borra). Cárgalo en la Tierra
 // con comida/materiales/armas y sácalos en el planeta nuevo para sobrevivir más.
-const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', mesa_tele: '📺', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠', computador_gamer: '🖥️', pc_gamer: '🖥️', silla_gamer: '💺', luces_gamer: '🌈', teclado_gamer: '⌨️', parlante_gamer: '🔊', alexa: '🔵', mesa_gamer: '🖥️' };
-const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', mesa_tele: 'Mesa TV', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Pared metal', wallDoor: 'Pared puerta', pilar: 'Pilar', bano: 'Baño', piso2: 'Piso 2', computador_gamer: 'Computador gamer', pc_gamer: 'PC gamer', silla_gamer: 'Silla gamer', luces_gamer: 'Luces gamer', teclado_gamer: 'Teclado gamer', parlante_gamer: 'Parlante gamer', alexa: 'Alexa inteligente', mesa_gamer: 'Mesa gamer' };
+const INV_ICON = { food: '🍖', semillas: '🍎', semillas_zanahoria: '🥕', semillas_trigo: '🌾', semillas_tomate: '🍅', carbon: '⚫', wallWood: '🪵', wallRock: '🪨', door: '🚪', roof: '🔺', lamp: '💡', oven: '🔥', ballesta: '🏹', torreta: '🔫', laser: '🔆', window: '🪟', cuadro: '🖼️', mesa: '🍽️', silla: '🪑', cama: '🛏️', sofa: '🛋️', tele: '📺', mesa_tele: '📺', play_gamer: '🎮', planta: '🪴', heladera: '🧊', espejo: '🪞', alfombra: '🧶', wallMetal: '⬜', wallDoor: '🚪', pilar: '🏛️', bano: '🚽', piso2: '🏠', computador_gamer: '🖥️', pc_gamer: '🖥️', silla_gamer: '💺', luces_gamer: '🌈', teclado_gamer: '⌨️', parlante_gamer: '🔊', alexa: '🔵', mesa_gamer: '🖥️' };
+const INV_LABEL = { food: 'Comida', semillas: 'Semilla manzana', semillas_zanahoria: 'Semilla zanahoria', semillas_trigo: 'Semilla trigo', semillas_tomate: 'Semilla tomate', carbon: 'Carbón', wallWood: 'Madera', wallRock: 'Roca', door: 'Puerta', roof: 'Techo', lamp: 'Lámpara', oven: 'Horno', ballesta: 'Ballesta', torreta: 'Torreta', laser: 'Láser', window: 'Ventana', cuadro: 'Cuadro', mesa: 'Mesa', silla: 'Silla', cama: 'Cama', sofa: 'Sofá', tele: 'TV', mesa_tele: 'Mesa TV', play_gamer: 'Play gamer', planta: 'Planta', heladera: 'Heladera', espejo: 'Espejo', alfombra: 'Alfombra', wallMetal: 'Pared metal', wallDoor: 'Pared puerta', pilar: 'Pilar', bano: 'Baño', piso2: 'Piso 2', computador_gamer: 'Computador gamer', pc_gamer: 'PC gamer', silla_gamer: 'Silla gamer', luces_gamer: 'Luces gamer', teclado_gamer: 'Teclado gamer', parlante_gamer: 'Parlante gamer', alexa: 'Alexa inteligente', mesa_gamer: 'Mesa gamer' };
 const INV_KEYS = ['food', 'semillas', 'semillas_zanahoria', 'semillas_trigo', 'semillas_tomate', 'carbon', ...BUILD_KEYS];
 function rocketRow(key, n, into) {
   const b = document.createElement('button');

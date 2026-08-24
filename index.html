@@ -2603,6 +2603,9 @@ const roads = [
 roads.forEach(r => makeRoad(r.cx, r.cz, r.len, r.horizontal));
 
 const traffic = [], parkedCars = [];
+// Debe existir antes de crear los autos: spawnCars() consulta las zonas durante
+// el arranque, mucho antes de que se inicialice el sistema de construcción.
+let playerStructureZones = [];
 // Zonas por las que nunca debe circular el tráfico. El margen incluye el largo
 // del auto para que la carrocería tampoco atraviese las paredes del súper.
 const trafficExclusionZones = [
@@ -4842,7 +4845,6 @@ homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
 // ===================================================================
 const placed = [];          // objetos colocados {mesh, key, hp, light?}
-let playerStructureZones=[];
 function insidePlayerStructure(x,z,margin=0){return playerStructureZones.some(q=>x>q.minX-margin&&x<q.maxX+margin&&z>q.minZ-margin&&z<q.maxZ+margin);}
 function rebuildPlayerStructureZones(){
   const region=state.country||null,walls=placed.filter(o=>!o.baseY&&WALL_SNAP_KEYS[o.key]&&(o.country||null)===region),unseen=new Set(walls),zones=[];

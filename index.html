@@ -761,6 +761,7 @@
         <div class="key-list">
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Su sueldo es $10 por día.</span>
+          <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
           <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
@@ -1458,6 +1459,7 @@ const DECOR_ITEMS = [
   { key: 'mesa_tele', name: 'Mesa para tele', price: 350, value: 130, color: 0x5b3a24, build: true, deco: true },
   { key: 'play_gamer', name: 'Play gamer con controles', price: 650, value: 240, color: 0xf1f5f9, build: true, deco: true },
   { key: 'piscina', name: 'Piscina', price: 500, value: 180, color: 0x38bdf8, build: true, deco: true },
+  { key: 'celular', name: 'Celular para llamadas online', price: 200, color: 0x111827, phone: true },
   { key: 'planta', name: 'Planta',    price: 120,  value: 45,  color: 0x22c55e, build: true, deco: true },
   { key: 'espejo', name: 'Espejo',    price: 250,  value: 90,  color: 0xdbeafe, build: true, deco: true },
   { key: 'alfombra', name: 'Alfombra', price: 180, value: 70,  color: 0xb91c1c, build: true, deco: true },
@@ -6511,6 +6513,7 @@ const state = {
   business: null, businessOrders: 0,
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
   foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
+  hasPhone: false,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -6905,6 +6908,17 @@ function toggleSound() {
   const b = ui('soundBtn'); if (b) b.textContent = soundOn ? '🔊' : '🔇';
   try { localStorage.setItem('tim_sound', soundOn ? '1' : '0'); } catch (e) {}
 }
+let phoneCallAt = 0;
+function phoneRing() {
+  for (let i=0;i<4;i++) setTimeout(()=>{ tone(740,.12,.055,'sine'); setTimeout(()=>tone(930,.14,.05,'sine'),130); },i*430);
+}
+function callOnlineFriends() {
+  if (!state.hasPhone) { toast('📱 Compra primero un celular al vendedor'); return; }
+  if (!net.on || !net.conns.some(c=>c.open)) { toast('📱 El celular solo llama cuando hay amigos conectados'); return; }
+  const now=performance.now(); if(now-phoneCallAt<3500){toast('📱 Espera un momento antes de volver a llamar');return;} phoneCallAt=now;
+  phoneRing(); netSend({t:'phoneCall',id:net.myId,name:net.name});
+  toast('📞 Llamando a tus amigos conectados…');
+}
 
 // ===================================================================
 //  ENTRADA (teclado y mouse)
@@ -6939,6 +6953,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
   if (e.code === 'KeyI' && trySeatedPacman()) return;   // sentado y mirando el computador: jugar Pac-Man
   if (e.code === 'KeyN') tryStartNight();
+  if (e.code === 'KeyP' && !state.buildMode) { callOnlineFriends(); return; }
   if (e.code === 'AltLeft' || e.code === 'AltRight') { e.preventDefault(); dodge(); }
   if (e.code === 'KeyB') { state.buildMode = !state.buildMode; if (!state.buildMode) { activeBlueprintId = null; blueprintGhost.visible = false; } toast(state.buildMode ? '🔨 Construcción activa · F coloca · X quita · G planos · 🔄 (o P/L) gira la pieza al ángulo que quieras' : 'Modo construir OFF'); }
   // P / L: mantenerlas apretadas gira la pieza hacia un lado o el otro (lo aplica spinBuild)
@@ -7070,6 +7085,7 @@ function renderContractRow(list) {   // fila del contrato arriba de la tienda (s
   list.appendChild(row);
 }
 function shopIcon(item) {
+  if (item.phone) return '📱';
   if (item.key === 'helicoptero') return '🚁';
   if (item.boat) return '⛵'; if (item.crew) return '🧑‍✈️';
   if (item.key === 'jetpack') return '🚀'; if (item.key === 'laserpistol') return '🔫';
@@ -7529,6 +7545,7 @@ function startGame() {
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
+  state.hasPhone = false;
   state.contract = null;   // sin contratos al empezar
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint();   // sin huevos/mascotas/banderita al empezar
   endEclipse(); state.coreClaimed = false; state.relics = 0; state.trophies = 0; removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
@@ -7670,6 +7687,7 @@ function saveGame() {
       pet: !!pet, hasFloor2: !!state.hasFloor2, floor2Rot: state.floor2Rot || 0, floors2: state.floors2 || [], unlocked: state.unlocked || {},   // desbloqueos del medio juego (floors2: TODOS los segundos pisos)
       petAlien: !!petAlien, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
+      hasPhone: !!state.hasPhone,
       cameraMode: cameraMode,
       sports: {
         soccer: [soccer.scoreRed, soccer.scoreBlue], basketball: [basketball.scoreRed, basketball.scoreBlue],
@@ -8236,6 +8254,7 @@ function loadGame() {
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')),
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
+    hasPhone: !!d.hasPhone,
     streak: d.streak || 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   });
   lastHp = state.hp;
@@ -8323,6 +8342,7 @@ function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; applyPlayerArmor();
   state.helperWeapon = false; state.helperArmor = false;
+  state.hasPhone = false;
   state.dadArmor = 1; applyDadArmor(false);
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.dadGun = state.hasRocket = false;
@@ -8684,6 +8704,10 @@ function buyItem(item) {
   if (item.paint) {
     if (!hasHouseToPaint()) { toast('🎨 Construye tu casa primero para poder pintarla'); return; }
     state.money -= item.price; paintHouse(item.paint, item.name); netSend({ t: 'paint', id: net.myId, c: item.paint, n: item.name }); return;
+  }
+  if (item.phone) {
+    if (state.hasPhone) { toast('📱 Ya tienes un celular'); return; }
+    state.money -= item.price; state.hasPhone = true; phoneRing(); toast('📱 Celular comprado · pulsa P para llamar a tus amigos online'); return;
   }
   if (item.car) {
     if (spawnCar()) state.money -= item.price; return;
@@ -10258,6 +10282,8 @@ function netHandle(raw, fromConn) {
     if(raceState&&raceState.mode==='online'){let r=raceState.remote.get(m.id);if(!r){r={p:0,lane:0,name:m.name||'ONLINE'};const mesh=makeCar(0x4ade80);mesh.scale.set(.82,.82,.82);mesh.userData.raceData={remote:r};scene.add(mesh);flyingRaceCars.push(mesh);raceState.remote.set(m.id,r);}r.p=m.p||0;r.lane=m.lane||0;}
   } else if (m.t === 'raceFinish') {
     if(raceState&&raceState.mode==='online'&&!raceState.finished){finishFlyingRace(false);ui('raceStatus').textContent='🥈 '+(m.name||'Otro jugador')+' llegó primero';}
+  } else if (m.t === 'phoneCall') {
+    if (state.hasPhone) { phoneRing(); toast('📲 ' + (m.name || 'Un amigo') + ' te está llamando'); }
   } else if (m.t === 'bye') {
     netRemoveAvatar(m.id);
     toast('👋 ' + (m.name || 'Un amigo') + ' salió de la sala');

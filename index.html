@@ -1216,6 +1216,24 @@ function makeSign(text, color) {
   return m;
 }
 
+// Etiqueta flotante ACTUALIZABLE (reusa su canvas, no recrea texturas cada vez)
+function makeDynSign(text, color) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true }));
+  m.userData.billboard = true; m.userData.cv = cv;
+  refreshSignText(m, text, color);
+  return m;
+}
+function refreshSignText(m, text, color) {
+  const cv = m.userData.cv; if (!cv) return;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  ctx.fillStyle = '#' + color.toString(16).padStart(6, '0'); ctx.fillRect(0, 0, 512, 128);
+  ctx.fillStyle = '#000'; ctx.font = 'bold 60px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 64);
+  m.material.map.needsUpdate = true;
+}
+
 // ----- Sprites: usa tus imágenes reales (les quito el fondo gris) -----
 const SPRITES = {};
 function loadSprite(path, mirror) {
@@ -1503,6 +1521,7 @@ const ALIEN_TECH = [
   { key: 'baseespacial',  name: 'Base espacial',     price: 3000, color: 0xbfe3ff, alien: true },
   { key: 'basetorreta',   name: 'Torreta de base',   price: 2000, color: 0x22d3ee, alien: true },
   { key: 'basegenerador', name: 'Generador de base', price: 2500, color: 0xfacc15, alien: true },
+  { key: 'minero',        name: 'Minero automático', price: 1400, color: 0xf59e0b, alien: true },   // mina solo, incluso sin jugar
 ];
 // El vendedor de Platus ofrece TODO lo de la Tierra (menos autos/motos) + la tecnología alien exclusiva
 function shopCatalog() { return state.planet === 'platus' ? SHOP.filter(it => !it.car && !it.helicopter && it.key !== 'moto').concat(ALIEN_TECH) : SHOP; }
@@ -3708,7 +3727,7 @@ function setEarthWorld(v) {   // muestra/oculta la Tierra completa (con sus coli
 // ===================================================================
 //  PLATUS: árboles muertos, rocas de carbón, fogatas y frío nocturno
 // ===================================================================
-const platusStuff = [], platusObstacles = [], coalRocks = [], campfires = [];
+const platusStuff = [], platusObstacles = [], coalRocks = [], campfires = [], miners = [];
 const platusKeepers = [];   // posiciones del/los vendedor(es) zombi de Platus (para comprar con Y)
 let platusNuclear = null;
 let platusTrunkMat = null, platusBranchMat = null;   // materiales de los árboles muertos (se recolorean por planeta)
@@ -4795,6 +4814,84 @@ function makeCampfire() {   // botón 🔥 (o F en Platus sin construir): 3 de c
   netSend({ t: 'fire', id: net.myId, x: +p.x.toFixed(2), z: +p.z.toFixed(2) });
   toast('🔥 ¡Fogata lista! De noche quédate cerca para no congelarte');
   beep(500, 0.12, 0.05);
+}
+// ===================================================================
+//  MINEROS AUTOMÁTICOS: máquinas que sacan carbón y plata SOLAS,
+//  incluso cuando no estás jugando (producción offline al volver).
+// ===================================================================
+const MINER_MAX = 6;                  // cuántos puedes tener a la vez
+const MINER_COAL_RATE = 0.1;          // carbón por segundo (1 cada 10 s)
+const MINER_MONEY_RATE = 1.5;         // plata por segundo
+const MINER_CAP_COAL = 300, MINER_CAP_MONEY = 3000;   // tope de lo que junta el buffer
+const MINER_OFFLINE_MAX = 8 * 3600;   // máximo 8 horas de producción mientras no juegas
+function spawnMiner(x, z, coal, money) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 0.35, 8), mat(0x334155)));                 // base
+  const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1, 0.9), mat(0xf59e0b)); cuerpo.position.y = 0.85; cuerpo.castShadow = true; g.add(cuerpo);
+  const luz = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.05), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); luz.position.set(0, 1, 0.46); g.add(luz);
+  const eje = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9), mat(0x1f2937)); eje.position.y = 1.75; g.add(eje);
+  const broca = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.7, 6), mat(0x94a3b8)); broca.position.y = 1.9; broca.rotation.x = Math.PI; g.add(broca);
+  const bar = makeDynSign('⛏️ 0', 0xfde047); bar.scale.set(.38, .38, .38); bar.position.y = 2.7; g.add(bar);
+  g.position.set(x, 0, z); scene.add(g); miners.push(g);
+  g.userData = { coal: coal || 0, money: money || 0, drill: broca, bar, blink: luz };
+  return g;
+}
+function clearMiners() { miners.forEach(m => scene.remove(m)); miners.length = 0; }
+function makeMiner() {   // colocar un minero frente a ti (al comprarlo en el vendedor alien)
+  if (state.planet !== 'platus') { toast('⛏️ Los mineros automáticos solo funcionan en el planeta alien'); return false; }
+  if (miners.length >= MINER_MAX) { toast('⛏️ Ya tienes el máximo de mineros (' + MINER_MAX + ')'); return false; }
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const p = player.position.clone().addScaledVector(fwd, 3);
+  spawnMiner(p.x, p.z, 0, 0);
+  toast('⛏️ ¡Minero instalado! Saca carbón y plata solo, hasta cuando no juegas · pásate a recoger (E)');
+  beep(360, 0.14, 0.05);
+  return true;
+}
+function updateMiners(dt) {   // acumulan en su buffer y muestran cuánto llevan
+  for (const m of miners) {
+    const u = m.userData;
+    u.coal = Math.min(MINER_CAP_COAL, u.coal + MINER_COAL_RATE * dt);
+    u.money = Math.min(MINER_CAP_MONEY, u.money + MINER_MONEY_RATE * dt);
+    if (u.drill) u.drill.rotation.y += dt * 6;
+    const lleno = u.coal >= MINER_CAP_COAL;
+    if (u.blink) u.blink.material.emissiveIntensity = lleno ? (1.4 + Math.sin(performance.now() * 0.008) * 0.6) : 1.2;   // parpadea cuando está lleno
+    u.barT = (u.barT || 0) + dt;
+    if (u.barT > 0.5 && u.bar) { u.barT = 0; refreshSignText(u.bar, '⛏️ ' + Math.floor(u.coal) + (lleno ? ' ¡LLENO!' : ''), lleno ? 0xf87171 : 0xfde047); }
+  }
+}
+function nearestMiner(maxD) {
+  let best = null, bd = maxD;
+  for (const m of miners) { if (Math.floor(m.userData.coal) < 1 && Math.floor(m.userData.money) < 1) continue; const d = dist2D(player.position, m.position); if (d < bd) { bd = d; best = m; } }
+  return best;
+}
+function tryHarvestMiner() {   // recoger lo acumulado de los mineros cercanos (E)
+  const cerca = miners.filter(m => dist2D(player.position, m.position) < 3);
+  if (!cerca.length) return false;
+  let coal = 0, money = 0;
+  for (const m of cerca) { coal += Math.floor(m.userData.coal); money += Math.floor(m.userData.money); m.userData.coal = 0; m.userData.money = 0; }
+  if (coal < 1 && money < 1) { toast('⛏️ Este minero todavía no junta nada · déjalo trabajar'); return true; }
+  state.inv.carbon = (state.inv.carbon || 0) + coal; if (money > 0) addMoney(money);
+  coinBurst(player.position, Math.min(20, 4 + Math.floor(money / 60)));
+  floatText(player.position, '⛏️ +' + coal + ' carbón · +$' + money, '#fde047', 18);
+  toast('⛏️ Recogiste ' + coal + ' de carbón y $' + money + ' de tus mineros');
+  beep(720, 0.1, 0.05); vibr([25]);
+  return true;
+}
+// Bono OFFLINE: cuánto juntaron los mineros mientras no jugabas
+function applyMinerOffline(seconds) {
+  if (!miners.length || seconds < 30) return;
+  const t = Math.min(MINER_OFFLINE_MAX, seconds);
+  let coal = 0, money = 0;
+  for (const m of miners) {
+    const c = Math.min(MINER_CAP_COAL, m.userData.coal + MINER_COAL_RATE * t) - m.userData.coal;
+    const p = Math.min(MINER_CAP_MONEY, m.userData.money + MINER_MONEY_RATE * t) - m.userData.money;
+    coal += Math.floor(c); money += Math.floor(p);
+  }
+  if (coal < 1 && money < 1) return;
+  state.inv.carbon = (state.inv.carbon || 0) + coal; if (money > 0) addMoney(money);
+  const horas = Math.floor(t / 3600), mins = Math.floor((t % 3600) / 60);
+  const tiempo = horas > 0 ? horas + 'h ' + mins + 'm' : mins + 'm';
+  setTimeout(() => toast('⛏️ ¡Tus ' + miners.length + ' minero(s) juntaron ' + coal + ' de carbón y $' + money + ' mientras no estabas! (' + tiempo + ')'), 900);
 }
 function updateCold(dt) {   // peligro nocturno del planeta: frío (cold) o aire tóxico (toxic); en ambos, la FOGATA te protege
   const fx = ui('coldfx');
@@ -7027,7 +7124,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -7143,6 +7240,7 @@ function shopIcon(item) {
   if (item.key === 'jetpack') return '🚀'; if (item.key === 'laserpistol') return '🔫';
   if (item.key === 'escudo') return '🛡️'; if (item.key === 'alienpet') return '👽';
   if (item.key === 'baseespacial') return '🏕️'; if (item.key === 'basetorreta') return '🔫'; if (item.key === 'basegenerador') return '⚡';
+  if (item.key === 'minero') return '⛏️';
   if (item.car) return '🚗'; if (item.paint) return '🎨';
   if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
   if (item.factor) return '🛡️'; if (item.seedType) return item.seedType === 'carrot' ? '🥕' : item.seedType === 'wheat' ? '🌾' : item.seedType === 'tomato' ? '🍅' : '🌱';
@@ -7495,7 +7593,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!toggleBoat() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryHarvestMiner() && !toggleBoat() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -7587,7 +7685,7 @@ function startGame() {
   if (boat) { scene.remove(boat.group); boat = null; } state.boatCrew = 0; state.voyageDays = 0; state.islandDiscovered = false; state.sailing = false;
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   updateHouseAnchor();   // vuelve al marcador verde de la Tierra
-  setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); removeRocket();
+  setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); clearMiners(); removeRocket();
   resetButler();
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT; state.country = null; setCountryVisible(false); updateHouseAnchor(); syncPlacedCountryVisibility();
@@ -7753,6 +7851,7 @@ function saveGame() {
       cargo: state.cargo || {},   // cajones del cohete (viajan con vos)
       bank: state.bank || 0, debt: state.debt || 0,   // banco: ahorros y deudas
       campfires: campfires.map(f => ({ x: f.position.x, z: f.position.z })),   // fogatas de Platus
+      savedAt: Date.now(), miners: miners.map(m => ({ x: m.position.x, z: m.position.z, coal: m.userData.coal, money: m.userData.money })),   // mineros automáticos (producen offline)
       holes: holes.filter(h => !h.islandMine).map(h => ({ x: h.x, z: h.z, depth: h.depth, tunnels: [...h.tunnels].map(k => k.split(',').map(Number)) })),   // minas excavadas por el jugador
       plants: plants.map(p => ({ x: p.mesh.position.x, z: p.mesh.position.z, crop: p.crop, grow: p.grow, produce: p.produce })),   // huerto diverso
       selectedCrop: selectedCrop,
@@ -8346,6 +8445,8 @@ function loadGame() {
   if(boat){scene.remove(boat.group);boat=null;}if(d.boat){spawnBoat(true);boat.group.position.set(d.boat.x,OCEAN.surface,d.boat.z);boat.heading=d.boat.heading||-Math.PI/2;boat.group.rotation.y=boat.heading;boat.hp=d.boat.hp||100;}
   resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
+  clearMiners(); (d.miners || []).forEach(m => spawnMiner(m.x, m.z, m.coal, m.money));
+  if (d.savedAt) applyMinerOffline((Date.now() - d.savedAt) / 1000);   // lo que juntaron mientras no jugabas
   clearHoles(); (d.holes || []).forEach(o => spawnHole(o.x, o.z, o.depth, o.tunnels)); state.underground = false; state.groundY = 0; state.shelterHole = null;   // minas voxel (nunca cargas bajo tierra)
   if (d.hasRocket) spawnRocketMesh(); else removeRocket();
   removePet(); if (d.pet) spawnPet();
@@ -8415,7 +8516,7 @@ function resetAll() {
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
-  setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires();
+  setEarthWorld(true); setPlatusVisible(false); applySpaceSuit(false); clearCampfires(); clearMiners();
   resetButler();
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT; state.country = null; setCountryVisible(false); updateHouseAnchor(); syncPlacedCountryVisibility();
@@ -8794,6 +8895,7 @@ function buyItem(item) {
     if (spawnCar({ moto: true })) state.money -= item.price;
     return;
   }
+  if (item.key === 'minero') { if (makeMiner()) state.money -= item.price; return; }
   if (item.key === 'jetpack') {
     if (state.hasJetpack) { toast('🚀 Ya tienes jetpack'); return; }
     state.money -= item.price; state.hasJetpack = true;
@@ -9243,7 +9345,7 @@ function goToPlanet() {
   state.planetSky = P.sky; state.planetHazard = P.hazard; state.planetGrav = P.grav; state.planetCreature = P.creature;   // rasgos propios del planeta
   state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
-  clearPlants(); clearHelpers(); removePet(); removeAllFloors2(); leaveParkRide(true); standUp(true); clearCampfires(); dad.visible = true;
+  clearPlants(); clearHelpers(); removePet(); removeAllFloors2(); leaveParkRide(true); standUp(true); clearCampfires(); clearMiners(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
   clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false; removeMount();   // cada planeta tiene su propio núcleo; la montura no viaja
   clearTitan(); titanTimer = 150 + Math.random() * 130;
@@ -9885,6 +9987,8 @@ function loop() {
     if (state.cinematic) updateCinematic(dt);
     updatePolice(dt);                      // policía persigue si estás buscado
     updateCold(dt);                        // noches heladas de Platus (fogatas)
+    updateMiners(dt);                      // mineros automáticos: acumulan carbón y plata
+
     updateMeteorShower(dt);                // lluvia de meteoritos de noche en Platus (botín)
     updateMushrooms(dt);                   // hongos bioluminiscentes de Platus (curan al recogerlos)
     updateRuins(dt);                       // ruinas alien: recoger orbes/cofre estando adentro
@@ -9997,6 +10101,7 @@ function drawMinimap() {
   } else {   // Platus: rocas de carbón, fogatas, el vendedor zombi y el cohete
     for (const r of coalRocks) dot(r.position.x, r.position.z, '#0f172a', 2.5);
     for (const f of campfires) icon(f.position.x, f.position.z, '🔥', 11);
+    for (const m of miners) icon(m.position.x, m.position.z, '⛏️', 12);
     for (const c of crystals) if (c.gems > 0) dot(c.group.position.x, c.group.position.z, c.rare ? '#e879f9' : '#67e8f9', 2.5);
     for (const ge of geodes) if (ge.ready) icon(ge.group.position.x, ge.group.position.z, '💎', 12);
     for (const e of eggs) if (e.ready) icon(e.group.position.x, e.group.position.z, '🥚', 11);
@@ -10348,7 +10453,7 @@ function netHandle(raw, fromConn) {
 }
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
-try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey }); } catch (e) {}
+try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner }); } catch (e) {}
 function netAddConn(c) {
   netStartTimer();
   net.conns.push(c);
@@ -10803,6 +10908,7 @@ function updateContextPrompt() {
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };
       else if (att) action = { key: 'E', touch: '🎟️', text: (att.slide ? 'Tirarte por ' : 'Subirte a ') + att.name + (att.price ? ' · boleto $' + att.price : ' · ¡gratis!') };
+      else if (nearestMiner(3)) { const mn = nearestMiner(3); action = { key: 'E', touch: '⛏️', text: 'Recoger del minero · ' + Math.floor(mn.userData.coal) + ' carbón + $' + Math.floor(mn.userData.money) }; }
       else if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
       else if (nearestDamagedBuilding()) action = { key: 'E', touch: '🔧', text: 'Reparar construcción dañada' };
       else if (state.sportGame) action = { key: 'CLIC/Q', touch: '🏅', text: state.sportGame.name + ' · primario / técnica · rojos ' + state.sportGame.teamScore[0] + '-' + state.sportGame.teamScore[1] + ' azules' };

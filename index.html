@@ -3409,7 +3409,7 @@ function buildEarthMountains() {
 // La cordillera queda en el extremo ampliado del mapa. La pista de acceso es una
 // carretera de curvas visibles para que el viaje en auto se sienta como una subida.
 const SKI_RESORT = { x: 520, z: 500, r: 200, gate: { x: 380, z: 360 }, gear: { x: 388, z: 367 }, gear2: { x: 400, z: 367 } };
-const SKI_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z + 58 };
+const SKI_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z + 170 };
 const SKI_LIFT2_BOTTOM = { x: SKI_RESORT.x - 8, z: SKI_RESORT.z + 48 };
 const SKI_TOW_BOTTOM = { x: SKI_RESORT.x - 28, z: SKI_RESORT.z + 52 };
 const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 300, ph: 28 * 1.7, ski: true };
@@ -3486,11 +3486,11 @@ function buildSkiResort() {
     skiBox(skiResortGroup, x - 1.4, y + .8, z, .18, 1.6, .18, 0xef4444); skiBox(skiResortGroup, x + 1.4, y + .8, z, .18, 1.6, .18, 0xef4444);
   }
   // Andarivel y arrastre: torres, cable y sillas que suben la montaña.
-  const lift = new THREE.Group(); lift.position.set(SKI_RESORT.x + 25, 0, SKI_RESORT.z - 18); skiResortGroup.add(lift);
-  for (let i = 0; i < 5; i++) { const z = -62 + i * 30, y = skiSlopeHeight(lift.position.x, lift.position.z + z) + 5; skiBox(lift, 0, y / 2, z, .65, y, .65, 0x475569); }
-  const cable = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, 125, 8), mat(0x0f172a)); cable.rotation.x = Math.PI / 2; cable.position.set(0, 130, 0); lift.add(cable);
-  const cableMarker = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 125, 6), mat(0xfbbf24)); cableMarker.rotation.x = Math.PI / 2; cableMarker.position.set(0, 130.35, 0); lift.add(cableMarker);
-  for (let i = 0; i < 10; i++) { const z = -52 + i * 11, hanger = skiBox(lift, 0, 124, z, .12, 12, .12, 0x334155); const chair = skiBox(lift, 0, 117.8, z, 1.8, .22, .8, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
+  const lift = new THREE.Group(); lift.position.set(SKI_RESORT.x + 25, 0, SKI_RESORT.z); skiResortGroup.add(lift);
+  for (let i = 0; i < 7; i++) { const z = -170 + i * 56, y = skiSlopeHeight(lift.position.x, lift.position.z + z) + 10; skiBox(lift, 0, y / 2, z, .85, y, .85, 0x475569); }
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, 350, 8), mat(0x0f172a)); cable.rotation.x = Math.PI / 2; cable.position.set(0, 130, 0); lift.add(cable);
+  const cableMarker = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, 350, 6), mat(0xfbbf24)); cableMarker.rotation.x = Math.PI / 2; cableMarker.position.set(0, 130.4, 0); lift.add(cableMarker);
+  for (let i = 0; i < 11; i++) { const z = -160 + i * 32, hanger = skiBox(lift, 0, 124, z, .14, 12, .14, 0x334155); const chair = skiBox(lift, 0, 117.8, z, 1.9, .22, .85, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
   const lift2 = new THREE.Group(); lift2.position.set(SKI_RESORT.x - 8, 0, SKI_RESORT.z - 12); skiResortGroup.add(lift2);
   for (let i = 0; i < 5; i++) { const z = -48 + i * 28, y = skiSlopeHeight(lift2.position.x, lift2.position.z + z) + 7; skiBox(lift2, 0, y / 2, z, .75, y, .75, 0x1e293b); }
   const cable2 = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, 105, 8), mat(0x020617)); cable2.rotation.x = Math.PI / 2; cable2.position.set(0, 112, 0); lift2.add(cable2);
@@ -9326,7 +9326,7 @@ function updateSkiLiftRide(dt) {
   const ride = state.skiLiftRide; if (!ride) return false;
   ride.t += dt * .16;
   const base = ride.kind === 'arrastre' ? SKI_TOW_BOTTOM : ride.kind === 'andarivel2' ? SKI_LIFT2_BOTTOM : SKI_LIFT_BOTTOM;
-  const x = base.x, z = base.z - ride.t * 120;
+  const x = base.x, z = base.z - ride.t * 340;
   player.position.set(x, skiSlopeHeight(x, z) + (ride.kind === 'arrastre' ? 1.4 : 3.2), z);
   grounded = true; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
   if (ride.t >= 1) { state.skiLiftRide = null; toast('🏔️ Llegaste arriba · ahora puedes bajar esquiando'); }
@@ -10775,6 +10775,7 @@ function updateSkiMovement(dt) {
   const turn = steer * .72;
   gearVisual.rotation.y += (turn - gearVisual.rotation.y) * Math.min(1, dt * 9);
   gearVisual.rotation.z += (steer * -.16 - gearVisual.rotation.z) * Math.min(1, dt * 10);
+  gearVisual.position.x += (steer * .22 - gearVisual.position.x) * Math.min(1, dt * 12);
   player.position.x += steer * 10 * dt;
   player.position.z += (3.5 + push * 8) * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);

@@ -7558,6 +7558,7 @@ function callOnlineFriends() {
 //  ENTRADA (teclado y mouse)
 // ===================================================================
 const keys = {};
+let lastCreativeZTap = 0, creativeFlying = false;
 let typing = false;   // true mientras el input del vendedor está abierto (bloquea controles del juego)
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
@@ -7618,7 +7619,15 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyK') { if (e.shiftKey) cycleCrop(1); else plantSeed(); }
   if (e.code === 'BracketRight') cycleCrop(1);
   if (e.code === 'BracketLeft') cycleCrop(-1);
-  if (e.code === 'KeyZ') toggleDadRest();   // papá descansa en sofá/cama (los monstruos no lo ven)
+  if (e.code === 'KeyZ') {
+    const now = performance.now();
+    if (state.creative && now - lastCreativeZTap < 360) {
+      creativeFlying = !creativeFlying;
+      toast(creativeFlying ? '🪽 Vuelo creativo activado · WASD mueve · Espacio sube · Ctrl baja · doble Z para aterrizar' : '🛬 Vuelo creativo desactivado');
+      lastCreativeZTap = 0;
+    } else lastCreativeZTap = now;
+    toggleDadRest();
+  }   // papá descansa en sofá/cama (los monstruos no lo ven)
 });
 // Inventario tipo Minecraft: elegir un espacio (slot).
 // Los números son de la CATEGORÍA activa (1 = herramienta, 2..10 = piezas de la pestaña).
@@ -10906,6 +10915,21 @@ function updateSkiGearHold(dt) {
     if (skiRemoveHold >= 1.15) { state.skiGearWorn = !state.skiGearWorn; skiRemoveHold = 0; if (skiGearMesh) skiGearMesh.visible = state.skiGearWorn; toast(state.skiGearWorn ? '⛷️ Te pusiste los ' + (state.skiGear === 'snowboard' ? 'snowboard' : 'esquís') : '🥾 Te quitaste los ' + (state.skiGear === 'snowboard' ? 'snowboard' : 'esquís')); saveGame(); }
   } else skiRemoveHold = Math.max(0, skiRemoveHold - dt * 2);
 }
+function updateCreativeFlight(dt) {
+  const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const rightV = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  let ax = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+  let az = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+  const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }
+  const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 42 : 24;
+  player.position.addScaledVector(forward, az * speed * dt);
+  player.position.addScaledVector(rightV, ax * speed * dt);
+  const vertical = (keys['Space'] ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] ? 1 : 0);
+  player.position.y = THREE.MathUtils.clamp(player.position.y + vertical * speed * dt, PLAYER_EYE, 120);
+  player.position.x = THREE.MathUtils.clamp(player.position.x, -800, 800);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 800);
+  grounded = false; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
+}
 function updateMovement(dt) {
   if (raceState) return;   // durante la carrera 3D el auto y la cámara siguen la pista aérea
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
@@ -10920,6 +10944,7 @@ function updateMovement(dt) {
   if (parkRide) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // montado en una atracción: te lleva ella
   if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
   if (state.riding && mount) { updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
+  if (state.creative && creativeFlying) { updateCreativeFlight(dt); return; }
   if (updateSkiLiftRide(dt)) return;
   if (updateSkiMovement(dt)) return;
   const moveStartX = player.position.x, moveStartZ = player.position.z;

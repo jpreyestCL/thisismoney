@@ -3410,6 +3410,7 @@ function buildEarthMountains() {
 // carretera de curvas visibles para que el viaje en auto se sienta como una subida.
 const SKI_RESORT = { x: 245, z: 240, r: 90, gate: { x: 165, z: 166 }, gear: { x: 173, z: 173 }, gear2: { x: 185, z: 173 } };
 const SKI_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z + 58 };
+const SKI_LIFT2_BOTTOM = { x: SKI_RESORT.x - 8, z: SKI_RESORT.z + 48 };
 const SKI_TOW_BOTTOM = { x: SKI_RESORT.x - 28, z: SKI_RESORT.z + 52 };
 const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 150, ph: 28 * 1.7, ski: true };
 const skiSlopeHeight = (x, z) => mountainProfile(SKI_MOUNTAIN_PROFILE, x - SKI_RESORT.x, z - SKI_RESORT.z);
@@ -3466,6 +3467,11 @@ function buildSkiResort() {
   const cable = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, 125, 8), mat(0x0f172a)); cable.rotation.x = Math.PI / 2; cable.position.set(0, 72, 0); lift.add(cable);
   const cableMarker = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 125, 6), mat(0xfbbf24)); cableMarker.rotation.x = Math.PI / 2; cableMarker.position.set(0, 72.35, 0); lift.add(cableMarker);
   for (let i = 0; i < 10; i++) { const z = -52 + i * 11, hanger = skiBox(lift, 0, 66, z, .12, 10, .12, 0x334155); const chair = skiBox(lift, 0, 60.8, z, 1.8, .22, .8, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
+  const lift2 = new THREE.Group(); lift2.position.set(SKI_RESORT.x - 8, 0, SKI_RESORT.z - 12); skiResortGroup.add(lift2);
+  for (let i = 0; i < 5; i++) { const z = -48 + i * 28, y = skiSlopeHeight(lift2.position.x, lift2.position.z + z) + 7; skiBox(lift2, 0, y / 2, z, .75, y, .75, 0x1e293b); }
+  const cable2 = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, 105, 8), mat(0x020617)); cable2.rotation.x = Math.PI / 2; cable2.position.set(0, 62, 0); lift2.add(cable2);
+  for (let i = 0; i < 9; i++) { const z = -43 + i * 11, hanger = skiBox(lift2, 0, 56, z, .12, 9, .12, 0x334155); skiBox(lift2, 0, 51.4, z, 1.8, .22, .8, 0x22d3ee); }
+  const liftSign = makeSign('🚡 ANDARIVEL 1 · 🚠 ANDARIVEL 2', 0xfef08a); liftSign.scale.set(.52, .52, .52); liftSign.position.set(SKI_RESORT.x, 8, SKI_RESORT.z + 48); skiResortGroup.add(liftSign);
   const tow = new THREE.Mesh(new THREE.BoxGeometry(1.2, .15, 105), mat(0x111827)); tow.position.set(SKI_RESORT.x - 28, 52, SKI_RESORT.z + 2); tow.rotation.x = -.25; skiResortGroup.add(tow);
   // Mucha gente esperando y bajando por las pistas.
   for (let i = 0; i < 34; i++) {
@@ -9295,7 +9301,7 @@ function inSkiResort() {
 function updateSkiLiftRide(dt) {
   const ride = state.skiLiftRide; if (!ride) return false;
   ride.t += dt * .16;
-  const base = ride.kind === 'arrastre' ? SKI_TOW_BOTTOM : SKI_LIFT_BOTTOM;
+  const base = ride.kind === 'arrastre' ? SKI_TOW_BOTTOM : ride.kind === 'andarivel2' ? SKI_LIFT2_BOTTOM : SKI_LIFT_BOTTOM;
   const x = base.x, z = base.z - ride.t * 120;
   player.position.set(x, skiSlopeHeight(x, z) + (ride.kind === 'arrastre' ? 1.4 : 3.2), z);
   grounded = true; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
@@ -9305,10 +9311,10 @@ function updateSkiLiftRide(dt) {
 function trySkiResort() {
   if (!inSkiResort()) return false;
   const dg = dist2D(player.position, SKI_RESORT.gate), de = dist2D(player.position, SKI_RESORT.gear), de2 = dist2D(player.position, SKI_RESORT.gear2);
-  const dl = dist2D(player.position, SKI_LIFT_BOTTOM), dt = dist2D(player.position, SKI_TOW_BOTTOM);
-  if (dl < 9 || dt < 9) {
+  const dl = dist2D(player.position, SKI_LIFT_BOTTOM), dl2 = dist2D(player.position, SKI_LIFT2_BOTTOM), dt = dist2D(player.position, SKI_TOW_BOTTOM);
+  if (dl < 9 || dl2 < 9 || dt < 9) {
     if (!state.skiPass || !state.skiGear) { toast('🎫 Necesitas la tarjeta y esquís o snowboard para subir'); return true; }
-    state.skiing = false; state.skiLiftRide = { kind: dl < dt ? 'andarivel' : 'arrastre', t: 0 }; toast('🚡 Subiendo en el ' + state.skiLiftRide.kind + ' · espera arriba'); return true;
+    const best = Math.min(dl, dl2, dt); state.skiing = false; state.skiLiftRide = { kind: best === dt ? 'arrastre' : best === dl2 ? 'andarivel2' : 'andarivel', t: 0 }; toast('🚡 Subiendo en el ' + (state.skiLiftRide.kind === 'andarivel2' ? 'andarivel 2' : state.skiLiftRide.kind) + ' · espera arriba'); return true;
   }
   if (dg < 14) {
     if (!state.skiPass) {
@@ -11528,8 +11534,8 @@ function updateContextPrompt() {
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
       const nearSkiGate = !state.country && dist2D(player.position, SKI_RESORT.gate) < 14;
       const nearSkiGear = !state.country && (dist2D(player.position, SKI_RESORT.gear) < 10 || dist2D(player.position, SKI_RESORT.gear2) < 10);
-      const nearSkiLift = !state.country && (dist2D(player.position, SKI_LIFT_BOTTOM) < 9 || dist2D(player.position, SKI_TOW_BOTTOM) < 9);
-      if (nearSkiLift) action = { key: 'E', touch: '🚡', text: 'Subir al ' + (dist2D(player.position, SKI_LIFT_BOTTOM) < dist2D(player.position, SKI_TOW_BOTTOM) ? 'andarivel' : 'arrastre') };
+      const nearSkiLift = !state.country && (dist2D(player.position, SKI_LIFT_BOTTOM) < 9 || dist2D(player.position, SKI_LIFT2_BOTTOM) < 9 || dist2D(player.position, SKI_TOW_BOTTOM) < 9);
+      if (nearSkiLift) { const d1=dist2D(player.position,SKI_LIFT_BOTTOM), d2=dist2D(player.position,SKI_LIFT2_BOTTOM), da=dist2D(player.position,SKI_TOW_BOTTOM); action = { key: 'E', touch: '🚡', text: 'Subir al ' + (Math.min(d1,d2,da) === da ? 'arrastre' : 'andarivel') }; }
       else if (nearSkiGate) action = { key: 'E', touch: '🎫', text: state.skiPass ? (state.skiGear ? 'Empezar / parar esquí · E' : 'Compra equipo en la caseta azul') : 'Comprar tarjeta de esquí · $500' };
       else if (nearSkiGear) action = { key: 'E', touch: '⛷️', text: dist2D(player.position, SKI_RESORT.gear2) < dist2D(player.position, SKI_RESORT.gear) ? 'Comprar snowboard · $200' : 'Comprar esquís · $200' };
       else if (nearArcadeRewards) action = { key: 'E', touch: '🎁', text: 'Canjear premios · tickets' };

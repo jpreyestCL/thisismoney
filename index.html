@@ -9331,7 +9331,7 @@ function trySkiResort() {
       state.money -= 500; state.skiPass = true; addMoney(0); toast('🎫 ¡Tarjeta de acceso comprada! Ya puedes subir a las pistas'); saveGame(); return true;
     }
     if (!state.skiGear) { toast('⛷️ Compra esquís o snowboard en la caseta azul'); return true; }
-    state.skiing = !state.skiing; toast(state.skiing ? '❄️ ¡A esquiar! WASD para bajar · E para parar' : '🛑 Dejaste de esquiar'); return true;
+    state.skiing = !state.skiing; toast(state.skiing ? '❄️ ¡A esquiar! Flechas izquierda/derecha para girar · ↑ para bajar · E para parar' : '🛑 Dejaste de esquiar'); return true;
   }
   if (de < 10 || de2 < 10) {
     if (!state.skiPass) { toast('🎫 Primero compra la tarjeta en la entrada · $500'); return true; }
@@ -10757,7 +10757,7 @@ function updateSkiMovement(dt) {
   const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
   const steer = (right ? 1 : 0) - (left ? 1 : 0), push = (fwd ? 1 : 0) - (back ? .55 : 0);
   // Los esquís siguen la curva: giran y se inclinan con la dirección elegida.
-  const turn = steer * .58;
+  const turn = steer * .72;
   gearVisual.rotation.y += (turn - gearVisual.rotation.y) * Math.min(1, dt * 9);
   gearVisual.rotation.z += (steer * -.16 - gearVisual.rotation.z) * Math.min(1, dt * 10);
   player.position.x += steer * 10 * dt;

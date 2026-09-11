@@ -9269,7 +9269,7 @@ function inSkiResort() { return state.planet === 'tierra' && !state.country && d
 function trySkiResort() {
   if (!inSkiResort()) return false;
   const dg = dist2D(player.position, SKI_RESORT.gate), de = dist2D(player.position, SKI_RESORT.gear), de2 = dist2D(player.position, SKI_RESORT.gear2);
-  if (dg < 7) {
+  if (dg < 14) {
     if (!state.skiPass) {
       if (state.money < 500) { toast('🎫 La tarjeta del centro de esquí cuesta $500'); return true; }
       state.money -= 500; state.skiPass = true; addMoney(0); toast('🎫 ¡Tarjeta de acceso comprada! Ya puedes subir a las pistas'); saveGame(); return true;
@@ -9277,7 +9277,7 @@ function trySkiResort() {
     if (!state.skiGear) { toast('⛷️ Compra esquís o snowboard en la caseta azul'); return true; }
     state.skiing = !state.skiing; toast(state.skiing ? '❄️ ¡A esquiar! WASD para bajar · E para parar' : '🛑 Dejaste de esquiar'); return true;
   }
-  if (de < 7 || de2 < 7) {
+  if (de < 10 || de2 < 10) {
     if (!state.skiPass) { toast('🎫 Primero compra la tarjeta en la entrada · $500'); return true; }
     if (state.skiGear) { toast('⛷️ Ya tienes ' + (state.skiGear === 'skis' ? 'esquís' : 'un snowboard') + ' · E en la entrada para esquiar'); return true; }
     const gear = de2 < de ? 'snowboard' : 'skis';
@@ -11460,8 +11460,8 @@ function updateContextPrompt() {
       const aimed = aimedFurniture(), furniture = sitOn ? sitOn : aimed;
       const asiento = furniture && SEAT_KEYS.includes(furniture.key) ? furniture : null;
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
-      const nearSkiGate = !state.country && dist2D(player.position, SKI_RESORT.gate) < 7;
-      const nearSkiGear = !state.country && (dist2D(player.position, SKI_RESORT.gear) < 7 || dist2D(player.position, SKI_RESORT.gear2) < 7);
+      const nearSkiGate = !state.country && dist2D(player.position, SKI_RESORT.gate) < 14;
+      const nearSkiGear = !state.country && (dist2D(player.position, SKI_RESORT.gear) < 10 || dist2D(player.position, SKI_RESORT.gear2) < 10);
       if (nearSkiGate) action = { key: 'E', touch: '🎫', text: state.skiPass ? (state.skiGear ? 'Empezar / parar esquí · E' : 'Compra equipo en la caseta azul') : 'Comprar tarjeta de esquí · $500' };
       else if (nearSkiGear) action = { key: 'E', touch: '⛷️', text: dist2D(player.position, SKI_RESORT.gear2) < dist2D(player.position, SKI_RESORT.gear) ? 'Comprar snowboard · $200' : 'Comprar esquís · $200' };
       else if (nearArcadeRewards) action = { key: 'E', touch: '🎁', text: 'Canjear premios · tickets' };

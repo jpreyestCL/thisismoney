@@ -311,7 +311,7 @@ Al fondo del arcade hay un mostrador **CANJE DE PREMIOS**. Pulsa **E** con
 40, 100 o 200 tickets para canjear un peluche, una consola retro o un trofeo
 dorado; cada premio queda registrado y entrega su valor en dinero.
 
-La zona arcade está en una explanada abierta cerca de la plaza principal, en (30, 35), lejos de los barrios
+La zona arcade está en una explanada abierta detrás de la armería, en (30, -62), lejos de los barrios
 residenciales: no se construyen casas entre sus máquinas ni dentro de la zona.
 Tiene una marquesina y cinco máquinas separadas, cada una con un juego fijo.
 Acércate a la máquina y pulsa **E** para jugar; el aviso muestra el nombre del
@@ -323,7 +323,7 @@ bajarte y pulsar **E**: compras las unidades que faltan a $3 cada una y el
 tanque queda lleno. También puedes cargar mientras conduces dentro de la
 estación. Los helicópteros no usan gasolina.
 
-El arcade queda en la explanada abierta `(30, 35)`, sin casas ni calles
+El arcade queda en la explanada abierta `(30, -62)`, sin casas ni calles
 atravesando la zona. Ahora tiene murallas opacas y techo, como una casa, con
 una entrada frontal amplia para entrar sin atravesar las paredes. Las máquinas
 quedan dentro y siguen funcionando al acercarte y pulsar **E**. En Platus, los aviones, la plataforma y el reactor del

@@ -30,7 +30,7 @@ console.log('vehicles and arcade: ok');
 assert.match(html, /const ARCADE_MACHINES = \[\]/);
 assert.match(html, /ARCADE_MACHINES\.push/);
 assert.match(html, /if \(!machine\) return false/);
-assert.match(html, /ARCADE_POS = new THREE\.Vector3\(30, 0, 35\)/);
+assert.match(html, /ARCADE_POS = new THREE\.Vector3\(30, 0, -62\)/);
 assert.match(html, /const roof = new THREE\.Mesh\(new THREE\.BoxGeometry\(34, \.4, 28\)/);
 assert.match(html, /entrada central de 10 unidades/);
 assert.match(html, /const wallMat = mat\(0x17133d\)/);

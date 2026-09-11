@@ -12,5 +12,7 @@ assert.match(html, /id="scalePlusBtn"/);
 assert.match(html, /id="thickPlusBtn"/);
 assert.match(html, /data-act="scalePlus"/);
 assert.match(html, /data-act="thickPlus"/);
+assert.match(html, /data-build-action="scalePlus"/);
+assert.match(html, /data-build-action="thickPlus"/);
 assert.match(html, /scale: o\.scale \|\| null/);
 console.log('building stack and sizing: ok');

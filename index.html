@@ -4418,7 +4418,7 @@ const floatingAlienWorld = new THREE.Vector3(), floatingAlienTarget = new THREE.
       const gun = new THREE.Mesh(new THREE.BoxGeometry(.16, .22, .65), new THREE.MeshStandardMaterial({ color: 0x3f2a1d, emissive: 0xf97316, emissiveIntensity: .35 })); gun.position.set(0, -.48, .3); gun.rotation.x = -.25; alien.userData.limbs.armR.add(gun); alien.userData.alienGun = gun;
       const roamAngle = n / 8 * Math.PI * 2, roamRadius = rad * (.15 + (n % 4) * .08);
       alien.position.set(Math.cos(roamAngle) * roamRadius, y + 1.25, Math.sin(roamAngle) * roamRadius);
-      alien.userData.cityY = y + 1.25; alien.userData.roamLimit = rad * .48; alien.userData.roamX = alien.position.x; alien.userData.roamZ = alien.position.z; alien.userData.roamWait = Math.random() * 2; alien.userData.attackCd = 0; city.add(alien); floatingCitizens.push(alien);
+      alien.userData.cityY = y + 1.25; alien.userData.roamLimit = rad * .48; alien.userData.roamX = alien.position.x; alien.userData.roamZ = alien.position.z; alien.userData.roamWait = Math.random() * 2; alien.userData.attackCd = 0; alien.userData.maxHp = 100; alien.userData.hp = 100; city.add(alien); floatingCitizens.push(alien);
     }
     const beacon = new THREE.PointLight(0xf97316, 1.25, 10, 1.7); beacon.position.set(0, y + 4, 0); city.add(beacon);
     city.visible = false; scene.add(city);
@@ -4447,6 +4447,7 @@ function updateFloatingWorld(dt) {
   floatingCitizenAggro = Math.max(0, floatingCitizenAggro - dt);
   floatingAlienVolleyCd = Math.max(0, floatingAlienVolleyCd - dt);
   for (const alien of floatingCitizens) {
+    if (!alien.visible || alien.userData.hp <= 0) continue;
     if (floatingCitizenAggro > 0) {
       alien.getWorldPosition(floatingAlienWorld);
       floatingAlienTarget.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
@@ -4498,13 +4499,21 @@ function tryHitFloatingCitizen(dmg) {
   const dir = new THREE.Vector3(); getAimDirection(dir);
   let best = null, bestD = state.laserGun ? 30 : 4.5;
   for (const alien of floatingCitizens) {
+    if (!alien.visible || alien.userData.hp <= 0) continue;
     alien.getWorldPosition(floatingAlienWorld); const d = player.position.distanceTo(floatingAlienWorld);
     if (d < bestD) { const to = floatingAlienWorld.clone().sub(player.position).normalize(); if (to.dot(dir) > .25) { best = alien; bestD = d; } }
   }
   if (!best) return false;
   floatingCitizenAggro = 35; best.getWorldPosition(floatingAlienWorld); flashEnemy(best, true); setTimeout(() => flashEnemy(best, false), 130);
-  voxelImpact(floatingAlienWorld.clone().setY(floatingAlienWorld.y + 1), 0xef4444, 6); zombieHitSound(); floatText(floatingAlienWorld, '¡ALERTA ALIEN!', '#f87171', 15);
-  toast('🚨 ¡Golpeaste a un ciudadano! ¡Todos los aliens te persiguen!');
+  const hit = Math.max(1, dmg || state.weaponDmg || 1);
+  best.userData.hp = Math.max(0, best.userData.hp - hit);
+  voxelImpact(floatingAlienWorld.clone().setY(floatingAlienWorld.y + 1), 0xef4444, 6); zombieHitSound(); floatText(floatingAlienWorld, '−' + hit + ' ❤️ ' + Math.ceil(best.userData.hp), '#f87171', 15);
+  if (best.userData.hp <= 0) {
+    const i = floatingCitizens.indexOf(best); if (i >= 0) floatingCitizens.splice(i, 1);
+    best.visible = false; if (best.parent) best.parent.remove(best);
+    addMoney(80 + Math.floor(Math.random() * 121));
+    toast('👽 Alien derrotado · recibiste una recompensa');
+  } else toast('🚨 ¡Golpeaste a un alien! Vida: ' + Math.ceil(best.userData.hp) + '/100 · ¡todos te persiguen!');
   if (state.laserGun) shootBeam(floatingAlienWorld); return true;
 }
 function geyserBoost() {   // devuelve true si el jugador está sobre un géiser (para lanzarlo)

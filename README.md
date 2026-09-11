@@ -284,3 +284,11 @@ sobre compañeros heridos. Al llegar a cero mueren, dejan de combatir y se
 eliminan de la partida guardada. La vida restante se guarda individualmente;
 las partidas antiguas sin este dato comienzan con vida completa. En modo
 creativo están protegidos. Pruebas: `node tests/companion-health.test.mjs`.
+
+### Vida de los aliens de Platus
+
+Los aliens de las ciudades flotantes de Platus tienen **100 de vida**. Pueden
+recibir golpes normales o disparos láser; el ataque muestra el daño y la vida
+restante. Al llegar a cero mueren, dejan de moverse y atacar, y entregan una
+recompensa aleatoria de $80 a $200. Los aliens enemigos del castillo conservan
+su sistema de vida independiente. Pruebas: `node tests/platus-aliens.test.mjs`.

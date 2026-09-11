@@ -3457,7 +3457,7 @@ function buildSkiResort() {
   // Pistas principales: llegan desde la parte alta hasta la zona plana final.
   for (const [lane, side] of [['AZUL', -1], ['ROJA', 1]]) {
     const pts = [];
-    for (let i = 0; i <= 24; i++) { const t = i / 24, x = SKI_RESORT.x + side * (8 + t * 38) + Math.sin(t * 8) * 5, z = SKI_RESORT.z - 150 + t * 310; pts.push(new THREE.Vector3(x, mountainProfile(mountains.at(-1), x - SKI_RESORT.x, z - SKI_RESORT.z) + .12, z)); }
+    for (let i = 0; i <= 24; i++) { const t = i / 24, x = SKI_RESORT.x + side * (28 + t * 48) + Math.sin(t * 8) * 4, z = SKI_RESORT.z - 150 + t * 310; pts.push(new THREE.Vector3(x, mountainProfile(mountains.at(-1), x - SKI_RESORT.x, z - SKI_RESORT.z) + .12, z)); }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 3.2, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; trail.userData.skiLane = lane; skiResortGroup.add(trail);
     const tag = makeSign(lane + ' · PISTA', lane === 'AZUL' ? 0x93c5fd : 0xfca5a5); tag.scale.set(.42, .42, .42); tag.position.copy(pts[5]); tag.position.y += 3; skiResortGroup.add(tag);
     // Separadores de pista: postes con banderas que hacen visible dónde comienza y termina cada bajada.
@@ -3475,7 +3475,7 @@ function buildSkiResort() {
     }
   }
   // Más pistas angostas, paralelas y cercanas entre sí, cada una encerrada por muros.
-  for (const [name, offset, color, start, length] of [['VERDE', -58, 0x22c55e, -70, 175], ['NEGRA', 0, 0x111827, -155, 345], ['AMARILLA', 58, 0xfacc15, -90, 240]]) {
+  for (const [name, offset, color, start, length] of [['VERDE', -112, 0x22c55e, -70, 175], ['NEGRA', 0, 0x111827, -155, 345], ['AMARILLA', 112, 0xfacc15, -90, 240]]) {
     const pts = [];
     for (let i = 0; i <= 24; i++) { const t = i / 24, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 4, z = SKI_RESORT.z + start + t * length; pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .18, z)); }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 2.1, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; skiResortGroup.add(trail);
@@ -3488,7 +3488,7 @@ function buildSkiResort() {
   for (const [name, side, color, zOffset] of [['OESTE', -1, 0x38bdf8, -82], ['ESTE', 1, 0xf472b6, -28]]) {
     const pts = [];
     for (let i = 0; i <= 20; i++) {
-      const t = i / 20, x = SKI_RESORT.x + side * (12 + t * 174), z = SKI_RESORT.z + zOffset + Math.sin(t * 6) * 13;
+      const t = i / 20, x = SKI_RESORT.x + side * (142 + t * 52), z = SKI_RESORT.z + zOffset + Math.sin(t * 6) * 10;
       pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .2, z));
     }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 44, 2.5, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
@@ -3503,7 +3503,7 @@ function buildSkiResort() {
   }
   // Pistas de la cara trasera: la nieve continúa hacia el norte con una
   // pendiente suave y sus muros llegan hasta el final del recorrido.
-  for (const [name, offset, color] of [['TRASERA AZUL', -54, 0x60a5fa], ['TRASERA ROJA', 0, 0xf87171], ['TRASERA VERDE', 54, 0x4ade80]]) {
+  for (const [name, offset, color] of [['TRASERA AZUL', -92, 0x60a5fa], ['TRASERA ROJA', 0, 0xf87171], ['TRASERA VERDE', 92, 0x4ade80]]) {
     const pts = [];
     for (let i = 0; i <= 20; i++) {
       const t = i / 20, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 3, z = SKI_RESORT.z - 198 - t * 145;

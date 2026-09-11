@@ -3442,7 +3442,7 @@ function buildSkiResort() {
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 3.2, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; trail.userData.skiLane = lane; skiResortGroup.add(trail);
     const tag = makeSign(lane + ' · PISTA', lane === 'AZUL' ? 0x93c5fd : 0xfca5a5); tag.scale.set(.42, .42, .42); tag.position.copy(pts[5]); tag.position.y += 3; skiResortGroup.add(tag);
     // Separadores de pista: postes con banderas que hacen visible dónde comienza y termina cada bajada.
-    for (let i = 2; i < 18; i += 2) { const p = pts[i], pole = skiBox(skiResortGroup, p.x + (side < 0 ? -3.2 : 3.2), p.y + 1.1, p.z, .12, 2.2, .12, 0x334155); const flag = skiBox(skiResortGroup, p.x + (side < 0 ? -3 : 3), p.y + 2, p.z, 1.1, .55, .08, lane === 'AZUL' ? 0x2563eb : 0xdc2626); flag.rotation.y = .2; }
+    for (let i = 2; i < 18; i += 2) { const p = pts[i], bx = p.x + (side < 0 ? -3.2 : 3.2); skiBox(skiResortGroup, bx, p.y + .65, p.z, 3.1, .7, .22, 0x8b5a2b, true); skiBox(skiResortGroup, bx - 1.45, p.y + 1.1, p.z, .14, 1.9, .14, 0x6b4423); skiBox(skiResortGroup, bx + 1.45, p.y + 1.1, p.z, .14, 1.9, .14, 0x6b4423); const flag = skiBox(skiResortGroup, bx, p.y + 2, p.z, 1.1, .55, .08, lane === 'AZUL' ? 0x2563eb : 0xdc2626); flag.rotation.y = .2; }
   }
   // Saltos, vallas y banderas: obstáculos sólidos, pero colocados sobre la nieve.
   for (let i = 0; i < 8; i++) {
@@ -3461,12 +3461,12 @@ function buildSkiResort() {
     const n = makePerson(i % 2 ? 0x2563eb : 0xdc2626, i % 3 ? 0xf1c27d : 0x8d5524);
     const lane = i % 2, side = lane ? 1 : -1, t = (i % 17) / 17, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8) * 5, z = SKI_RESORT.z - 54 + t * 106;
     const skiMat = mat(0x111827), leftSki = new THREE.Mesh(new THREE.BoxGeometry(.12, .06, 1.7), skiMat), rightSki = leftSki.clone(); leftSki.position.set(-.28, .04, .15); rightSki.position.set(.28, .04, .15); n.add(leftSki, rightSki);
-    n.userData.skiLane = lane; n.userData.skiT = t; n.userData.skiSide = side; n.userData.skiBob = Math.random() * 6.28; n.position.set(x, skiSlopeHeight(x, z), z); skiVisitors.push(n); skiResortGroup.add(n);
+    n.userData.skiLane = lane; n.userData.skiT = t; n.userData.skiSide = side; n.userData.skiSpeed = .018 + Math.random() * .045; n.userData.skiBob = Math.random() * 6.28; n.position.set(x, skiSlopeHeight(x, z), z); skiVisitors.push(n); skiResortGroup.add(n);
   }
 }
 function updateSkiVisitors(dt) {
   for (const n of skiVisitors) {
-    n.userData.skiBob += dt * 2; n.userData.skiT = (n.userData.skiT + dt * .035) % 1;
+    n.userData.skiBob += dt * 2; n.userData.skiT = (n.userData.skiT + dt * n.userData.skiSpeed) % 1;
     const t = n.userData.skiT, side = n.userData.skiSide, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8 + n.userData.skiLane) * 5, z = SKI_RESORT.z - 54 + t * 106;
     n.position.set(x, skiSlopeHeight(x, z) + Math.abs(Math.sin(n.userData.skiBob)) * .04, z); n.rotation.y = side * .18 + Math.sin(n.userData.skiBob) * .04;
   }
@@ -10683,8 +10683,18 @@ function drawMinimap() {
   g.beginPath(); g.arc(75, 75, 3.5, 0, 7); g.fill(); g.stroke();
 }
 
+function ensurePlayerSkiVisual() {
+  if (skiGearMesh) return skiGearMesh;
+  skiGearMesh = new THREE.Group(); skiGearMesh.visible = false; player.add(skiGearMesh);
+  const skiMat = mat(0x111827);
+  const a = new THREE.Mesh(new THREE.BoxGeometry(.13, .07, 1.9), skiMat), b = a.clone(); a.position.x = -.28; b.position.x = .28; skiGearMesh.add(a, b);
+  const poles = mat(0xf59e0b), p1 = new THREE.Mesh(new THREE.BoxGeometry(.035, 1.4, .035), poles), p2 = p1.clone(); p1.position.set(-.62, .62, 0); p2.position.set(.62, .62, 0); p1.rotation.z = -.12; p2.rotation.z = .12; skiGearMesh.add(p1, p2);
+  const board = new THREE.Mesh(new THREE.BoxGeometry(.24, .07, 1.65), mat(0x7c3aed)); board.position.y = .04; board.visible = false; skiGearMesh.add(board); skiGearMesh.userData.board = board;
+  return skiGearMesh;
+}
 function updateSkiMovement(dt) {
-  if (!state.skiing || !state.skiPass || !state.skiGear) return false;
+  if (!state.skiing || !state.skiPass || !state.skiGear) { if (skiGearMesh) skiGearMesh.visible = false; return false; }
+  const gearVisual = ensurePlayerSkiVisual(); gearVisual.visible = true; gearVisual.userData.board.visible = state.skiGear === 'snowboard';
   const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
   const steer = (right ? 1 : 0) - (left ? 1 : 0), push = (fwd ? 1 : 0) - (back ? .55 : 0);

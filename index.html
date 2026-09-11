@@ -3408,7 +3408,7 @@ function buildEarthMountains() {
 // ---------------- EXPANSIÓN: CENTRO DE ESQUÍ -------------------
 // La cordillera queda en el extremo ampliado del mapa. La pista de acceso es una
 // carretera de curvas visibles para que el viaje en auto se sienta como una subida.
-const SKI_RESORT = { x: 245, z: 240, r: 90, gate: { x: 165, z: 166 }, gear: { x: 173, z: 173 }, gear2: { x: 185, z: 173 } };
+const SKI_RESORT = { x: 220, z: 235, r: 115, gate: { x: 165, z: 166 }, gear: { x: 173, z: 173 }, gear2: { x: 185, z: 173 } };
 const SKI_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z + 58 };
 const SKI_LIFT2_BOTTOM = { x: SKI_RESORT.x - 8, z: SKI_RESORT.z + 48 };
 const SKI_TOW_BOTTOM = { x: SKI_RESORT.x - 28, z: SKI_RESORT.z + 52 };
@@ -3443,6 +3443,8 @@ function buildSkiResort() {
   buildSkiRoad();
   // Zona de llegada plana: la bajada termina aquí y no en un borde abrupto.
   const landing = new THREE.Mesh(new THREE.BoxGeometry(112, .45, 82), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 19, SKI_RESORT.z + 82); landing.receiveShadow = true; skiResortGroup.add(landing); addLandingSurface(landing.position.x, landing.position.z, 112, 82, 19.225, landing);
+  const backside = new THREE.Mesh(new THREE.BoxGeometry(210, .5, 90), mat(0xffffff)); backside.position.set(SKI_RESORT.x, 5, SKI_RESORT.z - 112); backside.receiveShadow = true; skiResortGroup.add(backside);
+  for (let i = 0; i < 3; i++) { const path = new THREE.CatmullRomCurve3([new THREE.Vector3(SKI_RESORT.x - 72 + i * 60, 38 - i * 7, SKI_RESORT.z - 68), new THREE.Vector3(SKI_RESORT.x - 55 + i * 55, 23 - i * 5, SKI_RESORT.z - 105), new THREE.Vector3(SKI_RESORT.x - 35 + i * 48, 5, SKI_RESORT.z - 145)]); const backTrail = new THREE.Mesh(new THREE.TubeGeometry(path, 24, 3.8, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); backTrail.scale.y = .12; skiResortGroup.add(backTrail); }
   // Caseta de equipos y cartel de precios.
   skiBox(skiResortGroup, SKI_RESORT.gear.x, 2.2, SKI_RESORT.gear.z, 9, 4.4, 7, 0x2563eb, true);
   skiBox(skiResortGroup, SKI_RESORT.gear2.x, 2.2, SKI_RESORT.gear2.z, 9, 4.4, 7, 0x7c3aed, true);

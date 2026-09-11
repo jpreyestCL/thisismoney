@@ -3456,6 +3456,11 @@ function buildSkiResort() {
     const tag = makeSign(lane + ' · PISTA', lane === 'AZUL' ? 0x93c5fd : 0xfca5a5); tag.scale.set(.42, .42, .42); tag.position.copy(pts[5]); tag.position.y += 3; skiResortGroup.add(tag);
     // Separadores de pista: postes con banderas que hacen visible dónde comienza y termina cada bajada.
     for (let i = 2; i < 18; i += 2) { const p = pts[i], bx = p.x + (side < 0 ? -3.2 : 3.2); skiBox(skiResortGroup, bx, p.y + 1.7, p.z, 4.8, 3.4, .5, 0x8b5a2b, true); skiBox(skiResortGroup, bx, p.y + 3.35, p.z, 4.9, .18, .58, 0x6b4423); }
+    // Murallas longitudinales: la pista angosta queda encerrada desde arriba hasta abajo.
+    for (let i = 1; i < 18; i++) {
+      const p = pts[i], wallX = p.x + (side < 0 ? -3.9 : 3.9);
+      skiBox(skiResortGroup, wallX, p.y + 2.2, p.z, .62, 4.4, 7.2, 0x7c4a21, true);
+    }
   }
   // Saltos, vallas y banderas: obstáculos sólidos, pero colocados sobre la nieve.
   for (let i = 0; i < 8; i++) {

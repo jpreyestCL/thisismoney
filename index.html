@@ -9395,6 +9395,9 @@ function inSkiResort() {
     || dist2D(player.position, SKI_RESORT.gear) < 14
     || dist2D(player.position, SKI_RESORT.gear2) < 14;
 }
+function inSkiTopHollow() {
+  return state.planet === 'tierra' && !state.country && dist2D(player.position, { x: SKI_LIFT_BOTTOM.x, z: SKI_LIFT_BOTTOM.z - 340 }) < 36;
+}
 function updateSkiLiftRide(dt) {
   const ride = state.skiLiftRide; if (!ride) return false;
   ride.t += dt * .16;
@@ -9406,7 +9409,8 @@ function updateSkiLiftRide(dt) {
   if (ride.t >= 1) {
     state.skiLiftRide = null;
     state.skiing = false;
-    player.position.y = skiSlopeHeight(x, z) + PLAYER_EYE;
+    const hollowFloor = ride.kind === 'andarivel' ? skiSlopeHeight(x, z) - 1.2 : skiSlopeHeight(x, z) + .25;
+    player.position.y = hollowFloor + PLAYER_EYE;
     toast('🏔️ Llegaste a una zona plana · prepárate o elige otro andarivel');
   }
   return true;
@@ -11002,7 +11006,7 @@ function updateMovement(dt) {
   }
   const floor2Y = secondFloorSupportY(crouch ? CROUCH_EYE : PLAYER_EYE);
   if (floor2Y != null) { floorY = Math.max(floorY, floor2Y); if (grounded && vy <= 0) player.position.y = floorY; }
-  if (!state.underground && !state.inCastle && !state.inRuins && !state.inArena) {   // ¡las montañas se suben!
+  if (!state.underground && !state.inCastle && !state.inRuins && !state.inArena && !inSkiTopHollow()) {   // ¡las montañas se suben!
     const cerro = mountainHeightAt(player.position.x, player.position.z);
     if (cerro > 0) { floorY = Math.max(floorY, cerro + (crouch ? CROUCH_EYE : PLAYER_EYE)); if (grounded && vy <= 0) player.position.y = floorY; }
   }
@@ -11048,7 +11052,7 @@ function updateMovement(dt) {
       if (performance.now() - skiAccessWarnAt > 1800) { skiAccessWarnAt = performance.now(); toast('🚡 La montaña bloquea el paso · sube por un andarivel o el arrastre'); }
     }
   }
-  if (state.skiGearWorn && !state.skiing && !state.skiLiftRide && inSkiResort() && mountainHeightAt(player.position.x, player.position.z) > 85) {
+  if (state.skiGearWorn && !state.skiing && !state.skiLiftRide && inSkiResort() && !inSkiTopHollow() && mountainHeightAt(player.position.x, player.position.z) > 85) {
     player.position.x = moveStartX; player.position.z = moveStartZ;
     if (performance.now() - skiAccessWarnAt > 1800) { skiAccessWarnAt = performance.now(); toast('🚡 No puedes subir con los esquís puestos · usa un andarivel o el arrastre'); }
   }

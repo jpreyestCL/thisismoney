@@ -3449,6 +3449,11 @@ function buildSkiResort() {
   // Zona de llegada plana: la bajada termina aquí y no en un borde abrupto.
   const landing = new THREE.Mesh(new THREE.BoxGeometry(300, .55, 300), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 82, SKI_RESORT.z + 170); landing.receiveShadow = true; skiResortGroup.add(landing); addLandingSurface(landing.position.x, landing.position.z, 300, 300, 82.275, landing);
   const landingSign = makeSign('❄️ PLATAFORMA DE NIEVE · FINAL DE LAS PISTAS', 0xe0f2fe); landingSign.scale.set(.38, .38, .38); landingSign.position.set(SKI_RESORT.x, 86, SKI_RESORT.z + 174); skiResortGroup.add(landingSign);
+  // Senderos bajos y anchos por ambos costados: rodean la montaña sin bordes.
+  for (const side of [-1, 1]) {
+    const connector = new THREE.Mesh(new THREE.BoxGeometry(18, .8, 430), mat(0xffffff));
+    connector.position.set(SKI_RESORT.x + side * 212, .4, SKI_RESORT.z + 8); connector.receiveShadow = true; skiResortGroup.add(connector);
+  }
   const backside = new THREE.Mesh(new THREE.BoxGeometry(210, .5, 90), mat(0xffffff)); backside.position.set(SKI_RESORT.x, 5, SKI_RESORT.z - 112); backside.receiveShadow = true; skiResortGroup.add(backside);
   for (let i = 0; i < 3; i++) { const path = new THREE.CatmullRomCurve3([new THREE.Vector3(SKI_RESORT.x - 72 + i * 60, 38 - i * 7, SKI_RESORT.z - 68), new THREE.Vector3(SKI_RESORT.x - 55 + i * 55, 23 - i * 5, SKI_RESORT.z - 105), new THREE.Vector3(SKI_RESORT.x - 35 + i * 48, 5, SKI_RESORT.z - 145)]); const backTrail = new THREE.Mesh(new THREE.TubeGeometry(path, 24, 3.8, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); backTrail.scale.y = .12; skiResortGroup.add(backTrail); }
   // Caseta de equipos y cartel de precios.
@@ -9411,7 +9416,7 @@ function trySkiResort() {
   const dl = dist2D(player.position, SKI_LIFT_BOTTOM), dl2 = dist2D(player.position, SKI_LIFT2_BOTTOM), dt = dist2D(player.position, SKI_TOW_BOTTOM), ds = dist2D(player.position, SKI_SUMMIT_LIFT_BOTTOM);
   if (dl < 9 || dl2 < 9 || dt < 9 || ds < 9) {
     if (!state.skiPass || !state.skiGear) { toast('🎫 Necesitas la tarjeta y esquís o snowboard para subir'); return true; }
-    const best = Math.min(dl, dl2, dt, ds); state.skiing = false; state.skiLiftRide = { kind: best === ds ? 'cumbre' : best === dt ? 'arrastre' : best === dl2 ? 'andarivel2' : 'andarivel', t: 0 }; toast('🚡 Subiendo en el ' + (state.skiLiftRide.kind === 'cumbre' ? 'andarivel a la cumbre' : state.skiLiftRide.kind === 'andarivel2' ? 'andarivel 2' : state.skiLiftRide.kind) + ' · espera arriba'); return true;
+    const best = Math.min(dl, dl2, dt, ds); state.skiGearWorn = true; state.skiing = false; state.skiLiftRide = { kind: best === ds ? 'cumbre' : best === dt ? 'arrastre' : best === dl2 ? 'andarivel2' : 'andarivel', t: 0 }; toast('🚡 Subiendo en el ' + (state.skiLiftRide.kind === 'cumbre' ? 'andarivel a la cumbre' : state.skiLiftRide.kind === 'andarivel2' ? 'andarivel 2' : state.skiLiftRide.kind) + ' · espera arriba'); return true;
   }
   if (dg < 14) {
     if (!state.skiPass) {
@@ -9419,7 +9424,7 @@ function trySkiResort() {
       state.money -= 500; state.skiPass = true; addMoney(0); toast('🎫 ¡Tarjeta de acceso comprada! Ya puedes subir a las pistas'); saveGame(); return true;
     }
     if (!state.skiGear) { toast('⛷️ Compra esquís o snowboard en la caseta azul'); return true; }
-    state.skiing = !state.skiing; toast(state.skiing ? '❄️ ¡A esquiar! Flechas izquierda/derecha para girar · ↑ para bajar · E para parar' : '🛑 Dejaste de esquiar'); return true;
+    state.skiGearWorn = true; state.skiing = !state.skiing; toast(state.skiing ? '❄️ ¡A esquiar! A/D o flechas para girar · S/↓ para frenar · Espacio para saltar' : '🛑 Dejaste de esquiar'); return true;
   }
   if (de < 10 || de2 < 10) {
     if (!state.skiPass) { toast('🎫 Primero compra la tarjeta en la entrada · $500'); return true; }
@@ -10839,7 +10844,7 @@ function ensurePlayerSkiVisual() {
 }
 function updateSkiMovement(dt) {
   if (!state.skiPass || !state.skiGear) { if (skiGearMesh) skiGearMesh.visible = false; return false; }
-  const gearVisual = ensurePlayerSkiVisual(); gearVisual.visible = !!state.skiGearWorn; gearVisual.userData.board.visible = state.skiGear === 'snowboard';
+  const gearVisual = ensurePlayerSkiVisual(); gearVisual.visible = !!state.skiGearWorn || !!state.skiing; gearVisual.userData.board.visible = state.skiGear === 'snowboard';
   if (!state.skiing) return false;
   const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
@@ -10860,7 +10865,8 @@ function updateSkiMovement(dt) {
   // La pendiente determina la velocidad: las pistas negras aceleran más y las
   // suaves conservan un ritmo tranquilo, como en una bajada real.
   const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x, player.position.z + 8));
-  const downhillSpeed = 4.5 + Math.min(12, slopeDrop * .55);
+  const braking = keys['KeyS'] || keys['ArrowDown'];
+  const downhillSpeed = braking ? 0 : 4.5 + Math.min(12, slopeDrop * .55);
   player.position.x += steer * (8 + downhillSpeed * .12) * dt;
   player.position.z += (downhillSpeed + push * 5.5) * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);
@@ -10878,7 +10884,8 @@ function updateSkiMovement(dt) {
     player.position.y = skiFloor;
   }
   vy = 0;
-  resolveCollisions();
+  // Durante la bajada las murallas son guías visuales; no deben congelar el
+  // giro lateral del esquiador al rozarlas.
   if (player.position.z > SKI_RESORT.z + 178) { player.position.z = SKI_RESORT.z + 178; state.skiing = false; toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;

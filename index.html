@@ -1714,7 +1714,7 @@ function makeStore(cx, cz, items, title, roofColor) {
 }
 const SUPER_B_POS = makeStore(-2, -40, STORE_B, 'ARMERIA', 0x6d28d9);
 makeStore(40, -22, STORE_A, 'SUPER', 0xdc2626);
-const GAS_STATION_POS = new THREE.Vector3(-58, 0, -22);
+const GAS_STATION_POS = new THREE.Vector3(-145, 0, 20);
 const ARCADE_POS = new THREE.Vector3(145, 0, 20);
 const ARCADE_MACHINES = [];
 let gasStationGroup = null, arcadeZoneGroup = null;
@@ -9010,14 +9010,15 @@ function updateDriving(dt) {
   }
 }
 function tryRefuelCar() {
-  if (!state.driving || !car || car.helicopter || state.planet !== 'tierra' || state.country) return false;
-  if (dist2D(car.group.position, GAS_STATION_POS) > 11) return false;
-  const missing = Math.ceil(car.maxFuel - car.fuel);
+  if (!car || car.helicopter || state.planet !== 'tierra' || state.country) return false;
+  const target = state.driving ? car : vehicles.find(v => !v.helicopter && dist2D(player.position, v.group.position) < 5);
+  if (!target || dist2D(target.group.position, GAS_STATION_POS) > 11 || (!state.driving && dist2D(player.position, GAS_STATION_POS) > 8)) return false;
+  const missing = Math.ceil(target.maxFuel - target.fuel);
   if (missing <= 0) { toast('⛽ El tanque ya está lleno'); return true; }
-  const cost = Math.max(20, missing * 3);
+  const cost = missing * 3;
   if (state.money < cost) { toast('⛽ Necesitas $' + cost + ' para cargar gasolina'); return true; }
-  state.money -= cost; car.fuel = car.maxFuel;
-  toast('⛽ Tanque lleno · -$' + cost); saveGame(); return true;
+  state.money -= cost; target.fuel = target.maxFuel;
+  toast('⛽ Compraste ' + missing + ' unidades de gasolina · tanque lleno · -$' + cost); saveGame(); return true;
 }
 function tryArcadeZone() {
   if (state.planet !== 'tierra' || state.country) return false;
@@ -11176,6 +11177,7 @@ function updateContextPrompt() {
       const harvest = nearestHarvestable(2.8);
       let owned = null;
       for (const v of vehicles) if (dist2D(player.position, v.group.position) < 4.5) { owned = v; break; }
+      const parkedFuelCar = owned && !owned.helicopter && dist2D(owned.group.position, GAS_STATION_POS) <= 11 && dist2D(player.position, GAS_STATION_POS) <= 8;
       const stand = nearestParkStand(), att = parkRide ? parkRide.att : nearestAttraction();
       const enMostrador = state.planet === 'tierra' && !state.country && dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6;
       const enAvionVuelta = !!state.country && dist2D(player.position, { x: COUNTRY_C.x, z: COUNTRY_C.z - 73 }) < 6;
@@ -11203,6 +11205,7 @@ function updateContextPrompt() {
       else if (harvest) { const d = CROP_DEFS[harvest.crop]; action = { key: 'E', touch: '🤝', text: 'Cosechar ' + d.name.toLowerCase() + ' · ' + harvest.produce + ' listo(s)' }; }
       else if (nearestDamagedBuilding()) action = { key: 'E', touch: '🔧', text: 'Reparar construcción dañada' };
       else if (state.sportGame) action = { key: 'CLIC/Q', touch: '🏅', text: state.sportGame.name + ' · primario / técnica · rojos ' + state.sportGame.teamScore[0] + '-' + state.sportGame.teamScore[1] + ' azules' };
+      else if (parkedFuelCar) action = { key: 'E', touch: '⛽', text: 'Comprar gasolina · $3 por unidad' };
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
       else if (nearKeeper()) action = { key: 'Y', touch: '🛒', text: 'Abrir catálogo del vendedor' };

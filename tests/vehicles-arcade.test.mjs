@@ -30,5 +30,7 @@ assert.match(html, /const roof = new THREE\.Mesh\(new THREE\.BoxGeometry\(27, \.
 assert.match(html, /const landingSurfaces = \[\]/);
 assert.match(html, /addLandingSurface\(p\.position\.x, p\.position\.z, 4, 20, 6, g\)/);
 assert.match(html, /addLandingSurface\(-58, -48, 27, 27, 1\.2, nuclear\)/);
+assert.match(html, /addObstacle\(ARCADE_POS\.x \+ i \* 4\.5, ARCADE_POS\.z - 5\.5, 2\.2, \.75, 2\.5\)/);
+assert.match(html, /addObstacle\(-58, -48, 8\.6, 8\.6, 8\.8\)/);
 assert.match(html, /Superficies altas de objetos/);
 console.log('arcade open plaza: ok');

@@ -997,7 +997,7 @@ const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el 
 const groundTex = makePixelTexture(0xffffff, true);
 groundTex.repeat.set(130, 130);
 const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, color: 0x4a7c3a, roughness: 1, flatShading: true });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground);
 
@@ -3408,7 +3408,7 @@ function buildEarthMountains() {
 // ---------------- EXPANSIÓN: CENTRO DE ESQUÍ -------------------
 // La cordillera queda en el extremo ampliado del mapa. La pista de acceso es una
 // carretera de curvas visibles para que el viaje en auto se sienta como una subida.
-const SKI_RESORT = { x: 220, z: 235, r: 150, gate: { x: 165, z: 166 }, gear: { x: 173, z: 173 }, gear2: { x: 185, z: 173 } };
+const SKI_RESORT = { x: 520, z: 500, r: 150, gate: { x: 380, z: 360 }, gear: { x: 388, z: 367 }, gear2: { x: 400, z: 367 } };
 const SKI_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z + 58 };
 const SKI_LIFT2_BOTTOM = { x: SKI_RESORT.x - 8, z: SKI_RESORT.z + 48 };
 const SKI_TOW_BOTTOM = { x: SKI_RESORT.x - 28, z: SKI_RESORT.z + 52 };
@@ -3424,10 +3424,10 @@ function skiBox(parent, x, y, z, w, h, d, color, obstacle = false) {
 }
 function buildSkiRoad() {
   const curve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(8, .06, 112), new THREE.Vector3(48, .06, 105),
-    new THREE.Vector3(30, .06, 140), new THREE.Vector3(86, .06, 152),
-    new THREE.Vector3(70, .06, 178), new THREE.Vector3(124, .06, 188),
-    new THREE.Vector3(165, .06, 166),
+    new THREE.Vector3(8, .06, 112), new THREE.Vector3(88, .06, 150),
+    new THREE.Vector3(135, .06, 220), new THREE.Vector3(210, .06, 250),
+    new THREE.Vector3(270, .06, 300), new THREE.Vector3(325, .06, 340),
+    new THREE.Vector3(380, .06, 360),
   ]);
   const road = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 4.1, 8, false), mat(0x293241));
   road.scale.y = .025; road.position.y = .02; road.receiveShadow = true; skiResortGroup.add(road);
@@ -8923,7 +8923,7 @@ function loadGame() {
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); spawnBase(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else if(state.country){const c=currentCountry();groundMat.color.set(c.ground);decor.forEach(t=>t.visible=false);buildCountry(c);setCountryVisible(true);setEarthWorld(false);setCityVisible(false);setPlatusVisible(false);applySpaceSuit(false);removeBase();scene.background.set(c.sky);scene.fog.far=320;syncPlacedCountryVisibility();}
-  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setCityVisible(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 320; syncPlacedCountryVisibility(); }
+  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setCityVisible(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 700; syncPlacedCountryVisibility(); }
   selectedCrop = CROP_DEFS[d.selectedCrop] ? d.selectedCrop : 'apple';
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.produce != null ? p.produce : p.apples, p.crop || 'apple'));   // huerto: reponer cultivos y saves antiguos
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
@@ -10694,7 +10694,7 @@ minimapEl.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code ==
 function drawMinimap() {
   const c = minimapEl, g = minimapCtx; if (!c || !g) return;
   g.clearRect(0, 0, 150, 150);
-  const sc = 0.6, cx = 75 - player.position.x * sc, cz = 75 - player.position.z * sc;
+  const sc = 0.25, cx = 75 - player.position.x * sc, cz = 75 - player.position.z * sc;
   const dot = (x, z, col, r) => { g.fillStyle = col; g.beginPath(); g.arc(cx + x * sc, cz + z * sc, r, 0, 7); g.fill(); };
   const icon = (x, z, em, size) => { g.font = (size || 13) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(em, cx + x * sc, cz + z * sc); };
   // gente y estadios (solo en la Tierra)
@@ -10921,8 +10921,8 @@ function updateMovement(dt) {
     player.position.x = THREE.MathUtils.clamp(player.position.x, COUNTRY_C.x - 175, COUNTRY_C.x + 175);
     player.position.z = THREE.MathUtils.clamp(player.position.z, COUNTRY_C.z - 175, COUNTRY_C.z + 175);
   } else {
-    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -420, 420);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, -365, 420);
+    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -700, 700);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, -500, 700);
   }
   if (state.skiGearWorn && !state.skiing && !state.skiLiftRide && inSkiResort() && mountainHeightAt(player.position.x, player.position.z) > 85) {
     player.position.x = moveStartX; player.position.z = moveStartZ;

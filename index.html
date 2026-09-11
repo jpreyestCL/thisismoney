@@ -10884,7 +10884,7 @@ function updateSkiMovement(dt) {
   const steer = (right ? 1 : 0) - (left ? 1 : 0), push = (fwd ? 1 : 0) - (back ? .55 : 0);
   // El cuerpo acompaña la orientación de los esquís para que el giro cambie
   // también la trayectoria del jugador y no queden desalineados.
-  if (steer) yaw -= steer * 1.15 * dt;
+  if (steer) yaw -= steer * 2.2 * dt;
   // Los esquís siguen la curva: giran y se inclinan con la dirección elegida.
   const turn = steer * .72;
   gearVisual.rotation.y += (turn - gearVisual.rotation.y) * Math.min(1, dt * 9);

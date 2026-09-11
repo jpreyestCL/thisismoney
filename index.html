@@ -1718,8 +1718,11 @@ function makeStore(cx, cz, items, title, roofColor) {
 }
 const SUPER_B_POS = makeStore(-2, -40, STORE_B, 'ARMERIA', 0x6d28d9);
 makeStore(40, -22, STORE_A, 'SUPER', 0xdc2626);
-const GAS_STATION_POS = new THREE.Vector3(-200, 0, 200);
+// Explanada libre junto a la plaza principal: fuera de las avenidas centrales
+// (x=0 y z=0) y separada de casas, tiendas y otros obstáculos.
+const GAS_STATION_POS = new THREE.Vector3(-16, 0, 16);
 const ARCADE_POS = new THREE.Vector3(170, 0, -170);
+const ARCADE_REWARDS_POS = new THREE.Vector3(ARCADE_POS.x, 0, ARCADE_POS.z + 8);
 const ARCADE_MACHINES = [];
 let gasStationGroup = null, arcadeZoneGroup = null;
 function buildGasStation() {
@@ -1748,6 +1751,8 @@ function buildArcadeZone() {
     ARCADE_MACHINES.push({ x: ARCADE_POS.x + i * 4.5, z: ARCADE_POS.z - 5.5, name: games[i + 2] });
   }
   const mascot = makeSign('🐭 🐰 🐥 · PREMIOS', 0x67e8f9); mascot.scale.set(.6, .6, .6); mascot.position.set(0, 3.8, 9.3); g.add(mascot);
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(8, 1.4, 1.8), mat(0xf59e0b)); counter.position.set(0, .7, 7.5); g.add(counter);
+  const rewardSign = makeSign('🎁 CANJE DE PREMIOS · E', 0xfef08a); rewardSign.scale.set(.55, .55, .55); rewardSign.position.set(0, 2.6, 7.5); g.add(rewardSign);
   scene.add(g); arcadeZoneGroup = g;
 }
 buildGasStation(); buildArcadeZone();
@@ -6808,7 +6813,7 @@ const state = {
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
   tutorial: { step: 0, complete: false }, chapter: 0, chapterFlags: {}, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
-  business: null, businessOrders: 0, parkBusiness: null, arcadeTickets: 0,
+  business: null, businessOrders: 0, parkBusiness: null, arcadeTickets: 0, arcadePrizes: {},
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
   foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   hasPhone: false,
@@ -7331,7 +7336,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!tryRefuelCar() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!tryRefuelCar() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -7838,7 +7843,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryRefuelCar() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryRefuelCar() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryFocusedFurniture() && !tryAirport() && !tryLeaderboard() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -8079,7 +8084,7 @@ function saveGame() {
       vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, fuel: v.fuel, moto: !!v.moto, helicopter: !!v.helicopter })),
       boat: boat ? { x: boat.group.position.x, z: boat.group.position.z, heading: boat.heading, hp: boat.hp } : null, boatCrew: state.boatCrew || 0, voyageDays: state.voyageDays || 0, islandDiscovered: !!state.islandDiscovered,
       car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, fuel: car.fuel, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
-      arcadeTickets: state.arcadeTickets || 0,
+      arcadeTickets: state.arcadeTickets || 0, arcadePrizes: state.arcadePrizes || {},
       pet: !!pet, petHp: pet?.userData.hp, hasFloor2: !!state.hasFloor2, floor2Rot: state.floor2Rot || 0, floors2: state.floors2 || [], unlocked: state.unlocked || {},   // desbloqueos del medio juego (floors2: TODOS los segundos pisos)
       petAlien: !!petAlien, petAlienHp: petAlien?.userData.hp, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
@@ -8675,6 +8680,7 @@ function loadGame() {
   restoreButler(d.butlerState);
   state.parkBusiness = d.parkBusiness || null;
   state.arcadeTickets = d.arcadeTickets || 0;
+  state.arcadePrizes = d.arcadePrizes || {};
   state.business = d.business || null; state.businessOrders = d.businessOrders || 0;
   state.foundSecrets = d.foundSecrets || {}; state.secretsFound = d.secretsFound || Object.keys(state.foundSecrets).length; syncWorldSecrets();
   state.reputation = d.reputation || 0; state.medals = d.medals || {}; state.blueprints = d.blueprints || {}; state.citizenFavors = d.citizenFavors || {};
@@ -8745,6 +8751,7 @@ function continueGame() {
 
 function resetAll() {
   state.arcadeTickets = 0;
+  state.arcadePrizes = {};
   state.parkBusiness = null; closeParkBusiness();
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; applyPlayerArmor();
@@ -9041,6 +9048,23 @@ function tryArcadeZone() {
   state.money -= price; const tickets = game.min + Math.floor(Math.random() * (game.max - game.min + 1));
   state.arcadeTickets = (state.arcadeTickets || 0) + tickets;
   toast('🎮 ' + game.name + ' · -$' + price + ' · ganaste ' + tickets + ' tickets');
+  saveGame(); return true;
+}
+function tryArcadeRewards() {
+  if (state.planet !== 'tierra' || state.country || dist2D(player.position, ARCADE_REWARDS_POS) >= 4.5) return false;
+  const rewards = [
+    { id: 'peluche', name: 'Peluche gigante', tickets: 40, value: 120 },
+    { id: 'consola', name: 'Consola retro', tickets: 100, value: 350 },
+    { id: 'trofeo', name: 'Trofeo dorado', tickets: 200, value: 800 },
+  ];
+  const available = rewards.filter(r => (state.arcadeTickets || 0) >= r.tickets);
+  if (!available.length) { toast('🎁 Necesitas al menos 40 tickets para canjear un premio'); return true; }
+  const reward = available[available.length - 1];
+  state.arcadeTickets -= reward.tickets;
+  state.arcadePrizes = state.arcadePrizes || {};
+  state.arcadePrizes[reward.id] = (state.arcadePrizes[reward.id] || 0) + 1;
+  addMoney(reward.value);
+  toast('🎁 Canjeaste ' + reward.name + ' · +' + reward.value + ' de valor · -' + reward.tickets + ' tickets');
   saveGame(); return true;
 }
 // Vida del auto: los monstruos cercanos lo dañan; si llega a 0 se destruye
@@ -11186,10 +11210,12 @@ function updateContextPrompt() {
       const enMostrador = state.planet === 'tierra' && !state.country && dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6;
       const enAvionVuelta = !!state.country && dist2D(player.position, { x: COUNTRY_C.x, z: COUNTRY_C.z - 73 }) < 6;
       const nearLeaderboard = state.planet === 'tierra' && dist2D(player.position, LEADERBOARD_POS) < 6;
+      const nearArcadeRewards = state.planet === 'tierra' && !state.country && dist2D(player.position, ARCADE_REWARDS_POS) < 4.5;
       const aimed = aimedFurniture(), furniture = sitOn ? sitOn : aimed;
       const asiento = furniture && SEAT_KEYS.includes(furniture.key) ? furniture : null;
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
-      if (nearLeaderboard) action = { key: 'E', touch: '🏆', text: 'Ver ranking mundial trimestral' };
+      if (nearArcadeRewards) action = { key: 'E', touch: '🎁', text: 'Canjear premios · tickets' };
+      else if (nearLeaderboard) action = { key: 'E', touch: '🏆', text: 'Ver ranking mundial trimestral' };
       else if (state.planet === 'tierra' && !state.country && ARCADE_MACHINES.some(m => dist2D(player.position, m) < 3.2)) action = { key: 'E', touch: '🎮', text: 'Jugar ' + ARCADE_MACHINES.find(m => dist2D(player.position, m) < 3.2).name + ' · E' };
       else if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
       else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };

@@ -3428,7 +3428,7 @@ function buildSkiRoad() {
 }
 function buildSkiResort() {
   // Cerro alto, con nieve desde la zona alta y una ladera continua para no atravesarla.
-  mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 92, 0x94a3b8, 0xffffff, 28, 'tierra', { grass: 0x9ca3af, soil: 0xcbd5e1, trees: 12 });
+  mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 92, 0xf1f5f9, 0xffffff, 28, 'tierra', { grass: 0xffffff, soil: 0xf8fafc, leaf: 0xe2e8f0, trees: 8 });
   buildSkiRoad();
   // Caseta de equipos y cartel de precios.
   skiBox(skiResortGroup, SKI_RESORT.gear.x, 2.2, SKI_RESORT.gear.z, 9, 4.4, 7, 0x2563eb, true);
@@ -3439,8 +3439,10 @@ function buildSkiResort() {
   for (const [lane, side] of [['AZUL', -1], ['ROJA', 1]]) {
     const pts = [];
     for (let i = 0; i <= 18; i++) { const t = i / 18, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8) * 5, z = SKI_RESORT.z - 54 + t * 106; pts.push(new THREE.Vector3(x, mountainProfile(mountains.at(-1), x - SKI_RESORT.x, z - SKI_RESORT.z) + .12, z)); }
-    const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 3.2, 6, false), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1 })); trail.scale.y = .06; trail.userData.skiLane = lane; skiResortGroup.add(trail);
+    const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 3.2, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; trail.userData.skiLane = lane; skiResortGroup.add(trail);
     const tag = makeSign(lane + ' · PISTA', lane === 'AZUL' ? 0x93c5fd : 0xfca5a5); tag.scale.set(.42, .42, .42); tag.position.copy(pts[5]); tag.position.y += 3; skiResortGroup.add(tag);
+    // Separadores de pista: postes con banderas que hacen visible dónde comienza y termina cada bajada.
+    for (let i = 2; i < 18; i += 2) { const p = pts[i], pole = skiBox(skiResortGroup, p.x + (side < 0 ? -3.2 : 3.2), p.y + 1.1, p.z, .12, 2.2, .12, 0x334155); const flag = skiBox(skiResortGroup, p.x + (side < 0 ? -3 : 3), p.y + 2, p.z, 1.1, .55, .08, lane === 'AZUL' ? 0x2563eb : 0xdc2626); flag.rotation.y = .2; }
   }
   // Saltos, vallas y banderas: obstáculos sólidos, pero colocados sobre la nieve.
   for (let i = 0; i < 8; i++) {
@@ -3455,9 +3457,20 @@ function buildSkiResort() {
   for (let i = 0; i < 10; i++) { const chair = skiBox(lift, 0, 8 + i * 4, -52 + i * 11, 1.4, .15, .65, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
   const tow = new THREE.Mesh(new THREE.BoxGeometry(1.2, .15, 105), mat(0x111827)); tow.position.set(SKI_RESORT.x - 28, 28, SKI_RESORT.z + 2); tow.rotation.x = -.25; skiResortGroup.add(tow);
   // Mucha gente esperando y bajando por las pistas.
-  for (let i = 0; i < 34; i++) { const n = makePerson(i % 2 ? 0x2563eb : 0xdc2626, i % 3 ? 0xf1c27d : 0x8d5524); const x = SKI_RESORT.x - 48 + Math.random() * 96, z = SKI_RESORT.z - 45 + Math.random() * 100; n.position.set(x, skiSlopeHeight(x, z), z); n.userData.skiBob = Math.random() * 6.28; skiVisitors.push(n); skiResortGroup.add(n); }
+  for (let i = 0; i < 34; i++) {
+    const n = makePerson(i % 2 ? 0x2563eb : 0xdc2626, i % 3 ? 0xf1c27d : 0x8d5524);
+    const lane = i % 2, side = lane ? 1 : -1, t = (i % 17) / 17, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8) * 5, z = SKI_RESORT.z - 54 + t * 106;
+    const skiMat = mat(0x111827), leftSki = new THREE.Mesh(new THREE.BoxGeometry(.12, .06, 1.7), skiMat), rightSki = leftSki.clone(); leftSki.position.set(-.28, .04, .15); rightSki.position.set(.28, .04, .15); n.add(leftSki, rightSki);
+    n.userData.skiLane = lane; n.userData.skiT = t; n.userData.skiSide = side; n.userData.skiBob = Math.random() * 6.28; n.position.set(x, skiSlopeHeight(x, z), z); skiVisitors.push(n); skiResortGroup.add(n);
+  }
 }
-function updateSkiVisitors(dt) { for (const n of skiVisitors) { n.userData.skiBob += dt * 2; n.position.y = mountainHeightAt(n.position.x, n.position.z) + Math.abs(Math.sin(n.userData.skiBob)) * .04; n.rotation.y += Math.sin(n.userData.skiBob) * dt * .15; } }
+function updateSkiVisitors(dt) {
+  for (const n of skiVisitors) {
+    n.userData.skiBob += dt * 2; n.userData.skiT = (n.userData.skiT + dt * .035) % 1;
+    const t = n.userData.skiT, side = n.userData.skiSide, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8 + n.userData.skiLane) * 5, z = SKI_RESORT.z - 54 + t * 106;
+    n.position.set(x, skiSlopeHeight(x, z) + Math.abs(Math.sin(n.userData.skiBob)) * .04, z); n.rotation.y = side * .18 + Math.sin(n.userData.skiBob) * .04;
+  }
+}
 buildSkiResort();
 
 buildCondoPark(); buildFunPark(); buildWaterPark(); buildEarthMountains();

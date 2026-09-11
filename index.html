@@ -997,7 +997,7 @@ const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el 
 const groundTex = makePixelTexture(0xffffff, true);
 groundTex.repeat.set(130, 130);
 const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, color: 0x4a7c3a, roughness: 1, flatShading: true });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(520, 520), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(760, 760), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground);
 
@@ -3396,6 +3396,67 @@ function buildEarthMountains() {
   for (const [x, z, r, h, seed] of CERROS) mcMountain(g, x, z, r, h, 0x6b7280, 0xf8fafc, seed);   // roca gris con nieve arriba
   return g;
 }
+
+// ---------------- EXPANSIÓN: CENTRO DE ESQUÍ -------------------
+// La cordillera queda en el extremo ampliado del mapa. La pista de acceso es una
+// carretera de curvas visibles para que el viaje en auto se sienta como una subida.
+const SKI_RESORT = { x: 178, z: 178, r: 78, gate: { x: 108, z: 118 }, gear: { x: 116, z: 125 }, gear2: { x: 128, z: 125 } };
+const skiResortGroup = new THREE.Group(); scene.add(skiResortGroup);
+const skiVisitors = [], skiObstacles = [];
+let skiGearMesh = null;
+function skiBox(parent, x, y, z, w, h, d, color, obstacle = false) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
+  if (obstacle) skiObstacles.push(addObstacle(x, z, w, d));
+  return m;
+}
+function buildSkiRoad() {
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(8, .06, 82), new THREE.Vector3(38, .06, 78),
+    new THREE.Vector3(22, .06, 105), new THREE.Vector3(66, .06, 118),
+    new THREE.Vector3(54, .06, 145), new THREE.Vector3(92, .06, 154),
+    new THREE.Vector3(108, .06, 118),
+  ]);
+  const road = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 4.1, 8, false), mat(0x293241));
+  road.scale.y = .025; road.position.y = .02; road.receiveShadow = true; skiResortGroup.add(road);
+  const line = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, .12, 5, false), mat(0xfde68a));
+  line.scale.y = .03; line.position.y = .12; skiResortGroup.add(line);
+  skiBox(skiResortGroup, SKI_RESORT.gate.x, .9, SKI_RESORT.gate.z - 5, 12, 1.8, .5, 0x0f172a);
+  const sign = makeSign('❄️ CENTRO DE ESQUÍ · TARJETA $500', 0xe0f2fe); sign.scale.set(.72, .72, .72); sign.position.set(SKI_RESORT.gate.x, 4.2, SKI_RESORT.gate.z - 5.5); skiResortGroup.add(sign);
+  for (const sx of [SKI_RESORT.gate.x - 5.5, SKI_RESORT.gate.x + 5.5]) skiBox(skiResortGroup, sx, 2, SKI_RESORT.gate.z - 5, .45, 4, .45, 0x64748b);
+}
+function buildSkiResort() {
+  // Cerro alto, con nieve desde la zona alta y una ladera continua para no atravesarla.
+  mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 92, 0x94a3b8, 0xffffff, 28, 'tierra', { grass: 0x9ca3af, soil: 0xcbd5e1, trees: 12 });
+  buildSkiRoad();
+  // Caseta de equipos y cartel de precios.
+  skiBox(skiResortGroup, SKI_RESORT.gear.x, 2.2, SKI_RESORT.gear.z, 9, 4.4, 7, 0x2563eb, true);
+  skiBox(skiResortGroup, SKI_RESORT.gear2.x, 2.2, SKI_RESORT.gear2.z, 9, 4.4, 7, 0x7c3aed, true);
+  skiBox(skiResortGroup, SKI_RESORT.gear.x, 4.8, SKI_RESORT.gear.z, 10, .35, 8, 0x0f172a);
+  const gearSign = makeSign('⛷️ ESQUÍS $200 · 🏂 SNOWBOARD $200', 0xfef3c7); gearSign.scale.set(.55, .55, .55); gearSign.position.set(122, 6.2, 121.4); skiResortGroup.add(gearSign);
+  // Dos pistas marcadas en blanco que bajan desde la cima.
+  for (const [lane, side] of [['AZUL', -1], ['ROJA', 1]]) {
+    const pts = [];
+    for (let i = 0; i <= 18; i++) { const t = i / 18, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8) * 5, z = SKI_RESORT.z - 54 + t * 106; pts.push(new THREE.Vector3(x, mountainProfile(mountains.at(-1), x - SKI_RESORT.x, z - SKI_RESORT.z) + .12, z)); }
+    const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 3.2, 6, false), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 1 })); trail.scale.y = .06; trail.userData.skiLane = lane; skiResortGroup.add(trail);
+    const tag = makeSign(lane + ' · PISTA', lane === 'AZUL' ? 0x93c5fd : 0xfca5a5); tag.scale.set(.42, .42, .42); tag.position.copy(pts[5]); tag.position.y += 3; skiResortGroup.add(tag);
+  }
+  // Saltos, vallas y banderas: obstáculos sólidos, pero colocados sobre la nieve.
+  for (let i = 0; i < 8; i++) {
+    const x = SKI_RESORT.x - 30 + i * 8, z = SKI_RESORT.z - 20 + (i % 3) * 20, y = mountainHeightAt(x, z);
+    skiBox(skiResortGroup, x, y + .7, z, 2.8, 1.4, .45, i % 2 ? 0xf97316 : 0x22c55e, true);
+    skiBox(skiResortGroup, x - 1.4, y + .8, z, .18, 1.6, .18, 0xef4444); skiBox(skiResortGroup, x + 1.4, y + .8, z, .18, 1.6, .18, 0xef4444);
+  }
+  // Andarivel y arrastre: torres, cable y sillas que suben la montaña.
+  const lift = new THREE.Group(); lift.position.set(SKI_RESORT.x + 25, 0, SKI_RESORT.z - 18); skiResortGroup.add(lift);
+  for (let i = 0; i < 5; i++) { const z = -62 + i * 30, y = mountainHeightAt(lift.position.x, lift.position.z + z) + 5; skiBox(lift, 0, y / 2, z, .65, y, .65, 0x475569); }
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, 125, 6), mat(0x111827)); cable.rotation.x = Math.PI / 2; cable.position.set(0, 44, 0); cable.scale.z = 1; lift.add(cable);
+  for (let i = 0; i < 10; i++) { const chair = skiBox(lift, 0, 8 + i * 4, -52 + i * 11, 1.4, .15, .65, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
+  const tow = new THREE.Mesh(new THREE.BoxGeometry(1.2, .15, 105), mat(0x111827)); tow.position.set(SKI_RESORT.x - 28, 28, SKI_RESORT.z + 2); tow.rotation.x = -.25; skiResortGroup.add(tow);
+  // Mucha gente esperando y bajando por las pistas.
+  for (let i = 0; i < 34; i++) { const n = makePerson(i % 2 ? 0x2563eb : 0xdc2626, i % 3 ? 0xf1c27d : 0x8d5524); const x = SKI_RESORT.x - 48 + Math.random() * 96, z = SKI_RESORT.z - 45 + Math.random() * 100; n.position.set(x, mountainHeightAt(x, z), z); n.userData.skiBob = Math.random() * 6.28; skiVisitors.push(n); skiResortGroup.add(n); }
+}
+function updateSkiVisitors(dt) { for (const n of skiVisitors) { n.userData.skiBob += dt * 2; n.position.y = mountainHeightAt(n.position.x, n.position.z) + Math.abs(Math.sin(n.userData.skiBob)) * .04; n.rotation.y += Math.sin(n.userData.skiBob) * dt * .15; } }
+buildSkiResort();
 
 buildCondoPark(); buildFunPark(); buildWaterPark(); buildEarthMountains();
 WATER_ZONES.push(POOL);   // en la piscina grande se nada igual que en el mar
@@ -6892,7 +6953,7 @@ const state = {
   business: null, businessOrders: 0, parkBusiness: null, arcadeTickets: 0, arcadePrizes: {},
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
   foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
-  hasPhone: false,
+  hasPhone: false, skiPass: false, skiGear: null, skiing: false,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -7412,7 +7473,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!tryRefuelCar() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -7925,7 +7986,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryRefuelCar() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryFocusedFurniture() && !tryAirport() && !tryLeaderboard() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryFocusedFurniture() && !tryAirport() && !tryLeaderboard() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -8174,7 +8235,7 @@ function saveGame() {
       pet: !!pet, petHp: pet?.userData.hp, hasFloor2: !!state.hasFloor2, floor2Rot: state.floor2Rot || 0, floors2: state.floors2 || [], unlocked: state.unlocked || {},   // desbloqueos del medio juego (floors2: TODOS los segundos pisos)
       petAlien: !!petAlien, petAlienHp: petAlien?.userData.hp, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
-      hasPhone: !!state.hasPhone,
+      hasPhone: !!state.hasPhone, skiPass: !!state.skiPass, skiGear: state.skiGear || null,
       cameraMode: cameraMode,
       sports: {
         soccer: [soccer.scoreRed, soccer.scoreBlue], basketball: [basketball.scoreRed, basketball.scoreBlue],
@@ -8744,7 +8805,7 @@ function loadGame() {
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')), country:COUNTRIES.some(c=>c.id===d.country)?d.country:null,
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
-    hasPhone: !!d.hasPhone,
+    hasPhone: !!d.hasPhone, skiPass: !!d.skiPass, skiGear: d.skiGear || null, skiing: false,
     streak: d.streak || 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   });
   lastHp = state.hp;
@@ -8842,7 +8903,7 @@ function resetAll() {
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; applyPlayerArmor();
   state.helperWeapon = false; state.helperArmor = false;
-  state.hasPhone = false;
+  state.hasPhone = false; state.skiPass = false; state.skiGear = null; state.skiing = false;
   state.dadArmor = 1; applyDadArmor(false);
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.dadGun = state.hasRocket = false;
@@ -9187,6 +9248,28 @@ function tryArcadeRewards() {
   addMoney(reward.value);
   toast('🎁 Canjeaste ' + reward.name + ' · +' + reward.value + ' de valor · -' + reward.tickets + ' tickets');
   saveGame(); return true;
+}
+
+function inSkiResort() { return state.planet === 'tierra' && !state.country && dist2D(player.position, SKI_RESORT) < SKI_RESORT.r + 8; }
+function trySkiResort() {
+  if (!inSkiResort()) return false;
+  const dg = dist2D(player.position, SKI_RESORT.gate), de = dist2D(player.position, SKI_RESORT.gear), de2 = dist2D(player.position, SKI_RESORT.gear2);
+  if (dg < 7) {
+    if (!state.skiPass) {
+      if (state.money < 500) { toast('🎫 La tarjeta del centro de esquí cuesta $500'); return true; }
+      state.money -= 500; state.skiPass = true; addMoney(0); toast('🎫 ¡Tarjeta de acceso comprada! Ya puedes subir a las pistas'); saveGame(); return true;
+    }
+    if (!state.skiGear) { toast('⛷️ Compra esquís o snowboard en la caseta azul'); return true; }
+    state.skiing = !state.skiing; toast(state.skiing ? '❄️ ¡A esquiar! WASD para bajar · E para parar' : '🛑 Dejaste de esquiar'); return true;
+  }
+  if (de < 7 || de2 < 7) {
+    if (!state.skiPass) { toast('🎫 Primero compra la tarjeta en la entrada · $500'); return true; }
+    if (state.skiGear) { toast('⛷️ Ya tienes ' + (state.skiGear === 'skis' ? 'esquís' : 'un snowboard') + ' · E en la entrada para esquiar'); return true; }
+    const gear = de2 < de ? 'snowboard' : 'skis';
+    if (state.money < 200) { toast('💸 Los esquís cuestan $200'); return true; }
+    state.money -= 200; state.skiGear = gear; toast((gear === 'snowboard' ? '🏂 Compraste snowboard' : '⛷️ Compraste esquís') + ' por $200 · vuelve a la entrada y pulsa E'); saveGame(); return true;
+  }
+  return false;
 }
 // Vida del auto: los monstruos cercanos lo dañan; si llega a 0 se destruye
 function updateCar(dt) {
@@ -10408,6 +10491,7 @@ function loop() {
     updateParkBusiness(dt);
     updateWorldEvents(dt);
     updateParks(dt);                       // rueda, carrusel, columpios y montaña rusa de los parques
+    updateSkiVisitors(dt);                  // visitantes de las pistas nevadas
     swingLimbs(mom, dt);
     updateArrow();
     updateTutorial();
@@ -10562,7 +10646,7 @@ function drawMinimap() {
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
-  if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); }   // súper / armería / banco / gasolinera / arcade
+  if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); icon(SKI_RESORT.gate.x, SKI_RESORT.gate.z, '⛷️', 15); }   // súper / armería / banco / gasolinera / arcade / esquí
   if (state.planet !== 'platus') {   // los tres parques
     icon(CONDO_PARK.x, CONDO_PARK.z, '🌳', 13); icon(FUN_PARK.x, FUN_PARK.z, '🎡', 15); icon(WATER_PARK.x, WATER_PARK.z, '🏊', 14);
     icon(AIRPORT.x, AIRPORT.z, '✈️', 15);
@@ -10584,6 +10668,23 @@ function drawMinimap() {
   g.beginPath(); g.arc(75, 75, 3.5, 0, 7); g.fill(); g.stroke();
 }
 
+function updateSkiMovement(dt) {
+  if (!state.skiing || !state.skiPass || !state.skiGear) return false;
+  const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
+  const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
+  const steer = (right ? 1 : 0) - (left ? 1 : 0), push = (fwd ? 1 : 0) - (back ? .55 : 0);
+  player.position.x += steer * 10 * dt;
+  player.position.z += (3.5 + push * 8) * dt;
+  player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 57, SKI_RESORT.x + 57);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 65, SKI_RESORT.z + 78);
+  const snowY = mountainHeightAt(player.position.x, player.position.z);
+  player.position.y = snowY + PLAYER_EYE;
+  grounded = true; vy = 0;
+  resolveCollisions();
+  if (player.position.z > SKI_RESORT.z + 68) { state.skiing = false; toast('🏁 Llegaste al final de la pista · E en la entrada para volver a subir'); }
+  camera.rotation.y = yaw; camera.rotation.x = pitch;
+  return true;
+}
 function updateMovement(dt) {
   if (raceState) return;   // durante la carrera 3D el auto y la cámara siguen la pista aérea
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
@@ -10598,6 +10699,7 @@ function updateMovement(dt) {
   if (parkRide) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // montado en una atracción: te lleva ella
   if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
   if (state.riding && mount) { updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
+  if (updateSkiMovement(dt)) return;
   const moveStartX = player.position.x, moveStartZ = player.position.z;
   const fwd = keys['KeyW'], back = keys['KeyS'];
   const left = keys['KeyA'], right = keys['KeyD'];
@@ -11343,7 +11445,11 @@ function updateContextPrompt() {
       const aimed = aimedFurniture(), furniture = sitOn ? sitOn : aimed;
       const asiento = furniture && SEAT_KEYS.includes(furniture.key) ? furniture : null;
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
-      if (nearArcadeRewards) action = { key: 'E', touch: '🎁', text: 'Canjear premios · tickets' };
+      const nearSkiGate = !state.country && dist2D(player.position, SKI_RESORT.gate) < 7;
+      const nearSkiGear = !state.country && (dist2D(player.position, SKI_RESORT.gear) < 7 || dist2D(player.position, SKI_RESORT.gear2) < 7);
+      if (nearSkiGate) action = { key: 'E', touch: '🎫', text: state.skiPass ? (state.skiGear ? 'Empezar / parar esquí · E' : 'Compra equipo en la caseta azul') : 'Comprar tarjeta de esquí · $500' };
+      else if (nearSkiGear) action = { key: 'E', touch: '⛷️', text: dist2D(player.position, SKI_RESORT.gear2) < dist2D(player.position, SKI_RESORT.gear) ? 'Comprar snowboard · $200' : 'Comprar esquís · $200' };
+      else if (nearArcadeRewards) action = { key: 'E', touch: '🎁', text: 'Canjear premios · tickets' };
       else if (nearLeaderboard) action = { key: 'E', touch: '🏆', text: 'Ver ranking mundial trimestral' };
       else if (state.planet === 'tierra' && !state.country && ARCADE_MACHINES.some(m => dist2D(player.position, m) < 3.2)) action = { key: 'E', touch: '🎮', text: 'Jugar ' + ARCADE_MACHINES.find(m => dist2D(player.position, m) < 3.2).name + ' · E' };
       else if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
@@ -11505,6 +11611,7 @@ function renderHUD() {
   if (car) gear.push((car.helicopter ? '🚁 ' : '🚗 ') + Math.max(0, Math.round(car.hp)) + (!car.helicopter ? ' · ⛽ ' + Math.round(car.fuel) + '%' : (state.driving ? ' · ⬆️ ' + Math.round(car.group.position.y) + ' m' : '')));
   if (state.poison > 0) gear.push('🟢 veneno ' + Math.ceil(state.poison) + 's');
   if (state.hasShield) gear.push('🛡️ escudo ' + Math.round(state.shieldHp) + '/' + state.shieldMax);
+  if (state.skiPass) gear.push('🎫 tarjeta esquí' + (state.skiGear ? ' · ' + (state.skiGear === 'skis' ? '⛷️ esquís' : '🏂 snowboard') : ''));
   if (state.hasJetpack) gear.push('🚀 jetpack' + (state.jetOn ? ' 🔥' : ''));
   if (state.laserGun) gear.push('🔫 láser');
   if (petAlien) gear.push('👽 mascota');

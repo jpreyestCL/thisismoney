@@ -310,6 +310,12 @@ completarlo recibes tickets. Pruebas: `node tests/vehicles-arcade.test.mjs`.
 Al fondo del arcade hay un mostrador **CANJE DE PREMIOS**. Pulsa **E** con
 40, 100 o 200 tickets para canjear un peluche, una consola retro o un trofeo
 con valores de $60, $180 y $400 respectivamente.
+
+El mapa incluye una expansión de montaña nevada: sigue la carretera de curvas
+hacia el centro de esquí, compra la tarjeta de acceso por $500 y consigue
+esquís por $200 o un snowboard por $200. En las pistas puedes bajar sobre la
+nieve sin atravesarla, saltar obstáculos, usar el andarivel o el arrastre y
+encontrarte con muchos visitantes.
 dorado; cada premio queda registrado y entrega su valor en dinero.
 
 La zona arcade está en una explanada abierta detrás de la armería, en (30, -62), lejos de los barrios

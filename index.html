@@ -9246,8 +9246,10 @@ function updateDriving(dt) {
     car.group.position.set(prevX, car.group.position.y, prevZ); car.speed = 0;
     car.oceanWarn = (car.oceanWarn || 0) - dt; if (car.oceanWarn <= 0) { car.oceanWarn = 2; toast('🌊 Los autos no pueden entrar al océano · usa un barco'); }
   }
-  car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -230, 230);
-  car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, -230, 230);
+  // El mapa ampliado incluye el camino al centro de esquí (x/z hasta 800).
+  // Mantener el auto dentro de esos límites permite llegar a la montaña.
+  car.group.position.x = THREE.MathUtils.clamp(car.group.position.x, -800, 800);
+  car.group.position.z = THREE.MathUtils.clamp(car.group.position.z, -600, 800);
   if (car.helicopter) {
     const rise = (keys['Space'] || touch.jump || touch.jumpHeld ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] || touch.crouch || touch.heliDown ? 1 : 0);
     car.group.position.y = THREE.MathUtils.clamp(car.group.position.y + rise * 12 * dt, 0, 45);

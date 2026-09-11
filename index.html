@@ -10814,6 +10814,14 @@ function updateSkiMovement(dt) {
   if (!state.skiing) return false;
   const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
+  // Las flechas también mantienen la cámara controlable durante la bajada.
+  // El giro se comparte con los esquís para que vista y movimiento coincidan.
+  const lookSpeed = 1.8 * dt;
+  if (keys['ArrowLeft']) yaw += lookSpeed * .7;
+  if (keys['ArrowRight']) yaw -= lookSpeed * .7;
+  if (keys['ArrowUp']) pitch += lookSpeed * .45;
+  if (keys['ArrowDown']) pitch -= lookSpeed * .45;
+  pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
   const steer = (right ? 1 : 0) - (left ? 1 : 0), push = (fwd ? 1 : 0) - (back ? .55 : 0);
   // Los esquís siguen la curva: giran y se inclinan con la dirección elegida.
   const turn = steer * .72;

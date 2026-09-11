@@ -1715,7 +1715,8 @@ function makeStore(cx, cz, items, title, roofColor) {
 const SUPER_B_POS = makeStore(-2, -40, STORE_B, 'ARMERIA', 0x6d28d9);
 makeStore(40, -22, STORE_A, 'SUPER', 0xdc2626);
 const GAS_STATION_POS = new THREE.Vector3(-58, 0, -22);
-const ARCADE_POS = new THREE.Vector3(74, 0, 42);
+const ARCADE_POS = new THREE.Vector3(145, 0, 20);
+const ARCADE_MACHINES = [];
 let gasStationGroup = null, arcadeZoneGroup = null;
 function buildGasStation() {
   const g = new THREE.Group(); g.position.copy(GAS_STATION_POS);
@@ -1731,15 +1732,16 @@ function buildGasStation() {
 }
 function buildArcadeZone() {
   const g = new THREE.Group(); g.position.copy(ARCADE_POS);
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(27, .12, 23), mat(0x312e81)); floor.position.y = .06; g.add(floor);
-  const body = new THREE.Mesh(new THREE.BoxGeometry(23, 4.8, 18), mat(0x172554)); body.position.y = 2.4; g.add(body);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(24, .4, 19), mat(0xa855f7)); roof.position.y = 5; g.add(roof);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(34, .12, 28), mat(0x312e81)); floor.position.y = .06; g.add(floor);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(27, .4, 5), mat(0xa855f7)); roof.position.set(0, 5, -8); g.add(roof);
   const sign = makeSign('🎮 ARCADE FAMILIAR · E', 0xfacc15); sign.scale.set(1, 1, 1); sign.position.set(0, 6.2, 9.3); g.add(sign);
+  const games = ['Pac-Man', 'Carrera Turbo', 'Invasores espaciales', 'Baile con luces', 'Pesca de premios'];
   for (let i = -2; i <= 2; i++) {
     const cabinet = new THREE.Group(); const base = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.5, .75), mat(i % 2 ? 0x06b6d4 : 0xec4899)); base.position.y = 1.25; cabinet.add(base);
     const screen = new THREE.Mesh(new THREE.BoxGeometry(1.55, .85, .08), new THREE.MeshStandardMaterial({ color: 0x020617, emissive: i % 2 ? 0x22d3ee : 0xf43f5e, emissiveIntensity: 1.2 })); screen.position.set(0, 1.85, .42); cabinet.add(screen);
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .4), mat(0xfacc15)); stick.position.set(-.35, 1.15, .45); cabinet.add(stick);
-    cabinet.position.set(i * 3.8, 0, -7.5); g.add(cabinet);
+    cabinet.position.set(i * 4.5, 0, -5.5); g.add(cabinet);
+    ARCADE_MACHINES.push({ x: ARCADE_POS.x + i * 4.5, z: ARCADE_POS.z - 5.5, name: games[i + 2] });
   }
   const mascot = makeSign('🐭 🐰 🐥 · PREMIOS', 0x67e8f9); mascot.scale.set(.6, .6, .6); mascot.position.set(0, 3.8, 9.3); g.add(mascot);
   scene.add(g); arcadeZoneGroup = g;
@@ -9018,7 +9020,7 @@ function tryRefuelCar() {
   toast('⛽ Tanque lleno · -$' + cost); saveGame(); return true;
 }
 function tryArcadeZone() {
-  if (state.planet !== 'tierra' || state.country || dist2D(player.position, ARCADE_POS) > 15) return false;
+  if (state.planet !== 'tierra' || state.country) return false;
   const games = [
     { name: 'Pac-Man', price: 20, min: 8, max: 35 },
     { name: 'Carrera Turbo', price: 35, min: 15, max: 65 },
@@ -9026,8 +9028,11 @@ function tryArcadeZone() {
     { name: 'Baile con luces', price: 25, min: 12, max: 48 },
     { name: 'Pesca de premios', price: 45, min: 20, max: 90 },
   ];
-  const game = games[Math.floor(Math.random() * games.length)], price = game.price;
-  if (state.money < price) { toast('🎮 Una partida cuesta $25'); return true; }
+  let machine = null, distance = 3.2;
+  for (const candidate of ARCADE_MACHINES) { const d = dist2D(player.position, candidate); if (d < distance) { machine = candidate; distance = d; } }
+  if (!machine) return false;
+  const game = games.find(g => g.name === machine.name) || games[0], price = game.price;
+  if (state.money < price) { toast('🎮 ' + game.name + ' cuesta $' + price); return true; }
   state.money -= price; const tickets = game.min + Math.floor(Math.random() * (game.max - game.min + 1));
   state.arcadeTickets = (state.arcadeTickets || 0) + tickets;
   toast('🎮 ' + game.name + ' · -$' + price + ' · ganaste ' + tickets + ' tickets');
@@ -11179,7 +11184,7 @@ function updateContextPrompt() {
       const asiento = furniture && SEAT_KEYS.includes(furniture.key) ? furniture : null;
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
       if (nearLeaderboard) action = { key: 'E', touch: '🏆', text: 'Ver ranking mundial trimestral' };
-      else if (state.planet === 'tierra' && !state.country && dist2D(player.position, ARCADE_POS) < 15) action = { key: 'E', touch: '🎮', text: 'Elegir juego arcade · desde $20' };
+      else if (state.planet === 'tierra' && !state.country && ARCADE_MACHINES.some(m => dist2D(player.position, m) < 3.2)) action = { key: 'E', touch: '🎮', text: 'Jugar ' + ARCADE_MACHINES.find(m => dist2D(player.position, m) < 3.2).name + ' · E' };
       else if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
       else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };

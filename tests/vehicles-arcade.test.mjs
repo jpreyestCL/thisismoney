@@ -11,3 +11,10 @@ assert.match(html, /state\.arcadeTickets = \(state\.arcadeTickets \|\| 0\) \+ ti
 assert.match(html, /tryRefuelCar\(\)/);
 assert.match(html, /tryArcadeZone\(\)/);
 console.log('vehicles and arcade: ok');
+
+assert.match(html, /const ARCADE_MACHINES = \[\]/);
+assert.match(html, /ARCADE_MACHINES\.push/);
+assert.match(html, /if \(!machine\) return false/);
+assert.match(html, /ARCADE_POS = new THREE\.Vector3\(145, 0, 20\)/);
+assert.match(html, /const roof = new THREE\.Mesh\(new THREE\.BoxGeometry\(27, \.4, 5\)/);
+console.log('arcade open plaza: ok');

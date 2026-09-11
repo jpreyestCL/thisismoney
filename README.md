@@ -306,3 +306,9 @@ Pulsa **E** en la zona para elegir al azar entre Pac-Man ($20), Carrera Turbo
 ($35), Invasores espaciales ($30), Baile con luces ($25) y Pesca de premios
 ($45). Cada juego entrega tickets en un rango distinto y acumula los tickets
 en la partida. Pruebas: `node tests/vehicles-arcade.test.mjs`.
+
+La zona arcade está en una plaza abierta de la ciudad, lejos de los barrios
+residenciales: no se construyen casas entre sus máquinas ni dentro de la zona.
+Tiene una marquesina y cinco máquinas separadas, cada una con un juego fijo.
+Acércate a la máquina y pulsa **E** para jugar; el aviso muestra el nombre del
+juego elegido. Pruebas: `node tests/vehicles-arcade.test.mjs`.

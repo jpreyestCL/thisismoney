@@ -3463,6 +3463,12 @@ function buildSkiResort() {
       const p = pts[i], wallX = p.x + (side < 0 ? -2.8 : 2.8);
       skiBox(skiResortGroup, wallX, p.y + 2.2, p.z, .62, 4.4, 7.2, 0x7c4a21, true);
     }
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], sideX = side < 0 ? -2.8 : 2.8;
+      const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) + 1.2;
+      const wall = skiBox(skiResortGroup, (a.x + b.x) / 2 + sideX, (a.y + b.y) / 2 + 2.2, (a.z + b.z) / 2, .85, 4.5, len, 0x7c4a21, true);
+      wall.rotation.y = Math.atan2(dx, dz);
+    }
   }
   // Más pistas angostas, paralelas y cercanas entre sí, cada una encerrada por muros.
   for (const [name, offset, color] of [['VERDE', -58, 0x22c55e], ['NEGRA', 0, 0x111827], ['AMARILLA', 58, 0xfacc15]]) {
@@ -3471,6 +3477,7 @@ function buildSkiResort() {
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 2.1, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; skiResortGroup.add(trail);
     const marker = makeSign(name + ' · PISTA', color); marker.scale.set(.34, .34, .34); marker.position.copy(pts[5]); marker.position.y += 2.8; skiResortGroup.add(marker);
     for (let i = 1; i < 18; i++) { const p = pts[i]; for (const edge of [-2.65, 2.65]) skiBox(skiResortGroup, p.x + edge, p.y + 2.1, p.z, .58, 4.2, 7.4, 0x7c4a21, true); }
+    for (const edge of [-2.65, 2.65]) for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) + 1.2; const wall = skiBox(skiResortGroup, (a.x + b.x) / 2 + edge, (a.y + b.y) / 2 + 2.1, (a.z + b.z) / 2, .85, 4.4, len, 0x7c4a21, true); wall.rotation.y = Math.atan2(dx, dz); }
   }
   // Saltos, vallas y banderas: obstáculos sólidos, pero colocados sobre la nieve.
   for (let i = 0; i < 8; i++) {

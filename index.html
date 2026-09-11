@@ -3450,16 +3450,16 @@ function buildSkiResort() {
   skiBox(skiResortGroup, SKI_RESORT.gear2.x, 2.2, SKI_RESORT.gear2.z, 9, 4.4, 7, 0x7c3aed, true);
   skiBox(skiResortGroup, SKI_RESORT.gear.x, 4.8, SKI_RESORT.gear.z, 10, .35, 8, 0x0f172a);
   const gearSign = makeSign('⛷️ ESQUÍS $200 · 🏂 SNOWBOARD $200', 0xfef3c7); gearSign.scale.set(.55, .55, .55); gearSign.position.set(SKI_RESORT.gear.x + 6, 6.2, SKI_RESORT.gear.z - 3.6); skiResortGroup.add(gearSign);
-  // Dos pistas marcadas en blanco que bajan desde la cima.
+  // Pistas principales: llegan desde la parte alta hasta la zona plana final.
   for (const [lane, side] of [['AZUL', -1], ['ROJA', 1]]) {
     const pts = [];
-    for (let i = 0; i <= 18; i++) { const t = i / 18, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8) * 5, z = SKI_RESORT.z - 54 + t * 106; pts.push(new THREE.Vector3(x, mountainProfile(mountains.at(-1), x - SKI_RESORT.x, z - SKI_RESORT.z) + .12, z)); }
+    for (let i = 0; i <= 24; i++) { const t = i / 24, x = SKI_RESORT.x + side * (8 + t * 38) + Math.sin(t * 8) * 5, z = SKI_RESORT.z - 150 + t * 310; pts.push(new THREE.Vector3(x, mountainProfile(mountains.at(-1), x - SKI_RESORT.x, z - SKI_RESORT.z) + .12, z)); }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 3.2, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; trail.userData.skiLane = lane; skiResortGroup.add(trail);
     const tag = makeSign(lane + ' · PISTA', lane === 'AZUL' ? 0x93c5fd : 0xfca5a5); tag.scale.set(.42, .42, .42); tag.position.copy(pts[5]); tag.position.y += 3; skiResortGroup.add(tag);
     // Separadores de pista: postes con banderas que hacen visible dónde comienza y termina cada bajada.
-    for (let i = 2; i < 18; i += 2) { const p = pts[i], bx = p.x + (side < 0 ? -3.2 : 3.2); skiBox(skiResortGroup, bx, p.y + 1.7, p.z, 4.8, 3.4, .5, 0x8b5a2b, true); skiBox(skiResortGroup, bx, p.y + 3.35, p.z, 4.9, .18, .58, 0x6b4423); }
+    for (let i = 2; i < pts.length - 1; i += 2) { const p = pts[i], bx = p.x + (side < 0 ? -3.2 : 3.2); skiBox(skiResortGroup, bx, p.y + 1.7, p.z, 4.8, 3.4, .5, 0x8b5a2b, true); skiBox(skiResortGroup, bx, p.y + 3.35, p.z, 4.9, .18, .58, 0x6b4423); }
     // Murallas longitudinales: la pista angosta queda encerrada desde arriba hasta abajo.
-    for (let i = 1; i < 18; i++) {
+    for (let i = 1; i < pts.length - 1; i++) {
       const p = pts[i], wallX = p.x + (side < 0 ? -2.8 : 2.8);
       skiBox(skiResortGroup, wallX, p.y + 2.2, p.z, .62, 4.4, 7.2, 0x7c4a21, true);
     }
@@ -3471,12 +3471,12 @@ function buildSkiResort() {
     }
   }
   // Más pistas angostas, paralelas y cercanas entre sí, cada una encerrada por muros.
-  for (const [name, offset, color] of [['VERDE', -58, 0x22c55e], ['NEGRA', 0, 0x111827], ['AMARILLA', 58, 0xfacc15]]) {
+  for (const [name, offset, color, start, length] of [['VERDE', -58, 0x22c55e, -70, 175], ['NEGRA', 0, 0x111827, -155, 345], ['AMARILLA', 58, 0xfacc15, -90, 240]]) {
     const pts = [];
-    for (let i = 0; i <= 18; i++) { const t = i / 18, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 4, z = SKI_RESORT.z - 72 + t * 124; pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .18, z)); }
+    for (let i = 0; i <= 24; i++) { const t = i / 24, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 4, z = SKI_RESORT.z + start + t * length; pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .18, z)); }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 2.1, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; skiResortGroup.add(trail);
     const marker = makeSign(name + ' · PISTA', color); marker.scale.set(.34, .34, .34); marker.position.copy(pts[5]); marker.position.y += 2.8; skiResortGroup.add(marker);
-    for (let i = 1; i < 18; i++) { const p = pts[i]; for (const edge of [-2.65, 2.65]) skiBox(skiResortGroup, p.x + edge, p.y + 2.1, p.z, .58, 4.2, 7.4, 0x7c4a21, true); }
+    for (let i = 1; i < pts.length - 1; i++) { const p = pts[i]; for (const edge of [-2.65, 2.65]) skiBox(skiResortGroup, p.x + edge, p.y + 2.1, p.z, .58, 4.2, 7.4, 0x7c4a21, true); }
     for (const edge of [-2.65, 2.65]) for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) + 1.2; const wall = skiBox(skiResortGroup, (a.x + b.x) / 2 + edge, (a.y + b.y) / 2 + 2.1, (a.z + b.z) / 2, .85, 4.4, len, 0x7c4a21, true); wall.rotation.y = Math.atan2(dx, dz); }
   }
   // Saltos, vallas y banderas: obstáculos sólidos, pero colocados sobre la nieve.
@@ -10781,15 +10781,19 @@ function updateSkiMovement(dt) {
   gearVisual.rotation.y += (turn - gearVisual.rotation.y) * Math.min(1, dt * 9);
   gearVisual.rotation.z += (steer * -.16 - gearVisual.rotation.z) * Math.min(1, dt * 10);
   gearVisual.position.x += (steer * .22 - gearVisual.position.x) * Math.min(1, dt * 12);
-  player.position.x += steer * 10 * dt;
-  player.position.z += (3.5 + push * 8) * dt;
+  // La pendiente determina la velocidad: las pistas negras aceleran más y las
+  // suaves conservan un ritmo tranquilo, como en una bajada real.
+  const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x, player.position.z + 8));
+  const downhillSpeed = 4.5 + Math.min(12, slopeDrop * .55);
+  player.position.x += steer * (8 + downhillSpeed * .12) * dt;
+  player.position.z += (downhillSpeed + push * 5.5) * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);
-  player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 88, SKI_RESORT.z + 92);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 178, SKI_RESORT.z + 190);
   const snowY = mountainHeightAt(player.position.x, player.position.z);
   player.position.y = snowY + PLAYER_EYE;
   grounded = true; vy = 0;
   resolveCollisions();
-  if (player.position.z > SKI_RESORT.z + 62) { player.position.z = SKI_RESORT.z + 62; state.skiing = false; toast('🏁 Llegaste a la zona plana de llegada · E en la entrada para volver a subir'); }
+  if (player.position.z > SKI_RESORT.z + 178) { player.position.z = SKI_RESORT.z + 178; state.skiing = false; toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;
 }

@@ -273,3 +273,14 @@ ese precio al guardar. Los artículos bloqueados requieren su progreso normal.
 Acompaña al jugador a otros países y a Platus; la tecnología alien se encarga
 allí. Un pedido pendiente de otro lugar espera hasta que regreses. Se mantiene
 un tipo de producto por viaje, con hasta 20 unidades.
+
+### Vida de hijos y mascotas
+
+Los hijos tienen 100 de vida, el perro 120 y la mascota alien 160. Las mascotas
+de huevos tienen entre 80 y 200 según su rareza. Los enemigos pueden atacarlos;
+reciben daño por golpes, proyectiles, bombas y embestidas. La armadura de los
+hijos reduce el daño recibido a la mitad. La interfaz muestra daño y alerta
+sobre compañeros heridos. Al llegar a cero mueren, dejan de combatir y se
+eliminan de la partida guardada. La vida restante se guarda individualmente;
+las partidas antiguas sin este dato comienzan con vida completa. En modo
+creativo están protegidos. Pruebas: `node tests/companion-health.test.mjs`.

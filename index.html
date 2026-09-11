@@ -3452,7 +3452,7 @@ function buildSkiResort() {
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 3.2, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; trail.userData.skiLane = lane; skiResortGroup.add(trail);
     const tag = makeSign(lane + ' · PISTA', lane === 'AZUL' ? 0x93c5fd : 0xfca5a5); tag.scale.set(.42, .42, .42); tag.position.copy(pts[5]); tag.position.y += 3; skiResortGroup.add(tag);
     // Separadores de pista: postes con banderas que hacen visible dónde comienza y termina cada bajada.
-    for (let i = 2; i < 18; i += 2) { const p = pts[i], bx = p.x + (side < 0 ? -3.2 : 3.2); skiBox(skiResortGroup, bx, p.y + .8, p.z, 4.4, 1.25, .3, 0x8b5a2b, true); skiBox(skiResortGroup, bx - 2.05, p.y + 1.25, p.z, .18, 2.4, .18, 0x6b4423); skiBox(skiResortGroup, bx + 2.05, p.y + 1.25, p.z, .18, 2.4, .18, 0x6b4423); const flag = skiBox(skiResortGroup, bx, p.y + 2.4, p.z, 1.1, .55, .08, lane === 'AZUL' ? 0x2563eb : 0xdc2626); flag.rotation.y = .2; }
+    for (let i = 2; i < 18; i += 2) { const p = pts[i], bx = p.x + (side < 0 ? -3.2 : 3.2); skiBox(skiResortGroup, bx, p.y + 1.7, p.z, 4.8, 3.4, .5, 0x8b5a2b, true); skiBox(skiResortGroup, bx, p.y + 3.35, p.z, 4.9, .18, .58, 0x6b4423); }
   }
   // Saltos, vallas y banderas: obstáculos sólidos, pero colocados sobre la nieve.
   for (let i = 0; i < 8; i++) {
@@ -3463,8 +3463,9 @@ function buildSkiResort() {
   // Andarivel y arrastre: torres, cable y sillas que suben la montaña.
   const lift = new THREE.Group(); lift.position.set(SKI_RESORT.x + 25, 0, SKI_RESORT.z - 18); skiResortGroup.add(lift);
   for (let i = 0; i < 5; i++) { const z = -62 + i * 30, y = skiSlopeHeight(lift.position.x, lift.position.z + z) + 5; skiBox(lift, 0, y / 2, z, .65, y, .65, 0x475569); }
-  const cable = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, 125, 6), mat(0x111827)); cable.rotation.x = Math.PI / 2; cable.position.set(0, 72, 0); cable.scale.z = 1; lift.add(cable);
-  for (let i = 0; i < 10; i++) { const chair = skiBox(lift, 0, 8 + i * 4, -52 + i * 11, 1.4, .15, .65, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, 125, 8), mat(0x0f172a)); cable.rotation.x = Math.PI / 2; cable.position.set(0, 72, 0); lift.add(cable);
+  const cableMarker = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 125, 6), mat(0xfbbf24)); cableMarker.rotation.x = Math.PI / 2; cableMarker.position.set(0, 72.35, 0); lift.add(cableMarker);
+  for (let i = 0; i < 10; i++) { const z = -52 + i * 11, hanger = skiBox(lift, 0, 66, z, .12, 10, .12, 0x334155); const chair = skiBox(lift, 0, 60.8, z, 1.8, .22, .8, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
   const tow = new THREE.Mesh(new THREE.BoxGeometry(1.2, .15, 105), mat(0x111827)); tow.position.set(SKI_RESORT.x - 28, 52, SKI_RESORT.z + 2); tow.rotation.x = -.25; skiResortGroup.add(tow);
   // Mucha gente esperando y bajando por las pistas.
   for (let i = 0; i < 34; i++) {

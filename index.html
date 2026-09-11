@@ -7623,6 +7623,10 @@ addEventListener('keydown', e => {
     const now = performance.now();
     if (state.creative && now - lastCreativeZTap < 360) {
       creativeFlying = !creativeFlying;
+      if (!creativeFlying && state.skiGearWorn && state.skiGear && inSkiResort()) {
+        state.skiing = true;
+        toast('❄️ Aterrizaste con los esquís puestos · ¡sigue esquiando!');
+      }
       toast(creativeFlying ? '🪽 Vuelo creativo activado · WASD mueve · Espacio sube · Ctrl baja · doble Z para aterrizar' : '🛬 Vuelo creativo desactivado');
       lastCreativeZTap = 0;
     } else lastCreativeZTap = now;

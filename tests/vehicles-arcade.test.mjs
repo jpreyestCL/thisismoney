@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 assert.match(html, /GAS_STATION_POS/);
-assert.match(html, /GAS_STATION_POS = new THREE\.Vector3\(-170, 0, 170\)/);
+assert.match(html, /GAS_STATION_POS = new THREE\.Vector3\(-200, 0, 200\)/);
 assert.match(html, /icon\(GAS_STATION_POS\.x, GAS_STATION_POS\.z, '⛽'/);
 assert.match(html, /icon\(ARCADE_POS\.x, ARCADE_POS\.z, '🎮'/);
 assert.match(html, /const target = state\.driving \? car : vehicles\.find/);

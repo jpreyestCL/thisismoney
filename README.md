@@ -313,7 +313,7 @@ Tiene una marquesina y cinco máquinas separadas, cada una con un juego fijo.
 Acércate a la máquina y pulsa **E** para jugar; el aviso muestra el nombre del
 juego elegido. Pruebas: `node tests/vehicles-arcade.test.mjs`.
 
-La gasolinera está ahora en una explanada abierta en (-170, 170), separada de
+La gasolinera está ahora en una explanada abierta en (-200, 200), separada de
 los barrios residenciales. Puedes estacionar el auto junto a un surtidor,
 bajarte y pulsar **E**: compras las unidades que faltan a $3 cada una y el
 tanque queda lleno. También puedes cargar mientras conduces dentro de la

@@ -3545,7 +3545,8 @@ function buildSkiResort() {
   const tow = new THREE.Mesh(new THREE.BoxGeometry(1.2, .15, 105), mat(0x111827)); tow.position.set(SKI_RESORT.x - 28, 52, SKI_RESORT.z + 2); tow.rotation.x = -.25; skiResortGroup.add(tow);
   // Plataformas planas para bajarse del andarivel, descansar o elegir otra subida.
   for (const [x, z, w, d] of [[SKI_LIFT_BOTTOM.x, SKI_LIFT_BOTTOM.z - 340, 72, 48], [SKI_LIFT2_BOTTOM.x, SKI_LIFT2_BOTTOM.z - 340, 58, 42], [SKI_TOW_BOTTOM.x, SKI_TOW_BOTTOM.z - 340, 52, 38]]) {
-    const top = skiSlopeHeight(x, z) + .25;
+    const mainArrival = x === SKI_LIFT_BOTTOM.x && z === SKI_LIFT_BOTTOM.z - 340;
+    const top = skiSlopeHeight(x, z) + (mainArrival ? -1.2 : .25);
     const platform = new THREE.Mesh(new THREE.BoxGeometry(w, .5, d), mat(0xffffff));
     platform.position.set(x, top - .25, z); platform.receiveShadow = true; skiResortGroup.add(platform);
     addLandingSurface(x, z, w, d, top, platform);

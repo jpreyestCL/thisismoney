@@ -10739,6 +10739,10 @@ function updateSkiMovement(dt) {
   const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
   const steer = (right ? 1 : 0) - (left ? 1 : 0), push = (fwd ? 1 : 0) - (back ? .55 : 0);
+  // Los esquís siguen la curva: giran y se inclinan con la dirección elegida.
+  const turn = steer * .58;
+  gearVisual.rotation.y += (turn - gearVisual.rotation.y) * Math.min(1, dt * 9);
+  gearVisual.rotation.z += (steer * -.16 - gearVisual.rotation.z) * Math.min(1, dt * 10);
   player.position.x += steer * 10 * dt;
   player.position.z += (3.5 + push * 8) * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);

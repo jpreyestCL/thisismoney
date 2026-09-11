@@ -3442,7 +3442,7 @@ function buildSkiResort() {
   mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 300, 0xf1f5f9, 0xffffff, 28, 'tierra', { grass: 0xffffff, soil: 0xf8fafc, leaf: 0xe2e8f0, trees: 8, ski: true });
   buildSkiRoad();
   // Zona de llegada plana: la bajada termina aquí y no en un borde abrupto.
-  const landing = new THREE.Mesh(new THREE.BoxGeometry(112, .45, 82), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 19, SKI_RESORT.z + 82); landing.receiveShadow = true; skiResortGroup.add(landing); addLandingSurface(landing.position.x, landing.position.z, 112, 82, 19.225, landing);
+  const landing = new THREE.Mesh(new THREE.BoxGeometry(300, .55, 300), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 82, SKI_RESORT.z + 170); landing.receiveShadow = true; skiResortGroup.add(landing); addLandingSurface(landing.position.x, landing.position.z, 300, 300, 82.275, landing);
   const backside = new THREE.Mesh(new THREE.BoxGeometry(210, .5, 90), mat(0xffffff)); backside.position.set(SKI_RESORT.x, 5, SKI_RESORT.z - 112); backside.receiveShadow = true; skiResortGroup.add(backside);
   for (let i = 0; i < 3; i++) { const path = new THREE.CatmullRomCurve3([new THREE.Vector3(SKI_RESORT.x - 72 + i * 60, 38 - i * 7, SKI_RESORT.z - 68), new THREE.Vector3(SKI_RESORT.x - 55 + i * 55, 23 - i * 5, SKI_RESORT.z - 105), new THREE.Vector3(SKI_RESORT.x - 35 + i * 48, 5, SKI_RESORT.z - 145)]); const backTrail = new THREE.Mesh(new THREE.TubeGeometry(path, 24, 3.8, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); backTrail.scale.y = .12; skiResortGroup.add(backTrail); }
   // Caseta de equipos y cartel de precios.

@@ -770,7 +770,7 @@
         <p>Las acciones frecuentes están cerca de la mano izquierda. Las acciones avanzadas aparecen en contexto.</p>
         <div class="key-list">
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
-          <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Su sueldo es $10 por día.</span>
+          <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Primero contrátalo en el súper por $500. Su sueldo es $100 cada 7 días del juego.</span>
           <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
           <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
@@ -1343,6 +1343,7 @@ function addWallMesh(cx, cz, w, d, h, color, addColl) {
 // DOS supermercados con productos distintos.
 // value = dinero al construirlo · dmg = daño del arma · factor = daño que recibes con la armadura
 const STORE_A = [   // SÚPER 1: construcción y comida
+  { key: 'mayordomo', name: 'Contratar mayordomo', price: 500, color: 0x111827 },
   { key: 'wallWood', name: 'Pared madera', price: 60,  value: 25,  color: 0x8b5a2b, build: true },
   { key: 'wallRock', name: 'Pared roca',   price: 120, value: 55,  color: 0x6b7280, build: true },
   { key: 'wallMetal', name: 'Pared metal',  price: 500, value: 200, color: 0xb8c4d0, build: true },   // la más resistente (350 de vida)
@@ -1381,6 +1382,7 @@ const butlerBow = new THREE.Mesh(new THREE.BoxGeometry(.3, .13, .48), mat(0xdc26
 butlerBow.position.set(0, 1.66, .02); butler.add(butlerBow);
 const butlerTag = makeSign('MAYORDOMO', 0xf8fafc);
 butlerTag.scale.set(.42, .42, .42); butlerTag.position.set(0, 3, 0); butler.add(butlerTag);
+butler.visible = false;
 scene.add(butler);
 const BUTLER_HOME = new THREE.Vector3(HOUSE.x + 3, 0, HOUSE.z + 2);
 const BUTLER_SUPER = new THREE.Vector3(40, 0, -31);
@@ -1402,6 +1404,7 @@ const BUTLER_ALIASES = {
 function butlerFindItem(text) {
   let best = null, bestLength = 0;
   for (const item of STORE_A) {
+    if (item.key === 'mayordomo') continue;
     const names = [normalizeButlerText(item.name), ...(BUTLER_ALIASES[item.key] || [])];
     for (const name of names) if (name && new RegExp('(?:^| )' + name + '(?:s|es)?(?: |$)').test(text) && name.length > bestLength) { best = item; bestLength = name.length; }
   }
@@ -1415,10 +1418,17 @@ function butlerQuantity(text) {
 function resetButler() {
   butler.position.copy(BUTLER_HOME); butler.position.y = mountainHeightAt(BUTLER_HOME.x, BUTLER_HOME.z);
   butler.userData.task = 'idle'; butler.userData.order = null; butlerSpaceTaps.length = 0;
+  Object.assign(butler.userData, { hired: false, workDays: 0, wageDebt: 0, lastWageNight: -1 }); butler.visible = false;
 }
 function restoreButler(saved) {
   resetButler();
   if (!saved) return;
+  if (!saved.hired) {
+    // Las partidas anteriores deben contratarlo; devolver cualquier presupuesto pendiente.
+    state.money += Math.max(0, saved.order?.reserved || 0); return;
+  }
+  Object.assign(butler.userData, { hired: true, workDays: Math.max(0, saved.workDays || 0) % 7, wageDebt: Math.max(0, saved.wageDebt || 0), lastWageNight: Number.isFinite(saved.lastWageNight) ? saved.lastWageNight : state.night });
+  butler.visible = state.planet === 'tierra';
   if (Number.isFinite(saved.x) && Number.isFinite(saved.z)) butler.position.set(saved.x, mountainHeightAt(saved.x, saved.z), saved.z);
   const item = saved.order && STORE_A.find(i => i.key === saved.order.key);
   if (item) {
@@ -1428,6 +1438,7 @@ function restoreButler(saved) {
 }
 function requestButlerOrder() {
   if (!state.running || state.planet !== 'tierra') { toast('🤵 El mayordomo te espera en tu casa de la Tierra'); return; }
+  if (!butler.userData.hired) { toast('🤵 Primero contrata al mayordomo en el súper por $500. Sueldo: $100 cada 7 días'); return; }
   typing = true; releaseLock();
   const answer = prompt('🤵 Mayordomo: ¿Qué quieres que haga?', 'Ve al súper y compra 3 paredes de madera');
   typing = false;
@@ -1454,7 +1465,7 @@ function requestButlerOrder() {
   toast('🤵 Puedo comprar cualquier producto del súper, seguirte o volver a casa. Dime, por ejemplo: «compra 4 paredes de roca»');
 }
 function updateButler(dt) {
-  butler.visible = state.planet === 'tierra'; if (!butler.visible) return;
+  butler.visible = !!butler.userData.hired && state.planet === 'tierra'; if (!butler.visible) return;
   let target = null;
   if (butler.userData.task === 'toStore' || butler.userData.task === 'visitStore') target = BUTLER_SUPER;
   else if (butler.userData.task === 'return') target = BUTLER_HOME;
@@ -1477,11 +1488,16 @@ function updateButler(dt) {
   }
   swingLimbs(butler, dt);
 }
-function payButlerDailyWage() {
-  const wage = 10, paid = Math.min(wage, Math.max(0, state.money));
-  state.money -= paid;
-  if (paid === wage) setTimeout(() => toast('🤵 Sueldo diario del mayordomo: -$10'), 900);
-  else setTimeout(() => toast('🤵 Sueldo del mayordomo: -$' + Math.floor(paid) + ' · faltaron $' + Math.ceil(wage - paid)), 900);
+function payButlerWeeklyWage() {
+  const employment = butler.userData;
+  if (!employment.hired || employment.lastWageNight === state.night) return;
+  employment.lastWageNight = state.night;
+  employment.workDays++;
+  if (employment.workDays < 7) return;
+  employment.workDays = 0;
+  const due = 100 + employment.wageDebt, paid = Math.min(due, Math.max(0, state.money));
+  state.money -= paid; employment.wageDebt = due - paid;
+  toast('🤵 Sueldo semanal del mayordomo: -$' + paid + (employment.wageDebt ? ' · pendiente $' + employment.wageDebt + ' para el próximo pago' : ' · próximo pago en 7 días'));
 }
 const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
   { key: 'pala_madera',    name: 'Pala madera',    price: 200, color: 0x8b5a2b, dmg: 1 },
@@ -7323,6 +7339,7 @@ function renderContractRow(list) {   // fila del contrato arriba de la tienda (s
   list.appendChild(row);
 }
 function shopIcon(item) {
+  if (item.key === 'mayordomo') return '🤵';
   if (item.phone) return '📱';
   if (item.key === 'helicoptero') return '🚁';
   if (item.boat) return '⛵'; if (item.crew) return '🧑‍✈️';
@@ -7959,7 +7976,7 @@ function saveGame() {
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
       tutorial: state.tutorial || { step: 0, complete: false }, chapter: state.chapter || 0, chapterFlags: state.chapterFlags || {}, reputation: state.reputation || 0,
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
-      butlerState: { task: butler.userData.task, x: butler.position.x, z: butler.position.z, order: butler.userData.order ? { key: butler.userData.order.item.key, qty: butler.userData.order.qty, reserved: butler.userData.order.reserved || 0, bought: butler.userData.order.bought || 0 } : null },
+      butlerState: { hired: !!butler.userData.hired, workDays: butler.userData.workDays || 0, wageDebt: butler.userData.wageDebt || 0, lastWageNight: butler.userData.lastWageNight, task: butler.userData.task, x: butler.position.x, z: butler.position.z, order: butler.userData.order ? { key: butler.userData.order.item.key, qty: butler.userData.order.qty, reserved: butler.userData.order.reserved || 0, bought: butler.userData.order.bought || 0 } : null },
       parkBusiness: state.parkBusiness || null,
       business: state.business || null, businessOrders: state.businessOrders || 0,
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
@@ -8949,6 +8966,13 @@ function paintHouse(color, label) {
 function buyItem(item) {
   if (!state.creative && item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
   if (state.money < item.price) { toast('💸 Te falta plata'); return; }
+  if (item.key === 'mayordomo') {
+    if (butler.userData.hired) { toast('🤵 Ya contrataste al mayordomo'); return; }
+    state.money -= item.price; resetButler();
+    butler.userData.hired = true; butler.userData.lastWageNight = state.night;
+    butler.visible = state.planet === 'tierra';
+    toast('🤵 Mayordomo contratado · Espacio ×3 para llamarlo · $100 cada 7 días del juego'); saveGame(); return;
+  }
   // casos que pueden fallar (no cobrar si no se puede)
   if (item.paint) {
     if (!hasHouseToPaint()) { toast('🎨 Construye tu casa primero para poder pintarla'); return; }
@@ -9864,7 +9888,7 @@ function surviveNight() {
   } else if (state.streak) { state.streak = 0; toast('💔 La casa recibió daño: se cortó la racha'); }
   reward = Math.round(reward * (1 + 0.1 * Math.min(10, state.streak || 0)));   // la racha paga hasta el doble
   addMoney(reward);
-  payButlerDailyWage();                                      // $10 una sola vez al comenzar cada día nuevo
+  payButlerWeeklyWage();                                    // $100 cada 7 amaneceres desde la contratación
   if (state.baseGenerator && state.planet === 'platus') {   // generador de la base espacial: renta pasiva por noche sobrevivida en Platus
     const gen = 300 + 100 * state.stage; addMoney(gen);
     setTimeout(() => toast('⚡ +$' + gen + ' del GENERADOR de tu base espacial'), 5000);

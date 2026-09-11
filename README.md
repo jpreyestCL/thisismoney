@@ -243,3 +243,15 @@ separados de las ganancias operativas. Todo se guarda con el perfil.
 
 Pruebas: `node tests/park-business.test.mjs` y
 `node tests/park-integration.test.mjs`.
+
+### Contratar al mayordomo
+
+El mayordomo se contrata en el supermercado por **$500**. Antes de contratarlo
+no aparece en la casa ni acepta encargos. Después puedes llamarlo con
+**Espacio ×3**. Cobra **$100 cada 7 amaneceres del juego** desde su contratación,
+sin cobros diarios. Si falta dinero, la diferencia se conserva para el siguiente
+pago semanal. La contratación, el calendario de pagos y los encargos pendientes
+se guardan con el perfil. En partidas anteriores hay que contratarlo; cualquier
+presupuesto de un encargo pendiente se devuelve al saldo.
+
+Pruebas: `node tests/butler.test.mjs`.

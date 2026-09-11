@@ -1213,7 +1213,7 @@ function updatePlayerCamera(dt) {
   // Mira hacia DONDE MIRAS (la cara de las personas apunta a +z y la vista va a -z), así en
   // el espejo te ves la cara y en tercera persona te ves la espalda.
   playerAvatar.position.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
-  playerAvatar.rotation.y = yaw + Math.PI;
+  playerAvatar.rotation.y = yaw + Math.PI + (state.skiing && skiGearMesh ? skiGearMesh.rotation.y : 0);
   swingLimbs(playerAvatar, dt || 0.016);
   if (cameraMode === 0) {
     camera.position.copy(player.position);
@@ -10885,6 +10885,7 @@ function updateSkiMovement(dt) {
   // El cuerpo acompaña la orientación de los esquís para que el giro cambie
   // también la trayectoria del jugador y no queden desalineados.
   if (steer) yaw -= steer * 2.2 * dt;
+  player.rotation.y = yaw;
   // Los esquís siguen la curva: giran y se inclinan con la dirección elegida.
   // El modelo de los esquís mira al sentido opuesto del eje local, por eso
   // invertimos su giro visual para que las flechas coincidan con la dirección.

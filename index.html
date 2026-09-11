@@ -3319,6 +3319,13 @@ function mountainProfile(m, dx, dz) {
   if (d >= m.r) return 0;
   const a = Math.atan2(dz, dx);
   const crestas = 1 + .13 * Math.sin(a * 3 + m.ph) + .07 * Math.sin(a * 6 - m.ph * 1.7);
+  if (m.ski) {
+    // La estación es ancha y tiene terrazas: tramos planos para descansar
+    // intercalados con desniveles, como una pista real de esquí.
+    const n = d / m.r;
+    const niveles = n < .22 ? 1 : n < .38 ? .82 : n < .56 ? .61 : n < .74 ? .4 : .2;
+    return m.h * niveles * (0.96 + .04 * Math.sin(a * 5 + m.ph));
+  }
   return m.h * Math.pow(1 - d / m.r, 1.45) * crestas;
 }
 function mountainHeightAt(x, z) {
@@ -3340,7 +3347,7 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
   const leaf = o.leaf != null ? o.leaf : 0x2f7d24, treeN = o.trees != null ? o.trees : 22;
   let rnd = seed || 1;
   const rand = () => { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
-  const m = { x: cx, z: cz, r, h, ph: (seed || 1) * 1.7, planet: planet || 'tierra' };
+  const m = { x: cx, z: cz, r, h, ph: (seed || 1) * 1.7, planet: planet || 'tierra', ski: !!o.ski };
   mountains.push(m);
   const CELL = 2.1, cols = [];
   for (let gx = -r; gx <= r; gx += CELL) for (let gz = -r; gz <= r; gz += CELL) {
@@ -3400,8 +3407,8 @@ function buildEarthMountains() {
 // ---------------- EXPANSIÓN: CENTRO DE ESQUÍ -------------------
 // La cordillera queda en el extremo ampliado del mapa. La pista de acceso es una
 // carretera de curvas visibles para que el viaje en auto se sienta como una subida.
-const SKI_RESORT = { x: 178, z: 178, r: 78, gate: { x: 108, z: 118 }, gear: { x: 116, z: 125 }, gear2: { x: 128, z: 125 } };
-const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 150, ph: 28 * 1.7 };
+const SKI_RESORT = { x: 178, z: 178, r: 105, gate: { x: 108, z: 118 }, gear: { x: 116, z: 125 }, gear2: { x: 128, z: 125 } };
+const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 150, ph: 28 * 1.7, ski: true };
 const skiSlopeHeight = (x, z) => mountainProfile(SKI_MOUNTAIN_PROFILE, x - SKI_RESORT.x, z - SKI_RESORT.z);
 const skiResortGroup = new THREE.Group(); scene.add(skiResortGroup);
 const skiVisitors = [], skiObstacles = [];
@@ -3428,7 +3435,7 @@ function buildSkiRoad() {
 }
 function buildSkiResort() {
   // Cerro alto, con nieve desde la zona alta y una ladera continua para no atravesarla.
-  mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 150, 0xf1f5f9, 0xffffff, 28, 'tierra', { grass: 0xffffff, soil: 0xf8fafc, leaf: 0xe2e8f0, trees: 8 });
+  mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 150, 0xf1f5f9, 0xffffff, 28, 'tierra', { grass: 0xffffff, soil: 0xf8fafc, leaf: 0xe2e8f0, trees: 8, ski: true });
   buildSkiRoad();
   // Caseta de equipos y cartel de precios.
   skiBox(skiResortGroup, SKI_RESORT.gear.x, 2.2, SKI_RESORT.gear.z, 9, 4.4, 7, 0x2563eb, true);
@@ -10691,7 +10698,7 @@ function drawMinimap() {
 
 function ensurePlayerSkiVisual() {
   if (skiGearMesh) return skiGearMesh;
-  skiGearMesh = new THREE.Group(); skiGearMesh.visible = false; player.add(skiGearMesh);
+  skiGearMesh = new THREE.Group(); skiGearMesh.position.y = -1.72; skiGearMesh.visible = false; player.add(skiGearMesh);
   const skiMat = mat(0x111827);
   const a = new THREE.Mesh(new THREE.BoxGeometry(.13, .07, 1.9), skiMat), b = a.clone(); a.position.x = -.28; b.position.x = .28; skiGearMesh.add(a, b);
   const poles = mat(0xf59e0b), p1 = new THREE.Mesh(new THREE.BoxGeometry(.035, 1.4, .035), poles), p2 = p1.clone(); p1.position.set(-.62, .62, 0); p2.position.set(.62, .62, 0); p1.rotation.z = -.12; p2.rotation.z = .12; skiGearMesh.add(p1, p2);
@@ -10706,8 +10713,8 @@ function updateSkiMovement(dt) {
   const steer = (right ? 1 : 0) - (left ? 1 : 0), push = (fwd ? 1 : 0) - (back ? .55 : 0);
   player.position.x += steer * 10 * dt;
   player.position.z += (3.5 + push * 8) * dt;
-  player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 57, SKI_RESORT.x + 57);
-  player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 65, SKI_RESORT.z + 78);
+  player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 88, SKI_RESORT.z + 92);
   const snowY = mountainHeightAt(player.position.x, player.position.z);
   player.position.y = snowY + PLAYER_EYE;
   grounded = true; vy = 0;
@@ -10848,8 +10855,8 @@ function updateMovement(dt) {
     player.position.x = THREE.MathUtils.clamp(player.position.x, COUNTRY_C.x - 175, COUNTRY_C.x + 175);
     player.position.z = THREE.MathUtils.clamp(player.position.z, COUNTRY_C.z - 175, COUNTRY_C.z + 175);
   } else {
-    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -230, 230);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, -365, 230);
+    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -330, 330);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, -365, 330);
   }
   resolveCollisions();
   camera.rotation.y = yaw; camera.rotation.x = pitch;

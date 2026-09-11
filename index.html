@@ -997,7 +997,7 @@ const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el 
 const groundTex = makePixelTexture(0xffffff, true);
 groundTex.repeat.set(130, 130);
 const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, color: 0x4a7c3a, roughness: 1, flatShading: true });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1800, 1800), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground);
 
@@ -3408,7 +3408,7 @@ function buildEarthMountains() {
 // ---------------- EXPANSIÓN: CENTRO DE ESQUÍ -------------------
 // La cordillera queda en el extremo ampliado del mapa. La pista de acceso es una
 // carretera de curvas visibles para que el viaje en auto se sienta como una subida.
-const SKI_RESORT = { x: 520, z: 500, r: 150, gate: { x: 380, z: 360 }, gear: { x: 388, z: 367 }, gear2: { x: 400, z: 367 } };
+const SKI_RESORT = { x: 520, z: 500, r: 200, gate: { x: 380, z: 360 }, gear: { x: 388, z: 367 }, gear2: { x: 400, z: 367 } };
 const SKI_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z + 58 };
 const SKI_LIFT2_BOTTOM = { x: SKI_RESORT.x - 8, z: SKI_RESORT.z + 48 };
 const SKI_TOW_BOTTOM = { x: SKI_RESORT.x - 28, z: SKI_RESORT.z + 52 };
@@ -8930,7 +8930,7 @@ function loadGame() {
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); spawnBase(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else if(state.country){const c=currentCountry();groundMat.color.set(c.ground);decor.forEach(t=>t.visible=false);buildCountry(c);setCountryVisible(true);setEarthWorld(false);setCityVisible(false);setPlatusVisible(false);applySpaceSuit(false);removeBase();scene.background.set(c.sky);scene.fog.far=320;syncPlacedCountryVisibility();}
-  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setCityVisible(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 700; syncPlacedCountryVisibility(); }
+  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setCityVisible(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 900; syncPlacedCountryVisibility(); }
   selectedCrop = CROP_DEFS[d.selectedCrop] ? d.selectedCrop : 'apple';
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.produce != null ? p.produce : p.apples, p.crop || 'apple'));   // huerto: reponer cultivos y saves antiguos
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
@@ -10928,8 +10928,8 @@ function updateMovement(dt) {
     player.position.x = THREE.MathUtils.clamp(player.position.x, COUNTRY_C.x - 175, COUNTRY_C.x + 175);
     player.position.z = THREE.MathUtils.clamp(player.position.z, COUNTRY_C.z - 175, COUNTRY_C.z + 175);
   } else {
-    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -700, 700);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, -500, 700);
+    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -800, 800);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 800);
   }
   if (state.skiGearWorn && !state.skiing && !state.skiLiftRide && inSkiResort() && mountainHeightAt(player.position.x, player.position.z) > 85) {
     player.position.x = moveStartX; player.position.z = moveStartZ;

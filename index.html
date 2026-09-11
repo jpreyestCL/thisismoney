@@ -7359,6 +7359,42 @@ function shopIcon(item) {
   if (item.key === 'teclado_gamer') return '⌨️'; if (item.key === 'parlante_gamer') return '🔊'; if (item.key === 'alexa') return '🔵'; if (item.key === 'mesa_gamer') return '🖥️'; if (item.key === 'mesa_tele') return '📺'; if (item.key === 'play_gamer') return '🎮'; if (item.key === 'piscina') return '🏊';
   if (item.build) return '🧱'; return '🛒';
 }
+// Se conserva la referencia a cada mascota para no vender otra si cambia la lista.
+function petSaleOffers() {
+  const offers = [];
+  if (pet) offers.push({ animal: pet, kind: 'dog', name: 'Perro guardián', price: 1250 });
+  if (petAlien) offers.push({ animal: petAlien, kind: 'alien', name: 'Mascota alien', price: 1100 });
+  for (const animal of eggPets) {
+    const rank = EGG_RANK[animal.userData.tier] ?? 0;
+    offers.push({ animal, kind: 'egg', name: 'Mascota ' + EGG_TIERS[rank].tier, price: [250, 500, 1000, 2000, 4000][rank] });
+  }
+  return offers;
+}
+function sellPet(animal) {
+  if (!state.running || !shopSellMode || !nearKeeper()) return false;
+  const offer = petSaleOffers().find(o => o.animal === animal);
+  if (!offer) return false;
+  if (offer.kind === 'dog') removePet();
+  else if (offer.kind === 'alien') removeAlienPet();
+  else {
+    scene.remove(animal); eggPets.splice(eggPets.indexOf(animal), 1);
+    if (!eggPets.length) clearPetPoint();
+  }
+  addMoney(offer.price); saveGame();
+  toast('🔁 Vendiste ' + offer.name + ' por $' + offer.price);
+  renderShopList(ui('shopInput').value);
+  return true;
+}
+function renderPetSaleRows(list, filter) {
+  const offers = petSaleOffers().filter(o => !filter || normalizeButlerText(o.name + ' mascota').includes(normalizeButlerText(filter)));
+  for (const offer of offers) {
+    const row = document.createElement('button'); row.className = 'shopRow';
+    row.style.cssText = 'padding:12px;border:1px solid #facc15;border-radius:8px;background:#302b18;color:#fff;text-align:left;cursor:pointer';
+    row.textContent = '🐾 Vender ' + offer.name + ' · +$' + offer.price;
+    row.onclick = () => sellPet(offer.animal); list.appendChild(row);
+  }
+  return offers.length;
+}
 // Menú de tienda: una fila por producto; tocar = comprar (sin teclado)
 let shopSellMode = false;   // 🔁: la tienda también COMPRA tus cosas al 50%
 function renderShopList(filter) {
@@ -7368,7 +7404,8 @@ function renderShopList(filter) {
   list.innerHTML = '';
   if (shopSellMode) {   // modo VENDER: tus objetos del inventario al 50% del precio
     const sellable = shopCatalog().filter(it => it.build && (state.inv[it.key] || 0) > 0 && (!f || it.name.toLowerCase().includes(f)));
-    if (!sellable.length) { list.innerHTML = '<div style="opacity:.6; font-size:13px; padding:10px;">No tienes objetos para vender (compra y NO coloques, o recoge con X)</div>'; return; }
+    const petCount = renderPetSaleRows(list, f);
+    if (!sellable.length && !petCount) { list.innerHTML = '<div style="opacity:.6; font-size:13px; padding:10px;">No tienes objetos ni mascotas que coincidan para vender</div>'; return; }
     sellable.forEach(it => {
       const half = Math.max(1, Math.floor(it.price / 2));
       const row = document.createElement('button');

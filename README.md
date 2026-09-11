@@ -255,3 +255,12 @@ se guardan con el perfil. En partidas anteriores hay que contratarlo; cualquier
 presupuesto de un encargo pendiente se devuelve al saldo.
 
 Pruebas: `node tests/butler.test.mjs`.
+
+### Vender mascotas
+
+Acércate a un vendedor, abre la tienda con **Y** y pulsa **Vender**. Cada
+mascota aparece por separado con el importe que recibirás: perro guardián
+$1.250, mascota alien $1.100; mascotas de huevos común $250, rara $500,
+épica $1.000, mítica $2.000 y legendaria $4.000. Al venderla deja de seguirte
+y combatir, recibes el dinero y se guarda la partida. Los huevos que todavía
+no han nacido no se venden. Pruebas: `node tests/pet-sales.test.mjs`.

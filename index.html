@@ -10895,6 +10895,7 @@ function updateSkiMovement(dt) {
   const snowY = mountainHeightAt(player.position.x, player.position.z), skiFloor = snowY + PLAYER_EYE;
   const jumpPressed = keys['Space'] || touch.jump;
   touch.jump = false;
+  const wasAirborne = !grounded;
   if (jumpPressed && !skiJumpHeld && grounded) { skiJumpVy = 11; grounded = false; }
   skiJumpHeld = !!jumpPressed;
   if (!grounded || skiJumpVy > 0) {
@@ -10904,6 +10905,9 @@ function updateSkiMovement(dt) {
   } else {
     player.position.y = skiFloor;
   }
+  const trickDir = (keys['KeyE'] ? 1 : 0) - (keys['KeyQ'] ? 1 : 0);
+  if (!grounded && trickDir) { gearVisual.rotation.y += trickDir * 8 * dt; skiTrickActive = true; }
+  if (wasAirborne && grounded && skiTrickActive) { skiTrickActive = false; toast('✨ ¡Truco 360!'); }
   vy = 0;
   // Durante la bajada las murallas son guías visuales; no deben congelar el
   // giro lateral del esquiador al rozarlas.
@@ -10911,7 +10915,7 @@ function updateSkiMovement(dt) {
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;
 }
-let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false;
+let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false, skiTrickActive = false;
 function updateSkiGearHold(dt) {
   if (!state.skiGear) { skiRemoveHold = 0; return; }
   if (keys['KeyE'] && !state.skiing && !state.skiLiftRide) {

@@ -3479,6 +3479,24 @@ function buildSkiResort() {
     for (let i = 1; i < pts.length - 1; i++) { const p = pts[i]; for (const edge of [-2.65, 2.65]) skiBox(skiResortGroup, p.x + edge, p.y + 2.1, p.z, .58, 4.2, 7.4, 0x7c4a21, true); }
     for (const edge of [-2.65, 2.65]) for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) + 1.2; const wall = skiBox(skiResortGroup, (a.x + b.x) / 2 + edge, (a.y + b.y) / 2 + 2.1, (a.z + b.z) / 2, .85, 4.4, len, 0x7c4a21, true); wall.rotation.y = Math.atan2(dx, dz); }
   }
+  // La cara opuesta también tiene bajadas laterales, con muros propios y
+  // recorridos que rodean la montaña hacia el oeste y el este.
+  for (const [name, side, color, zOffset] of [['OESTE', -1, 0x38bdf8, -82], ['ESTE', 1, 0xf472b6, -28]]) {
+    const pts = [];
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20, x = SKI_RESORT.x + side * (12 + t * 174), z = SKI_RESORT.z + zOffset + Math.sin(t * 6) * 13;
+      pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .2, z));
+    }
+    const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 44, 2.5, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
+    trail.scale.y = .12; skiResortGroup.add(trail);
+    const marker = makeSign(name + ' · PISTA LATERAL', color); marker.scale.set(.32, .32, .32); marker.position.copy(pts[6]); marker.position.y += 2.8; skiResortGroup.add(marker);
+    for (const edge of [-3, 3]) for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) + 1.1;
+      const nx = -dz / (len || 1) * edge, nz = dx / (len || 1) * edge;
+      const wall = skiBox(skiResortGroup, (a.x + b.x) / 2 + nx, (a.y + b.y) / 2 + 2.1, (a.z + b.z) / 2 + nz, .82, 4.3, len, 0x7c4a21, true);
+      wall.rotation.y = Math.atan2(dx, dz);
+    }
+  }
   // Saltos, vallas y banderas: obstáculos sólidos, pero colocados sobre la nieve.
   for (let i = 0; i < 8; i++) {
     const x = SKI_RESORT.x - 30 + i * 8, z = SKI_RESORT.z - 20 + (i % 3) * 20, y = skiSlopeHeight(x, z);

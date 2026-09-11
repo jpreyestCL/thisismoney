@@ -328,6 +328,12 @@ atravesando la zona. En Platus, los aviones, la plataforma y el reactor del
 centro de energía, además de sus torres de energía, tienen superficies sólidas:
 si saltas y caes encima, el personaje aterriza sobre ellos en vez de atravesarlos.
 
+En modo construir, apunta a una pared y coloca otra para que se encaje encima
+automáticamente, incluso si cambia el material. Los botones **Agrandar** y
+**Reducir** cambian el tamaño de la pieza; **Más grueso** y **Menos grueso**
+ajustan el ancho en ambos lados. La escala y las paredes apiladas se guardan
+en la partida.
+
 El HUD muestra un aviso grande de gasolina cuando el tanque baja de 25%:
 indica el porcentaje restante y recomienda buscar la gasolinera. Bajo 10% el
 aviso parpadea en rojo; con 0% indica que el auto quedó sin gasolina.

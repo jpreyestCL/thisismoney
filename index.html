@@ -93,6 +93,11 @@
   #rotateBtn, #deleteBtn, #blueprintBtn, #floor2RotBtn, #floor2DelBtn, #floor2WPlusBtn, #floor2WMinusBtn, #floor2DPlusBtn, #floor2DMinusBtn { position: absolute; right: 18px; left: auto; bottom: auto; display: none; pointer-events: all; cursor: pointer;
     color: #042; border: none; padding: 10px 20px; font-size: 15px; font-weight: 800; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
   #floor2WPlusBtn, #floor2WMinusBtn, #floor2DPlusBtn, #floor2DMinusBtn { padding: 7px 14px; font-size: 13px; color: #fff; }
+  #scalePlusBtn, #scaleMinusBtn, #thickPlusBtn, #thickMinusBtn { position:absolute; right:18px; display:none; padding:7px 14px; font-size:13px; color:#fff; pointer-events:all; cursor:pointer; }
+  #scalePlusBtn { top:calc(50% + 354px); background:rgba(37,99,235,.85); }
+  #scaleMinusBtn { top:calc(50% + 398px); background:rgba(37,99,235,.6); }
+  #thickPlusBtn { top:calc(50% + 442px); background:rgba(13,148,136,.85); }
+  #thickMinusBtn { top:calc(50% + 486px); background:rgba(13,148,136,.6); }
   #floor2WPlusBtn  { top: calc(50% + 178px); background: rgba(13,148,136,.85); }
   #floor2WMinusBtn { top: calc(50% + 222px); background: rgba(13,148,136,.6); }
   #floor2DPlusBtn  { top: calc(50% + 266px); background: rgba(147,51,234,.85); }
@@ -188,7 +193,7 @@
   body.touch .slot .ic { font-size: 17px; }
   body.touch .slot .nm { font-size: 7px; }
   body.touch .slot .ct { font-size: 10px; }
-  body.touch #rotateBtn, body.touch #deleteBtn, body.touch #blueprintBtn, body.touch #floor2RotBtn, body.touch #floor2DelBtn, body.touch #floor2WPlusBtn, body.touch #floor2WMinusBtn, body.touch #floor2DPlusBtn, body.touch #floor2DMinusBtn { display: none !important; }
+  body.touch #rotateBtn, body.touch #deleteBtn, body.touch #blueprintBtn, body.touch #floor2RotBtn, body.touch #floor2DelBtn, body.touch #floor2WPlusBtn, body.touch #floor2WMinusBtn, body.touch #floor2DPlusBtn, body.touch #floor2DMinusBtn, body.touch #scalePlusBtn, body.touch #scaleMinusBtn, body.touch #thickPlusBtn, body.touch #thickMinusBtn { display: none !important; }
   body.touch #blueprintPanel { top:84px; left:6px; max-height:calc(100vh - 170px); }
   /* botones táctiles un poco más chicos para que quepan todos (incluido el panel "más") */
   body.touch .tbtn { width: calc(46px * var(--btnscale, 1)); height: calc(46px * var(--btnscale, 1)); font-size: calc(19px * var(--btnscale, 1)); }
@@ -472,6 +477,10 @@
   <button id="floor2WMinusBtn">↔️ Menos ancho</button>
   <button id="floor2DPlusBtn">↕️ Más fondo</button>
   <button id="floor2DMinusBtn">↕️ Menos fondo</button>
+  <button id="scalePlusBtn">🔍 Agrandar</button>
+  <button id="scaleMinusBtn">🔎 Reducir</button>
+  <button id="thickPlusBtn">↔️ Más grueso</button>
+  <button id="thickMinusBtn">↔️ Menos grueso</button>
   <aside id="blueprintPanel" aria-label="Planos de construcción"><h2>📐 PLANOS</h2><p>Elige una estructura. Verás el conjunto antes de gastar materiales.</p><div id="blueprintList"></div><button class="bankBtn" id="blueprintClose" style="width:100%;margin-top:9px">Cerrar</button></aside>
   <div id="buyring">
     <svg width="90" height="90"><circle cx="45" cy="45" r="38" stroke="rgba(255,255,255,.2)" stroke-width="7" fill="none"/>
@@ -586,6 +595,10 @@
       <button type="button" class="tbtn" data-act="closeMore" aria-label="Cerrar más acciones" style="background:rgba(239,68,68,.6);border-color:rgba(255,120,120,.7)">✖️<small>cerrar</small></button>
       <button type="button" class="tbtn" data-act="rotate" aria-label="Girar pieza">🔄<small>girar</small></button>
       <button type="button" class="tbtn" data-act="variant" aria-label="Cambiar variante">🎛️<small>variante</small></button>
+      <button type="button" class="tbtn" data-act="scalePlus" aria-label="Agrandar material">🔍<small>agrandar</small></button>
+      <button type="button" class="tbtn" data-act="scaleMinus" aria-label="Reducir material">🔎<small>reducir</small></button>
+      <button type="button" class="tbtn" data-act="thickPlus" aria-label="Aumentar grosor">↔️<small>grueso +</small></button>
+      <button type="button" class="tbtn" data-act="thickMinus" aria-label="Reducir grosor">↔️<small>grueso −</small></button>
       <button type="button" class="tbtn" data-act="blueprints" aria-label="Abrir planos">📐<small>planos</small></button>
       <button type="button" class="tbtn" data-act="delete" aria-label="Quitar pieza">🗑️<small>borrar</small></button>
       <button type="button" class="tbtn" data-act="floor2Rot" aria-label="Girar el segundo piso">🔄<small>piso 2</small></button>
@@ -5145,6 +5158,7 @@ function catOf(key) { for (const c in BUILD_CATS) if (BUILD_CATS[c].includes(key
 // Inventario inicial: 0 de cada cosa colocable + comida/semillas
 function freshInv() { const inv = { food: 0, semillas: 0, semillas_zanahoria: 0, semillas_trigo: 0, semillas_tomate: 0, carbon: 0 }; for (const k of BUILD_KEYS) inv[k] = 0; return inv; }
 let buildSel = 0, buildRot = 0;
+let buildScale = { x: 1, y: 1, z: 1 };
 const BUILD_VARIANTS = {
   wallWood: [
     { id: 'roble', name: 'Roble claro', color: 0x9a6738 },
@@ -5237,6 +5251,14 @@ function variantFor(key, id) {
   return list[(buildVariantIndex[key] || 0) % list.length];
 }
 function currentBuildVariant() { return variantFor(BUILD_KEYS[buildSel]); }
+function resetBuildScale() { buildScale = { x: 1, y: 1, z: 1 }; refreshGhost(); }
+function resizeBuild(kind, delta) {
+  if (!state.buildMode) return;
+  const factor = delta > 0 ? 1.15 : 1 / 1.15;
+  if (kind === 'all') buildScale.x = buildScale.y = buildScale.z = THREE.MathUtils.clamp(buildScale.x * factor, .55, 2.5);
+  else { buildScale.x = THREE.MathUtils.clamp(buildScale.x * factor, .55, 2.5); buildScale.z = THREE.MathUtils.clamp(buildScale.z * factor, .55, 2.5); }
+  refreshGhost(); toast(kind === 'all' ? '📐 Tamaño: ' + Math.round(buildScale.x * 100) + '%' : '↔️ Grosor: ' + Math.round(buildScale.x * 100) + '%');
+}
 function cycleBuildVariant(delta) {
   if (activeBlueprintId) { toast('🎛️ Las variantes del plano ya están definidas'); return; }
   const key = BUILD_KEYS[buildSel], list = BUILD_VARIANTS[key];
@@ -5334,6 +5356,7 @@ function refreshGhost() {
   const variant = currentBuildVariant();
   ghostMesh = new THREE.Mesh(objGeometry(key, variant && variant.id), new THREE.MeshStandardMaterial({ color: objColor(key, variant && variant.id), transparent: true, opacity: 0.5 }));
   ghostMesh.position.y = objY(key); ghost.add(ghostMesh);
+  ghostMesh.scale.set(buildScale.x, buildScale.y, buildScale.z);
   if (key === 'wallDoor') addDoorFrameParts(ghostMesh, objColor(key), true);   // se ve el marco completo antes de colocar
 }
 refreshGhost();
@@ -5391,6 +5414,19 @@ const WALL_SNAP_KEYS = { wallWood: 1, wallRock: 1, wallMetal: 1, wallDoor: 1 };
 let wallSnap = null;   // {x, z, rot} cuando el fantasma quedó calzado con otra pieza
 function computeWallSnap(tx, tz, by) {
   if (!WALL_SNAP_KEYS[BUILD_KEYS[buildSel]]) return null;
+  // Autocase vertical: si apuntas a una pared, la siguiente se coloca justo
+  // encima de ella, aunque sea de otro material.
+  let topWall = null, topD = 3.2;
+  for (const o of placed) {
+    if (!o.mesh.visible || !WALL_SNAP_KEYS[o.key]) continue;
+    const d = Math.hypot(o.mesh.position.x - tx, o.mesh.position.z - tz);
+    if (d < topD) { topD = d; topWall = o; }
+  }
+  if (topWall) {
+    const stackY = (topWall.baseY || 0) + 3 * (topWall.scale?.y || 1);
+    const occupied = placed.some(o => o.mesh.visible && WALL_SNAP_KEYS[o.key] && Math.abs((o.baseY || 0) - stackY) < .1 && dist2D(o.mesh.position, topWall.mesh.position) < 1.8);
+    if (!occupied) return { x: topWall.mesh.position.x, z: topWall.mesh.position.z, rot: topWall.mesh.rotation.y, stackY };
+  }
   let best = null, bd = 6;
   for (const o of placed) {   // la pared YA puesta más cercana a donde apuntas
     if (!o.mesh.visible) continue;
@@ -5458,7 +5494,7 @@ function updateBuild(dt) {
   if (!canBuild) { wallSnap = null; return; }
   const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const t = player.position.clone().addScaledVector(fwd, 5); t.y = 0;
-  const by = buildBaseY(t.x, t.z);   // si estás en el segundo piso, se construye sobre la loza
+  let by = buildBaseY(t.x, t.z);   // si estás en el segundo piso, se construye sobre la loza
   if (activeBlueprintId) { wallSnap = null; blueprintGhost.position.set(t.x, by, t.z); blueprintGhost.rotation.y = buildRot; if (playerFloor2) clampBlueprintToFloor2(blueprintGhost); }
   else if (BUILD_KEYS[buildSel] === 'piso2') {   // auto-calce del segundo piso: se centra solo sobre la construcción
     wallSnap = null;
@@ -5476,7 +5512,7 @@ function updateBuild(dt) {
   }
   else {
     wallSnap = computeWallSnap(t.x, t.z, by) || computeDoorSnap(t.x, t.z, by) || computeRoofSnap(t.x, t.z, by);
-    if (wallSnap) { ghost.position.set(wallSnap.x, by, wallSnap.z); ghost.rotation.y = wallSnap.rot; }
+    if (wallSnap) { if (wallSnap.stackY != null) by = wallSnap.stackY; ghost.position.set(wallSnap.x, by, wallSnap.z); ghost.rotation.y = wallSnap.rot; }
     else { ghost.position.set(t.x, by, t.z); ghost.rotation.y = buildRot; }
     if (playerFloor2 && by === playerFloor2.data.baseY) {
       const safe = clampBuildToFloor2(ghost.position.x, ghost.position.z, ghost.rotation.y, BUILD_KEYS[buildSel]);
@@ -5489,15 +5525,17 @@ function updateBuild(dt) {
 
 // Crea y coloca un objeto en (x,z) con rotación rot (reutilizado por placeObject y al cargar la partida).
 // baseY = altura del piso donde se apoya: 0 = suelo · baseY del segundo piso = su loza.
-function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId) {
+function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, scaleData) {
   const variant = variantFor(key, variantId);
   const by = baseY || 0, mounted = mountY || 0;
   const m = new THREE.Mesh(objGeometry(key, variant && variant.id), objMaterial(key, variant && variant.id));
-  m.position.set(x, objY(key) + by + mounted, z); m.rotation.y = rot;
+  const sc = scaleData || { x: 1, y: 1, z: 1 };
+  m.scale.set(sc.x || 1, sc.y || 1, sc.z || 1);
+  m.position.set(x, objY(key) * sc.y + by + mounted, z); m.rotation.y = rot;
   const region = countryId !== undefined ? countryId : (state.country || null);
   m.visible = (region || null) === (state.country || null);
   m.castShadow = true; m.receiveShadow = true; scene.add(m);
-  const obj = { mesh: m, key, variant: variant && variant.id, baseY: by, mountY: mounted, country:region, hp: (hp != null ? hp : (key === 'wallMetal' ? 350 : key === 'wallRock' ? 200 : 100)) };
+  const obj = { mesh: m, key, variant: variant && variant.id, baseY: by, mountY: mounted, country:region, scale: { x: sc.x || 1, y: sc.y || 1, z: sc.z || 1 }, hp: (hp != null ? hp : (key === 'wallMetal' ? 350 : key === 'wallRock' ? 200 : 100)) };
   // ----- Muebles y decoración -----
   const legMat = mat(0x3f2a17);
   const legs = (hw, hd, len) => { for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, len), legMat); l.position.set(sx * hw, -len / 2, sz * hd); m.add(l); } };
@@ -5612,12 +5650,12 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId) {
   }
   // Las colisiones son en 2D (no distinguen pisos): una pared del 2º piso taparía el paso
   // abajo también, así que arriba las paredes se colocan pero sin caja de choque.
-  if ((key === 'wallWood' || key === 'wallRock' || key === 'wallMetal') && !by) {
+  if (key === 'wallWood' || key === 'wallRock' || key === 'wallMetal') {
     // bloquea al jugador y a los enemigos (caja que envuelve la pared en cualquier ángulo)
     const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
-    const w = 4 * ca + 0.4 * sa;
-    const d = 4 * sa + 0.4 * ca;
-    obj.aabb = { minX: m.position.x - w / 2, maxX: m.position.x + w / 2, minZ: m.position.z - d / 2, maxZ: m.position.z + d / 2, top: 3, country:region };   // 3 de alto: desde el 2º piso ya no estorban
+    const w = 4 * sc.x * ca + 0.4 * sc.z * sa;
+    const d = 4 * sc.x * sa + 0.4 * sc.z * ca;
+    obj.aabb = { minX: m.position.x - w / 2, maxX: m.position.x + w / 2, minZ: m.position.z - d / 2, maxZ: m.position.z + d / 2, bottom: by, top: by + 3 * sc.y, country:region };
     obstacles.push(obj.aabb);
   }
   placed.push(obj);
@@ -5685,8 +5723,8 @@ function placeObject() {
   }
   state.inv[key]--;
   const variant = currentBuildVariant();
-  spawnPlaced(key, placeX, placeZ, placeRot, null, variant && variant.id, ghost.position.y, mountY);
-  netSend({ t: 'place', id: net.myId, key, x: +placeX.toFixed(2), z: +placeZ.toFixed(2), rot: placeRot, variant: (variant && variant.id) || null, baseY: ghost.position.y, mountY, country:state.country||null });
+  spawnPlaced(key, placeX, placeZ, placeRot, null, variant && variant.id, ghost.position.y, mountY, undefined, buildScale);
+  netSend({ t: 'place', id: net.myId, key, x: +placeX.toFixed(2), z: +placeZ.toFixed(2), rot: placeRot, variant: (variant && variant.id) || null, baseY: ghost.position.y, mountY, scale: buildScale, country:state.country||null });
   const val = SHOP.find(s => s.key === key).value;
   addMoney(val);
   toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + (variant ? ' · ' + variant.name : '') + ' +$' + val);
@@ -7368,13 +7406,13 @@ function selectSlot(n) {
   if (n === 1) { state.buildMode = false; return; }           // 1 = herramienta en mano (pala/espada)
   const key = catKeys()[n - 2];
   if (!key) return;
-  buildSel = BUILD_KEYS.indexOf(key); state.buildMode = true; refreshGhost();
+  buildSel = BUILD_KEYS.indexOf(key); state.buildMode = true; resetBuildScale();
 }
 // Elegir una pieza por su clave: cambia solo la pestaña si hace falta (rueda del mouse)
 function selectBuildKey(key) {
   const i = BUILD_KEYS.indexOf(key); if (i < 0) return;
   activeBlueprintId = null; blueprintGhost.visible = false;
-  buildCat = catOf(key); buildSel = i; state.buildMode = true; refreshGhost();
+  buildCat = catOf(key); buildSel = i; state.buildMode = true; resetBuildScale();
 }
 // Cambiar de pestaña (celular: tocar la pestaña · PC: Shift+rueda) y elegir su 1ª pieza
 function setBuildCat(cat) {
@@ -7649,6 +7687,10 @@ ui('floor2WPlusBtn').onclick = () => resizeFloor2('w', 1);
 ui('floor2WMinusBtn').onclick = () => resizeFloor2('w', -1);
 ui('floor2DPlusBtn').onclick = () => resizeFloor2('d', 1);
 ui('floor2DMinusBtn').onclick = () => resizeFloor2('d', -1);
+ui('scalePlusBtn').onclick = () => resizeBuild('all', 1);
+ui('scaleMinusBtn').onclick = () => resizeBuild('all', -1);
+ui('thickPlusBtn').onclick = () => resizeBuild('thickness', 1);
+ui('thickMinusBtn').onclick = () => resizeBuild('thickness', -1);
 // Nueva partida: primero pregunta TU NOMBRE (cada jugador tiene su propia partida guardada)
 let pendingMode = 'normal';
 function openNamebox(mode) {
@@ -7873,6 +7915,10 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'block': toggleBlock(); break;
       case 'rotate': rotateBuild(); break;
       case 'variant': cycleBuildVariant(1); break;
+      case 'scalePlus': resizeBuild('all', 1); break;
+      case 'scaleMinus': resizeBuild('all', -1); break;
+      case 'thickPlus': resizeBuild('thickness', 1); break;
+      case 'thickMinus': resizeBuild('thickness', -1); break;
       case 'delete': deleteObject(); break;
       case 'floor2Rot': rotateFloor2(); break;
       case 'floor2Del': sellFloor2(); break;
@@ -8094,7 +8140,7 @@ function saveGame() {
       houseTier: houseTier, inv: state.inv,
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
-      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, mountY: o.mountY || 0, country:o.country||null, rot: o.mesh.rotation.y, hp: o.hp, paint: o.paint != null ? o.paint : null })),
+      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, mountY: o.mountY || 0, scale: o.scale || null, country:o.country||null, rot: o.mesh.rotation.y, hp: o.hp, paint: o.paint != null ? o.paint : null })),
       vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, fuel: v.fuel, moto: !!v.moto, helicopter: !!v.helicopter })),
       boat: boat ? { x: boat.group.position.x, z: boat.group.position.z, heading: boat.heading, hp: boat.hp } : null, boatCrew: state.boatCrew || 0, voyageDays: state.voyageDays || 0, islandDiscovered: !!state.islandDiscovered,
       car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, fuel: car.fuel, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
@@ -8681,7 +8727,7 @@ function loadGame() {
   setWeaponColor(d.weaponColor || 0x94a3b8);
   applyPlayerArmor();   // vuelve a ponerte la armadura que tenías comprada
   (d.placed || []).forEach(o => {
-    const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant, o.baseY, o.mountY, o.country || null);
+    const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant, o.baseY, o.mountY, o.country || null, o.scale || null);
     if (o.paint != null) { obj.paint = o.paint; obj.mesh.material = mat(o.paint); }   // la pintura de la casa se conserva
   });
   if (state.planet !== 'platus') {
@@ -10734,7 +10780,7 @@ function netHandle(raw, fromConn) {
     if (m.name && m.name !== p.name) { p.name = m.name; p.group.remove(p.tag); const tg = makeSign(m.name, 0xfde047); tg.scale.set(.42, .42, .42); tg.position.set(0, 3.1, 0); tg.userData.billboard = true; p.group.add(tg); p.tag = tg; }
   } else if (m.t === 'place') {
     net.applying = true;
-    try { spawnPlaced(m.key, m.x, m.z, m.rot || 0, null, m.variant, m.baseY || 0, m.mountY || 0, m.country || null); } finally { net.applying = false; }
+    try { spawnPlaced(m.key, m.x, m.z, m.rot || 0, null, m.variant, m.baseY || 0, m.mountY || 0, m.country || null, m.scale || null); } finally { net.applying = false; }
   } else if (m.t === 'remove') {
     net.applying = true;
     try {
@@ -10943,7 +10989,7 @@ async function netCreate() {
         netSend({ t: 'hola', id: net.myId, name: net.name });
         // al que llega se le manda la casa que ya está construida
         try {
-          for (const o of placed) c.send(JSON.stringify({ t: 'place', id: net.myId, key: o.key, x: +o.mesh.position.x.toFixed(2), z: +o.mesh.position.z.toFixed(2), rot: o.mesh.rotation.y, variant: o.variant || null, baseY: o.baseY || 0, mountY: o.mountY || 0 }));
+          for (const o of placed) c.send(JSON.stringify({ t: 'place', id: net.myId, key: o.key, x: +o.mesh.position.x.toFixed(2), z: +o.mesh.position.z.toFixed(2), rot: o.mesh.rotation.y, variant: o.variant || null, baseY: o.baseY || 0, mountY: o.mountY || 0, scale: o.scale || null }));
           c.send(JSON.stringify({ t: 'phase', id: net.myId, phase: state.phase, dayTime: Math.round(state.dayTime), night: state.night }));
           if (state.floors2 && state.floors2.length) c.send(JSON.stringify({ t: 'floor2', id: net.myId, list: state.floors2 }));   // los segundos pisos también
         } catch (e) {}
@@ -10967,7 +11013,7 @@ async function netJoin(code) {
         net.on = true; netAddConn(c);
         netSend({ t: 'hola', id: net.myId, name: net.name });
         netStatus('¡Conectado! Juegan juntos', true);
-        for (const o of placed) if (!o.baseY) netSend({ t: 'place', id: net.myId, key: o.key, x: +o.mesh.position.x.toFixed(2), z: +o.mesh.position.z.toFixed(2), rot: o.mesh.rotation.y, variant: o.variant || null, baseY: o.baseY || 0, mountY: o.mountY || 0, country:o.country||null });
+        for (const o of placed) if (!o.baseY) netSend({ t: 'place', id: net.myId, key: o.key, x: +o.mesh.position.x.toFixed(2), z: +o.mesh.position.z.toFixed(2), rot: o.mesh.rotation.y, variant: o.variant || null, baseY: o.baseY || 0, mountY: o.mountY || 0, scale: o.scale || null, country:o.country||null });
       });
       c.on('error', () => netStatus('No encontré esa sala'));
     });
@@ -11077,6 +11123,7 @@ function resolveCollisions() {
   const pies = p.y - PLAYER_EYE + .05;   // altura de tus pies (para pasar por encima de lo bajo)
   for (const o of obstacles) {
     if (o.country !== undefined && (o.country || null) !== (state.country || null)) continue;
+    if (o.bottom != null && pies + 2.2 < o.bottom) continue;
     if (o.top != null && pies >= o.top) continue;   // vas caminando más arriba que esa pared
     if (p.x > o.minX - r && p.x < o.maxX + r && p.z > o.minZ - r && p.z < o.maxZ + r) {
       const left = (o.minX - r) - p.x, right = (o.maxX + r) - p.x, up = (o.minZ - r) - p.z, down = (o.maxZ + r) - p.z;
@@ -11351,6 +11398,7 @@ function renderHUD() {
   } else bb.style.display = 'none';
   const showBuildBtns = (state.buildMode && state.phase === 'DAY') ? 'block' : 'none';
   ui('blueprintBtn').style.display = showBuildBtns; ui('rotateBtn').style.display = showBuildBtns; ui('deleteBtn').style.display = showBuildBtns;
+  for (const b of ['scalePlusBtn', 'scaleMinusBtn', 'thickPlusBtn', 'thickMinusBtn']) ui(b).style.display = showBuildBtns;
   const showFloor2Btns = (showBuildBtns === 'block' && state.hasFloor2) ? 'block' : 'none';   // solo con segundo piso puesto
   ui('floor2RotBtn').style.display = showFloor2Btns; ui('floor2DelBtn').style.display = showFloor2Btns;
   for (const b of ['floor2WPlusBtn', 'floor2WMinusBtn', 'floor2DPlusBtn', 'floor2DMinusBtn']) ui(b).style.display = showFloor2Btns;

@@ -3316,12 +3316,15 @@ const rockTex = groundTex.clone(); rockTex.repeat.set(1, 1); rockTex.needsUpdate
 // caminar sea una SUBIDA continua. La misma función dibuja la montaña y te sostiene.
 function mountainProfile(m, dx, dz) {
   const d = Math.hypot(dx, dz);
-  if (d >= m.r) return 0;
+  if (m.ski ? (Math.abs(dx) >= m.r || dz >= m.r * 1.8) : d >= m.r) return 0;
   const a = Math.atan2(dz, dx);
   const crestas = 1 + .13 * Math.sin(a * 3 + m.ph) + .07 * Math.sin(a * 6 - m.ph * 1.7);
   if (m.ski) {
-    // La estación es ancha, pero las pistas caen fuerte hacia el sur:
-    // la altura baja de manera visible durante toda la bajada.
+    // La estación cae hacia el sur y continúa por detrás con una ladera
+    // gradual, para que la cara trasera no termine en un acantilado.
+    const backLimit = -m.r * 1.8;
+    if (dz < backLimit) return 0;
+    if (dz < -m.r) return m.h * .8 * THREE.MathUtils.clamp((dz - backLimit) / (.8 * m.r), 0, 1);
     const down = THREE.MathUtils.clamp((dz + m.r) / (2 * m.r), 0, 1);
     const cross = THREE.MathUtils.clamp(Math.abs(dx) / m.r, 0, 1);
     const desnivel = m.h * (1 - down) * (.8 + .2 * (1 - cross));
@@ -3334,7 +3337,8 @@ function mountainHeightAt(x, z) {
   let best = 0;
   for (const m of mountains) {
     if (m.planet !== here) continue;
-    if (Math.abs(x - m.x) > m.r || Math.abs(z - m.z) > m.r) continue;
+    const extentZ = m.ski ? m.r * 1.8 : m.r;
+    if (Math.abs(x - m.x) > m.r || Math.abs(z - m.z) > extentZ) continue;
     const hh = mountainProfile(m, x - m.x, z - m.z);
     if (hh > best) best = hh;
   }
@@ -3350,8 +3354,8 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
   const rand = () => { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
   const m = { x: cx, z: cz, r, h, ph: (seed || 1) * 1.7, planet: planet || 'tierra', ski: !!o.ski };
   mountains.push(m);
-  const CELL = 2.1, cols = [];
-  for (let gx = -r; gx <= r; gx += CELL) for (let gz = -r; gz <= r; gz += CELL) {
+  const CELL = 2.1, cols = [], extentZ = o.ski ? r * 1.8 : r;
+  for (let gx = -r; gx <= r; gx += CELL) for (let gz = -extentZ; gz <= extentZ; gz += CELL) {
     const hh = mountainProfile(m, gx, gz);
     if (hh > .4) cols.push([gx, gz, hh]);
   }
@@ -3494,6 +3498,23 @@ function buildSkiResort() {
       const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) + 1.1;
       const nx = -dz / (len || 1) * edge, nz = dx / (len || 1) * edge;
       const wall = skiBox(skiResortGroup, (a.x + b.x) / 2 + nx, (a.y + b.y) / 2 + 2.1, (a.z + b.z) / 2 + nz, .82, 4.3, len, 0x7c4a21, true);
+      wall.rotation.y = Math.atan2(dx, dz);
+    }
+  }
+  // Pistas de la cara trasera: la nieve continúa hacia el norte con una
+  // pendiente suave y sus muros llegan hasta el final del recorrido.
+  for (const [name, offset, color] of [['TRASERA AZUL', -54, 0x60a5fa], ['TRASERA ROJA', 0, 0xf87171], ['TRASERA VERDE', 54, 0x4ade80]]) {
+    const pts = [];
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 3, z = SKI_RESORT.z - 198 - t * 145;
+      pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .2, z));
+    }
+    const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 44, 2.6, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
+    trail.scale.y = .12; skiResortGroup.add(trail);
+    const marker = makeSign(name + ' · PISTA', color); marker.scale.set(.3, .3, .3); marker.position.copy(pts[5]); marker.position.y += 2.8; skiResortGroup.add(marker);
+    for (const edge of [-3, 3]) for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) + 1.1;
+      const wall = skiBox(skiResortGroup, (a.x + b.x) / 2 + edge, (a.y + b.y) / 2 + 2.1, (a.z + b.z) / 2, .82, 4.3, len, 0x7c4a21, true);
       wall.rotation.y = Math.atan2(dx, dz);
     }
   }

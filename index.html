@@ -3448,6 +3448,7 @@ function buildSkiResort() {
   buildSkiRoad();
   // Zona de llegada plana: la bajada termina aquí y no en un borde abrupto.
   const landing = new THREE.Mesh(new THREE.BoxGeometry(300, .55, 300), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 82, SKI_RESORT.z + 170); landing.receiveShadow = true; skiResortGroup.add(landing); addLandingSurface(landing.position.x, landing.position.z, 300, 300, 82.275, landing);
+  const landingSign = makeSign('❄️ PLATAFORMA DE NIEVE · FINAL DE LAS PISTAS', 0xe0f2fe); landingSign.scale.set(.38, .38, .38); landingSign.position.set(SKI_RESORT.x, 86, SKI_RESORT.z + 174); skiResortGroup.add(landingSign);
   const backside = new THREE.Mesh(new THREE.BoxGeometry(210, .5, 90), mat(0xffffff)); backside.position.set(SKI_RESORT.x, 5, SKI_RESORT.z - 112); backside.receiveShadow = true; skiResortGroup.add(backside);
   for (let i = 0; i < 3; i++) { const path = new THREE.CatmullRomCurve3([new THREE.Vector3(SKI_RESORT.x - 72 + i * 60, 38 - i * 7, SKI_RESORT.z - 68), new THREE.Vector3(SKI_RESORT.x - 55 + i * 55, 23 - i * 5, SKI_RESORT.z - 105), new THREE.Vector3(SKI_RESORT.x - 35 + i * 48, 5, SKI_RESORT.z - 145)]); const backTrail = new THREE.Mesh(new THREE.TubeGeometry(path, 24, 3.8, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); backTrail.scale.y = .12; skiResortGroup.add(backTrail); }
   // Caseta de equipos y cartel de precios.
@@ -3545,6 +3546,13 @@ function buildSkiResort() {
     addLandingSurface(x, z, w, d, top, platform);
     const sign = makeSign('⛷️ ZONA PLANA · PREPÁRATE', 0xe0f2fe); sign.scale.set(.3, .3, .3); sign.position.set(x, top + 3.2, z); skiResortGroup.add(sign);
   }
+  // La llegada principal está dentro de un hoyo/alcoba de nieve: tres bordes
+  // altos la contienen y queda abierta hacia la pista para poder salir.
+  const mainTop = skiSlopeHeight(SKI_LIFT_BOTTOM.x, SKI_LIFT_BOTTOM.z - 340) + .25, mainTopZ = SKI_LIFT_BOTTOM.z - 340;
+  skiBox(skiResortGroup, SKI_LIFT_BOTTOM.x - 35, mainTop + 1.2, mainTopZ, 1.8, 2.4, 46, 0xffffff, true);
+  skiBox(skiResortGroup, SKI_LIFT_BOTTOM.x + 35, mainTop + 1.2, mainTopZ, 1.8, 2.4, 46, 0xffffff, true);
+  skiBox(skiResortGroup, SKI_LIFT_BOTTOM.x, mainTop + 1.2, mainTopZ - 22, 70, 2.4, 1.8, 0xffffff, true);
+  const hollowSign = makeSign('🏔️ HOYO DE LLEGADA', 0xfef3c7); hollowSign.scale.set(.32, .32, .32); hollowSign.position.set(SKI_LIFT_BOTTOM.x, mainTop + 3.1, mainTopZ - 20); skiResortGroup.add(hollowSign);
   const summitTop = skiSlopeHeight(SKI_SUMMIT_LIFT_BOTTOM.x, SKI_SUMMIT_LIFT_BOTTOM.z - 72) + .25;
   const summitPlatform = new THREE.Mesh(new THREE.BoxGeometry(48, .5, 36), mat(0xffffff));
   summitPlatform.position.set(SKI_SUMMIT_LIFT_BOTTOM.x, summitTop - .25, SKI_SUMMIT_LIFT_BOTTOM.z - 72); summitPlatform.receiveShadow = true; skiResortGroup.add(summitPlatform);

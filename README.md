@@ -318,3 +318,8 @@ los barrios residenciales. Puedes estacionar el auto junto a un surtidor,
 bajarte y pulsar **E**: compras las unidades que faltan a $3 cada una y el
 tanque queda lleno. También puedes cargar mientras conduces dentro de la
 estación. Los helicópteros no usan gasolina.
+
+El HUD muestra un aviso grande de gasolina cuando el tanque baja de 25%:
+indica el porcentaje restante y recomienda buscar la gasolinera. Bajo 10% el
+aviso parpadea en rojo; con 0% indica que el auto quedó sin gasolina.
+Pruebas: `node tests/fuel-warning.test.mjs`.

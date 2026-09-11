@@ -309,6 +309,7 @@ completarlo recibes tickets. Pruebas: `node tests/vehicles-arcade.test.mjs`.
 
 Al fondo del arcade hay un mostrador **CANJE DE PREMIOS**. Pulsa **E** con
 40, 100 o 200 tickets para canjear un peluche, una consola retro o un trofeo
+con valores de $60, $180 y $400 respectivamente.
 dorado; cada premio queda registrado y entrega su valor en dinero.
 
 La zona arcade está en una explanada abierta detrás de la armería, en (30, -62), lejos de los barrios

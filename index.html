@@ -3441,6 +3441,8 @@ function buildSkiResort() {
   // Cerro alto, con nieve desde la zona alta y una ladera continua para no atravesarla.
   mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 150, 0xf1f5f9, 0xffffff, 28, 'tierra', { grass: 0xffffff, soil: 0xf8fafc, leaf: 0xe2e8f0, trees: 8, ski: true });
   buildSkiRoad();
+  // Zona de llegada plana: la bajada termina aquí y no en un borde abrupto.
+  const landing = new THREE.Mesh(new THREE.BoxGeometry(96, .45, 34), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 17, SKI_RESORT.z + 70); landing.receiveShadow = true; skiResortGroup.add(landing);
   // Caseta de equipos y cartel de precios.
   skiBox(skiResortGroup, SKI_RESORT.gear.x, 2.2, SKI_RESORT.gear.z, 9, 4.4, 7, 0x2563eb, true);
   skiBox(skiResortGroup, SKI_RESORT.gear2.x, 2.2, SKI_RESORT.gear2.z, 9, 4.4, 7, 0x7c3aed, true);
@@ -10759,7 +10761,7 @@ function updateSkiMovement(dt) {
   player.position.y = snowY + PLAYER_EYE;
   grounded = true; vy = 0;
   resolveCollisions();
-  if (player.position.z > SKI_RESORT.z + 68) { state.skiing = false; toast('🏁 Llegaste al final de la pista · E en la entrada para volver a subir'); }
+  if (player.position.z > SKI_RESORT.z + 62) { player.position.z = SKI_RESORT.z + 62; state.skiing = false; toast('🏁 Llegaste a la zona plana de llegada · E en la entrada para volver a subir'); }
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;
 }

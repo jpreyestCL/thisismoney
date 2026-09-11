@@ -324,7 +324,9 @@ tanque queda lleno. También puedes cargar mientras conduces dentro de la
 estación. Los helicópteros no usan gasolina.
 
 El arcade queda en la explanada abierta `(30, 35)`, sin casas ni calles
-atravesando la zona. En Platus, los aviones, la plataforma y el reactor del
+atravesando la zona. Ahora tiene murallas opacas y techo, como una casa, con
+una entrada frontal amplia para entrar sin atravesar las paredes. Las máquinas
+quedan dentro y siguen funcionando al acercarte y pulsar **E**. En Platus, los aviones, la plataforma y el reactor del
 centro de energía, además de sus torres de energía, tienen superficies sólidas:
 si saltas y caes encima, el personaje aterriza sobre ellos en vez de atravesarlos.
 

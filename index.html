@@ -1759,7 +1759,11 @@ function buildGasStation() {
 function buildArcadeZone() {
   const g = new THREE.Group(); g.position.copy(ARCADE_POS);
   const floor = new THREE.Mesh(new THREE.BoxGeometry(34, .12, 28), mat(0x312e81)); floor.position.y = .06; g.add(floor);
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(27, .4, 5), mat(0xa855f7)); roof.position.set(0, 5, -8); g.add(roof);
+  const wallMat = mat(0x17133d);
+  const wall = (x, z, w, d) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 5, d), wallMat); m.position.set(x, 2.5, z); m.castShadow = true; m.receiveShadow = true; g.add(m); addObstacle(ARCADE_POS.x + x, ARCADE_POS.z + z, w, d, 5); return m; };
+  wall(0, -13.7, 34, .6); wall(-16.7, 0, .6, 28); wall(16.7, 0, .6, 28);
+  wall(-11, 13.7, 12, .6); wall(11, 13.7, 12, .6); // entrada central de 10 unidades
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(34, .4, 28), mat(0xa855f7)); roof.position.set(0, 5.2, 0); roof.castShadow = true; g.add(roof);
   const sign = makeSign('🎮 ARCADE FAMILIAR · E', 0xfacc15); sign.scale.set(1, 1, 1); sign.position.set(0, 6.2, 9.3); g.add(sign);
   const games = ['Pac-Man', 'Carrera Turbo', 'Invasores espaciales', 'Baile con luces', 'Pesca de premios'];
   for (let i = -2; i <= 2; i++) {

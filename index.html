@@ -10853,9 +10853,9 @@ function drawMinimap() {
 
 function ensurePlayerSkiVisual() {
   if (skiGearMesh) return skiGearMesh;
-  skiGearMesh = new THREE.Group(); skiGearMesh.position.y = -1.72; skiGearMesh.visible = false; player.add(skiGearMesh);
-  const skiMat = mat(0x111827);
-  const a = new THREE.Mesh(new THREE.BoxGeometry(.13, .07, 1.9), skiMat), b = a.clone(); a.position.x = -.28; b.position.x = .28; skiGearMesh.add(a, b);
+  skiGearMesh = new THREE.Group(); skiGearMesh.position.y = -1.48; skiGearMesh.visible = false; player.add(skiGearMesh);
+  const skiMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, emissive: 0x2563eb, emissiveIntensity: .35, roughness: .45 });
+  const a = new THREE.Mesh(new THREE.BoxGeometry(.16, .1, 2.15), skiMat), b = a.clone(); a.position.x = -.3; b.position.x = .3; skiGearMesh.add(a, b);
   const poles = mat(0xf59e0b), p1 = new THREE.Mesh(new THREE.BoxGeometry(.035, 1.4, .035), poles), p2 = p1.clone(); p1.position.set(-.62, .62, 0); p2.position.set(.62, .62, 0); p1.rotation.z = -.12; p2.rotation.z = .12; skiGearMesh.add(p1, p2);
   const board = new THREE.Mesh(new THREE.BoxGeometry(.24, .07, 1.65), mat(0x7c3aed)); board.position.y = .04; board.visible = false; skiGearMesh.add(board); skiGearMesh.userData.board = board;
   return skiGearMesh;
@@ -10916,7 +10916,7 @@ function updateSkiGearHold(dt) {
   if (!state.skiGear) { skiRemoveHold = 0; return; }
   if (keys['KeyE'] && !state.skiing && !state.skiLiftRide) {
     skiRemoveHold += dt;
-    if (skiRemoveHold >= 1.15) { state.skiGearWorn = !state.skiGearWorn; skiRemoveHold = 0; if (skiGearMesh) skiGearMesh.visible = state.skiGearWorn; toast(state.skiGearWorn ? '⛷️ Te pusiste los ' + (state.skiGear === 'snowboard' ? 'snowboard' : 'esquís') : '🥾 Te quitaste los ' + (state.skiGear === 'snowboard' ? 'snowboard' : 'esquís')); saveGame(); }
+    if (skiRemoveHold >= 1.15) { state.skiGearWorn = !state.skiGearWorn; skiRemoveHold = 0; const visual = ensurePlayerSkiVisual(); visual.visible = state.skiGearWorn; toast(state.skiGearWorn ? '⛷️ Te pusiste los ' + (state.skiGear === 'snowboard' ? 'snowboard' : 'esquís') : '🥾 Te quitaste los ' + (state.skiGear === 'snowboard' ? 'snowboard' : 'esquís')); saveGame(); }
   } else skiRemoveHold = Math.max(0, skiRemoveHold - dt * 2);
 }
 function updateCreativeFlight(dt) {

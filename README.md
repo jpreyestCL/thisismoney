@@ -311,7 +311,7 @@ Al fondo del arcade hay un mostrador **CANJE DE PREMIOS**. Pulsa **E** con
 40, 100 o 200 tickets para canjear un peluche, una consola retro o un trofeo
 dorado; cada premio queda registrado y entrega su valor en dinero.
 
-La zona arcade está en una plaza abierta de la ciudad, lejos de los barrios
+La zona arcade está en una explanada abierta cerca de la plaza principal, en (20, 40), lejos de los barrios
 residenciales: no se construyen casas entre sus máquinas ni dentro de la zona.
 Tiene una marquesina y cinco máquinas separadas, cada una con un juego fijo.
 Acércate a la máquina y pulsa **E** para jugar; el aviso muestra el nombre del

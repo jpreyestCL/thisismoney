@@ -302,10 +302,10 @@ ocurre mientras el auto avanza; un auto sin gasolina no puede seguir moviéndose
 Los helicópteros no usan gasolina.
 
 También hay un **ARCADE FAMILIAR** con máquinas, luces y mascotas decorativas.
-Pulsa **E** en la zona para elegir al azar entre Pac-Man ($20), Carrera Turbo
-($35), Invasores espaciales ($30), Baile con luces ($25) y Pesca de premios
-($45). Cada juego entrega tickets en un rango distinto y acumula los tickets
-en la partida. Pruebas: `node tests/vehicles-arcade.test.mjs`.
+Pulsa **E** en una máquina para pagar y jugar el juego que aparece: Pac-Man
+($20), Carrera Turbo ($35), Invasores espaciales ($30), Baile con luces ($25)
+o Pesca de premios ($45). Cada uno tiene controles y objetivos propios; al
+completarlo recibes tickets. Pruebas: `node tests/vehicles-arcade.test.mjs`.
 
 Al fondo del arcade hay un mostrador **CANJE DE PREMIOS**. Pulsa **E** con
 40, 100 o 200 tickets para canjear un peluche, una consola retro o un trofeo

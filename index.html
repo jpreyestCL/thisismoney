@@ -702,6 +702,16 @@
     <button class="bankBtn" id="pacClose" style="width:100%">Cerrar juego ✕</button>
   </div>
 </div>
+<div id="arcadeGameBox" style="position:fixed;inset:0;display:none;z-index:30;background:rgba(2,6,23,.94);align-items:center;justify-content:center;pointer-events:all;">
+  <div style="width:min(94vw,520px);background:#050816;border:3px solid #a855f7;border-radius:16px;padding:18px;text-align:center;box-shadow:0 0 30px rgba(168,85,247,.35)">
+    <h2 id="arcadeGameTitle" style="margin:0;color:#f0abfc">🎮 JUEGO</h2>
+    <p id="arcadeGameHelp" style="min-height:42px;margin:8px 0;color:#cbd5e1"></p>
+    <div id="arcadeGameBoard" style="min-height:94px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-size:26px;color:#facc15"></div>
+    <div id="arcadeGameProgress" style="font-weight:800;margin:8px 0;color:#67e8f9"></div>
+    <button class="bankBtn" id="arcadeGameAction" style="width:100%;margin-bottom:8px">▶️ Jugar</button>
+    <button class="bankBtn" id="arcadeGameClose" style="width:100%">Cerrar juego ✕</button>
+  </div>
+</div>
 
 <div id="rankingBox" style="position:fixed;inset:0;display:none;z-index:31;background:rgba(2,6,23,.92);align-items:center;justify-content:center;pointer-events:all;">
   <div style="width:min(94vw,650px);max-height:88vh;overflow:hidden;background:#07111f;border:3px solid #38bdf8;border-radius:16px;padding:16px;box-shadow:0 0 34px rgba(56,189,248,.3);text-align:left">
@@ -1743,6 +1753,13 @@ const GAS_STATION_POS = new THREE.Vector3(-16, 0, 16);
 const ARCADE_POS = new THREE.Vector3(30, 0, 35);
 const ARCADE_REWARDS_POS = new THREE.Vector3(ARCADE_POS.x, 0, ARCADE_POS.z + 8);
 const ARCADE_MACHINES = [];
+const ARCADE_GAMES = [
+  { name: 'Pac-Man', price: 20, tickets: 50 },
+  { name: 'Carrera Turbo', price: 35, tickets: 65 },
+  { name: 'Invasores espaciales', price: 30, tickets: 55 },
+  { name: 'Baile con luces', price: 25, tickets: 48 },
+  { name: 'Pesca de premios', price: 45, tickets: 90 },
+];
 let gasStationGroup = null, arcadeZoneGroup = null;
 function buildGasStation() {
   const g = new THREE.Group(); g.position.copy(GAS_STATION_POS);
@@ -7246,13 +7263,13 @@ const PAC_MAZE = [
   '###.###.#.###.###','#...............#','#################'
 ];
 let pacTimer = null, pacState = null;
-function pacOpen() {
+function pacOpen(arcade = false) {
   releaseLock(); typing = true; for (const k in keys) keys[k] = false;
   const dots = new Set(); PAC_MAZE.forEach((row, y) => [...row].forEach((cell, x) => { if (cell === '.') dots.add(x + ',' + y); }));
-  pacState = { player: { x: 1, y: 1 }, dir: { x: 0, y: 0 }, next: { x: 0, y: 0 }, ghosts: [{ x: 15, y: 11, c: '#ef4444' }, { x: 1, y: 11, c: '#22d3ee' }], dots, score: 0, lives: 5, tick: 0 };
+  pacState = { player: { x: 1, y: 1 }, dir: { x: 0, y: 0 }, next: { x: 0, y: 0 }, ghosts: [{ x: 15, y: 11, c: '#ef4444' }, { x: 1, y: 11, c: '#22d3ee' }], dots, score: 0, lives: 5, tick: 0, arcade };
   ui('pacbox').style.display = 'flex'; pacDraw();
   if (pacTimer) clearInterval(pacTimer); pacTimer = setInterval(pacStep, 145);
-  toast('🕹️ ¡Pac-Man iniciado en el computador gamer!');
+  toast(arcade ? '🕹️ ¡Pac-Man del arcade iniciado!' : '🕹️ ¡Pac-Man iniciado en el computador gamer!');
   return true;
 }
 function pacClose() { if (pacTimer) { clearInterval(pacTimer); pacTimer = null; } ui('pacbox').style.display = 'none'; typing = false; }
@@ -7269,7 +7286,7 @@ function pacStep() {
     const pick = Math.random() < .42 ? choices[0] : choices[(Math.random() * choices.length) | 0]; if (pick) { g.x += pick[0]; g.y += pick[1]; }
   }
   if (s.ghosts.some(g => g.x === s.player.x && g.y === s.player.y)) { s.lives--; tone(110,.35,.06,'sawtooth'); s.player.x = s.player.y = 1; s.dir = {x:0,y:0}; if (s.lives <= 0) { toast('👻 Fin del juego · conseguiste ' + s.score + ' puntos'); pacClose(); return; } }
-  if (!s.dots.size) { addMoney(250); toast('🏆 ¡Ganaste Pac-Man! +$250'); tone(880,.2,.06,'triangle'); pacClose(); return; }
+  if (!s.dots.size) { if (s.arcade) { state.arcadeTickets = (state.arcadeTickets || 0) + 50; saveGame(); toast('🏆 ¡Ganaste Pac-Man! +50 tickets'); } else { addMoney(250); toast('🏆 ¡Ganaste Pac-Man! +$250'); } tone(880,.2,.06,'triangle'); pacClose(); return; }
   pacDraw();
 }
 function pacDraw() {
@@ -9095,24 +9112,59 @@ function tryRefuelCar() {
   state.money -= cost; target.fuel = target.maxFuel;
   toast('⛽ Compraste ' + missing + ' unidades de gasolina · tanque lleno · -$' + cost); saveGame(); return true;
 }
+let arcadeMini = null;
+function arcadeMiniClose() { if (arcadeMini?.fishTimer) clearInterval(arcadeMini.fishTimer); arcadeMini = null; ui('arcadeGameBox').style.display = 'none'; typing = false; }
+function arcadeMiniFinish(won) {
+  const s = arcadeMini; if (!s) return;
+  if (won) { state.arcadeTickets = (state.arcadeTickets || 0) + s.game.tickets; toast('🏆 ¡Completaste ' + s.game.name + '! +' + s.game.tickets + ' tickets'); saveGame(); }
+  else toast('🎮 Terminaste ' + s.game.name + '. Inténtalo otra vez para ganar tickets.');
+  arcadeMiniClose();
+}
+function renderArcadeMini() {
+  const s = arcadeMini; if (!s) return;
+  const title = ui('arcadeGameTitle'), help = ui('arcadeGameHelp'), board = ui('arcadeGameBoard'), progress = ui('arcadeGameProgress'), action = ui('arcadeGameAction');
+  title.textContent = '🎮 ' + s.game.name;
+  action.textContent = '🎯 Acción · ' + (s.game.name === 'Baile con luces' ? 'seguir flecha' : 'jugar');
+  if (s.game.name === 'Carrera Turbo') { help.textContent = 'Pulsa ↑ o W para acelerar. Evita los obstáculos con ← y →.'; board.textContent = '🏎️ ' + '▰'.repeat(Math.min(12, s.step)) + '▱'.repeat(Math.max(0, 12 - s.step)); progress.textContent = s.step + '/12 tramos'; }
+  else if (s.game.name === 'Invasores espaciales') { help.textContent = 'Pulsa ESPACIO o el botón para disparar y destruir 10 invasores.'; board.textContent = '👾 '.repeat(Math.max(0, 10 - s.step)) + (s.step ? '💥'.repeat(s.step) : ''); progress.textContent = s.step + '/10 invasores'; }
+  else if (s.game.name === 'Baile con luces') { help.textContent = 'Pulsa la flecha que aparece para seguir la coreografía.'; board.textContent = s.sequence[s.step] || '✅'; progress.textContent = s.step + '/' + s.sequence.length + ' pasos'; }
+  else { help.textContent = 'Pulsa ESPACIO o el botón cuando aparezca 🎣 ¡AHORA!'; board.textContent = s.fishReady ? '🎣 ¡AHORA!' : '🌊 Espera el pique…'; progress.textContent = s.step + '/3 peces'; }
+}
+function arcadeMiniAction(code) {
+  const s = arcadeMini; if (!s) return;
+  if (s.game.name === 'Baile con luces') { if (code && code !== s.sequence[s.step]) { toast('💃 ¡Paso equivocado!'); s.step = 0; } else s.step++; }
+  else if (s.game.name === 'Pesca de premios') { if (!s.fishReady) { toast('🎣 Todavía no pica'); return; } s.step++; s.fishReady = false; }
+  else s.step++;
+  if (s.step >= (s.game.name === 'Carrera Turbo' ? 12 : s.game.name === 'Invasores espaciales' ? 10 : s.game.name === 'Baile con luces' ? s.sequence.length : 3)) arcadeMiniFinish(true); else renderArcadeMini();
+}
+function openArcadeMini(game) {
+  releaseLock(); typing = true; for (const k in keys) keys[k] = false;
+  arcadeMini = { game, step: 0, sequence: ['⬆️','➡️','⬇️','⬅️','⬆️','➡️','⬅️','⬇️'], fishReady: false };
+  ui('arcadeGameBox').style.display = 'flex'; renderArcadeMini();
+  if (game.name === 'Pesca de premios') arcadeMini.fishTimer = setInterval(() => { if (!arcadeMini) return; arcadeMini.fishReady = Math.random() < .45; renderArcadeMini(); }, 850);
+}
+addEventListener('keydown', e => {
+  if (!arcadeMini) return;
+  if (e.code === 'Escape') arcadeMiniClose();
+  else if (arcadeMini.game.name === 'Carrera Turbo' && ['ArrowUp','KeyW'].includes(e.code)) arcadeMiniAction();
+  else if (arcadeMini.game.name === 'Invasores espaciales' && e.code === 'Space') arcadeMiniAction();
+  else if (arcadeMini.game.name === 'Baile con luces') { const map = { ArrowUp:'⬆️', KeyW:'⬆️', ArrowRight:'➡️', KeyD:'➡️', ArrowDown:'⬇️', KeyS:'⬇️', ArrowLeft:'⬅️', KeyA:'⬅️' }; if (map[e.code]) arcadeMiniAction(map[e.code]); }
+  else if (arcadeMini.game.name === 'Pesca de premios' && e.code === 'Space') arcadeMiniAction();
+  e.preventDefault(); e.stopImmediatePropagation();
+}, true);
+ui('arcadeGameAction').onclick = () => arcadeMiniAction();
+ui('arcadeGameClose').onclick = arcadeMiniClose;
+
 function tryArcadeZone() {
   if (state.planet !== 'tierra' || state.country) return false;
-  const games = [
-    { name: 'Pac-Man', price: 20, min: 8, max: 35 },
-    { name: 'Carrera Turbo', price: 35, min: 15, max: 65 },
-    { name: 'Invasores espaciales', price: 30, min: 10, max: 55 },
-    { name: 'Baile con luces', price: 25, min: 12, max: 48 },
-    { name: 'Pesca de premios', price: 45, min: 20, max: 90 },
-  ];
   let machine = null, distance = 3.2;
   for (const candidate of ARCADE_MACHINES) { const d = dist2D(player.position, candidate); if (d < distance) { machine = candidate; distance = d; } }
   if (!machine) return false;
-  const game = games.find(g => g.name === machine.name) || games[0], price = game.price;
+  const game = ARCADE_GAMES.find(g => g.name === machine.name) || ARCADE_GAMES[0], price = game.price;
   if (state.money < price) { toast('🎮 ' + game.name + ' cuesta $' + price); return true; }
-  state.money -= price; const tickets = game.min + Math.floor(Math.random() * (game.max - game.min + 1));
-  state.arcadeTickets = (state.arcadeTickets || 0) + tickets;
-  toast('🎮 ' + game.name + ' · -$' + price + ' · ganaste ' + tickets + ' tickets');
-  saveGame(); return true;
+  state.money -= price; saveGame();
+  if (game.name === 'Pac-Man') return pacOpen(true);
+  openArcadeMini(game); return true;
 }
 function tryArcadeRewards() {
   if (state.planet !== 'tierra' || state.country || dist2D(player.position, ARCADE_REWARDS_POS) >= 4.5) return false;

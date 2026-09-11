@@ -3420,7 +3420,7 @@ const SKI_SUMMIT_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z - 170 };
 const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 300, ph: 28 * 1.7, ski: true };
 const skiSlopeHeight = (x, z) => mountainProfile(SKI_MOUNTAIN_PROFILE, x - SKI_RESORT.x, z - SKI_RESORT.z);
 const skiResortGroup = new THREE.Group(); scene.add(skiResortGroup);
-const skiVisitors = [], skiObstacles = [];
+const skiVisitors = [], skiObstacles = [], skiRamps = [];
 let skiGearMesh = null;
 function skiBox(parent, x, y, z, w, h, d, color, obstacle = false) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
@@ -3530,6 +3530,13 @@ function buildSkiResort() {
     const x = SKI_RESORT.x - 30 + i * 8, z = SKI_RESORT.z - 20 + (i % 3) * 20, y = skiSlopeHeight(x, z);
     skiBox(skiResortGroup, x, y + .7, z, 2.8, 1.4, .45, i % 2 ? 0xf97316 : 0x22c55e, true);
     skiBox(skiResortGroup, x - 1.4, y + .8, z, .18, 1.6, .18, 0xef4444); skiBox(skiResortGroup, x + 1.4, y + .8, z, .18, 1.6, .18, 0xef4444);
+  }
+  // Rampas altas entre las pistas: al pasar con velocidad lanzan al esquiador.
+  for (const [xOffset, zOffset] of [[-82, 452], [82, 488], [-42, 548], [44, 612]]) {
+    const x = SKI_RESORT.x + xOffset, z = SKI_RESORT.z + zOffset - SKI_RESORT.z, y = skiSlopeHeight(x, z) + 1.7;
+    const ramp = skiBox(skiResortGroup, x, y, z, 7.5, 3.4, 12, 0xf97316, true);
+    ramp.rotation.x = -.38; skiRamps.push({ x, z, radius: 5 });
+    const rampSign = makeSign('⬆️ RAMPA', 0xfef08a); rampSign.scale.set(.28, .28, .28); rampSign.position.set(x, y + 3.2, z); skiResortGroup.add(rampSign);
   }
   // Andarivel y arrastre: torres, cable y sillas que suben la montaña.
   const lift = new THREE.Group(); lift.position.set(SKI_RESORT.x + 25, 0, SKI_RESORT.z); skiResortGroup.add(lift);
@@ -10896,6 +10903,10 @@ function updateSkiMovement(dt) {
   const jumpPressed = keys['Space'] || touch.jump;
   touch.jump = false;
   const wasAirborne = !grounded;
+  if (grounded && downhillSpeed > 2) {
+    const ramp = skiRamps.find(r => Math.hypot(player.position.x - r.x, player.position.z - r.z) < r.radius);
+    if (ramp) { skiJumpVy = 17; grounded = false; toast('⬆️ ¡Rampa! Saltaste muy alto'); }
+  }
   if (jumpPressed && !skiJumpHeld && grounded) { skiJumpVy = 11; grounded = false; }
   skiJumpHeld = !!jumpPressed;
   if (!grounded || skiJumpVy > 0) {

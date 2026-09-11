@@ -3536,6 +3536,14 @@ function buildSkiResort() {
   for (let i = 0; i < 9; i++) { const z = -43 + i * 11, hanger = skiBox(lift2, 0, 106, z, .12, 10, .12, 0x334155); skiBox(lift2, 0, 100.4, z, 1.8, .22, .8, 0x22d3ee); }
   const liftSign = makeSign('🚡 ANDARIVEL 1 · 🚠 ANDARIVEL 2', 0xfef08a); liftSign.scale.set(.52, .52, .52); liftSign.position.set(SKI_RESORT.x, 8, SKI_RESORT.z + 48); skiResortGroup.add(liftSign);
   const tow = new THREE.Mesh(new THREE.BoxGeometry(1.2, .15, 105), mat(0x111827)); tow.position.set(SKI_RESORT.x - 28, 52, SKI_RESORT.z + 2); tow.rotation.x = -.25; skiResortGroup.add(tow);
+  // Plataformas planas para bajarse del andarivel, descansar o elegir otra subida.
+  for (const [x, z, w, d] of [[SKI_LIFT_BOTTOM.x, SKI_LIFT_BOTTOM.z - 340, 72, 48], [SKI_LIFT2_BOTTOM.x, SKI_LIFT2_BOTTOM.z - 340, 58, 42], [SKI_TOW_BOTTOM.x, SKI_TOW_BOTTOM.z - 340, 52, 38]]) {
+    const top = skiSlopeHeight(x, z) + .25;
+    const platform = new THREE.Mesh(new THREE.BoxGeometry(w, .5, d), mat(0xffffff));
+    platform.position.set(x, top - .25, z); platform.receiveShadow = true; skiResortGroup.add(platform);
+    addLandingSurface(x, z, w, d, top, platform);
+    const sign = makeSign('⛷️ ZONA PLANA · PREPÁRATE', 0xe0f2fe); sign.scale.set(.3, .3, .3); sign.position.set(x, top + 3.2, z); skiResortGroup.add(sign);
+  }
   // Mucha gente esperando y bajando por las pistas.
   for (let i = 0; i < 34; i++) {
     const n = makePerson(i % 2 ? 0x2563eb : 0xdc2626, i % 3 ? 0xf1c27d : 0x8d5524);
@@ -9370,9 +9378,9 @@ function updateSkiLiftRide(dt) {
   grounded = true; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
   if (ride.t >= 1) {
     state.skiLiftRide = null;
-    // Al llegar a la cima, los esquís quedan listos para iniciar la bajada.
-    state.skiing = !!state.skiGearWorn;
-    toast(state.skiing ? '🏔️ Llegaste arriba · ¡baja esquiando!' : '🏔️ Llegaste arriba · ponte los esquís para bajar');
+    state.skiing = false;
+    player.position.y = skiSlopeHeight(x, z) + PLAYER_EYE;
+    toast('🏔️ Llegaste a una zona plana · prepárate o elige otro andarivel');
   }
   return true;
 }

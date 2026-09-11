@@ -25,7 +25,7 @@ console.log('vehicles and arcade: ok');
 assert.match(html, /const ARCADE_MACHINES = \[\]/);
 assert.match(html, /ARCADE_MACHINES\.push/);
 assert.match(html, /if \(!machine\) return false/);
-assert.match(html, /ARCADE_POS = new THREE\.Vector3\(20, 0, 40\)/);
+assert.match(html, /ARCADE_POS = new THREE\.Vector3\(25, 0, 40\)/);
 assert.match(html, /const roof = new THREE\.Mesh\(new THREE\.BoxGeometry\(27, \.4, 5\)/);
 assert.match(html, /const landingSurfaces = \[\]/);
 assert.match(html, /addLandingSurface\(p\.position\.x, p\.position\.z, 4, 20, 6, g\)/);

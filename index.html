@@ -10916,6 +10916,12 @@ function updateSkiGearHold(dt) {
   } else skiRemoveHold = Math.max(0, skiRemoveHold - dt * 2);
 }
 function updateCreativeFlight(dt) {
+  const lookSpeed = 1.8 * dt;
+  if (keys['ArrowLeft']) yaw += lookSpeed;
+  if (keys['ArrowRight']) yaw -= lookSpeed;
+  if (keys['ArrowUp']) pitch += lookSpeed;
+  if (keys['ArrowDown']) pitch -= lookSpeed;
+  pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
   const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const rightV = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
   let ax = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
@@ -10925,7 +10931,7 @@ function updateCreativeFlight(dt) {
   player.position.addScaledVector(forward, az * speed * dt);
   player.position.addScaledVector(rightV, ax * speed * dt);
   const vertical = (keys['Space'] ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] ? 1 : 0);
-  player.position.y = THREE.MathUtils.clamp(player.position.y + vertical * speed * dt, PLAYER_EYE, 120);
+  player.position.y = Math.max(PLAYER_EYE, player.position.y + vertical * speed * dt);
   player.position.x = THREE.MathUtils.clamp(player.position.x, -800, 800);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 800);
   grounded = false; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;

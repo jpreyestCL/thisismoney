@@ -3468,12 +3468,21 @@ function buildSkiResort() {
     const n = makePerson(i % 2 ? 0x2563eb : 0xdc2626, i % 3 ? 0xf1c27d : 0x8d5524);
     const lane = i % 2, side = lane ? 1 : -1, t = (i % 17) / 17, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8) * 5, z = SKI_RESORT.z - 54 + t * 106;
     const skiMat = mat(0x111827), leftSki = new THREE.Mesh(new THREE.BoxGeometry(.12, .06, 1.7), skiMat), rightSki = leftSki.clone(); leftSki.position.set(-.28, .04, .15); rightSki.position.set(.28, .04, .15); n.add(leftSki, rightSki);
-    n.userData.skiLane = lane; n.userData.skiT = t; n.userData.skiSide = side; n.userData.skiSpeed = .018 + Math.random() * .045; n.userData.skiBob = Math.random() * 6.28; n.position.set(x, skiSlopeHeight(x, z), z); skiVisitors.push(n); skiResortGroup.add(n);
+    n.userData.skiLane = lane; n.userData.skiT = t; n.userData.skiSide = side; n.userData.skiSpeed = .018 + Math.random() * .045; n.userData.skiPhase = i % 4 === 0 ? 'lift' : 'down'; n.userData.liftT = Math.random(); n.userData.skiBob = Math.random() * 6.28; n.position.set(x, skiSlopeHeight(x, z), z); skiVisitors.push(n); skiResortGroup.add(n);
   }
 }
 function updateSkiVisitors(dt) {
   for (const n of skiVisitors) {
-    n.userData.skiBob += dt * 2; n.userData.skiT = (n.userData.skiT + dt * n.userData.skiSpeed) % 1;
+    n.userData.skiBob += dt * 2;
+    if (n.userData.skiPhase === 'lift') {
+      n.userData.liftT += dt * (.045 + n.userData.skiSpeed * .35);
+      const lt = Math.min(1, n.userData.liftT), x = SKI_RESORT.x + 25, z = SKI_RESORT.z + 58 - lt * 120;
+      n.position.set(x, skiSlopeHeight(x, z) + 3.2, z); n.rotation.y = Math.PI / 2;
+      if (lt >= 1) { n.userData.skiPhase = 'down'; n.userData.skiT = 0; }
+      continue;
+    }
+    n.userData.skiT += dt * n.userData.skiSpeed;
+    if (n.userData.skiT >= 1) { n.userData.skiPhase = 'lift'; n.userData.liftT = 0; continue; }
     const t = n.userData.skiT, side = n.userData.skiSide, x = SKI_RESORT.x + side * (8 + t * 34) + Math.sin(t * 8 + n.userData.skiLane) * 5, z = SKI_RESORT.z - 54 + t * 106;
     n.position.set(x, skiSlopeHeight(x, z) + Math.abs(Math.sin(n.userData.skiBob)) * .04, z); n.rotation.y = side * .18 + Math.sin(n.userData.skiBob) * .04;
   }

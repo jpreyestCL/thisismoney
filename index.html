@@ -9329,7 +9329,12 @@ function updateSkiLiftRide(dt) {
   const x = base.x, z = base.z - ride.t * 340;
   player.position.set(x, skiSlopeHeight(x, z) + (ride.kind === 'arrastre' ? 1.4 : 3.2), z);
   grounded = true; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
-  if (ride.t >= 1) { state.skiLiftRide = null; toast('🏔️ Llegaste arriba · ahora puedes bajar esquiando'); }
+  if (ride.t >= 1) {
+    state.skiLiftRide = null;
+    // Al llegar a la cima, los esquís quedan listos para iniciar la bajada.
+    state.skiing = !!state.skiGearWorn;
+    toast(state.skiing ? '🏔️ Llegaste arriba · ¡baja esquiando!' : '🏔️ Llegaste arriba · ponte los esquís para bajar');
+  }
   return true;
 }
 function trySkiResort() {

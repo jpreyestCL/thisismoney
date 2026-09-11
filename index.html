@@ -10886,10 +10886,10 @@ function updateSkiMovement(dt) {
   // también la trayectoria del jugador y no queden desalineados.
   if (steer) yaw -= steer * 2.2 * dt;
   // Los esquís siguen la curva: giran y se inclinan con la dirección elegida.
-  const turn = steer * .72;
+  const turn = steer * 1.05;
   gearVisual.rotation.y += (turn - gearVisual.rotation.y) * Math.min(1, dt * 9);
   gearVisual.rotation.z += (steer * -.16 - gearVisual.rotation.z) * Math.min(1, dt * 10);
-  gearVisual.position.x += (steer * .22 - gearVisual.position.x) * Math.min(1, dt * 12);
+  gearVisual.position.x += (steer * .3 - gearVisual.position.x) * Math.min(1, dt * 12);
   // La pendiente determina la velocidad: las pistas negras aceleran más y las
   // suaves conservan un ritmo tranquilo, como en una bajada real.
   const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x, player.position.z + 8));

@@ -6,8 +6,9 @@ const position = { x: 0, y: 0, z: 0, copy(p) { Object.assign(this, { x:p.x, y:p.
 const butler = { position, rotation: {}, userData: { task:'idle', order:null, hired:true } };
 const state = { running: true, planet:'tierra', money:1000, inv:{food:0} };
 let answer = '', message = '';
-const context = vm.createContext({ butler, state, typing:false, BUTLER_HOME:{x:0,z:0}, BUTLER_SUPER:{x:40,z:-31}, butlerSpaceTaps:[], mountainHeightAt:()=>0, releaseLock(){}, prompt:()=>answer, toast:t=>{message=t;}, saveGame(){}, tone(){}, setTimeout(){}, swingLimbs(){}, dist2D:(a,b)=>Math.hypot(a.x-b.x,a.z-b.z), moveToward(e,t,step){const d=Math.hypot(t.x-e.position.x,t.z-e.position.z);e.position.x+=(t.x-e.position.x)*step/d;e.position.z+=(t.z-e.position.z)*step/d;} });
+const context = vm.createContext({ butler, state, player:{position:{x:0,y:0,z:0}}, platusKeepers:[{x:40,z:-31}], countryKeepers:[], effectivePrice:i=>i.price, typing:false, BUTLER_HOME:{x:0,z:0}, BUTLER_SUPER:{x:40,z:-31}, butlerSpaceTaps:[], mountainHeightAt:()=>0, releaseLock(){}, prompt:()=>answer, toast:t=>{message=t;}, saveGame(){}, tone(){}, setTimeout(){}, swingLimbs(){}, dist2D:(a,b)=>Math.hypot(a.x-b.x,a.z-b.z), moveToward(e,t,step){const d=Math.hypot(t.x-e.position.x,t.z-e.position.z);e.position.x+=(t.x-e.position.x)*step/d;e.position.z+=(t.z-e.position.z)*step/d;} });
 vm.runInContext(html.slice(html.indexOf('const STORE_A ='),html.indexOf('// Mayordomo:')), context);
+vm.runInContext(html.slice(html.indexOf('const STORE_B'),html.indexOf('// Dibuja un producto')), context);
 vm.runInContext(html.slice(html.indexOf('function normalizeButlerText'),html.indexOf('function payButlerWeeklyWage')), context);
 vm.runInContext(html.slice(html.indexOf('function buyItem(item)'),html.indexOf('function setWeaponColor')), context);
 const run = code => vm.runInContext(code,context);
@@ -25,10 +26,10 @@ state.money=1000;order('compra papas en el supermercado');
 assert.equal(butler.userData.order.item.key,'papas','no confundir papas con arma para papá');
 const saved = JSON.parse(JSON.stringify({hired:true,task:butler.userData.task,x:position.x,z:position.z,order:{key:'papas',qty:1,reserved:70,bought:0}}));
 context.saved=saved;run('restoreButler(saved)');
-position.copy({x:40,z:-31});run('updateButler(.05)');assert.equal(state.inv.food,1);
+run('updateButler(0)');position.copy({x:40,z:-31});run('updateButler(.05)');assert.equal(state.inv.food,1);
 assert.equal(state.money,930);
 context.saved={...saved,task:'return',order:{...saved.order,reserved:0,bought:1}};
-run('restoreButler(saved)');position.copy({x:0,z:0});run('updateButler(.05)');
+run('restoreButler(saved)');run('updateButler(0)');position.copy({x:0,z:0});run('updateButler(.05)');
 assert.equal(state.inv.food,1,'cargar regreso no duplica compras');
 order('compra cosas para la casa en el supermercado');assert.equal(butler.userData.task,'idle');assert.match(message,/No reconocí/);
 order('compra comida y carne');assert.equal(butler.userData.order,null);assert.match(message,/un producto por viaje/);
@@ -63,3 +64,29 @@ context.saved={task:'toStore',order:{key:'comida',qty:1,reserved:100}};
 run('restoreButler(saved)');assert.equal(butler.userData.hired,false);assert.equal(state.money,130,'devolver fondos de encargos anteriores sin contratación');
 run('payButlerWeeklyWage()');assert.equal(state.money,130);
 console.log('butler employment: ok');
+
+// Cada nombre del catálogo debe resolverse al producto correcto.
+for (const item of run('butlerCatalog()')) {
+  context.productName=item.name;
+  assert.equal(run('butlerFindItem(normalizeButlerText("compra " + productName)).key'),item.key,item.name);
+}
+for (const [text,key] of [['compra 3 sillas','silla'],['compra dos paredes de metal','wallMetal'],['compra una espada de obsidiana','espada_obsidiana'],['compra 2 semillas de tomate','semillas_tomate']]) {
+  context.productName=text;assert.equal(run('butlerFindItem(normalizeButlerText(productName)).key'),key);
+}
+assert.equal(run('butlerQuantity("ve a un supermercado y compra tres techos")'),3);
+assert.equal(run('butlerQuantity("compra semillas de tomate x6")'),1);
+run('resetButler()');butler.userData.hired=true;state.money=10000;state.totalEarned=0;state.planet='tierra';
+order('compra dos sillas');assert.equal(butler.userData.order.qty,2);
+run('updateButler(0)');position.copy({x:40,z:-31});run('updateButler(.05)');assert.equal(state.inv.silla,2);
+run('resetButler()');butler.userData.hired=true;
+order('compra moto');assert.equal(butler.userData.order,null);assert.match(message,/desbloquea/);
+order('compra jetpack alien');assert.equal(butler.userData.order,null);assert.match(message,/otro planeta/);
+state.planet='platus';order('compra jetpack alien');assert.equal(butler.userData.order.item.key,'jetpack');
+run('updateButler(0)');position.copy({x:40,z:-31});run('updateButler(.05)');assert.equal(state.hasJetpack,true);
+run('resetButler()');butler.userData.hired=true;state.planet='tierra';
+context.effectivePrice=i=>Math.round(i.price*.8);
+order('compra dos sillas');assert.equal(butler.userData.order.item.price,64);
+context.saved={hired:true,task:'toStore',order:{key:'silla',qty:2,price:64,reserved:128,planet:'tierra'}};
+run('restoreButler(saved)');assert.equal(butler.userData.order.item.price,64);
+state.planet='platus';run('updateButler(.05)');assert.equal(butler.userData.order.reserved,128,'no completar pedido del otro planeta');
+console.log('butler full catalog: ok');

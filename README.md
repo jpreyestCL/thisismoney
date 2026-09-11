@@ -264,3 +264,12 @@ $1.250, mascota alien $1.100; mascotas de huevos común $250, rara $500,
 épica $1.000, mítica $2.000 y legendaria $4.000. Al venderla deja de seguirte
 y combatir, recibes el dinero y se guarda la partida. Los huevos que todavía
 no han nacido no se venden. Pruebas: `node tests/pet-sales.test.mjs`.
+
+El mayordomo acepta encargos de todo el catálogo: construcción, comida,
+semillas, armas, muebles, vehículos, mascotas y tecnología alien. Reconoce
+nombres del catálogo, plurales y frases como «compra dos sillas» o «compra
+una espada de metal». Aplica el precio con descuento al aceptar y conserva
+ese precio al guardar. Los artículos bloqueados requieren su progreso normal.
+Acompaña al jugador a otros países y a Platus; la tecnología alien se encarga
+allí. Un pedido pendiente de otro lugar espera hasta que regreses. Se mantiene
+un tipo de producto por viaje, con hasta 20 unidades.

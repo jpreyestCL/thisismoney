@@ -1397,28 +1397,43 @@ const BUTLER_ALIASES = {
   wallRock:['pared roca','pared de roca','paredes roca','paredes de roca','pared piedra','pared de piedra'],
   wallMetal:['pared metal','pared de metal','paredes de metal'], wallDoor:['pared puerta','pared con puerta'],
   lamp:['lampara','lamparas','luz'], roof:['techo','techos'], door:['puerta','puertas'], oven:['horno','hornos'],
+  celular:['celular','telefono'], alexa:['alexa'], tele:['tele','television'],
   comida:['comidas','alimentos'], coca:['coca cola','coca','bebida'], papas:['papas','patatas fritas'],
   dadgun:['arma para papa'], dadarmor:['armadura para papa'],
   semillas:['semillas de manzana'], semillas_zanahoria:['semillas de zanahoria'], semillas_trigo:['semillas de trigo'], semillas_tomate:['semillas de tomate']
 };
+function butlerCatalog() { return [...SHOP, ...ALIEN_TECH].filter(item => item.key !== 'mayordomo'); }
+function butlerProductWords(value) {
+  return normalizeButlerText(value).replace(/\bx\d+\b/g, '').split(' ').filter(w => w && !['de','del','para','el','la','los','las'].includes(w)).map(w => w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w);
+}
 function butlerFindItem(text) {
   let best = null, bestLength = 0;
-  for (const item of STORE_A) {
-    if (item.key === 'mayordomo') continue;
-    const names = [normalizeButlerText(item.name), ...(BUTLER_ALIASES[item.key] || [])];
-    for (const name of names) if (name && new RegExp('(?:^| )' + name + '(?:s|es)?(?: |$)').test(text) && name.length > bestLength) { best = item; bestLength = name.length; }
+  const words = butlerProductWords(text).join(' ');
+  for (const item of butlerCatalog()) {
+    const names = [item.name, ...(BUTLER_ALIASES[item.key] || [])];
+    for (const name of names) {
+      const phrase = butlerProductWords(name).join(' ');
+      if (phrase && (' ' + words + ' ').includes(' ' + phrase + ' ') && phrase.length > bestLength) { best = item; bestLength = phrase.length; }
+    }
   }
   return best;
 }
 function butlerQuantity(text) {
-  const digit = text.match(/\b(\d+)\b/); if (digit) return Math.max(1, Math.min(20, +digit[1]));
-  for (const [word, value] of Object.entries(BUTLER_NUMBER_WORDS)) if (new RegExp('\\b' + word + '\\b').test(text)) return value;
-  return 1;
+  // No confundir el tamaño del paquete (x10) ni números del nombre con la cantidad.
+  const request = text.replace(/\bx\d+\b/g, '').split(/\b(?:compra|comprar|comprame|trae|traeme)\b/).at(-1).trim();
+  const first = request.split(' ')[0];
+  if (/^\d+$/.test(first)) return Math.max(1, Math.min(20, Number(first)));
+  return BUTLER_NUMBER_WORDS[first] || 1;
+}
+function butlerDestination() {
+  if (state.planet === 'platus') return platusKeepers[0] || player.position;
+  if (state.country) return countryKeepers[0] || player.position;
+  return BUTLER_SUPER;
 }
 function resetButler() {
   butler.position.copy(BUTLER_HOME); butler.position.y = mountainHeightAt(BUTLER_HOME.x, BUTLER_HOME.z);
   butler.userData.task = 'idle'; butler.userData.order = null; butlerSpaceTaps.length = 0;
-  Object.assign(butler.userData, { hired: false, workDays: 0, wageDebt: 0, lastWageNight: -1 }); butler.visible = false;
+  Object.assign(butler.userData, { hired: false, workDays: 0, wageDebt: 0, lastWageNight: -1, world: null }); butler.visible = false;
 }
 function restoreButler(saved) {
   resetButler();
@@ -1430,31 +1445,35 @@ function restoreButler(saved) {
   Object.assign(butler.userData, { hired: true, workDays: Math.max(0, saved.workDays || 0) % 7, wageDebt: Math.max(0, saved.wageDebt || 0), lastWageNight: Number.isFinite(saved.lastWageNight) ? saved.lastWageNight : state.night });
   butler.visible = state.planet === 'tierra';
   if (Number.isFinite(saved.x) && Number.isFinite(saved.z)) butler.position.set(saved.x, mountainHeightAt(saved.x, saved.z), saved.z);
-  const item = saved.order && STORE_A.find(i => i.key === saved.order.key);
+  const found = saved.order && butlerCatalog().find(i => i.key === saved.order.key);
+  const item = found && { ...found, price: Number.isFinite(saved.order.price) ? saved.order.price : found.price };
   if (item) {
-    butler.userData.order = { item, qty: Math.max(1, Math.min(20, saved.order.qty || 1)), reserved: Math.max(0, saved.order.reserved || 0), bought: saved.order.bought || 0 };
+    butler.userData.order = { item, qty: Math.max(1, Math.min(20, saved.order.qty || 1)), reserved: Math.max(0, saved.order.reserved || 0), bought: saved.order.bought || 0, planet: saved.order.planet || 'tierra', country: saved.order.country || null };
     butler.userData.task = saved.task === 'toStore' ? 'toStore' : 'return';
   } else if (['idle', 'follow', 'return', 'visitStore'].includes(saved.task)) butler.userData.task = saved.task;
 }
 function requestButlerOrder() {
-  if (!state.running || state.planet !== 'tierra') { toast('🤵 El mayordomo te espera en tu casa de la Tierra'); return; }
+  if (!state.running) return;
   if (!butler.userData.hired) { toast('🤵 Primero contrata al mayordomo en el súper por $500. Sueldo: $100 cada 7 días'); return; }
   typing = true; releaseLock();
-  const answer = prompt('🤵 Mayordomo: ¿Qué quieres que haga?', 'Ve al súper y compra 3 paredes de madera');
+  const answer = prompt('🤵 Mayordomo: ¿Qué quieres que haga?', 'Compra 2 sillas');
   typing = false;
   if (!answer || !answer.trim()) { toast('🤵 Mantengo mi tarea actual'); return; }
-  const text = normalizeButlerText(answer), item = butlerFindItem(text);
+  const text = normalizeButlerText(answer), found = butlerFindItem(text);
+  const item = found && { ...found, price: effectivePrice(found) };
   if (butler.userData.order) { toast('🤵 Todavía estoy completando tu pedido. Te avisaré al terminar; no lo he reemplazado.'); return; }
   if (answer.split(/,|\by\b/i).filter(part => butlerFindItem(normalizeButlerText(part))).length > 1) {
     toast('🤵 Encárgame un producto por viaje, por ejemplo: «compra 3 paredes de madera». No he tomado este pedido.'); return;
   }
   if (item) {
+    if (!shopCatalog().some(i => i.key === item.key)) { toast('🤵 Ese producto se vende en otro planeta. Viaja allí para encargarlo'); return; }
+    if (!state.creative && item.unlockAt && state.totalEarned < item.unlockAt) { toast('🤵 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados'); return; }
     let qty = butlerQuantity(text);
     if (['dadgun','dadarmor','hijoarma','hijoarmadura','traje','rocket'].includes(item.key)) qty = 1;
     const total = item.price * qty;
     if (state.money < total) { toast('🤵 Ese pedido cuesta $' + total + ' y tienes $' + Math.floor(state.money)); return; }
     state.money -= total;
-    butler.userData.order = { item, qty, reserved: total }; butler.userData.task = 'toStore';
+    butler.userData.order = { item, qty, reserved: total, planet: state.planet, country: state.country || null }; butler.userData.task = 'toStore';
     saveGame();
     toast('🤵 Iré al súper por ' + qty + ' × ' + item.name + ' · aparté $' + total + ' para el pedido'); return;
   }
@@ -1462,13 +1481,20 @@ function requestButlerOrder() {
   if (text.includes('sigueme') || text.includes('acompaname')) { butler.userData.task = 'follow'; butler.userData.order = null; toast('🤵 Te seguiré'); return; }
   if (text.includes('casa') || text.includes('vuelve') || text.includes('espera') || text.includes('quedate')) { butler.userData.task = 'return'; butler.userData.order = null; toast('🤵 Volveré a casa'); return; }
   if (text.includes('super')) { butler.userData.task = 'visitStore'; butler.userData.order = null; toast('🤵 Iré al súper'); return; }
-  toast('🤵 Puedo comprar cualquier producto del súper, seguirte o volver a casa. Dime, por ejemplo: «compra 4 paredes de roca»');
+  toast('🤵 Puedo comprar artículos del catálogo: «compra 2 sillas», «compra una espada de metal» o «compra comida». Un producto por viaje; también puedo seguirte o volver a casa.');
 }
 function updateButler(dt) {
-  butler.visible = !!butler.userData.hired && state.planet === 'tierra'; if (!butler.visible) return;
+  butler.visible = !!butler.userData.hired; if (!butler.visible) return;
+  const world = state.planet + ':' + (state.country || '');
+  if (butler.userData.world !== world) {
+    butler.userData.world = world; butler.position.copy(player.position);
+    butler.position.y = mountainHeightAt(player.position.x, player.position.z);
+  }
+  const pending = butler.userData.order;
+  if (pending && ((pending.planet || 'tierra') !== state.planet || (pending.country || null) !== (state.country || null))) return;
   let target = null;
-  if (butler.userData.task === 'toStore' || butler.userData.task === 'visitStore') target = BUTLER_SUPER;
-  else if (butler.userData.task === 'return') target = BUTLER_HOME;
+  if (butler.userData.task === 'toStore' || butler.userData.task === 'visitStore') target = butlerDestination();
+  else if (butler.userData.task === 'return') target = state.planet === 'tierra' && !state.country ? BUTLER_HOME : player.position;
   else if (butler.userData.task === 'follow') {
     if (dist2D(butler.position, player.position) > 3) target = player.position;
   }
@@ -8013,7 +8039,7 @@ function saveGame() {
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
       tutorial: state.tutorial || { step: 0, complete: false }, chapter: state.chapter || 0, chapterFlags: state.chapterFlags || {}, reputation: state.reputation || 0,
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
-      butlerState: { hired: !!butler.userData.hired, workDays: butler.userData.workDays || 0, wageDebt: butler.userData.wageDebt || 0, lastWageNight: butler.userData.lastWageNight, task: butler.userData.task, x: butler.position.x, z: butler.position.z, order: butler.userData.order ? { key: butler.userData.order.item.key, qty: butler.userData.order.qty, reserved: butler.userData.order.reserved || 0, bought: butler.userData.order.bought || 0 } : null },
+      butlerState: { hired: !!butler.userData.hired, workDays: butler.userData.workDays || 0, wageDebt: butler.userData.wageDebt || 0, lastWageNight: butler.userData.lastWageNight, task: butler.userData.task, x: butler.position.x, z: butler.position.z, order: butler.userData.order ? { key: butler.userData.order.item.key, price: butler.userData.order.item.price, planet: butler.userData.order.planet, country: butler.userData.order.country, qty: butler.userData.order.qty, reserved: butler.userData.order.reserved || 0, bought: butler.userData.order.bought || 0 } : null },
       parkBusiness: state.parkBusiness || null,
       business: state.business || null, businessOrders: state.businessOrders || 0,
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,

@@ -292,3 +292,17 @@ recibir golpes normales o disparos láser; el ataque muestra el daño y la vida
 restante. Al llegar a cero mueren, dejan de moverse y atacar, y entregan una
 recompensa aleatoria de $80 a $200. Los aliens enemigos del castillo conservan
 su sistema de vida independiente. Pruebas: `node tests/platus-aliens.test.mjs`.
+
+### Gasolinera y zona arcade
+
+La Tierra incluye una gasolinera con surtidores y letrero visible. Conduce el
+auto hasta allí y pulsa **E** para llenar el tanque: cuesta $3 por unidad de
+combustible, muestra el porcentaje en el HUD y se guarda al salir. El consumo
+ocurre mientras el auto avanza; un auto sin gasolina no puede seguir moviéndose.
+Los helicópteros no usan gasolina.
+
+También hay un **ARCADE FAMILIAR** con máquinas, luces y mascotas decorativas.
+Pulsa **E** en la zona para elegir al azar entre Pac-Man ($20), Carrera Turbo
+($35), Invasores espaciales ($30), Baile con luces ($25) y Pesca de premios
+($45). Cada juego entrega tickets en un rango distinto y acumula los tickets
+en la partida. Pruebas: `node tests/vehicles-arcade.test.mjs`.

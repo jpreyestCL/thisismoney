@@ -1714,6 +1714,37 @@ function makeStore(cx, cz, items, title, roofColor) {
 }
 const SUPER_B_POS = makeStore(-2, -40, STORE_B, 'ARMERIA', 0x6d28d9);
 makeStore(40, -22, STORE_A, 'SUPER', 0xdc2626);
+const GAS_STATION_POS = new THREE.Vector3(-58, 0, -22);
+const ARCADE_POS = new THREE.Vector3(74, 0, 42);
+let gasStationGroup = null, arcadeZoneGroup = null;
+function buildGasStation() {
+  const g = new THREE.Group(); g.position.copy(GAS_STATION_POS);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(22, .12, 17), mat(0x475569)); floor.position.y = .06; g.add(floor);
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(17, .35, 7), mat(0xdc2626)); canopy.position.y = 5; g.add(canopy);
+  for (const x of [-7, 7]) { const post = new THREE.Mesh(new THREE.BoxGeometry(.35, 5, .35), mat(0xf8fafc)); post.position.set(x, 2.5, 0); g.add(post); }
+  for (const x of [-4.8, 0, 4.8]) {
+    const pump = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.4, .65), mat(0xf8fafc)); pump.position.set(x, .75, 0); g.add(pump);
+    const hose = new THREE.Mesh(new THREE.TorusGeometry(.3, .045, 6, 12, Math.PI), mat(0x111827)); hose.rotation.x = Math.PI / 2; hose.position.set(x, 1.25, .38); g.add(hose);
+  }
+  const sign = makeSign('⛽ GASOLINERA · E', 0xfacc15); sign.scale.set(.8, .8, .8); sign.position.set(0, 6.1, 0); g.add(sign);
+  scene.add(g); gasStationGroup = g;
+}
+function buildArcadeZone() {
+  const g = new THREE.Group(); g.position.copy(ARCADE_POS);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(27, .12, 23), mat(0x312e81)); floor.position.y = .06; g.add(floor);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(23, 4.8, 18), mat(0x172554)); body.position.y = 2.4; g.add(body);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(24, .4, 19), mat(0xa855f7)); roof.position.y = 5; g.add(roof);
+  const sign = makeSign('🎮 ARCADE FAMILIAR · E', 0xfacc15); sign.scale.set(1, 1, 1); sign.position.set(0, 6.2, 9.3); g.add(sign);
+  for (let i = -2; i <= 2; i++) {
+    const cabinet = new THREE.Group(); const base = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.5, .75), mat(i % 2 ? 0x06b6d4 : 0xec4899)); base.position.y = 1.25; cabinet.add(base);
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(1.55, .85, .08), new THREE.MeshStandardMaterial({ color: 0x020617, emissive: i % 2 ? 0x22d3ee : 0xf43f5e, emissiveIntensity: 1.2 })); screen.position.set(0, 1.85, .42); cabinet.add(screen);
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .4), mat(0xfacc15)); stick.position.set(-.35, 1.15, .45); cabinet.add(stick);
+    cabinet.position.set(i * 3.8, 0, -7.5); g.add(cabinet);
+  }
+  const mascot = makeSign('🐭 🐰 🐥 · PREMIOS', 0x67e8f9); mascot.scale.set(.6, .6, .6); mascot.position.set(0, 3.8, 9.3); g.add(mascot);
+  scene.add(g); arcadeZoneGroup = g;
+}
+buildGasStation(); buildArcadeZone();
 // Tabla mundial: está afuera, al costado oeste del súper principal.
 const LEADERBOARD_POS = new THREE.Vector3(25, 0, -22);
 const leaderboardBoard = new THREE.Group();
@@ -6771,7 +6802,7 @@ const state = {
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
   tutorial: { step: 0, complete: false }, chapter: 0, chapterFlags: {}, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
-  business: null, businessOrders: 0, parkBusiness: null,
+  business: null, businessOrders: 0, parkBusiness: null, arcadeTickets: 0,
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
   foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   hasPhone: false,
@@ -7294,7 +7325,7 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!tryRefuelCar() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -7801,7 +7832,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryHarvestMiner() && !toggleBoat() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'interact': if (!tryRefuelCar() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -8039,9 +8070,10 @@ function saveGame() {
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
       placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, mountY: o.mountY || 0, country:o.country||null, rot: o.mesh.rotation.y, hp: o.hp, paint: o.paint != null ? o.paint : null })),
-      vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, moto: !!v.moto, helicopter: !!v.helicopter })),
+      vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, fuel: v.fuel, moto: !!v.moto, helicopter: !!v.helicopter })),
       boat: boat ? { x: boat.group.position.x, z: boat.group.position.z, heading: boat.heading, hp: boat.hp } : null, boatCrew: state.boatCrew || 0, voyageDays: state.voyageDays || 0, islandDiscovered: !!state.islandDiscovered,
-      car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
+      car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, fuel: car.fuel, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
+      arcadeTickets: state.arcadeTickets || 0,
       pet: !!pet, petHp: pet?.userData.hp, hasFloor2: !!state.hasFloor2, floor2Rot: state.floor2Rot || 0, floors2: state.floors2 || [], unlocked: state.unlocked || {},   // desbloqueos del medio juego (floors2: TODOS los segundos pisos)
       petAlien: !!petAlien, petAlienHp: petAlien?.userData.hp, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       creative: !!state.creative,
@@ -8629,13 +8661,14 @@ function loadGame() {
   });
   if (state.planet !== 'platus') {
     const savedVehicles = Array.isArray(d.vehicles) ? d.vehicles : (d.car ? [d.car] : []);
-    savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, moto: v.moto, helicopter: v.helicopter, restoring: true }));
+    savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, fuel: v.fuel, moto: v.moto, helicopter: v.helicopter, restoring: true }));
   }
   state.unlocked = d.unlocked || {};
   state.tutorial = d.tutorial || { step: d.night > 0 ? 6 : 0, complete: d.night > 0 };
   state.chapter = d.chapter || 0; state.chapterFlags = d.chapterFlags || {};
   restoreButler(d.butlerState);
   state.parkBusiness = d.parkBusiness || null;
+  state.arcadeTickets = d.arcadeTickets || 0;
   state.business = d.business || null; state.businessOrders = d.businessOrders || 0;
   state.foundSecrets = d.foundSecrets || {}; state.secretsFound = d.secretsFound || Object.keys(state.foundSecrets).length; syncWorldSecrets();
   state.reputation = d.reputation || 0; state.medals = d.medals || {}; state.blueprints = d.blueprints || {}; state.citizenFavors = d.citizenFavors || {};
@@ -8705,6 +8738,7 @@ function continueGame() {
 }
 
 function resetAll() {
+  state.arcadeTickets = 0;
   state.parkBusiness = null; closeParkBusiness();
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; applyPlayerArmor();
@@ -8843,7 +8877,7 @@ function spawnCar(opts) {
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
-  car = { group: g, wheels, rotors, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, helicopter, speedMult: moto ? 1.45 : 1, spawnRadius };
+  car = { group: g, wheels, rotors, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, fuel: (opts && opts.fuel != null ? opts.fuel : 100), maxFuel: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, helicopter, speedMult: moto ? 1.45 : 1, spawnRadius };
   vehicles.push(car);
   if (!opts || !opts.restoring) toast((helicopter ? '🚁 ¡Helicóptero comprado!' : moto ? '🏍️ ¡Moto comprada!' : '🚗 ¡Auto comprado!') + ' Entrega lista frente al súper · tienes ' + vehicles.length + ' vehículos. Acércate y pulsa E');
   return car;
@@ -8869,7 +8903,7 @@ function stealCar(g) {
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
-  car = { group: g, wheels: [], rotors: [], hp: 100, maxHp: 100, heading: (g.userData.heading != null ? g.userData.heading : g.rotation.y), dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
+  car = { group: g, wheels: [], rotors: [], hp: 100, maxHp: 100, fuel: 100, maxFuel: 100, heading: (g.userData.heading != null ? g.userData.heading : g.rotation.y), dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg } };
   vehicles.push(car);
   state.driving = true; yaw = car.heading + Math.PI; state.buildMode = false;
   becomeWanted(18, 2);
@@ -8899,6 +8933,7 @@ function toggleCar() {
 }
 // Conducir: reemplaza el caminar mientras state.driving
 function updateDriving(dt) {
+  if (!car.helicopter && car.fuel <= 0) { car.fuel = 0; toast('⛽ Te quedaste sin gasolina · busca la gasolinera'); return; }
   const throttle = Math.max(-1, Math.min(1, (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0) + touch.moveY));
   const steer = Math.max(-1, Math.min(1, (keys['KeyA'] ? 1 : 0) - (keys['KeyD'] ? 1 : 0) - touch.moveX));
   // mirar arriba/abajo con las flechas o el arrastre (pitch); el yaw sigue al auto
@@ -8916,6 +8951,7 @@ function updateDriving(dt) {
   car.reverse = throttle < -0.05; car.turbo = !!turbo;
   const prevX = car.group.position.x, prevZ = car.group.position.z;
   car.group.position.addScaledVector(fwd, move);
+  if (!car.helicopter && Math.abs(move) > .01) car.fuel = Math.max(0, car.fuel - Math.abs(move) * .035);
   if (!car.helicopter && car.group.position.x < -188 && Math.abs(car.group.position.z - OCEAN.cz) < OCEAN.waterD / 2) {
     car.group.position.set(prevX, car.group.position.y, prevZ); car.speed = 0;
     car.oceanWarn = (car.oceanWarn || 0) - dt; if (car.oceanWarn <= 0) { car.oceanWarn = 2; toast('🌊 Los autos no pueden entrar al océano · usa un barco'); }
@@ -8970,6 +9006,32 @@ function updateDriving(dt) {
   } else {
     player.position.set(car.group.position.x, car.group.position.y + 2.1, car.group.position.z);
   }
+}
+function tryRefuelCar() {
+  if (!state.driving || !car || car.helicopter || state.planet !== 'tierra' || state.country) return false;
+  if (dist2D(car.group.position, GAS_STATION_POS) > 11) return false;
+  const missing = Math.ceil(car.maxFuel - car.fuel);
+  if (missing <= 0) { toast('⛽ El tanque ya está lleno'); return true; }
+  const cost = Math.max(20, missing * 3);
+  if (state.money < cost) { toast('⛽ Necesitas $' + cost + ' para cargar gasolina'); return true; }
+  state.money -= cost; car.fuel = car.maxFuel;
+  toast('⛽ Tanque lleno · -$' + cost); saveGame(); return true;
+}
+function tryArcadeZone() {
+  if (state.planet !== 'tierra' || state.country || dist2D(player.position, ARCADE_POS) > 15) return false;
+  const games = [
+    { name: 'Pac-Man', price: 20, min: 8, max: 35 },
+    { name: 'Carrera Turbo', price: 35, min: 15, max: 65 },
+    { name: 'Invasores espaciales', price: 30, min: 10, max: 55 },
+    { name: 'Baile con luces', price: 25, min: 12, max: 48 },
+    { name: 'Pesca de premios', price: 45, min: 20, max: 90 },
+  ];
+  const game = games[Math.floor(Math.random() * games.length)], price = game.price;
+  if (state.money < price) { toast('🎮 Una partida cuesta $25'); return true; }
+  state.money -= price; const tickets = game.min + Math.floor(Math.random() * (game.max - game.min + 1));
+  state.arcadeTickets = (state.arcadeTickets || 0) + tickets;
+  toast('🎮 ' + game.name + ' · -$' + price + ' · ganaste ' + tickets + ' tickets');
+  saveGame(); return true;
 }
 // Vida del auto: los monstruos cercanos lo dañan; si llega a 0 se destruye
 function updateCar(dt) {
@@ -11103,6 +11165,7 @@ function updateContextPrompt() {
       const bp = currentBlueprint(), v = currentBuildVariant();
       action = bp ? { key: 'F', touch: '🏗️', text: 'Construir ' + bp.name + ' · G cambia plano · R gira' } : { key: 'F', touch: '✋', text: 'Colocar' + (v ? ' · ' + v.name : '') + ' · G planos · R variante · X quita' };
     }
+    else if (state.driving && car && dist2D(car.group.position, GAS_STATION_POS) <= 11 && !car.helicopter) action = { key: 'E', touch: '⛽', text: 'Cargar gasolina · $3 por unidad' };
     else if (state.driving && car) action = { key: 'E', touch: '🤝', text: car.helicopter ? 'Salir del helicóptero' : 'Bajar del vehículo' };
     else {
       const harvest = nearestHarvestable(2.8);
@@ -11116,6 +11179,7 @@ function updateContextPrompt() {
       const asiento = furniture && SEAT_KEYS.includes(furniture.key) ? furniture : null;
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
       if (nearLeaderboard) action = { key: 'E', touch: '🏆', text: 'Ver ranking mundial trimestral' };
+      else if (state.planet === 'tierra' && !state.country && dist2D(player.position, ARCADE_POS) < 15) action = { key: 'E', touch: '🎮', text: 'Elegir juego arcade · desde $20' };
       else if (enMostrador) action = { key: 'E', touch: '✈️', text: 'Comprar un ticket de avión' };
       else if (vecinoPais) action = { key: 'E', touch: '💬', text: 'Saludar en ' + (currentCountry() ? currentCountry().lang : 'su idioma') };
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
@@ -11264,7 +11328,7 @@ function renderHUD() {
   if (state.momUnlocked) gear.push('👩 H');
   gear.push('🍖 ' + (state.inv.food || 0) + ' (Q comer)');
   if (vehicles.length > 1) gear.push('🚘 ' + vehicles.length + ' vehículos');
-  if (car) gear.push((car.helicopter ? '🚁 ' : '🚗 ') + Math.max(0, Math.round(car.hp)) + (state.driving && car.helicopter ? ' · ⬆️ ' + Math.round(car.group.position.y) + ' m' : ''));
+  if (car) gear.push((car.helicopter ? '🚁 ' : '🚗 ') + Math.max(0, Math.round(car.hp)) + (!car.helicopter ? ' · ⛽ ' + Math.round(car.fuel) + '%' : (state.driving ? ' · ⬆️ ' + Math.round(car.group.position.y) + ' m' : '')));
   if (state.poison > 0) gear.push('🟢 veneno ' + Math.ceil(state.poison) + 's');
   if (state.hasShield) gear.push('🛡️ escudo ' + Math.round(state.shieldHp) + '/' + state.shieldMax);
   if (state.hasJetpack) gear.push('🚀 jetpack' + (state.jetOn ? ' 🔥' : ''));

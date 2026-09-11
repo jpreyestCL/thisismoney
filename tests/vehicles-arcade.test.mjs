@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+assert.match(html, /GAS_STATION_POS/);
+assert.match(html, /car\.fuel = Math\.max\(0, car\.fuel - Math\.abs\(move\) \* \.035\)/);
+assert.match(html, /const cost = Math\.max\(20, missing \* 3\)/);
+assert.match(html, /fuel: v\.fuel/);
+assert.match(html, /ARCADE_POS/);
+for (const game of ['Pac-Man', 'Carrera Turbo', 'Invasores espaciales', 'Baile con luces', 'Pesca de premios']) assert.match(html, new RegExp(game));
+assert.match(html, /state\.arcadeTickets = \(state\.arcadeTickets \|\| 0\) \+ tickets/);
+assert.match(html, /tryRefuelCar\(\)/);
+assert.match(html, /tryArcadeZone\(\)/);
+console.log('vehicles and arcade: ok');

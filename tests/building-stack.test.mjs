@@ -7,6 +7,8 @@ assert.match(html, /function resizeBuild\(kind, delta\)/);
 assert.match(html, /function resetBuildScale\(\)/);
 assert.match(html, /const stackY = \(topWall\.baseY \|\| 0\) \+ 3 \* \(topWall\.scale\?\.y \|\| 1\)/);
 assert.match(html, /if \(wallSnap\.stackY != null\) by = wallSnap\.stackY/);
+assert.match(html, /bestHalfW = 2 \* \(best\.scale\?\.x/);
+assert.match(html, /newHalfW = 2 \* \(buildScale\.x/);
 assert.match(html, /bottom: by, top: by \+ 3 \* sc\.y/);
 assert.match(html, /id="scalePlusBtn"/);
 assert.match(html, /id="thickPlusBtn"/);

@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
+import * as economy from '../src/park-business.js';
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const nodes = new Map();
+function ui(id) {
+  if (!nodes.has(id)) nodes.set(id, { value: 'day', open: false, addEventListener() {}, showModal() { this.open = true; }, close() { this.open = false; } });
+  return nodes.get(id);
+}
+let saved;
+const state = { money: 134999, running: true, paused: false, parkBusiness: null };
+const context = vm.createContext({ ...economy, state, ui, typing: false, keys: {}, releaseLock() {}, toast() {}, saveGame() { saved = JSON.parse(JSON.stringify(state)); } });
+vm.runInContext(html.slice(html.indexOf('const parkMoney ='), html.indexOf('function checkProgress()')), context);
+const action = key => ui('parkActions').onclick({ target: { closest: () => ({ dataset: { park: key } }) } });
+ui('parkBusinessBtn').onclick(); assert.equal(state.paused, true);
+action('buy'); assert.equal(state.parkBusiness, null);
+state.money++; action('buy'); assert.equal(state.money, 0);
+assert.equal(saved.parkBusiness.cash, 15000);
+action('buy'); assert.equal(state.money, 0, 'evitar compra duplicada');
+action('withdraw'); assert.equal(state.money, 9000); assert.equal(state.parkBusiness.cash, 6000);
+action('withdraw'); assert.equal(state.money, 9000, 'conservar reserva');
+ui('parkClose').onclick(); assert.equal(state.paused, false);
+vm.runInContext('updateParkBusiness(360)', context);
+assert.equal(saved.parkBusiness.history.length, 1);
+const cash = state.parkBusiness.cash;
+state.parkBusiness = JSON.parse(JSON.stringify(saved.parkBusiness));
+vm.runInContext('renderParkBusiness()', context);
+assert.ok(ui('parkReport').innerHTML.includes('2026-01-01'));
+assert.equal(state.parkBusiness.cash, cash);
+assert.ok(html.includes('parkBusiness: state.parkBusiness || null'));
+assert.ok(html.includes('state.parkBusiness = d.parkBusiness || null'));
+console.log('park integration: ok');

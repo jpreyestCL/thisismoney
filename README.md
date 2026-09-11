@@ -219,3 +219,27 @@ En [`CLAUDE.md`](CLAUDE.md) hay notas de desarrollo mucho más detalladas de cad
 
 - Hecho con [Three.js](https://threejs.org) (MIT).
 - El código y los assets se publican bajo la **licencia MIT** — ver [`LICENSE`](LICENSE).
+
+### Administración del parque de diversiones
+
+El botón **🎡 Parque** permite comprar el parque por $120.000 y aportar $15.000
+iniciales a su caja. La entrada general vale $200. Cada seis minutos de juego
+activo se liquida un día comercial de un calendario simulado que comienza el
+1 de enero de 2026. La administración pausa el juego; no hay producción offline.
+
+La demanda depende de fines de semana, temporada, clima simulado, variación
+aleatoria, estado de las instalaciones y campañas. La capacidad es de 180
+visitantes diarios. Se pagan personal, servicios, seguros, mantenimiento,
+insumos por visitante, impuestos simulados y posibles averías. Una caja menor
+a $6.000 o un estado inferior a 25% suspende la apertura; los costos mínimos
+continúan y pueden dejar la caja en deuda. Se puede aportar dinero, reparar,
+cerrar temporalmente y retirar el excedente sobre la reserva.
+
+Las campañas de redes y radio aumentan la demanda; la promoción familiar
+ofrece entradas a $160. No se acumulan campañas ni se garantizan ganancias.
+El reporte agrupa visitantes, ventas, costos y resultado por día, mes o año,
+y muestra el desglose del último día. Compra, aportes y retiros se muestran
+separados de las ganancias operativas. Todo se guarda con el perfil.
+
+Pruebas: `node tests/park-business.test.mjs` y
+`node tests/park-integration.test.mjs`.

@@ -50,7 +50,7 @@
     background: rgba(0,0,0,.72); padding: 11px 22px; border-radius: 10px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: center; max-width: 86vw; }
   #toastStack { position: absolute; top: calc(50% - 34px); left: 50%; transform: translate(-50%,-100%); z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; pointer-events: none; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
+  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
@@ -734,6 +734,16 @@
 <button id="helpBtn" aria-label="Abrir guía" style="position:fixed; top:58px; left:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">❓</button>
 <button id="soundBtn" aria-label="Silenciar sonido" style="position:fixed; top:58px; left:58px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:18px; width:40px; height:40px; display:none;">🔊</button>
 <button id="exitBtn" style="position:fixed; top:58px; left:104px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:12px; font-weight:700; height:40px; padding:0 10px; display:none;">💾 Salir</button>
+<button id="parkBusinessBtn" aria-label="Comprar y administrar parque de diversiones" style="position:fixed;top:58px;left:242px;z-index:6;pointer-events:all;background:#143344;color:white;border:2px solid #69c9cf;border-radius:10px;height:40px;cursor:pointer;display:none">🎡 Parque</button>
+<dialog aria-labelledby="parkBusinessTitle" id="parkBusinessDialog" style="color:#e2e8f0;background:#0b202d;border:1px solid #69c9cf;border-radius:16px;padding:20px;width:min(900px,94vw);max-height:85vh;overflow:auto;position:fixed;inset:0;margin:auto;pointer-events:all">
+  <div style="display:flex;justify-content:space-between;gap:16px"><h2 id="parkBusinessTitle">🎡 Tu parque de diversiones</h2><button class="bankBtn" id="parkClose">Cerrar</button></div>
+  <p style="margin:12px 0;line-height:1.6">Entrada general: $200. Calendario simulado: un día comercial cada 6 minutos de juego activo; no avanza en pausa, mientras administras ni al salir. La caja del parque es independiente de tu dinero.</p>
+  <div id="parkOverview" style="line-height:1.8"></div>
+  <div id="parkActions" style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0"></div>
+  <label>Ver ventas por <select id="parkPeriod" style="padding:8px"><option value="day">Día</option><option value="month">Mes</option><option value="year">Año</option></select></label>
+  <div id="parkReport" style="overflow:auto;margin-top:12px;max-height:35vh"></div>
+  <div id="parkDetail" style="line-height:1.7;margin-top:12px"></div>
+</dialog>
 <button id="fotoBtn" aria-label="Guardar captura" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
 <div id="help">
   <div class="guide-shell" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
@@ -857,6 +867,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
+import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=8';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -6658,7 +6669,7 @@ const state = {
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
   tutorial: { step: 0, complete: false }, chapter: 0, chapterFlags: {}, reputation: 0, medals: {}, blueprints: {}, sportGame: null,
-  business: null, businessOrders: 0,
+  business: null, businessOrders: 0, parkBusiness: null,
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
   foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   hasPhone: false,
@@ -6668,6 +6679,63 @@ let lastHp = 100;   // para detectar cuándo te hacen daño
 function addMoney(n) {
   state.money += n;
   if (n > 0) { state.totalEarned += n; checkProgress(); }
+}
+const parkMoney = n => '$' + Math.round(n).toLocaleString('es-CL');
+function closeParkBusiness() {
+  if (!ui('parkBusinessDialog').open) return;
+  ui('parkBusinessDialog').close(); typing = false; state.paused = false;
+}
+function renderParkBusiness() {
+  const p = state.parkBusiness;
+  const button = (key, text, disabled = false) => `<button class="bankBtn" data-park="${key}" ${disabled ? 'disabled' : ''}>${text}</button>`;
+  if (!p) {
+    ui('parkOverview').textContent = 'Compra el parque por $120.000 y aporta $15.000 de capital inicial. Necesitas $135.000. Capacidad: 180 visitantes diarios. Gastos de apertura: $4.500 diarios más $28 por visitante y 10% de las ventas en impuestos simulados. Cerrado cuesta $1.600 diarios. Hay riesgo de pérdidas y averías de $4.500.';
+    ui('parkActions').innerHTML = button('buy', 'Comprar · $135.000', state.money < PARK.price + PARK.capital);
+    ui('parkReport').textContent = 'Todavía no eres dueño del parque.'; ui('parkDetail').textContent = ''; return;
+  }
+  const profits = p.history.reduce((sum, r) => sum + r.profit, 0);
+  ui('parkOverview').textContent = `${parkDate(p.day)} · Caja: ${parkMoney(p.cash)} · Estado: ${Math.round(p.condition)}% · ${p.open ? 'Apertura solicitada' : 'Cierre voluntario'} · Próximo cierre contable en ${Math.ceil(PARK.seconds - p.elapsed)}s. Resultado acumulado: ${parkMoney(profits)} · Aportado (incluye compra): ${parkMoney(p.invested)} · Retirado: ${parkMoney(p.withdrawn)}. ${p.cash < PARK.reserve || p.condition < 25 ? '⚠️ Operación suspendida: requiere caja de $6.000 y estado mínimo de 25%.' : ''} ${p.campaign ? CAMPAIGNS[p.campaign.key].name + ': quedan ' + p.campaign.left + ' días.' : ''}`;
+  ui('parkActions').innerHTML = button('deposit', 'Aportar $10.000', state.money < 10000) + button('withdraw', 'Retirar excedente sobre $6.000', p.cash <= PARK.reserve) + button('toggle', p.open ? 'Cerrar temporalmente' : 'Reabrir') + button('maintain', 'Mantenimiento +40% · $3.500', p.cash < 3500 || p.condition >= 100) + Object.entries(CAMPAIGNS).map(([key,c]) => button(key, `${c.name} · ${parkMoney(c.cost)} / ${c.days} días`, !!p.campaign || !p.open || p.cash < c.cost + PARK.reserve)).join('');
+  const rows = parkReport(p, ui('parkPeriod').value);
+  ui('parkReport').innerHTML = rows.length ? '<table style="width:100%;border-collapse:collapse;text-align:right"><thead><tr>' + ['Período','Días','Visitantes','Ventas','Costos','Resultado'].map(t => `<th style="padding:8px">${t}</th>`).join('') + '</tr></thead><tbody>' + rows.map(r => `<tr>${[r.date,r.days,r.visitors,parkMoney(r.revenue),parkMoney(r.expenses),parkMoney(r.profit)].map(v => `<td style="padding:8px;border-top:1px solid #294553">${v}</td>`).join('')}</tr>`).join('') + '</tbody></table>' : 'Aún no hay días cerrados. Las ventas se liquidan al completar el día comercial.';
+  const last = p.history.at(-1);
+  ui('parkDetail').textContent = 'La publicidad mejora la demanda, pero no garantiza ganancias. La promoción familiar baja el precio a $160. Las acciones se pagan ahora y se contabilizan en el próximo cierre. Cerrar mantiene sueldos mínimos, servicios y seguros. ' + (last ? `Último día: ${last.status} · ${last.weather} · ${last.event} · ${last.campaign} · Entrada ${parkMoney(last.ticket)}. Costos: ` + Object.entries(last.costs).map(([k,v]) => k + ' ' + parkMoney(v)).join(' · ') : '');
+}
+ui('parkBusinessBtn').onclick = () => {
+  if (!state.running || state.paused || typing) return;
+  releaseLock(); typing = true; for (const key in keys) keys[key] = false;
+  renderParkBusiness(); ui('parkBusinessDialog').showModal(); state.paused = true;
+};
+ui('parkClose').onclick = closeParkBusiness;
+ui('parkBusinessDialog').addEventListener('cancel', e => { e.preventDefault(); closeParkBusiness(); });
+ui('parkPeriod').onchange = renderParkBusiness;
+ui('parkActions').onclick = e => {
+  const key = e.target.closest('[data-park]')?.dataset.park; if (!key) return;
+  let p = state.parkBusiness;
+  if (key === 'buy' && !p && state.money >= PARK.price + PARK.capital) {
+    state.money -= PARK.price + PARK.capital; state.parkBusiness = newPark();
+    toast('🎡 ¡El parque ahora es tuyo! Administra su caja y mantenimiento.');
+  } else if (p) {
+    if (key === 'deposit' && state.money >= 10000) { state.money -= 10000; p.cash += 10000; p.invested += 10000; }
+    if (key === 'withdraw' && p.cash > PARK.reserve) {
+      const amount = p.cash - PARK.reserve; p.cash -= amount; p.withdrawn += amount;
+      // Las transferencias de capital no cuentan como ingresos nuevos para la progresión.
+      state.money += amount;
+    }
+    if (key === 'toggle') p.open = !p.open;
+    if (key === 'maintain') maintainPark(p);
+    if (CAMPAIGNS[key]) startCampaign(p, key);
+  }
+  saveGame(); renderParkBusiness();
+};
+function updateParkBusiness(dt) {
+  const p = state.parkBusiness; if (!p || ui('parkBusinessDialog').open) return;
+  p.elapsed += dt;
+  if (p.elapsed >= PARK.seconds) {
+    p.elapsed -= PARK.seconds; const row = settleParkDay(p);
+    toast(`🎡 Cierre ${row.date}: ${row.visitors} visitantes · resultado ${parkMoney(row.profit)}`);
+    saveGame();
+  }
 }
 function checkProgress() {
   const newStage = 1 + Math.floor(state.totalEarned / 2500);
@@ -7659,7 +7727,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
   bindButtons(ui('moveBtns'));
 }
 
-function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; startMusic(); }
+function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; ui('parkBusinessBtn').style.display = 'block'; startMusic(); }
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
   leaveParkRide(true); standUp(true);   // si estabas en una atracción, te bajas antes de guardar
@@ -7669,7 +7737,7 @@ function saveAndExit() {
   if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
   if (speakerMusicTimer) { clearInterval(speakerMusicTimer); speakerMusicTimer = null; } activeGamerSpeaker = null;
   if (engineGain) engineGain.gain.value = 0;
-  ui('hud').style.display = 'none'; ui('helpBtn').style.display = 'none'; ui('soundBtn').style.display = 'none'; ui('exitBtn').style.display = 'none'; ui('fotoBtn').style.display = 'none';
+  ui('hud').style.display = 'none'; ui('helpBtn').style.display = 'none'; ui('soundBtn').style.display = 'none'; ui('exitBtn').style.display = 'none'; ui('fotoBtn').style.display = 'none'; ui('parkBusinessBtn').style.display = 'none'; closeParkBusiness();
   ['jail', 'over'].forEach(s => ui(s).classList.add('hidden'));
   ui('start').classList.remove('hidden');
   ui('start').classList.add('has-save');
@@ -7702,7 +7770,7 @@ function startGame() {
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
-  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.worldEvent = null; state.nextWorldEvent = 45; state.foundSecrets = {}; state.secretsFound = 0; state.stamina = 100; state.blocking = false; state.dodgeCd = 0; state.invulnerable = 0; syncWorldSecrets();
+  state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.parkBusiness = null; state.worldEvent = null; state.nextWorldEvent = 45; state.foundSecrets = {}; state.secretsFound = 0; state.stamina = 100; state.blocking = false; state.dodgeCd = 0; state.invulnerable = 0; syncWorldSecrets();
   state.mathLeft = 5; state.mathStreak = 0;
   soccer.scoreRed = soccer.scoreBlue = 0; updateScoreboard();
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
@@ -7870,6 +7938,7 @@ function saveGame() {
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
       tutorial: state.tutorial || { step: 0, complete: false }, chapter: state.chapter || 0, chapterFlags: state.chapterFlags || {}, reputation: state.reputation || 0,
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
+      parkBusiness: state.parkBusiness || null,
       business: state.business || null, businessOrders: state.businessOrders || 0,
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
     };
@@ -8424,6 +8493,7 @@ function loadGame() {
   state.unlocked = d.unlocked || {};
   state.tutorial = d.tutorial || { step: d.night > 0 ? 6 : 0, complete: d.night > 0 };
   state.chapter = d.chapter || 0; state.chapterFlags = d.chapterFlags || {};
+  state.parkBusiness = d.parkBusiness || null;
   state.business = d.business || null; state.businessOrders = d.businessOrders || 0;
   state.foundSecrets = d.foundSecrets || {}; state.secretsFound = d.secretsFound || Object.keys(state.foundSecrets).length; syncWorldSecrets();
   state.reputation = d.reputation || 0; state.medals = d.medals || {}; state.blueprints = d.blueprints || {}; state.citizenFavors = d.citizenFavors || {};
@@ -8493,6 +8563,7 @@ function continueGame() {
 }
 
 function resetAll() {
+  state.parkBusiness = null; closeParkBusiness();
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; applyPlayerArmor();
   state.helperWeapon = false; state.helperArmor = false;
@@ -9967,6 +10038,7 @@ function loop() {
     updateTennis(dt);
     updateSportGame(dt);
     updateBusiness(dt);
+    updateParkBusiness(dt);
     updateWorldEvents(dt);
     updateParks(dt);                       // rueda, carrusel, columpios y montaña rusa de los parques
     swingLimbs(mom, dt);

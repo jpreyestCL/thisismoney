@@ -1395,13 +1395,15 @@ const BUTLER_ALIASES = {
   wallRock:['pared roca','pared de roca','paredes roca','paredes de roca','pared piedra','pared de piedra'],
   wallMetal:['pared metal','pared de metal','paredes de metal'], wallDoor:['pared puerta','pared con puerta'],
   lamp:['lampara','lamparas','luz'], roof:['techo','techos'], door:['puerta','puertas'], oven:['horno','hornos'],
+  comida:['comidas','alimentos'], coca:['coca cola','coca','bebida'], papas:['papas','patatas fritas'],
+  dadgun:['arma para papa'], dadarmor:['armadura para papa'],
   semillas:['semillas de manzana'], semillas_zanahoria:['semillas de zanahoria'], semillas_trigo:['semillas de trigo'], semillas_tomate:['semillas de tomate']
 };
 function butlerFindItem(text) {
   let best = null, bestLength = 0;
   for (const item of STORE_A) {
     const names = [normalizeButlerText(item.name), ...(BUTLER_ALIASES[item.key] || [])];
-    for (const name of names) if (name && text.includes(name) && name.length > bestLength) { best = item; bestLength = name.length; }
+    for (const name of names) if (name && new RegExp('(?:^| )' + name + '(?:s|es)?(?: |$)').test(text) && name.length > bestLength) { best = item; bestLength = name.length; }
   }
   return best;
 }
@@ -1414,21 +1416,38 @@ function resetButler() {
   butler.position.copy(BUTLER_HOME); butler.position.y = mountainHeightAt(BUTLER_HOME.x, BUTLER_HOME.z);
   butler.userData.task = 'idle'; butler.userData.order = null; butlerSpaceTaps.length = 0;
 }
+function restoreButler(saved) {
+  resetButler();
+  if (!saved) return;
+  if (Number.isFinite(saved.x) && Number.isFinite(saved.z)) butler.position.set(saved.x, mountainHeightAt(saved.x, saved.z), saved.z);
+  const item = saved.order && STORE_A.find(i => i.key === saved.order.key);
+  if (item) {
+    butler.userData.order = { item, qty: Math.max(1, Math.min(20, saved.order.qty || 1)), reserved: Math.max(0, saved.order.reserved || 0), bought: saved.order.bought || 0 };
+    butler.userData.task = saved.task === 'toStore' ? 'toStore' : 'return';
+  } else if (['idle', 'follow', 'return', 'visitStore'].includes(saved.task)) butler.userData.task = saved.task;
+}
 function requestButlerOrder() {
   if (!state.running || state.planet !== 'tierra') { toast('🤵 El mayordomo te espera en tu casa de la Tierra'); return; }
   typing = true; releaseLock();
   const answer = prompt('🤵 Mayordomo: ¿Qué quieres que haga?', 'Ve al súper y compra 3 paredes de madera');
   typing = false;
-  if (!answer || !answer.trim()) { toast('🤵 Muy bien, seguiré esperando en casa'); return; }
+  if (!answer || !answer.trim()) { toast('🤵 Mantengo mi tarea actual'); return; }
   const text = normalizeButlerText(answer), item = butlerFindItem(text);
+  if (butler.userData.order) { toast('🤵 Todavía estoy completando tu pedido. Te avisaré al terminar; no lo he reemplazado.'); return; }
+  if (answer.split(/,|\by\b/i).filter(part => butlerFindItem(normalizeButlerText(part))).length > 1) {
+    toast('🤵 Encárgame un producto por viaje, por ejemplo: «compra 3 paredes de madera». No he tomado este pedido.'); return;
+  }
   if (item) {
     let qty = butlerQuantity(text);
     if (['dadgun','dadarmor','hijoarma','hijoarmadura','traje','rocket'].includes(item.key)) qty = 1;
     const total = item.price * qty;
     if (state.money < total) { toast('🤵 Ese pedido cuesta $' + total + ' y tienes $' + Math.floor(state.money)); return; }
-    butler.userData.order = { item, qty }; butler.userData.task = 'toStore';
-    toast('🤵 Iré al súper por ' + qty + ' × ' + item.name + ' ($' + total + ')'); return;
+    state.money -= total;
+    butler.userData.order = { item, qty, reserved: total }; butler.userData.task = 'toStore';
+    saveGame();
+    toast('🤵 Iré al súper por ' + qty + ' × ' + item.name + ' · aparté $' + total + ' para el pedido'); return;
   }
+  if (/compr|trae|traig|consig|busca/.test(text)) { toast('🤵 No reconocí el producto. Dime su nombre del catálogo, por ejemplo: «compra 3 paredes de madera». No he tomado el pedido.'); return; }
   if (text.includes('sigueme') || text.includes('acompaname')) { butler.userData.task = 'follow'; butler.userData.order = null; toast('🤵 Te seguiré'); return; }
   if (text.includes('casa') || text.includes('vuelve') || text.includes('espera') || text.includes('quedate')) { butler.userData.task = 'return'; butler.userData.order = null; toast('🤵 Volveré a casa'); return; }
   if (text.includes('super')) { butler.userData.task = 'visitStore'; butler.userData.order = null; toast('🤵 Iré al súper'); return; }
@@ -1447,12 +1466,14 @@ function updateButler(dt) {
     if (d > 1.1) { moveToward(butler, target, Math.min(d, 4.2 * dt)); butler.rotation.y = Math.atan2(target.x - butler.position.x, target.z - butler.position.z); }
     else if (butler.userData.task === 'toStore') {
       const order = butler.userData.order; let bought = 0;
+      if (order) { state.money += order.reserved || 0; order.reserved = 0; }
       if (order) for (let i = 0; i < order.qty; i++) { const before = state.money; buyItem(order.item); if (state.money >= before) break; bought++; }
       if (order) order.bought = bought;
       butler.userData.task = 'return';
-      toast(bought ? '🤵 Compré ' + bought + ' × ' + order.item.name + '. Voy de regreso a casa' : '🤵 No pude completar la compra. Regresaré a casa');
+      toast(bought ? '🤵 Compré ' + bought + '/' + order.qty + ' × ' + order.item.name + '. Ya está en tu inventario; regreso a casa' : '🤵 No pude completar la compra. El dinero apartado está de vuelta en tu saldo');
+      saveGame();
     } else if (butler.userData.task === 'visitStore') { butler.userData.task = 'idle'; toast('🤵 Ya llegué al súper'); }
-    else if (butler.userData.task === 'return') { butler.userData.task = 'idle'; const order = butler.userData.order; butler.userData.order = null; toast(order && order.bought ? '🤵 Pedido entregado en tu inventario: ' + order.bought + ' × ' + order.item.name : '🤵 Ya estoy de vuelta en casa'); }
+    else if (butler.userData.task === 'return') { butler.userData.task = 'idle'; const order = butler.userData.order; butler.userData.order = null; toast(order && order.bought ? '🤵 Pedido entregado en tu inventario: ' + order.bought + ' × ' + order.item.name : '🤵 Ya estoy de vuelta en casa'); saveGame(); }
   }
   swingLimbs(butler, dt);
 }
@@ -7938,6 +7959,7 @@ function saveGame() {
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
       tutorial: state.tutorial || { step: 0, complete: false }, chapter: state.chapter || 0, chapterFlags: state.chapterFlags || {}, reputation: state.reputation || 0,
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
+      butlerState: { task: butler.userData.task, x: butler.position.x, z: butler.position.z, order: butler.userData.order ? { key: butler.userData.order.item.key, qty: butler.userData.order.qty, reserved: butler.userData.order.reserved || 0, bought: butler.userData.order.bought || 0 } : null },
       parkBusiness: state.parkBusiness || null,
       business: state.business || null, businessOrders: state.businessOrders || 0,
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
@@ -8493,6 +8515,7 @@ function loadGame() {
   state.unlocked = d.unlocked || {};
   state.tutorial = d.tutorial || { step: d.night > 0 ? 6 : 0, complete: d.night > 0 };
   state.chapter = d.chapter || 0; state.chapterFlags = d.chapterFlags || {};
+  restoreButler(d.butlerState);
   state.parkBusiness = d.parkBusiness || null;
   state.business = d.business || null; state.businessOrders = d.businessOrders || 0;
   state.foundSecrets = d.foundSecrets || {}; state.secretsFound = d.secretsFound || Object.keys(state.foundSecrets).length; syncWorldSecrets();

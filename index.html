@@ -10836,15 +10836,25 @@ function updateSkiMovement(dt) {
   player.position.z += (downhillSpeed + push * 5.5) * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);
   player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 178, SKI_RESORT.z + 190);
-  const snowY = mountainHeightAt(player.position.x, player.position.z);
-  player.position.y = snowY + PLAYER_EYE;
-  grounded = true; vy = 0;
+  const snowY = mountainHeightAt(player.position.x, player.position.z), skiFloor = snowY + PLAYER_EYE;
+  const jumpPressed = keys['Space'] || touch.jump;
+  touch.jump = false;
+  if (jumpPressed && !skiJumpHeld && grounded) { skiJumpVy = 11; grounded = false; }
+  skiJumpHeld = !!jumpPressed;
+  if (!grounded || skiJumpVy > 0) {
+    skiJumpVy -= 25 * dt;
+    player.position.y += skiJumpVy * dt;
+    if (player.position.y <= skiFloor) { player.position.y = skiFloor; skiJumpVy = 0; grounded = true; }
+  } else {
+    player.position.y = skiFloor;
+  }
+  vy = 0;
   resolveCollisions();
   if (player.position.z > SKI_RESORT.z + 178) { player.position.z = SKI_RESORT.z + 178; state.skiing = false; toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;
 }
-let skiRemoveHold = 0, skiAccessWarnAt = 0;
+let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false;
 function updateSkiGearHold(dt) {
   if (!state.skiGear) { skiRemoveHold = 0; return; }
   if (keys['KeyE'] && !state.skiing && !state.skiLiftRide) {

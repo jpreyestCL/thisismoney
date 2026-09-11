@@ -9265,7 +9265,13 @@ function tryArcadeRewards() {
   saveGame(); return true;
 }
 
-function inSkiResort() { return state.planet === 'tierra' && !state.country && dist2D(player.position, SKI_RESORT) < SKI_RESORT.r + 8; }
+function inSkiResort() {
+  if (state.planet !== 'tierra' || state.country) return false;
+  return dist2D(player.position, SKI_RESORT) < SKI_RESORT.r + 8
+    || dist2D(player.position, SKI_RESORT.gate) < 18
+    || dist2D(player.position, SKI_RESORT.gear) < 14
+    || dist2D(player.position, SKI_RESORT.gear2) < 14;
+}
 function trySkiResort() {
   if (!inSkiResort()) return false;
   const dg = dist2D(player.position, SKI_RESORT.gate), de = dist2D(player.position, SKI_RESORT.gear), de2 = dist2D(player.position, SKI_RESORT.gear2);

@@ -9,7 +9,7 @@ function ui(id) {
   return nodes.get(id);
 }
 let saved;
-const state = { money: 134999, running: true, paused: false, parkBusiness: null };
+const state = { money: economy.PARK.price + economy.PARK.capital - 1, running: true, paused: false, parkBusiness: null };
 const context = vm.createContext({ ...economy, state, ui, typing: false, keys: {}, releaseLock() {}, toast() {}, saveGame() { saved = JSON.parse(JSON.stringify(state)); } });
 vm.runInContext(html.slice(html.indexOf('const parkMoney ='), html.indexOf('function checkProgress()')), context);
 const action = key => ui('parkActions').onclick({ target: { closest: () => ({ dataset: { park: key } }) } });

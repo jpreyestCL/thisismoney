@@ -1,5 +1,5 @@
 // Economía ficticia del parque. Un día comercial = seis minutos de juego activo.
-export const PARK = Object.freeze({ price: 120000, capital: 15000, ticket: 200, seconds: 360, reserve: 6000, capacity: 180 });
+export const PARK = Object.freeze({ price: 15000, capital: 15000, ticket: 200, seconds: 360, reserve: 6000, capacity: 180 });
 export const CAMPAIGNS = Object.freeze({
   social: { name: 'Publicidad en redes', cost: 1800, days: 3, demand: 1.25, discount: 0 },
   family: { name: 'Promoción familiar −20%', cost: 600, days: 2, demand: 1.45, discount: .2 },

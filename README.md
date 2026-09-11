@@ -222,7 +222,7 @@ En [`CLAUDE.md`](CLAUDE.md) hay notas de desarrollo mucho más detalladas de cad
 
 ### Administración del parque de diversiones
 
-El botón **🎡 Parque** permite comprar el parque por $120.000 y aportar $15.000
+El botón **🎡 Parque** permite comprar el parque por $15.000 y aportar $15.000
 iniciales a su caja. La entrada general vale $200. Cada seis minutos de juego
 activo se liquida un día comercial de un calendario simulado que comienza el
 1 de enero de 2026. La administración pausa el juego; no hay producción offline.

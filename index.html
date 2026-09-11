@@ -6689,8 +6689,8 @@ function renderParkBusiness() {
   const p = state.parkBusiness;
   const button = (key, text, disabled = false) => `<button class="bankBtn" data-park="${key}" ${disabled ? 'disabled' : ''}>${text}</button>`;
   if (!p) {
-    ui('parkOverview').textContent = 'Compra el parque por $120.000 y aporta $15.000 de capital inicial. Necesitas $135.000. Capacidad: 180 visitantes diarios. Gastos de apertura: $4.500 diarios más $28 por visitante y 10% de las ventas en impuestos simulados. Cerrado cuesta $1.600 diarios. Hay riesgo de pérdidas y averías de $4.500.';
-    ui('parkActions').innerHTML = button('buy', 'Comprar · $135.000', state.money < PARK.price + PARK.capital);
+    ui('parkOverview').textContent = 'Compra el parque por $15.000 y aporta $15.000 de capital inicial. Necesitas $30.000 en total. Capacidad: 180 visitantes diarios. Gastos de apertura: $4.500 diarios más $28 por visitante y 10% de las ventas en impuestos simulados. Cerrado cuesta $1.600 diarios. Hay riesgo de pérdidas y averías de $4.500.';
+    ui('parkActions').innerHTML = button('buy', 'Comprar + capital · $30.000', state.money < PARK.price + PARK.capital);
     ui('parkReport').textContent = 'Todavía no eres dueño del parque.'; ui('parkDetail').textContent = ''; return;
   }
   const profits = p.history.reduce((sum, r) => sum + r.profit, 0);

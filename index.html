@@ -10898,7 +10898,8 @@ function updateSkiMovement(dt) {
   const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x, player.position.z + 8));
   const braking = keys['KeyS'] || keys['ArrowDown'];
   const downhillSpeed = braking ? 0 : 4.5 + Math.min(12, slopeDrop * .55);
-  player.position.x += steer * (8 + downhillSpeed * .12) * dt;
+  const lateralSpeed = 22 + downhillSpeed * .2;
+  player.position.x += steer * lateralSpeed * dt;
   player.position.z += (downhillSpeed + push * 5.5) * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);
   player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 178, SKI_RESORT.z + 190);

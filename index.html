@@ -997,7 +997,7 @@ const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el 
 const groundTex = makePixelTexture(0xffffff, true);
 groundTex.repeat.set(130, 130);
 const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, color: 0x4a7c3a, roughness: 1, flatShading: true });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(760, 760), groundMat);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground);
 
@@ -3408,11 +3408,11 @@ function buildEarthMountains() {
 // ---------------- EXPANSIÓN: CENTRO DE ESQUÍ -------------------
 // La cordillera queda en el extremo ampliado del mapa. La pista de acceso es una
 // carretera de curvas visibles para que el viaje en auto se sienta como una subida.
-const SKI_RESORT = { x: 220, z: 235, r: 115, gate: { x: 165, z: 166 }, gear: { x: 173, z: 173 }, gear2: { x: 185, z: 173 } };
+const SKI_RESORT = { x: 220, z: 235, r: 150, gate: { x: 165, z: 166 }, gear: { x: 173, z: 173 }, gear2: { x: 185, z: 173 } };
 const SKI_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z + 58 };
 const SKI_LIFT2_BOTTOM = { x: SKI_RESORT.x - 8, z: SKI_RESORT.z + 48 };
 const SKI_TOW_BOTTOM = { x: SKI_RESORT.x - 28, z: SKI_RESORT.z + 52 };
-const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 150, ph: 28 * 1.7, ski: true };
+const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 300, ph: 28 * 1.7, ski: true };
 const skiSlopeHeight = (x, z) => mountainProfile(SKI_MOUNTAIN_PROFILE, x - SKI_RESORT.x, z - SKI_RESORT.z);
 const skiResortGroup = new THREE.Group(); scene.add(skiResortGroup);
 const skiVisitors = [], skiObstacles = [];
@@ -3439,7 +3439,7 @@ function buildSkiRoad() {
 }
 function buildSkiResort() {
   // Cerro alto, con nieve desde la zona alta y una ladera continua para no atravesarla.
-  mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 150, 0xf1f5f9, 0xffffff, 28, 'tierra', { grass: 0xffffff, soil: 0xf8fafc, leaf: 0xe2e8f0, trees: 8, ski: true });
+  mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 300, 0xf1f5f9, 0xffffff, 28, 'tierra', { grass: 0xffffff, soil: 0xf8fafc, leaf: 0xe2e8f0, trees: 8, ski: true });
   buildSkiRoad();
   // Zona de llegada plana: la bajada termina aquí y no en un borde abrupto.
   const landing = new THREE.Mesh(new THREE.BoxGeometry(112, .45, 82), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 19, SKI_RESORT.z + 82); landing.receiveShadow = true; skiResortGroup.add(landing); addLandingSurface(landing.position.x, landing.position.z, 112, 82, 19.225, landing);
@@ -3481,13 +3481,13 @@ function buildSkiResort() {
   // Andarivel y arrastre: torres, cable y sillas que suben la montaña.
   const lift = new THREE.Group(); lift.position.set(SKI_RESORT.x + 25, 0, SKI_RESORT.z - 18); skiResortGroup.add(lift);
   for (let i = 0; i < 5; i++) { const z = -62 + i * 30, y = skiSlopeHeight(lift.position.x, lift.position.z + z) + 5; skiBox(lift, 0, y / 2, z, .65, y, .65, 0x475569); }
-  const cable = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, 125, 8), mat(0x0f172a)); cable.rotation.x = Math.PI / 2; cable.position.set(0, 72, 0); lift.add(cable);
-  const cableMarker = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 125, 6), mat(0xfbbf24)); cableMarker.rotation.x = Math.PI / 2; cableMarker.position.set(0, 72.35, 0); lift.add(cableMarker);
-  for (let i = 0; i < 10; i++) { const z = -52 + i * 11, hanger = skiBox(lift, 0, 66, z, .12, 10, .12, 0x334155); const chair = skiBox(lift, 0, 60.8, z, 1.8, .22, .8, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, 125, 8), mat(0x0f172a)); cable.rotation.x = Math.PI / 2; cable.position.set(0, 130, 0); lift.add(cable);
+  const cableMarker = new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 125, 6), mat(0xfbbf24)); cableMarker.rotation.x = Math.PI / 2; cableMarker.position.set(0, 130.35, 0); lift.add(cableMarker);
+  for (let i = 0; i < 10; i++) { const z = -52 + i * 11, hanger = skiBox(lift, 0, 124, z, .12, 12, .12, 0x334155); const chair = skiBox(lift, 0, 117.8, z, 1.8, .22, .8, 0xf59e0b); chair.rotation.y = Math.PI / 2; }
   const lift2 = new THREE.Group(); lift2.position.set(SKI_RESORT.x - 8, 0, SKI_RESORT.z - 12); skiResortGroup.add(lift2);
   for (let i = 0; i < 5; i++) { const z = -48 + i * 28, y = skiSlopeHeight(lift2.position.x, lift2.position.z + z) + 7; skiBox(lift2, 0, y / 2, z, .75, y, .75, 0x1e293b); }
-  const cable2 = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, 105, 8), mat(0x020617)); cable2.rotation.x = Math.PI / 2; cable2.position.set(0, 62, 0); lift2.add(cable2);
-  for (let i = 0; i < 9; i++) { const z = -43 + i * 11, hanger = skiBox(lift2, 0, 56, z, .12, 9, .12, 0x334155); skiBox(lift2, 0, 51.4, z, 1.8, .22, .8, 0x22d3ee); }
+  const cable2 = new THREE.Mesh(new THREE.CylinderGeometry(.25, .25, 105, 8), mat(0x020617)); cable2.rotation.x = Math.PI / 2; cable2.position.set(0, 112, 0); lift2.add(cable2);
+  for (let i = 0; i < 9; i++) { const z = -43 + i * 11, hanger = skiBox(lift2, 0, 106, z, .12, 10, .12, 0x334155); skiBox(lift2, 0, 100.4, z, 1.8, .22, .8, 0x22d3ee); }
   const liftSign = makeSign('🚡 ANDARIVEL 1 · 🚠 ANDARIVEL 2', 0xfef08a); liftSign.scale.set(.52, .52, .52); liftSign.position.set(SKI_RESORT.x, 8, SKI_RESORT.z + 48); skiResortGroup.add(liftSign);
   const tow = new THREE.Mesh(new THREE.BoxGeometry(1.2, .15, 105), mat(0x111827)); tow.position.set(SKI_RESORT.x - 28, 52, SKI_RESORT.z + 2); tow.rotation.x = -.25; skiResortGroup.add(tow);
   // Mucha gente esperando y bajando por las pistas.
@@ -8923,7 +8923,7 @@ function loadGame() {
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); spawnBase(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else if(state.country){const c=currentCountry();groundMat.color.set(c.ground);decor.forEach(t=>t.visible=false);buildCountry(c);setCountryVisible(true);setEarthWorld(false);setCityVisible(false);setPlatusVisible(false);applySpaceSuit(false);removeBase();scene.background.set(c.sky);scene.fog.far=320;syncPlacedCountryVisibility();}
-  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setCityVisible(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 160; syncPlacedCountryVisibility(); }
+  else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setCityVisible(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 320; syncPlacedCountryVisibility(); }
   selectedCrop = CROP_DEFS[d.selectedCrop] ? d.selectedCrop : 'apple';
   (d.plants || []).forEach(p => spawnPlant(p.x, p.z, p.grow, p.produce != null ? p.produce : p.apples, p.crop || 'apple'));   // huerto: reponer cultivos y saves antiguos
   state.helperWeapon = !!d.helperWeapon; state.helperArmor = !!d.helperArmor;   // arma/armadura de los hijos (antes de recrearlos)
@@ -10780,7 +10780,7 @@ function updateSkiMovement(dt) {
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;
 }
-let skiRemoveHold = 0;
+let skiRemoveHold = 0, skiAccessWarnAt = 0;
 function updateSkiGearHold(dt) {
   if (!state.skiGear) { skiRemoveHold = 0; return; }
   if (keys['KeyE'] && !state.skiing && !state.skiLiftRide) {
@@ -10921,8 +10921,12 @@ function updateMovement(dt) {
     player.position.x = THREE.MathUtils.clamp(player.position.x, COUNTRY_C.x - 175, COUNTRY_C.x + 175);
     player.position.z = THREE.MathUtils.clamp(player.position.z, COUNTRY_C.z - 175, COUNTRY_C.z + 175);
   } else {
-    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -330, 330);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, -365, 330);
+    player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -420, 420);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, -365, 420);
+  }
+  if (state.skiGearWorn && !state.skiing && !state.skiLiftRide && inSkiResort() && mountainHeightAt(player.position.x, player.position.z) > 85) {
+    player.position.x = moveStartX; player.position.z = moveStartZ;
+    if (performance.now() - skiAccessWarnAt > 1800) { skiAccessWarnAt = performance.now(); toast('🚡 No puedes subir con los esquís puestos · usa un andarivel o el arrastre'); }
   }
   resolveCollisions();
   camera.rotation.y = yaw; camera.rotation.x = pitch;

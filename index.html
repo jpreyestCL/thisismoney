@@ -3566,6 +3566,28 @@ function mountainHeightAt(x, z) {
   }
   return best;
 }
+// La montaña es SÓLIDA: volar o pilotar nunca atraviesa el volumen de roca.
+// Chocar de frente detiene el XZ (no te sube de golpe a la cumbre). Bajar sobre
+// la ladera te apoya en la nieve.
+function resolveMountainSolid(pos, fromX, fromZ, fromY, eye) {
+  if (state.underground || state.inCastle || state.inRuins || state.inArena) return false;
+  const snow = mountainHeightAt(pos.x, pos.z);
+  if (!(snow > 0)) return false;
+  const floorY = snow + eye;
+  if (pos.y >= floorY - .04) return false;
+  if (floorY > fromY + 1.15) {
+    const snowZ = mountainHeightAt(fromX, pos.z);
+    if (!(snowZ > 0) || pos.y >= snowZ + eye - .04) { pos.x = fromX; return true; }
+    const snowX = mountainHeightAt(pos.x, fromZ);
+    if (!(snowX > 0) || pos.y >= snowX + eye - .04) { pos.z = fromZ; return true; }
+    pos.x = fromX; pos.z = fromZ;
+    const here = mountainHeightAt(fromX, fromZ);
+    if (here > 0) pos.y = Math.max(pos.y, here + eye);
+    return true;
+  }
+  pos.y = floorY;
+  return false;
+}
 // La montaña se arma con COLUMNAS de bloques de distinta altura (InstancedMesh: 1 draw call).
 // Como la altura de cada columna sale del perfil suave, la ladera sube parejo y no en escalones.
 function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
@@ -10222,7 +10244,7 @@ function updateDriving(dt) {
   const baseSpeed = car.helicopter ? 30 : (turbo ? 44 : 24);
   const move = throttle * baseSpeed * sm * dt;
   car.reverse = throttle < -0.05; car.turbo = !!turbo;
-  const prevX = car.group.position.x, prevZ = car.group.position.z;
+  const prevX = car.group.position.x, prevZ = car.group.position.z, prevY = car.group.position.y;
   car.group.position.addScaledVector(fwd, move);
   if (!car.helicopter && Math.abs(move) > .01) car.fuel = Math.max(0, car.fuel - Math.abs(move) * .035);
   if (!car.helicopter && car.group.position.x < -188 && Math.abs(car.group.position.z - OCEAN.cz) < OCEAN.waterD / 2) {
@@ -10237,6 +10259,7 @@ function updateDriving(dt) {
   if (car.helicopter) {
     const rise = (keys['Space'] || touch.jump || touch.jumpHeld ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] || touch.crouch || touch.heliDown ? 1 : 0);
     car.group.position.y = THREE.MathUtils.clamp(car.group.position.y + rise * 12 * dt, 0, 45);
+    resolveMountainSolid(car.group.position, prevX, prevZ, prevY, 1.4);
     for (const rotor of car.rotors) rotor.rotation.y += dt * (state.driving ? 22 : 5);
     touch.jump = false;   // cada toque del botón ⬆️ da impulso de ascenso también en celular
   } else {
@@ -11992,6 +12015,7 @@ function updateCreativeFlight(dt) {
   let az = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
   const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }
   const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 42 : 24;
+  const fromX = player.position.x, fromZ = player.position.z, fromY = player.position.y;
   player.position.addScaledVector(forward, az * speed * dt);
   player.position.addScaledVector(rightV, ax * speed * dt);
   const vertical = (keys['Space'] ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] ? 1 : 0);
@@ -12002,6 +12026,7 @@ function updateCreativeFlight(dt) {
   player.position.y = Math.max(minFlyY, player.position.y + vertical * speed * dt);
   player.position.x = THREE.MathUtils.clamp(player.position.x, worldWestLimit(), 800);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 820);
+  resolveMountainSolid(player.position, fromX, fromZ, fromY, PLAYER_EYE);
   if (inTreasureIsland(player.position.x, player.position.z)) noteIslandArrival('🏝️ Llegaste volando a la ISLA DEL TESORO');
   grounded = false; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
 }
@@ -12375,6 +12400,7 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
+    snow: +mountainHeightAt(player.position.x, player.position.z).toFixed(3),
     pool: { cx: POOL.cx, cz: POOL.cz, surface: POOL.surface, bottom: POOL.bottom },
     liftTop: { x: SKI_LIFT_BOTTOM.x, z: SKI_LIFT_BOTTOM.z - 340 },
   });

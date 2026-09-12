@@ -23,7 +23,7 @@ assert.match(html, /Guardar nombre/);
 assert.match(html, /accountbox.*TYPING_BOXES|TYPING_BOXES = \[.*accountbox/);
 assert.match(html, /closeAccountBox/);
 assert.doesNotMatch(html, /GREATEST\(leaderboard\.best_money/);
-assert.match(sw, /tim-v22/);
+assert.match(sw, /tim-v23/);
 
 assert.match(html, /id="nameInput"[^>]*maxlength="20"/);
 assert.match(html, /id="netName"[^>]*maxlength="20"/);

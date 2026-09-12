@@ -46,11 +46,15 @@
   #objective { position: absolute; top: 92px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,.5); padding: 7px 16px; border-radius: 18px; font-size: 14px; font-weight: 600; text-align: center; max-width: 90%; }
   #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; background: #fff; border-radius: 50%; opacity: .8; }
+  #bowcharge { position: absolute; left: 50%; top: calc(50% + 18px); width: 92px; height: 8px; margin-left: -46px; z-index: 8; display: none; overflow: hidden; pointer-events: none; background: rgba(0,0,0,.5); border: 1px solid #fde047; border-radius: 6px; }
+  #bowcharge.show { display: block; }
+  #bowcharge i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #b45309, #facc15, #fff7ed); }
+  body.cine #bowcharge { display: none !important; }
   #toast { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 8;
     background: rgba(0,0,0,.72); padding: 11px 22px; border-radius: 10px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: center; max-width: 86vw; }
   #toastStack { position: absolute; top: calc(50% - 34px); left: 50%; transform: translate(-50%,-100%); z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; pointer-events: none; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
+  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
@@ -501,6 +505,7 @@
   <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
   <div id="objective">Objetivo</div>
   <div id="crosshair"></div>
+  <div id="bowcharge"><i></i></div>
   <div id="contextPrompt" role="status" aria-live="polite"><span id="contextKey">E</span><span id="contextText">Interactuar</span></div>
   <div id="toastStack"></div>
   <div id="toast"></div>
@@ -884,7 +889,7 @@
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Primero contrátalo en el súper por $500. Su sueldo es $100 cada 7 días del juego.</span>
           <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
-          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios.</span>
+          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Mira hacia arriba para que vuele lejos; abajo llega menos.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
           <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
@@ -1194,8 +1199,55 @@ function makeVoxelGun(color = 0xef4444, scale = 1) {
   const grip = new THREE.Mesh(new THREE.BoxGeometry(.18, .42, .2), mat(0x1f2937)); grip.position.set(0,-.1,.05); grip.rotation.z = -.18; g.add(grip);
   g.scale.setScalar(scale); g.userData.toolKind = 'gun'; g.userData.toolColor = color; return g;
 }
-function weaponKindFromName(name) { const n = String(name || '').toLowerCase(); return n.includes('pala') ? 'shovel' : n.includes('pistola') || n.includes('láser') ? 'gun' : n.includes('puño') ? 'fist' : 'sword'; }
-function createVoxelTool(kind, color, scale) { return kind === 'shovel' ? makeVoxelShovel(color, scale) : kind === 'gun' ? makeVoxelGun(color, scale) : makeVoxelSword(color, scale); }
+// Flecha visible: astil de madera, punta de metal y plumas. El eje +Z es la punta (hacia donde vuela).
+function makeArrowMesh(scale = 1) {
+  const g = new THREE.Group();
+  const wood = mat(0xc4a574), steel = new THREE.MeshStandardMaterial({ color: 0xc5cdd6, metalness: .72, roughness: .28, flatShading: true });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.016, .02, .78, 7), wood); shaft.rotation.x = Math.PI / 2; shaft.castShadow = true; g.add(shaft);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(.042, .16, 6), steel); tip.rotation.x = Math.PI / 2; tip.position.z = .46; tip.castShadow = true; g.add(tip);
+  const nock = new THREE.Mesh(new THREE.BoxGeometry(.028, .03, .05), mat(0x5b3a1a)); nock.position.z = -.4; g.add(nock);
+  for (const [x, y, col] of [[.038, 0, 0xb91c1c], [-.038, 0, 0xf8fafc], [0, .04, 0xb91c1c]]) {
+    const f = new THREE.Mesh(new THREE.BoxGeometry(.07, .012, .13), mat(col)); f.position.set(x, y, -.32); g.add(f);
+  }
+  g.scale.setScalar(scale); return g;
+}
+function placeBowRod(mesh, ax, ay, az, bx, by, bz) {
+  const dx = bx - ax, dy = by - ay, dz = bz - az, len = Math.hypot(dx, dy, dz) || .001;
+  mesh.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+  mesh.scale.set(1, len, 1);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
+}
+function makeVoxelBow(color = 0x8b5a2b, scale = 1) {
+  const g = new THREE.Group();
+  const wood = mat(color || 0x8b5a2b), dark = mat(0x3d2212), leather = mat(0x4a2c14);
+  const gold = new THREE.MeshStandardMaterial({ color: 0xc9a227, metalness: .55, roughness: .38, flatShading: true });
+  const stringMat = new THREE.MeshStandardMaterial({ color: 0xf5f0e1, roughness: .45, metalness: .05 });
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(.09, .3, .11), leather); handle.castShadow = true; g.add(handle);
+  const wrap = new THREE.Mesh(new THREE.BoxGeometry(.11, .12, .13), dark); g.add(wrap);
+  const segs = [[.22, -.04, .075, .2, .065], [.42, -.1, .068, .18, .055], [.6, -.18, .055, .16, .045], [.74, -.28, .045, .13, .038]];
+  for (const [y, z, w, h, d] of segs) {
+    const up = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wood); up.position.set(0, y, z); up.castShadow = true; g.add(up);
+    const dn = up.clone(); dn.position.y = -y; g.add(dn);
+  }
+  const tipU = new THREE.Mesh(new THREE.BoxGeometry(.05, .07, .05), gold); tipU.position.set(0, .84, -.34); g.add(tipU);
+  const tipD = tipU.clone(); tipD.position.y = -.84; g.add(tipD);
+  const strU = new THREE.Mesh(new THREE.CylinderGeometry(.009, .009, 1, 5), stringMat);
+  const strD = new THREE.Mesh(new THREE.CylinderGeometry(.009, .009, 1, 5), stringMat);
+  g.add(strU); g.add(strD);
+  const nocked = makeArrowMesh(.92); nocked.name = 'nockedArrow'; g.add(nocked);
+  g.userData.setDraw = (t) => {
+    const p = THREE.MathUtils.clamp(t, 0, 1), nz = .04 + p * .48;
+    placeBowRod(strU, 0, .84, -.34, 0, 0, nz);
+    placeBowRod(strD, 0, -.84, -.34, 0, 0, nz);
+    nocked.position.set(0, 0, nz - .02);
+    nocked.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1));
+    nocked.visible = true;
+  };
+  g.userData.setDraw(0);
+  g.scale.setScalar(scale); g.userData.toolKind = 'bow'; g.userData.toolColor = color; return g;
+}
+function weaponKindFromName(name) { const n = String(name || '').toLowerCase(); return n.includes('pala') ? 'shovel' : n.includes('arco') ? 'bow' : n.includes('pistola') || n.includes('láser') ? 'gun' : n.includes('puño') ? 'fist' : 'sword'; }
+function createVoxelTool(kind, color, scale) { return kind === 'shovel' ? makeVoxelShovel(color, scale) : kind === 'gun' ? makeVoxelGun(color, scale) : kind === 'bow' ? makeVoxelBow(color, scale) : makeVoxelSword(color, scale); }
 
 // Brazo y herramienta en primera persona.
 function makeViewmodel() {
@@ -1595,6 +1647,7 @@ const BUTLER_ALIASES = {
   celular:['celular','telefono'], alexa:['alexa'], tele:['tele','television'],
   comida:['comidas','alimentos'], coca:['coca cola','coca','bebida'], papas:['papas','patatas fritas'],
   dadgun:['arma para papa'], dadarmor:['armadura para papa'],
+  arco:['arco','arco y flechas','flechas'],
   semillas:['semillas de manzana'], semillas_zanahoria:['semillas de zanahoria'], semillas_trigo:['semillas de trigo'], semillas_tomate:['semillas de tomate']
 };
 function butlerCatalog() { return [...SHOP, ...ALIEN_TECH].filter(item => item.key !== 'mayordomo'); }
@@ -1728,6 +1781,7 @@ const STORE_B = [   // SÚPER 2 (ARMERÍA): armas y armaduras por niveles
   { key: 'espada_madera',    name: 'Espada madera',    price: 300,  color: 0x8b5a2b, dmg: 4 },
   { key: 'espada_metal',     name: 'Espada metal',     price: 500,  color: 0xcbd5e1, dmg: 7 },
   { key: 'espada_obsidiana', name: 'Espada obsidiana', price: 1000, color: 0x6d28d9, dmg: 13 },
+  { key: 'arco', name: 'Arco y flechas', price: 800, color: 0x8b5a2b, dmg: 16, bow: true },
   { key: 'armadura_cuero',     name: 'Armadura cuero',     price: 300,  color: 0x92400e, factor: 0.8 },
   { key: 'armadura_metal',     name: 'Armadura metal',     price: 600,  color: 0x9ca3af, factor: 0.6 },
   { key: 'armadura_obsidiana', name: 'Armadura obsidiana', price: 1200, color: 0x6d28d9, factor: 0.3 },
@@ -1865,6 +1919,11 @@ function makeProductMesh(key, color) {
     const body = new THREE.Mesh(new THREE.BoxGeometry(.8, .55, 1.2), mat(color)); body.position.y = .55; g.add(body);
     const tail = new THREE.Mesh(new THREE.BoxGeometry(.22, .2, .9), mat(color)); tail.position.set(0, .65, -.95); g.add(tail);
     const rotor = new THREE.Mesh(new THREE.BoxGeometry(1.8, .05, .12), mat(0x1f2937)); rotor.position.y = 1.05; g.add(rotor);
+  } else if (key === 'arco') {
+    const limb = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.035, 6, 14, Math.PI), mat(color)); limb.rotation.z = Math.PI / 2; limb.position.y = 0.5; g.add(limb);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.08), mat(0x4a2c14)); grip.position.y = 0.5; g.add(grip);
+    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.72), mat(0xf5f0e1)); str.position.y = 0.5; g.add(str);
+    const arrow = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7), mat(0xc4a574)); arrow.rotation.z = Math.PI / 2; arrow.position.set(0.12, 0.5, 0); g.add(arrow);
   } else if (key === 'ballesta' || key === 'torreta') {
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.7), mat(color)); base.position.y = 0.4; base.castShadow = true; g.add(base);
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.7), mat(0x1f2937)); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.5, 0.4); g.add(barrel);
@@ -7069,7 +7128,7 @@ let debugCombatTool = 0;
 function debugCombatShowcase() {
   clearWaves(); state.stage = 20; state.phase = 'NIGHT'; state.night = Math.max(2, state.night || 0); state.nightTime = 10; state.spawnTimer = 999; state.hordeOn = false; state.chestAt = [];
   const tools = [
-    { name:'Espada obsidiana', dmg:13, color:0x6d28d9 }, { name:'Pala metal', dmg:4, color:0x9ca3af }, { name:'Pistola láser', dmg:22, color:0xef4444 },
+    { name:'Espada obsidiana', dmg:13, color:0x6d28d9 }, { name:'Pala metal', dmg:4, color:0x9ca3af }, { name:'Pistola láser', dmg:22, color:0xef4444 }, { name:'Arco y flechas', dmg:16, color:0x8b5a2b },
   ], tool = tools[debugCombatTool++ % tools.length];
   state.weaponName = tool.name; state.weaponDmg = tool.dmg; state.hasShovel = true; setWeaponColor(tool.color);
   player.position.set(HOUSE.x, PLAYER_EYE, HOUSE.z + 5); yaw = 0; pitch = -.08;
@@ -7267,7 +7326,7 @@ function moveToward(e, target, step) {
 }
 function removeEnemy(i) { const e = enemies[i]; if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); enemies.splice(i, 1); }
 function killEnemy(e) { const i = enemies.indexOf(e); if (i >= 0) removeEnemy(i); }
-function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; netMobs.clear(); projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; bombProjectiles.forEach(p => scene.remove(p)); bombProjectiles.length = 0; removeChest(); clearMeteorShower(); }   // netMobs.clear(): los monstruos del anfitrión se vuelven a recibir enseguida
+function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; netMobs.clear(); projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; bombProjectiles.forEach(p => scene.remove(p)); bombProjectiles.length = 0; clearPlayerArrows(); removeChest(); clearMeteorShower(); }   // netMobs.clear(): los monstruos del anfitrión se vuelven a recibir enseguida
 function throwZombieBomb(e,target){const p=new THREE.Group(),shell=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),mat(0x111827));shell.castShadow=true;p.add(shell);const fuse=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.22,6),mat(0x92400e));fuse.position.y=.3;fuse.rotation.z=.35;p.add(fuse);p.add(new THREE.PointLight(0xff6b00,1.5,4));p.position.set(e.position.x,e.position.y+1.7,e.position.z);const flight=1.15,ground=mountainHeightAt(target.x,target.z),gravity=11;p.userData.vel=new THREE.Vector3((target.x-p.position.x)/flight,(ground+.15-p.position.y+.5*gravity*flight*flight)/flight,(target.z-p.position.z)/flight);p.userData.life=flight;scene.add(p);bombProjectiles.push(p);beep(180,.12,.05);}
 function spawnBombCrater(x,z){const g=new THREE.Group(),pit=new THREE.Mesh(new THREE.CircleGeometry(2.35,20),new THREE.MeshStandardMaterial({color:0x160c06,roughness:1}));pit.rotation.x=-Math.PI/2;pit.position.y=.025;g.add(pit);for(let k=0;k<10;k++){const a=k/10*Math.PI*2,rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.34+Math.random()*.22,0),mat(0x4a2c17));rock.position.set(Math.cos(a)*(2.05+Math.random()*.35),.12,Math.sin(a)*(2.05+Math.random()*.35));rock.scale.y=.55;g.add(rock);}g.position.set(x,mountainHeightAt(x,z),z);scene.add(g);bombCraters.push(g);}
 function explodeZombieBomb(p){const pos=p.position.clone();pos.y=mountainHeightAt(pos.x,pos.z);voxelImpact(pos.clone().setY(pos.y+.3),0xf97316,18);cameraShake=Math.max(cameraShake,.45);beep(65,.45,.12);if(!playerAirborne()&&dist3D(pos,player.position)<4.5)damagePlayer(24,pos);if(dad.visible&&!dad.userData.resting&&dist2D(pos,dad.position)<4.5)damageDad(18,pos);damageCompanionsInRadius(pos,4.5,18);spawnBombCrater(pos.x,pos.z);}
@@ -7295,6 +7354,148 @@ function spawnBolt(from, target, dmg) {
   b.position.set(from.x, 0.9, from.z); b.rotation.y = Math.atan2(dx, dz);
   b.userData = { friendly: true, vel: new THREE.Vector3(dx / len * 32, 0, dz / len * 32), dmg, life: 2 };
   scene.add(b); projectiles.push(b);
+}
+const playerArrows = [];
+const bowFwd = new THREE.Vector3(), bowAimDir = new THREE.Vector3();
+let bowDrawing = false, bowDrawT = 0, bowDrawSrc = null, bowFullTone = false;
+function bowEquipped() { return weaponKindFromName(state.weaponName) === 'bow'; }
+function bowContextBlocksDraw() {
+  if (state.skiing || state.skiLiftRide || state.driving || state.sailing || state.sportGame || state.buildMode) return true;
+  const box = ui('contextPrompt');
+  if (!box || !box.classList.contains('visible')) return false;
+  const txt = (ui('contextText') && ui('contextText').textContent) || '';
+  if (txt.includes('arco') || txt.includes('tensar')) return false;
+  const k = ((ui('contextKey') && ui('contextKey').textContent) || '').toUpperCase();
+  return k.includes('E');
+}
+function applyBowDrawVisual(t) {
+  const apply = (mount) => { const tool = mount && mount.children && mount.children[0]; if (tool && tool.userData && tool.userData.setDraw) tool.userData.setDraw(t); };
+  if (viewmodel && viewmodel.userData && viewmodel.userData.toolMount) apply(viewmodel.userData.toolMount);
+  const arm = playerAvatar && playerAvatar.userData && playerAvatar.userData.limbs && playerAvatar.userData.limbs.armR;
+  if (arm && arm.userData) apply(arm.userData.toolMount);
+}
+function cancelBowDraw() {
+  bowDrawing = false; bowDrawSrc = null; bowDrawT = 0; bowFullTone = false;
+  applyBowDrawVisual(0);
+  const bar = ui('bowcharge'); if (bar) bar.classList.remove('show');
+}
+function startBowDraw(src) {
+  if (!state.running || state.paused || typing || !bowEquipped()) return false;
+  if (state.buildMode || state.driving || state.sailing || state.skiing || state.sportGame || state.cinematic) return false;
+  if (src === 'key' && bowContextBlocksDraw()) return false;
+  if (!bowDrawing) { bowDrawing = true; bowDrawT = 0; bowDrawSrc = src; bowFullTone = false; tone(210, .1, .035, 'sine'); }
+  else bowDrawSrc = src;
+  return true;
+}
+function releaseBow() {
+  if (!bowDrawing) return false;
+  const power = bowDrawT, src = bowDrawSrc;
+  cancelBowDraw();
+  if (src === 'key' && power < .18) { tryInteract(); return true; }
+  shootBowArrow(Math.max(.28, power));
+  return true;
+}
+function arrowFloorY(x, z) {
+  if (state.underground) return state.groundY || 0;
+  let y = 0;
+  const snow = mountainHeightAt(x, z); if (snow > y) y = snow;
+  if (state.planet === 'tierra' && inTreasureIsland(x, z)) y = Math.max(y, TREASURE_ISLAND.surface);
+  return y;
+}
+function shootBowArrow(power) {
+  if (!state.running) return;
+  power = THREE.MathUtils.clamp(power, .2, 1);
+  vmSwing = .62;
+  getAimDirection(bowAimDir);
+  const speed = 16 + 38 * power;
+  const origin = new THREE.Vector3();
+  const held = viewmodel.userData.toolMount && viewmodel.userData.toolMount.children[0];
+  const nocked = held && held.getObjectByName && held.getObjectByName('nockedArrow');
+  if (cameraMode === 0 && nocked && nocked.visible) nocked.getWorldPosition(origin);
+  else origin.copy(player.position).addScaledVector(bowAimDir, .85).setY(player.position.y - .12);
+  applyBowDrawVisual(0);
+  const arrow = makeArrowMesh(1);
+  arrow.position.copy(origin);
+  arrow.quaternion.setFromUnitVectors(bowFwd.set(0, 0, 1), bowAimDir);
+  arrow.userData.vel = bowAimDir.clone().multiplyScalar(speed);
+  arrow.userData.life = 5.2;
+  arrow.userData.dmg = Math.round((state.weaponDmg || 16) * (.4 + .75 * power));
+  arrow.userData.stuck = false;
+  scene.add(arrow); playerArrows.push(arrow);
+  if (playerArrows.length > 18) { const old = playerArrows.shift(); if (old.parent) scene.remove(old); }
+  tone(130 + power * 90, .09, .055, 'sawtooth'); beep(480 + power * 220, .05, .04);
+}
+function hitWithArrow(pos, dmg) {
+  if (titan && dist3D(pos, titan.mesh.position) < 5) {
+    titan.hp -= dmg; floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15);
+    if (titan.hp <= 0) defeatTitan(); return true;
+  }
+  for (let j = enemies.length - 1; j >= 0; j--) {
+    const e = enemies[j];
+    if (dist3D(pos, e.position) < 1.05) { hitEnemy(e, dmg, pos); return true; }
+  }
+  if (state.inCastle) {
+    for (const f of castleFoes) {
+      if (!f.alive) continue;
+      if (dist3D(pos, f.mesh.position) < 1.1) {
+        f.hp -= dmg; floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
+        if (f.hp <= 0) { f.alive = false; f.mesh.visible = false; const m = 60 + 20 * state.stage; addMoney(m); coinBurst(f.mesh.position, 8); }
+        return true;
+      }
+    }
+  }
+  if (state.inArena) {
+    for (const f of arenaFoes) {
+      if (dist3D(pos, f.mesh.position) < 1.1) {
+        f.hp -= dmg; floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
+        if (f.hp <= 0) { const m = 30 + 10 * state.stage; addMoney(m); coinBurst(f.mesh.position, 5); scene.remove(f.mesh); arenaFoes.splice(arenaFoes.indexOf(f), 1); missionProgress('kills'); }
+        return true;
+      }
+    }
+  }
+  if (state.phase === 'DAY') {
+    for (const person of npcs.concat(victims)) {
+      if (dist3D(pos, person.position) < 1) {
+        const push = new THREE.Vector3().subVectors(person.position, pos).setY(0).normalize().multiplyScalar(1.1);
+        person.position.add(push); becomeWanted(18, 1); toast('🏹 ¡Le pegaste a alguien con una flecha! Te volviste BUSCADO'); return true;
+      }
+    }
+  }
+  return false;
+}
+function updatePlayerArrows(dt) {
+  const grav = 18 * (state.planetGrav || 1);
+  for (let i = playerArrows.length - 1; i >= 0; i--) {
+    const a = playerArrows[i], ud = a.userData;
+    ud.life -= dt;
+    if (!ud.stuck) {
+      ud.vel.y -= grav * dt;
+      a.position.addScaledVector(ud.vel, dt);
+      const sp = ud.vel.length();
+      if (sp > .05) a.quaternion.setFromUnitVectors(bowFwd.set(0, 0, 1), ud.vel.clone().multiplyScalar(1 / sp));
+      if (hitWithArrow(a.position, ud.dmg)) { voxelImpact(a.position.clone(), 0xfde047, 8); scene.remove(a); playerArrows.splice(i, 1); continue; }
+      const floor = arrowFloorY(a.position.x, a.position.z);
+      if (a.position.y <= floor + .06) {
+        a.position.y = floor + .04; ud.stuck = true; ud.vel.set(0, 0, 0); ud.life = Math.min(ud.life, 1.8);
+        voxelImpact(a.position.clone().setY(floor + .08), 0xc4a574, 4);
+      }
+    }
+    if (ud.life <= 0) { scene.remove(a); playerArrows.splice(i, 1); }
+  }
+}
+function clearPlayerArrows() { playerArrows.forEach(a => scene.remove(a)); playerArrows.length = 0; }
+function updateBow(dt) {
+  if (bowDrawing) {
+    if (!bowEquipped() || state.paused || !state.running) { cancelBowDraw(); }
+    else {
+      bowDrawT = Math.min(1, bowDrawT + dt / 1.05);
+      if (bowDrawT >= 1 && !bowFullTone) { bowFullTone = true; tone(720, .07, .045, 'sine'); }
+      const bar = ui('bowcharge');
+      if (bar) { bar.classList.add('show'); const fill = bar.querySelector('i'); if (fill) fill.style.width = (bowDrawT * 100) + '%'; }
+      applyBowDrawVisual(bowDrawT);
+    }
+  } else if (bowEquipped()) applyBowDrawVisual(0);
+  updatePlayerArrows(dt);
 }
 // Las ballestas/torretas colocadas disparan solas a los zombis de noche
 function updateDefenses(dt) {
@@ -7775,7 +7976,7 @@ const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
   hp: 100, dadHp: 100,
   inv: freshInv(), driving: false, poison: 0, dadPoison: 0,
-  weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false, hasShovel: false,
+  weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false, hasShovel: false, hasBow: false,
   helperWeapon: false, helperArmor: false,   // arma / armadura para los hijos (todos)
   hunger: 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: 0,
   momUnlocked: false, momEventPending: false,
@@ -8283,6 +8484,9 @@ function algunRecuadroAbierto() {
 }
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
+function tryInteract() {
+  if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); }
+}
 addEventListener('keydown', e => {
   if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
@@ -8342,7 +8546,12 @@ addEventListener('keydown', e => {
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugVehicleDelivery(); return; }
   if (e.code === 'F8' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugCombatShowcase(); return; }
   if (e.code === 'F9' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugEscapeCinematic(); return; }
-  if (e.code === 'KeyE') { const alexaTarget=e.shiftKey&&aimedFurniture();if(alexaTarget&&alexaTarget.key==='alexa'){useAlexaText(alexaTarget);return;}if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } }
+  if (e.code === 'KeyE') {
+    const alexaTarget = e.shiftKey && aimedFurniture();
+    if (alexaTarget && alexaTarget.key === 'alexa') { useAlexaText(alexaTarget); return; }
+    if (!e.repeat && startBowDraw('key')) return;
+    tryInteract();
+  }
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
@@ -8395,13 +8604,17 @@ function eatFood() {
 // OJO: soltar una tecla SIEMPRE la limpia, aunque en ese momento haya un menú abierto
 // (antes, si abrías el vendedor caminando con W, el keyup se ignoraba y el personaje
 // seguía caminando solo al cerrar el menú).
-addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'KeyE' && bowDrawSrc === 'key') releaseBow();
+});
 // Soltar TODAS las entradas: al perder el foco (alt+tab, cambiar de pestaña, abrir un menú)
 // no llega el keyup/touchend y el personaje se quedaba "caminando solo".
 function clearInput() {
   for (const k in keys) keys[k] = false;
   touch.moveX = touch.moveY = 0; touch.jump = false; touch.jumpHeld = false; touch.heliDown = false;
   state.blocking = false;
+  cancelBowDraw();
 }
 
 // ----- Vendedor por texto (tecla Y cerca de un vendedor) -----
@@ -8473,7 +8686,7 @@ function shopIcon(item) {
   if (item.key === 'baseespacial') return '🏕️'; if (item.key === 'basetorreta') return '🔫'; if (item.key === 'basegenerador') return '⚡';
   if (item.key === 'minero') return '⛏️';
   if (item.car) return '🚗'; if (item.paint) return '🎨';
-  if (item.eat) return '🍖'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
+  if (item.eat) return '🍖'; if (item.bow || item.key === 'arco') return '🏹'; if (item.dmg) return item.key && item.key.includes('pala') ? '🪏' : '⚔️';
   if (item.factor) return '🛡️'; if (item.seedType) return item.seedType === 'carrot' ? '🥕' : item.seedType === 'wheat' ? '🌾' : item.seedType === 'tomato' ? '🍅' : '🌱';
   if (item.key === 'dadgun') return '🔫'; if (item.key === 'dadarmor') return '🛡️'; if (item.key === 'rocket') return '🚀'; if (item.key === 'traje') return '🧑‍🚀';
   if (item.key === 'hijoarma') return '⚔️'; if (item.key === 'hijoarmadura') return '🛡️';
@@ -8584,11 +8797,15 @@ let attackChargeStart = 0;
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('mousedown', e => {
   if (e.button === 2 && combatIsActive()) { state.blocking = true; return; }
-  if (e.button === 0) attackChargeStart = performance.now();
+  if (e.button === 0) {
+    if (bowEquipped()) { startBowDraw('mouse'); return; }
+    attackChargeStart = performance.now();
+  }
 });
 canvas.addEventListener('mouseup', e => {
   if (e.button === 2) { state.blocking = false; return; }
   if (e.button !== 0) return;
+  if (bowDrawSrc === 'mouse') { releaseBow(); return; }
   if (trySeatedGamerKeyboard()) return;
   const held = (performance.now() - attackChargeStart) / 1000, power = combatIsActive() && held >= .65 && state.stamina >= 18 ? 2.2 : 1;
   if (power > 1) { state.stamina -= 18; toast('⚔️ Ataque cargado'); }
@@ -8865,6 +9082,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (typing) { closeShopInput(); closeMathBox(); closeChatReply(); return; }   // tocar fuera del recuadro cierra el vendedor / los desafíos / el chat
       if (trySeatedGamerKeyboard()) return;
       if (state.running && state.inCastle) attackCastleFoe();    // en el castillo, toque rápido = pegar al alien malo
+      else if (state.running && bowEquipped()) shootBowArrow(.42);
       else if (state.running && state.phase === 'NIGHT') attack();   // toque rápido de noche = golpear monstruo
     }
   });
@@ -8874,8 +9092,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
   function press(act) {
     if (typing && act !== 'shop' && act !== 'math' && act !== 'chat') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
-      case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
-      case 'interact': if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryAirport() && !tryLeaderboard() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
+      case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (bowEquipped()) startBowDraw('touch'); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
+      case 'interact': if (bowEquipped() && startBowDraw('key')) break; tryInteract(); break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -8929,6 +9147,11 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (act === 'closeMore') { closeMorePanel(); return; }   // ✖️ cerrar el panel
       if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
       if (act === 'rotate') { rotHold = 1; el.dataset.downAt = String(performance.now()); state.buildMode = true; return; }   // mantener = giro libre
+      if ((act === 'hit' || act === 'interact') && bowEquipped() && (act !== 'interact' || !bowContextBlocksDraw())) {
+        startBowDraw(act === 'hit' ? 'touch' : 'key');
+        if (el.closest('#moreBtns')) closeMorePanel();
+        return;
+      }
       press(act);
       if (el.closest('#moreBtns')) closeMorePanel();   // al usar cualquier acción del panel "⋯ más", ciérralo
     }, { passive: false });
@@ -8937,6 +9160,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (el.dataset.act === 'jump') touch.jumpHeld = false;
       if (el.dataset.act === 'rotate') { if (performance.now() - (+el.dataset.downAt || 0) < 220) rotateBuild(1); rotHold = 0; }   // toque corto = 15°
       if (el.dataset.act === 'heliDown') { touch.heliDown = false; el.classList.remove('on'); }
+      if (el.dataset.act === 'hit' && bowDrawSrc === 'touch') releaseBow();
+      if (el.dataset.act === 'interact' && bowDrawSrc === 'key') releaseBow();
     };
     container.addEventListener('pointerup', release);
     container.addEventListener('pointercancel', release);
@@ -8983,7 +9208,7 @@ function startGame() {
   abortFlight();
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
-  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
+  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; state.hasBow = false; applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.hasPhone = false;
   state.contract = null;   // sin contratos al empezar
@@ -9629,7 +9854,7 @@ function saveGame() {
       saveVersion: GAME_RULES.saveVersion,
       money: state.money, totalEarned: state.totalEarned, stage: state.stage,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
-      weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel,
+      weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel, hasBow: !!state.hasBow,
       dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet, country:state.country||null,
       houseTier: houseTier, inv: state.inv,
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
@@ -10215,7 +10440,7 @@ function loadGame() {
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: d.night || 0,
-    weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel,
+    weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel, hasBow: !!d.hasBow || String(d.weaponName || '').toLowerCase().includes('arco'),
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')), country:COUNTRIES.some(c=>c.id===d.country)?d.country:null,
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, inFlight: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
     hasPhone: !!d.hasPhone, skiPass: !!d.skiPass, skiGear: d.skiGear || null, skiGearWorn: d.skiGearWorn != null ? !!d.skiGearWorn : !!d.skiGear, skiing: false, skiLiftRide: null,
@@ -10315,7 +10540,7 @@ function resetAll() {
   state.arcadePrizes = {};
   state.parkBusiness = null; closeParkBusiness();
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
-  state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; applyPlayerArmor();
+  state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; state.hasBow = false; applyPlayerArmor();
   state.helperWeapon = false; state.helperArmor = false;
   state.hasPhone = false; state.skiPass = false; state.skiGear = null; state.skiGearWorn = false; state.skiing = false; state.skiLiftRide = null;
   state.dadArmor = 1; applyDadArmor(false);
@@ -10874,6 +11099,16 @@ function paintHouse(color, label) {
 }
 function buyItem(item) {
   if (!state.creative && item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
+  if (item.bow || item.key === 'arco') {
+    if (state.hasBow && bowEquipped()) { toast('🏹 Ya tienes el arco en la mano'); return; }
+    if (!state.hasBow) {
+      if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
+      if (!state.creative) state.money -= item.price;
+    }
+    state.hasBow = true; state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color);
+    toast('🏹 Arco listo · mantén E o clic para tensar, suelta para tirar · mira hacia ARRIBA para llegar lejos');
+    saveGame(); return;
+  }
   if (state.money < item.price) { toast('💸 Te falta plata'); return; }
   if (item.key === 'mayordomo') {
     if (butler.userData.hired) { toast('🤵 Ya contrataste al mayordomo'); return; }
@@ -12161,6 +12396,7 @@ function loop() {
     updateSkiGearHold(dt);
     updateWater(dt);                       // aire limitado y daño por ahogo bajo el mar
     updateViewmodel(dt);
+    updateBow(dt);
     updateBuild(dt);
     if (!netGuest()) updateDad(dt);        // en una sala online el papá lo maneja el anfitrión
     dadWalkBob(dt);
@@ -13180,8 +13416,13 @@ function updateViewmodel(dt) {
   if (vmToolOverride > 0) { vmToolOverride = Math.max(0, vmToolOverride - dt); syncHeldTool('shovel'); }
   else syncHeldTool();
   const kind = vmToolOverride > 0 ? 'shovel' : weaponKindFromName(state.weaponName);
-  viewmodel.position.set(0.45, -0.55 + bob, -0.9);
-  viewmodel.rotation.set(-sw * (kind === 'shovel' ? 2.25 : 1.8), 0, sw * (kind === 'sword' ? -.42 : -.16));  // cada herramienta tiene un golpe reconocible
+  if (kind === 'bow' && bowDrawing) {
+    viewmodel.position.set(.2 - bowDrawT * .05, -.4, -.76);
+    viewmodel.rotation.set(-.14, .28, -.52 - bowDrawT * .12);
+  } else {
+    viewmodel.position.set(0.45, -0.55 + bob, -0.9);
+    viewmodel.rotation.set(-sw * (kind === 'shovel' ? 2.25 : kind === 'bow' ? 1.1 : 1.8), 0, sw * (kind === 'sword' ? -.42 : kind === 'bow' ? -.28 : -.16));
+  }
 }
 function resolveCollisions() {
   const r = 0.45, p = player.position;
@@ -13415,6 +13656,7 @@ function updateContextPrompt() {
         else { const crop = CROP_DEFS[selectedCrop]; if ((state.inv[crop.seedKey] || 0) > 0) action = { key: 'K', touch: crop.icon, text: 'Plantar ' + crop.name.toLowerCase() + ' · Shift+K cambia cultivo' }; }
         if (!action && houseStats().ready) action = { key: 'N', touch: '🌙', text: 'Empezar la noche cuando estés preparado' };
       }
+      if (!action && bowEquipped()) action = { key: 'E / CLIC', touch: '👊', text: 'Mantén para tensar el arco · suelta para tirar · mira arriba = lejos' };
     }
   }
   box.classList.toggle('visible', !!action);
@@ -13471,12 +13713,13 @@ function renderHUD() {
   if (showBar) {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
+    const isBow = bowEquipped();
     const ICON = INV_ICON;
     const NAME = INV_LABEL;
     let html = '';
     for (const [cat, em] of BUILD_CAT_TABS)   // pestañas de categoría (18 slots no caben en pantalla)
       html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;
-    html += `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
+    html += `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isBow ? '🏹' : isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
     catKeys().forEach((k, i) => {   // solo las piezas de la categoría activa (máx 9: teclas 2..9 y 0)
       const n = i + 2;
       html += `<div class="slot ${state.buildMode && BUILD_KEYS[buildSel] === k ? 'sel' : ''}" data-slot="${n}"><div class="kk">${n === 10 ? 0 : n}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`;
@@ -13502,7 +13745,7 @@ function renderHUD() {
   const modeTxt = dad.userData.protecting ? '🛡️ Protegiéndote' : ({ follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '');
   setHTMLIfChanged(ui('dadhud'), `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}`);
   // equipo
-  let gear = ['⚔️ ' + state.weaponName + ' (' + state.weaponDmg + ')'];
+  let gear = [(bowEquipped() ? '🏹 ' : '⚔️ ') + state.weaponName + ' (' + state.weaponDmg + ')'];
   if (currentBlueprint()) gear.unshift('📐 ' + currentBlueprint().name + ' · ' + currentBlueprint().parts.length + ' piezas');
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');

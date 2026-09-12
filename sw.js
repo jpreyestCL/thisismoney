@@ -1,7 +1,7 @@
 // Service worker de This is Money: el juego funciona OFFLINE una vez visitado.
 // - index.html: red primero (para recibir las actualizaciones del deploy), caché de respaldo
 // - assets y CDN de three.js: caché primero (no cambian casi nunca)
-const VERSION = 'tim-v22';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
+const VERSION = 'tim-v23';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg',
   './src/game-config.js', './src/chat.js?v=1', './src/park-business.js?v=1', './assets/img_58.png', './assets/edificio.glb', './assets/tienda.glb', './assets/papa_anim.glb'];
 

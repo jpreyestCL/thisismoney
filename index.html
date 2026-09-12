@@ -1008,6 +1008,29 @@ const player = new THREE.Object3D();
 scene.add(player);
 scene.add(camera);
 const PLAYER_EYE = 1.7;
+const MELEE_REACH = 2;   // dos bloques: el golpe (tuyo y de los monstruos) es corto y respeta la altura
+function torsoY(p) { return p === player.position ? player.position.y - PLAYER_EYE + .9 : (p.y || 0) + .9; }
+function dist3D(a, b) { return Math.hypot(a.x - b.x, torsoY(a) - torsoY(b), a.z - b.z); }
+function inMeleeReach(a, b) { return !(((a === player.position || b === player.position) && playerAirborne())) && dist3D(a, b) <= MELEE_REACH; }
+function playerStandEyeY() {
+  let floor = state.groundY || 0;
+  if (!state.underground && !state.inCastle && !state.inRuins && !state.inArena) {
+    const cerro = mountainHeightAt(player.position.x, player.position.z);
+    if (cerro > floor) floor = cerro;
+  }
+  return floor + PLAYER_EYE;
+}
+function playerAirborne() {   // vuelo creativo, jetpack, heli o más de 2 bloques sobre el suelo
+  if (creativeFlying || state.jetOn) return true;
+  if (state.driving && car && car.helicopter && car.group.position.y > MELEE_REACH) return true;
+  return player.position.y > playerStandEyeY() + MELEE_REACH;
+}
+function playerHitRange() { return playerAirborne() ? 0 : (state.laserGun ? 30 : MELEE_REACH); }
+let airMissAt = 0;
+function airCombatMiss(kind) {
+  const now = performance.now(); if (now - airMissAt < 1600) return; airMissAt = now;
+  toast(kind === 'police' ? '🪽 En el aire la policía no te alcanza' : '🪽 En el aire no alcanzas a pegar · baja a 2 bloques');
+}
 camera.rotation.order = 'YXZ';
 let yaw = 0, pitch = 0;
 const LOOK_SENS = 0.0025;
@@ -2527,7 +2550,10 @@ function updatePolice(dt) {
       const speed = (driving ? 22 : 7) + lvl * (driving ? 1.2 : 0.4);
       const catchD = driving ? 3.4 : 1.9;
       const d = dist2D(p.position, player.position);
-      if (d <= catchD) { policeCatch(); return; }
+      if (d <= catchD) {
+        if (playerAirborne()) { airCombatMiss('police'); continue; }   // volando: te persiguen abajo, no te esposan
+        policeCatch(); return;
+      }
       moveToward(p, player.position, speed * dt);
       const face = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
       if (p.userData.car) {
@@ -4432,9 +4458,10 @@ function giveCastleGift(pos) {
   coinBurst(pos, 6); beep(760, 0.1, 0.05); discoverAlien('castleFriend');
 }
 function attackCastleFoe() {   // pegarle a un alien malo del castillo (👊/clic o láser)
+  if (playerAirborne()) { airCombatMiss(); return; }
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5; let best = null, bd = range;
-  for (const f of castleFoes) { if (!f.alive) continue; const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
+  const range = playerHitRange(); if (range <= 0) return; let best = null, bd = range;
+  for (const f of castleFoes) { if (!f.alive) continue; const d = dist3D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position, '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
   if (state.laserGun) shootBeam(best.mesh.position);
@@ -4456,8 +4483,8 @@ function updateCastle(dt) {
     if (!f.alive) continue;
     f.mesh.position.y = 0.5 + Math.sin(performance.now() * 0.004 + f.mesh.position.x) * 0.15;
     const d = dist2D(f.mesh.position, player.position);
-    if (d > 1.4) { moveToward(f.mesh, player.position, 2.6 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
-    else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; if (!state.creative) state.hp -= 8 * state.armorFactor; } }
+    if (!inMeleeReach(f.mesh.position, player.position)) { moveToward(f.mesh, player.position, 2.6 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
+    else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; damagePlayer(8, f.mesh.position); } }
     swingLimbs(f.mesh, dt);
   }
 }
@@ -4578,10 +4605,10 @@ function defeatTitan() {
   clearTitan();
 }
 function hitTitan(dmg) {
-  if (!titan) return false;
+  if (!titan || playerAirborne()) return false;
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 34 : 6;
-  if (dist2D(p, titan.mesh.position) > range) return false;
+  const range = state.laserGun ? 34 : MELEE_REACH;
+  if (dist3D(p, titan.mesh.position) > range) return false;
   const to = new THREE.Vector3().subVectors(titan.mesh.position, p).normalize();
   if (to.dot(dir) < 0.2) return false;
   titan.hp -= dmg; floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15); beep(180, 0.05, 0.035);
@@ -4592,8 +4619,12 @@ function hitTitan(dmg) {
 function updateTitan(dt) {
   const t = titan; t.stepT += dt;
   const d = dist2D(t.mesh.position, player.position);
-  if (d > 4.5) { moveToward(t.mesh, player.position, 2.3 * dt); t.mesh.rotation.y = Math.atan2(player.position.x - t.mesh.position.x, player.position.z - t.mesh.position.z); if (t.mesh.userData.legs) { t.mesh.userData.legs[0].rotation.x = Math.sin(t.stepT * 4) * 0.4; t.mesh.userData.legs[1].rotation.x = -Math.sin(t.stepT * 4) * 0.4; } }
-  else { t.atkCd -= dt; if (t.atkCd <= 0) { t.atkCd = 1.5; if (!state.creative && !isPlayerHidden()) state.hp -= 18 * state.armorFactor; floatText(player.position, '🐙 ¡PISOTÓN!', '#ef4444', 18); beep(70, 0.3, 0.06); } }
+  if (playerAirborne() || d > 4.5) {
+    moveToward(t.mesh, player.position, 2.3 * dt); t.mesh.rotation.y = Math.atan2(player.position.x - t.mesh.position.x, player.position.z - t.mesh.position.z);
+    if (t.mesh.userData.legs) { t.mesh.userData.legs[0].rotation.x = Math.sin(t.stepT * 4) * 0.4; t.mesh.userData.legs[1].rotation.x = -Math.sin(t.stepT * 4) * 0.4; }
+  } else {
+    t.atkCd -= dt; if (t.atkCd <= 0) { t.atkCd = 1.5; damagePlayer(18, t.mesh.position); floatText(player.position, '🐙 ¡PISOTÓN!', '#ef4444', 18); beep(70, 0.3, 0.06); }
+  }
   t.bar.g.position.set(t.mesh.position.x, 13, t.mesh.position.z); t.bar.g.quaternion.copy(camera.quaternion);
   const f = Math.max(0, t.hp / t.maxhp); t.bar.fg.scale.x = f || 0.001;
 }
@@ -4651,9 +4682,10 @@ function tryColiseum() {
   return true;
 }
 function hitArenaFoe() {
+  if (playerAirborne()) { airCombatMiss(); return; }
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5; let best = null, bd = range;
-  for (const f of arenaFoes) { const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
+  const range = playerHitRange(); if (range <= 0) return; let best = null, bd = range;
+  for (const f of arenaFoes) { const d = dist3D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position.clone().setY(2), '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
   if (state.laserGun) shootBeam(best.mesh.position.clone().setY(2));
@@ -4665,8 +4697,8 @@ function updateArena(dt) {
     for (const f of arenaFoes) {
       if (f.spd) { const fly = ENEMY_DEFS[f.type].fly; if (fly) f.mesh.position.y = 3 + Math.sin(performance.now() * 0.004 + f.mesh.position.x) * 0.3; }
       const d = dist2D(f.mesh.position, player.position);
-      if (d > 1.5) { moveToward(f.mesh, player.position, (f.spd ? f.spd(state.stage) : 2) * 0.85 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
-      else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; if (!state.creative) state.hp -= f.dmg * 0.5 * state.armorFactor; } }
+      if (!inMeleeReach(f.mesh.position, player.position)) { moveToward(f.mesh, player.position, (f.spd ? f.spd(state.stage) : 2) * 0.85 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
+      else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; damagePlayer(f.dmg * 0.5, f.mesh.position); } }
       swingLimbs(f.mesh, dt);
     }
     return;
@@ -4744,6 +4776,7 @@ function updateFloatingWorld(dt) {
   for (const alien of floatingCitizens) {
     if (!alien.visible || alien.userData.hp <= 0) continue;
     if (floatingCitizenAggro > 0) {
+      if (playerAirborne()) continue;   // en el aire no te persiguen ni te disparan
       alien.getWorldPosition(floatingAlienWorld);
       floatingAlienTarget.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
       const dx = floatingAlienTarget.x - floatingAlienWorld.x, dy = floatingAlienTarget.y - floatingAlienWorld.y, dz = floatingAlienTarget.z - floatingAlienWorld.z, d = Math.hypot(dx, dy, dz) || 1;
@@ -4790,7 +4823,7 @@ function alienShootPlayer(alien) {
   setTimeout(() => killMesh(shot), 110); damagePlayer(5, from); tone(520, .055, .035, 'square'); alien.userData.attackAnim = .22;
 }
 function tryHitFloatingCitizen(dmg) {
-  if (state.planet !== 'platus') return false;
+  if (state.planet !== 'platus' || playerAirborne()) return false;
   const dir = new THREE.Vector3(); getAimDirection(dir);
   let best = null, bestD = state.laserGun ? 30 : 4.5;
   for (const alien of floatingCitizens) {
@@ -6413,6 +6446,7 @@ function startEnemyAttack(e) {
 }
 // Golpear a un enemigo: baja vida, lo pone rojo, lo empuja; devuelve true si murió
 function hitEnemy(e, dmg, fromPos) {
+  if (fromPos === player.position && playerAirborne()) return false;
   if (e.userData.remote) {   // el monstruo es del anfitrión: él decide si muere
     netSend({ t: 'hit', id: net.myId, eid: e.userData.netId, dmg });
     e.userData.flash = 0.15; e.userData.hitPulse = .2;
@@ -6544,7 +6578,7 @@ function damageCompanion(c, amount) {
   return true;
 }
 function damageEnemyTarget(target, amount, from, poison = false) {
-  if (target === player.position) { damagePlayer(amount, from); if (poison) applyPoison('player'); }
+  if (target === player.position) { if (playerAirborne() || (from && !inMeleeReach(from, player.position))) return; damagePlayer(amount, from); if (poison) applyPoison('player'); }
   else if (target === dad.position) { damageDad(amount * .7, from); if (poison) applyPoison('dad'); }
   else { const c = livingCompanions().find(c => c.position === target); if (c) damageCompanion(c, amount); }
 }
@@ -6586,7 +6620,7 @@ function updateProjectiles(dt) {
     if (ud.friendly) {                                  // dardo de ballesta/torreta: pega a los monstruos
       for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (e.userData.type === 'bull') continue; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
     } else {                                            // proyectil enemigo: te pega a ti o al papá
-      if (dist2D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
+      if (!playerAirborne() && dist3D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
       else if (dad.visible && !dad.userData.resting && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg, p.position); hit = true; }
       else { const companion = livingCompanions().find(c => dist2D(p.position, c.position) < 1.2); if (companion) { damageCompanion(companion, ud.dmg); hit = true; } }
     }
@@ -7285,6 +7319,7 @@ function tryDiscoverSecret() {
 function syncWorldSecrets() { for (const s of worldSecrets) s.visible = state.planet === 'tierra' && !state.foundSecrets[s.userData.secret.id]; }
 
 function damagePlayer(amount, fromPos) {
+  if (playerAirborne()) return;   // en el aire los golpes del suelo no llegan (2 bloques de alcance)
   if ((isPlayerHidden() && !(state.underground && state.shelterHole && state.shelterHole.islandMine)) || state.invulnerable > 0) return;
   const rawAmount = amount;
   const coveredByDad = !!(fromPos && dad.visible && !dad.userData.resting && dad.userData.armed && state.dadArmor < 1 && state.dadHp > 0 && dist2D(dad.position, player.position) < 4.8 && dist2D(dad.position, fromPos) < 6.5);
@@ -7634,7 +7669,7 @@ addEventListener('keydown', e => {
         state.skiing = true;
         toast('❄️ Aterrizaste con los esquís puestos · ¡sigue esquiando!');
       }
-      toast(creativeFlying ? '🪽 Vuelo creativo activado · WASD mueve · Espacio sube · Ctrl baja · doble Z para aterrizar' : '🛬 Vuelo creativo desactivado');
+      toast(creativeFlying ? '🪽 Vuelo creativo · en el aire no pegas ni te pegan · la policía no te alcanza' : '🛬 Vuelo creativo desactivado');
       lastCreativeZTap = 0;
     } else lastCreativeZTap = now;
     toggleDadRest();
@@ -10159,22 +10194,24 @@ function updateUfoBoss(e, dt) {
     const n = 1 + (state.stage >= 3 ? 1 : 0);
     for (let k = 0; k < n; k++) spawnEnemy(Math.random() < 0.5 ? 'alienBig' : 'alien', new THREE.Vector3(e.position.x + (Math.random() * 4 - 2), 0, e.position.z + (Math.random() * 4 - 2)));
     floatText(e.position, '🛸 ¡suelta aliens!', '#22d3ee', 16); beep(300, 0.2, 0.05);
-    if (dist2D(e.position, player.position) < 6) damagePlayer(ud.dmg || 22, e.position);   // rayo si estás justo debajo
+    if (!playerAirborne() && dist2D(e.position, player.position) < 6) damagePlayer(ud.dmg || 22, e.position);   // rayo si estás justo debajo
   }
 }
 function attack(multiplier = 1) {
   if (state.buildMode) return;
   vmSwing = 1; beep(320, 0.05, 0.03);
+  if (playerAirborne()) { airCombatMiss(); return; }   // volando no pegas a los monstruos
   if (state.inCastle) { attackCastleFoe(); return; }   // en el castillo, el golpe pega a los aliens malos
   if (state.inArena) { hitArenaFoe(); return; }        // en el coliseo, el golpe pega a los enemigos de la oleada
   if (titan && hitTitan(state.weaponDmg)) return;      // golpear al TITÁN
   if (tryHitFloatingCitizen(Math.round(state.weaponDmg * multiplier))) return;
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5, dmg = Math.round(state.weaponDmg * multiplier);
+  const range = playerHitRange(), dmg = Math.round(state.weaponDmg * multiplier);
+  if (range <= 0) return;
   let best = null, bestD = range;
   for (const e of enemies) {
     if (e.userData.type === 'bull') continue;
-    const d = dist2D(p, e.position);
+    const d = dist3D(p, e.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
   if (best) { hitEnemy(best, dmg, p); if (state.laserGun) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
@@ -10195,16 +10232,17 @@ function shootBeam(target) {
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
 function attackNPC() {
   if (state.buildMode) return;
+  if (playerAirborne()) { vmSwing = 1; airCombatMiss(); return; }
   if (state.inCastle) { vmSwing = 1; beep(320, 0.05, 0.03); attackCastleFoe(); return; }   // en el castillo (de día también) el golpe pega a los aliens malos
   if (state.inArena) { vmSwing = 1; beep(320, 0.05, 0.03); hitArenaFoe(); return; }   // en el coliseo (de día también)
   if (titan && hitTitan(state.weaponDmg)) { vmSwing = 1; return; }   // golpear al TITÁN (de día también)
   if (state.planet === 'platus') { vmSwing = 1; if (!tryHitFloatingCitizen(state.weaponDmg) && !tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus: ciudadanos, geodas, cristales o carbón
   if (tryMineIslandOre()) { vmSwing=1; beep(310,.06,.035); return; }
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = 4;
+  const range = MELEE_REACH;
   let best = null, bestD = range;
   for (const person of npcs.concat(victims)) {
-    const d = dist2D(p, person.position);
+    const d = dist3D(p, person.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(person.position, p).normalize(); if (to.dot(dir) > 0.2) { best = person; bestD = d; } }
   }
   if (!best) return;
@@ -10368,7 +10406,7 @@ function updateMoles(dt) {
     if (!tgt) continue;
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
-    if (d > 1.4) { moveToward(e, tgt, ud.speed * dt); if(inSameMine)e.position.y=state.groundY; e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
+    if (!inMeleeReach(e.position, tgt)) { moveToward(e, tgt, ud.speed * dt); if(inSameMine)e.position.y=state.groundY; e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
     else if (ud.attackCd <= 0) { ud.attackCd = 1; startEnemyAttack(e); damageEnemyTarget(tgt, ud.dmg, e.position); }
   }
 }
@@ -10402,7 +10440,7 @@ function updateNight(dt) {
     if (ud.type === 'bull') {
       e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
       e.position.y = mountainHeightAt(e.position.x, e.position.z);
-      if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
+      if (inMeleeReach(e.position, player.position)) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
       if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8, e.position); removeEnemy(i); continue; }
       const companion = livingCompanions().find(c => dist2D(e.position, c.position) < 1.6);
       if (companion) { damageCompanion(companion, ud.dmg || 17); removeEnemy(i); continue; }
@@ -10440,7 +10478,7 @@ function updateNight(dt) {
     }
     if (blocked) {
       if (ud.attackCd <= 0) { startEnemyAttack(e); voxelImpact(blocked.mesh.position.clone().setY(1.4), 0xf59e0b, 5); const fortify = 1 - Math.min(.5, houseStats().protection / 200); blocked.hp -= (ud.opensDoors ? 30 : (ud.dmg || 10)) * fortify; ud.attackCd = 1; state.nightDamage = true; if (blocked.hp <= 0) removePlaced(blocked); }
-    } else if (d > 1.4) {
+    } else if (!inMeleeReach(e.position, tgt)) {
       if (ud.role === 'scout' && d > 4) {
         if (!ud.flankSign) ud.flankSign = Math.random() < .5 ? -1 : 1;
         const dx = tgt.x - e.position.x, dz = tgt.z - e.position.z, len = Math.hypot(dx, dz) || 1, step = ud.speed * dt;
@@ -11872,6 +11910,7 @@ function renderHUD() {
   if (currentBlueprint()) gear.unshift('📐 ' + currentBlueprint().name + ' · ' + currentBlueprint().parts.length + ' piezas');
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');
+  if (playerAirborne()) gear.unshift('🪽 en el aire · 2 bloques · no pegas ni te pegan');
   if (state.ngplus) gear.unshift('⭐ Partida+');
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));

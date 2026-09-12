@@ -50,7 +50,7 @@
     background: rgba(0,0,0,.72); padding: 11px 22px; border-radius: 10px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: center; max-width: 86vw; }
   #toastStack { position: absolute; top: calc(50% - 34px); left: 50%; transform: translate(-50%,-100%); z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: center; pointer-events: none; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn { display: none !important; }
+  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
@@ -67,6 +67,24 @@
   .ranking-row .rank-number { color:#facc15; font-weight:900; text-align:center; }
   .ranking-row .rank-money { color:#4ade80; font-weight:800; text-align:right; }
   .ranking-row .rank-stage { color:#c4b5fd; font-weight:800; text-align:right; }
+  /* CHAT MUNDIAL: el muro del inicio y los globos que llegan jugando */
+  .chat-line { display:grid; grid-template-columns:minmax(64px,auto) 1fr auto; gap:8px; align-items:baseline; padding:6px 4px; border-bottom:1px solid rgba(148,163,184,.14); font-size:13px; }
+  .chat-line b { color:#7dd3fc; overflow-wrap:anywhere; }
+  .chat-line.mine b { color:#4ade80; }
+  .chat-line .chat-text { color:#e2e8f0; overflow-wrap:anywhere; }
+  .chat-line small { color:#64748b; font-size:10px; }
+  #chatFeed { position:absolute; left:12px; bottom:112px; z-index:7; display:flex; flex-direction:column; gap:6px; max-width:min(44vw,340px); pointer-events:none; }
+  .chat-bubble { background:rgba(2,6,23,.85); border:1px solid #22d3ee; border-left:4px solid #22d3ee; border-radius:10px; padding:6px 9px; font-size:12px; line-height:1.5; pointer-events:all; transition:opacity .4s, transform .4s; overflow-wrap:anywhere; }
+  .chat-bubble.out { opacity:0; transform:translateX(-16px); }
+  .chat-bubble b { color:#67e8f9; }
+  .chat-bubble button { margin-top:5px; pointer-events:all; cursor:pointer; background:rgba(34,211,238,.2); border:1px solid #22d3ee; color:#e0f2fe; border-radius:7px; padding:3px 9px; font-size:11px; font-weight:800; }
+  #chatReply { position:absolute; left:50%; bottom:100px; transform:translateX(-50%); z-index:13; display:none; gap:6px; align-items:center; flex-wrap:wrap; justify-content:center; width:min(94vw,520px); background:rgba(6,10,20,.96); border:2px solid #22d3ee; border-radius:12px; padding:9px 11px; pointer-events:all; }
+  #chatReply #chatReplyTo { width:100%; font-size:11px; font-weight:800; color:#67e8f9; }
+  #chatReply input { flex:1; min-width:150px; padding:8px 10px; font-size:14px; border-radius:8px; border:1px solid #22d3ee; background:#0b1220; color:#fff; outline:none; }
+  #chatReply button { pointer-events:all; cursor:pointer; background:rgba(34,211,238,.18); border:1px solid #22d3ee; color:#e0f2fe; border-radius:8px; padding:8px 12px; font-size:13px; font-weight:800; }
+  #chatTeaser { margin:6px 0 0; font-size:13px; color:#67e8f9; font-weight:700; cursor:pointer; overflow-wrap:anywhere; }
+  body.touch #chatFeed { bottom:auto; top:196px; max-width:52vw; }
+  body.touch #chatReply { bottom:auto; top:50%; transform:translate(-50%,-50%); }
   #dadhud { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; }
   #dadhud b { color: #38bdf8; }
   #gearhud { position: absolute; bottom: 12px; right: 12px; background: rgba(0,0,0,.45); padding: 8px 12px; border-radius: 10px; font-size: 13px; text-align: right; }
@@ -467,6 +485,14 @@
   <div id="toastStack"></div>
   <div id="toast"></div>
   <div id="cineCaption" role="status" aria-live="polite"></div>
+  <div id="chatFeed" role="log" aria-live="polite" aria-label="Mensajes del chat mundial"></div>
+  <div id="chatReply">
+    <div id="chatReplyTo">Chat mundial</div>
+    <input id="chatReplyInput" type="text" placeholder="Escribe y presiona Enter…" autocomplete="off" aria-label="Mensaje para el chat mundial">
+    <button type="button" id="chatReplySend">Enviar</button>
+    <button type="button" id="chatReplyWall">💬 Muro</button>
+    <button type="button" id="chatReplyClose" aria-label="Cerrar el chat">✕</button>
+  </div>
   <div id="nethud" style="position:absolute; top:150px; left:12px; z-index:6; display:none; pointer-events:none; background:rgba(6,10,20,.8); border:1px solid #38bdf8; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700; color:#bae6fd;"></div>
   <div id="dadhud"></div>
   <div id="gearhud"></div>
@@ -626,6 +652,7 @@
       <button type="button" class="tbtn" data-act="math" aria-label="Desafío de matemáticas">🧮<small>mates</small></button>
       <button type="button" class="tbtn" data-act="helper" aria-label="Llamar ayudante">🧒<small>hijo</small></button>
       <button type="button" class="tbtn" data-act="rocket" aria-label="Usar cohete">🚀<small>cohete</small></button>
+      <button type="button" class="tbtn" data-act="chat" aria-label="Chat mundial">💬<small>chat</small></button>
       <button type="button" class="tbtn" data-act="help" aria-label="Abrir ayuda">❓<small>ayuda</small></button>
     </span>
   </div>
@@ -649,8 +676,10 @@
         <button class="btn secondary" id="startGuideBtn">VER GUÍA</button>
         <button class="btn secondary" id="startRankingBtn">🌎 RANKING MUNDIAL</button>
         <button class="btn secondary" id="friendsBtn">🌐 JUGAR CON AMIGOS</button>
+        <button class="btn secondary" id="startChatBtn">💬 MURO GLOBAL</button>
       </div>
       <p id="bestline" style="display:none; color:var(--warning); font-weight:800; font-size:13px;"></p>
+      <p id="chatTeaser" style="display:none;" role="button" tabindex="0"></p>
     </main>
     <aside class="start-aside" aria-label="Controles esenciales">
       <h2>Empieza en segundos</h2>
@@ -660,6 +689,7 @@
       <div class="control-row"><kbd>F5</kbd><span>Cambiar la vista del personaje</span></div>
       <div class="control-row"><kbd>CLIC</kbd><span>Atacar o extraer recursos</span></div>
       <div class="control-row"><kbd>I</kbd><span>Abrir la guía y el códice</span></div>
+      <div class="control-row"><kbd>Enter</kbd><span>Chat mundial con todos los jugadores</span></div>
       <div class="control-row"><kbd>F6</kbd><span>Abrir carreras de autos voladores</span></div>
     </aside>
   </div>
@@ -740,6 +770,26 @@
   </div>
 </div>
 
+<div id="chatbox" style="position:fixed;inset:0;display:none;z-index:31;background:rgba(2,6,23,.92);align-items:center;justify-content:center;pointer-events:all;">
+  <div style="width:min(94vw,560px);max-height:88vh;display:flex;flex-direction:column;background:#07111f;border:3px solid #22d3ee;border-radius:16px;padding:16px;box-shadow:0 0 34px rgba(34,211,238,.3);text-align:left">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div><h2 style="margin:0;color:#67e8f9">💬 MURO GLOBAL</h2><small style="color:#94a3b8">Una sola sala para todos los que están jugando ahora</small></div>
+      <b id="chatOnline" style="color:#4ade80;white-space:nowrap">0 jugadores</b>
+    </div>
+    <div id="chatRows" style="flex:1;min-height:26vh;max-height:46vh;overflow-y:auto;margin:10px 0;padding-right:4px;border-top:1px solid rgba(148,163,184,.2);border-bottom:1px solid rgba(148,163,184,.2)"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="chatNameInput" type="text" placeholder="Tu nombre" autocomplete="off" aria-label="Tu nombre en el chat" style="width:118px;padding:9px 10px;font-size:14px;border-radius:8px;border:1px solid #38bdf8;background:#0b1220;color:#fff;outline:none;">
+      <input id="chatInput" type="text" placeholder="Escribe algo para todos…" autocomplete="off" aria-label="Mensaje para el chat mundial" style="flex:1;min-width:160px;padding:9px 10px;font-size:14px;border-radius:8px;border:1px solid #22d3ee;background:#0b1220;color:#fff;outline:none;">
+      <button class="bankBtn" id="chatSendBtn" style="border-color:#22d3ee">Enviar</button>
+    </div>
+    <div id="chatStatus" style="min-height:18px;margin:8px 0;color:#fca5a5;font-size:12px;text-align:center"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="bankBtn" id="chatRefresh">🔄 Actualizar</button>
+      <button class="bankBtn" id="chatClose">Cerrar ✕</button>
+    </div>
+  </div>
+</div>
+
 <div id="airportbox" style="position:absolute; inset:0; display:none; z-index:13; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all;">
   <div style="width:min(94vw,460px); max-height:86vh; overflow-y:auto; background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:20px; color:#e2e8f0;">
     <h2 style="margin:0 0 4px; color:#7dd3fc; text-align:center;">✈️ TICKETS DE AVIÓN</h2>
@@ -815,6 +865,7 @@
           <kbd>C/V/O</kbd><span>Ordenar a papá: seguir, esperar o limpiar. G lo arma y Z lo deja descansar.</span>
           <kbd>X</kbd><span>Fuera de construcción: planta una banderita 🚩 donde tus mascotas de huevos se quedan cuidando. X de nuevo las llama de vuelta.</span>
           <kbd>U / I</kbd><span>Abrir desafíos de mates o esta guía.</span>
+          <kbd>Enter</kbd><span>Chat mundial: escribirle a todos los que están jugando. Cuando alguien te habla aparece un globo con 💬 Responder que se borra solo a los 7 segundos.</span>
           <kbd>N / R</kbd><span>Empezar la noche. En construcción, R cambia la variante; fuera de ella lanza el cohete.</span>
           <kbd>F5</kbd><span>Cambiar entre primera persona, tercera trasera y tercera frontal.</span>
           <kbd>F6</kbd><span>Abrir la pista de autos voladores: ocho vueltas contra bots u online.</span>
@@ -903,6 +954,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=8';
+import { CHAT_BUBBLE_MS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, chatSendWait, chatTime, cleanChatName, cleanChatText } from './src/chat.js?v=1';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -8136,13 +8188,20 @@ function callOnlineFriends() {
 // ===================================================================
 const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
-let typing = false;   // true mientras el input del vendedor está abierto (bloquea controles del juego)
+let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
+// Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply'];
+function algunRecuadroAbierto() {
+  return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
+}
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
 addEventListener('keydown', e => {
   if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('rankingBox').style.display === 'flex') { closeLeaderboard(); return; }
+  if (e.code === 'Escape' && ui('chatbox').style.display === 'flex') { closeChatWall(); return; }
+  if (e.code === 'Escape' && ui('chatReply').style.display === 'flex') { closeChatReply(); return; }
   if (e.code === 'Escape' && ui('blueprintPanel').style.display === 'block') { closeBlueprintPanel(); return; }
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
@@ -8163,6 +8222,12 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
   if (!state.running) return;
+  if (e.code === 'Enter' && !e.repeat) {   // Enter = hablarle al mundo (chat mundial)
+    // Si el foco está en un campo o en un botón, Enter es de ellos (no le robamos la tecla).
+    const foco = e.target;
+    const suyo = foco && foco.nodeType === 1 && foco.matches('input, textarea, select, button, a, [contenteditable], [tabindex]');
+    if (!suyo) { openChatReply(); return; }
+  }
   if (e.code === 'KeyY') { openShopInput(); return; }   // abrir vendedor (comprar escribiendo)
   if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
   if (e.code === 'KeyI' && trySeatedPacman()) return;   // sentado y mirando el computador: jugar Pac-Man
@@ -8260,7 +8325,7 @@ function nearKeeper() {
 function openShopInput() {
   if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
   if (!nearKeeper()) { toast(state.planet === 'platus' ? '👽 Acércate al VENDEDOR ALIEN (cerca del cohete) y pulsa Y' : state.country ? '🛒 Busca el puesto VENDEDOR de este país y pulsa Y' : '🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
-  closeMathBox(); closeRocket(); releaseLock();
+  closeMathBox(); closeRocket(); closeChatReply(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
   const box = ui('shopbox'), inp = ui('shopInput');
@@ -8271,9 +8336,9 @@ function openShopInput() {
   if (!document.body.classList.contains('touch')) inp.focus();   // en PC enfoca; en celular NO (para no abrir el teclado y tapar la lista)
 }
 function closeShopInput() {
-  typing = false;
   ui('shopbox').style.display = 'none';
   ui('shopInput').blur();
+  typing = algunRecuadroAbierto();
 }
 // ===== CONTRATOS del vendedor alien (misiones de Platus): acepta uno, cúmplelo y cóbralo =====
 const CONTRACT_DEFS = [
@@ -8701,7 +8766,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       const quickTap = (performance.now() - lStartT) < 250 && lMoved < 14;
       lookId = null;
       if (!quickTap) return;
-      if (typing) { closeShopInput(); closeMathBox(); return; }   // tocar fuera del recuadro cierra el vendedor / los desafíos
+      if (typing) { closeShopInput(); closeMathBox(); closeChatReply(); return; }   // tocar fuera del recuadro cierra el vendedor / los desafíos / el chat
       if (trySeatedGamerKeyboard()) return;
       if (state.running && state.inCastle) attackCastleFoe();    // en el castillo, toque rápido = pegar al alien malo
       else if (state.running && state.phase === 'NIGHT') attack();   // toque rápido de noche = golpear monstruo
@@ -8711,7 +8776,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
 
   // ---------- Botones de acción ----------
   function press(act) {
-    if (typing && act !== 'shop' && act !== 'math') return;   // con el vendedor/mates abierto, ciérralo antes
+    if (typing && act !== 'shop' && act !== 'math' && act !== 'chat') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
       case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
       case 'interact': if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryAirport() && !tryLeaderboard() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); } break;
@@ -8748,6 +8813,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'dadRest': toggleDadRest(); break;
       case 'petPoint': togglePetPoint(); break;
       case 'math': openMathBox(); break;
+      case 'chat': openChatReply(); break;
       case 'helper': spawnHelper(); break;
       case 'rocket': tryLaunchRocket(); break;
       case 'help': toggleHelp(); break;
@@ -8788,6 +8854,7 @@ function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).cla
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
   leaveParkRide(true); if (state.inFlight) endFlight(); standUp(true);   // si estabas en una atracción o en el avión, te bajas antes de guardar
+  closeChatReply();
   saveGame();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   state.running = false; state.driving = false; state.cinematic = false; document.body.classList.remove('cine');
@@ -8881,11 +8948,14 @@ function setProfile(name) {
 
 // Ranking mundial trimestral. La identidad anónima distingue este navegador sin publicar datos privados.
 let leaderboardPlayerId = null, leaderboardLastSent = 0, leaderboardSort = 'money';
+function randomUuid() {
+  return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
 const LEADERBOARD_API = location.protocol === 'file:' ? 'https://tim.strivexlatam.com/api/leaderboard' : '/api/leaderboard';
 try {
   leaderboardPlayerId = localStorage.getItem('tim_leaderboard_id');
   if (!leaderboardPlayerId) {
-    leaderboardPlayerId = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+    leaderboardPlayerId = randomUuid();
     localStorage.setItem('tim_leaderboard_id', leaderboardPlayerId);
   }
 } catch (e) {}
@@ -8942,6 +9012,284 @@ function tryLeaderboard() {
 ui('rankingClose').onclick = closeLeaderboard;
 ui('rankingRefresh').onclick = () => loadLeaderboard(leaderboardSort);
 document.querySelectorAll('.ranking-tab').forEach(b => b.onclick = () => loadLeaderboard(b.dataset.ranking));
+
+// ===================================================================
+//  CHAT MUNDIAL: el MURO del inicio y los mensajes que llegan jugando.
+//  Es UNA sola sala para todo el juego: lo que escribes lo leen todos los
+//  que están jugando en cualquier parte. En el menú de inicio se ve el muro
+//  completo; dentro de la partida los mensajes llegan como globos que se
+//  van solos a los 7 segundos, con un botón para contestar sin salirse.
+//  Por debajo es la misma API mundial del ranking (server/leaderboard.mjs):
+//  el cliente pregunta cada pocos segundos "¿qué se dijo después de N?".
+// ===================================================================
+const CHAT_API = location.protocol === 'file:' ? 'https://tim.strivexlatam.com/api/chat' : '/api/chat';
+const chat = {
+  lastId: null,      // último mensaje que ya vimos (null = todavía no escuchamos)
+  online: 0,
+  history: [],       // lo que muestra el muro
+  mine: new Set(),   // mis propios mensajes: no me los muestro como globo
+  bubbles: [],       // globos vivos en pantalla
+  wallOpen: false, busy: false, hinted: false, historyLoaded: false,
+  lastPoll: 0, lastSent: 0, lastPresence: null, backoff: 0, tempId: null, replyTo: null,
+};
+// El jugador del chat es el mismo anónimo del ranking (no publica nada privado).
+function chatPlayerId() {
+  if (leaderboardPlayerId) return leaderboardPlayerId;
+  if (!chat.tempId) chat.tempId = randomUuid();   // sin localStorage igual se puede conversar
+  return chat.tempId;
+}
+// `net` (la sala de amigos) se declara mucho más abajo con const: al cargar la
+// página todavía no existe y leerlo lanza error, así que preguntamos con cuidado.
+function nombreDeLaSala() {
+  try { return net.name || ''; } catch (e) { return ''; }
+}
+function chatName() {
+  let nombre = '';
+  try { nombre = localStorage.getItem('tim_chat_name') || ''; } catch (e) {}
+  if (!nombre) nombre = currentProfile || nombreDeLaSala();
+  return cleanChatName(nombre);
+}
+function setChatName(nombre) {
+  const limpio = cleanChatName(nombre);
+  try { localStorage.setItem('tim_chat_name', limpio); } catch (e) {}
+  return limpio;
+}
+// Cada cuánto preguntamos por mensajes nuevos según dónde esté el jugador.
+function chatInterval() {
+  if (chat.backoff) return Math.min(60000, 6000 * chat.backoff);   // si la red falla, más espaciado
+  if (chat.wallOpen) return 4000;
+  if (state.running && !state.paused) return 7000;
+  if (!ui('start').classList.contains('hidden')) return 20000;     // en el menú basta con refrescar el muro
+  return 0;
+}
+async function chatSync(force) {
+  if (chat.busy) return;
+  const espera = chatInterval();
+  if (!force && (!espera || performance.now() - chat.lastPoll < espera)) return;
+  if (document.hidden && !force) return;
+  chat.busy = true; chat.lastPoll = performance.now();
+  // Preparar la consulta también va dentro del try: si algo fallara antes de
+  // pedir los mensajes, el chat no puede quedarse trabado (`busy`) para siempre.
+  let quiereHistorial = false;
+  try {
+    const params = new URLSearchParams();
+    // El muro necesita la conversación completa; dentro de la partida, en cambio, la
+    // primera consulta NO repite lo viejo (since=-1): solo escuchamos lo que venga.
+    quiereHistorial = !chat.historyLoaded && (chat.wallOpen || !state.running);
+    if (quiereHistorial) { /* sin `since`: el servidor manda los últimos mensajes */ }
+    else if (chat.lastId !== null) params.set('since', String(chat.lastId));
+    else params.set('since', '-1');
+    if (chat.lastPresence === null || performance.now() - chat.lastPresence > 20000) {   // avisamos "sigo aquí" cada 20 s
+      params.set('me', chatPlayerId()); params.set('name', chatName());
+      chat.lastPresence = performance.now();
+    }
+    const q = params.toString();
+    const r = await fetch(CHAT_API + (q ? '?' + q : ''), { cache: 'no-store' });
+    if (!r.ok) throw new Error('chat ' + r.status);
+    const data = await r.json();
+    chat.backoff = 0;
+    chat.online = data.online || 0;
+    if (quiereHistorial) chat.historyLoaded = true;
+    chatReceive(data.messages || []);
+    if (chat.lastId === null || !(data.messages || []).length) chat.lastId = Number(data.lastId) || 0;
+    renderChatWall(); renderChatTeaser();
+  } catch (e) {
+    chat.backoff = Math.min(6, chat.backoff + 1);
+    if (chat.wallOpen) ui('chatStatus').textContent = 'No se pudo conectar con el muro. Revisa tu Internet.';
+  } finally { chat.busy = false; }
+}
+// Mensajes nuevos: se suman al muro y, si estás jugando, aparecen como globo.
+function chatReceive(list) {
+  for (const m of list) {
+    if (!m || typeof m.id !== 'number' || chat.history.some(q => q.id === m.id)) continue;
+    chat.history.push(m);
+    chat.lastId = Math.max(chat.lastId || 0, m.id);
+    if (!chat.mine.has(m.id) && state.running && !state.paused && !chat.wallOpen) chatBubble(m);
+  }
+  if (chat.history.length > CHAT_HISTORY) chat.history.splice(0, chat.history.length - CHAT_HISTORY);
+}
+// ---- Globos dentro del juego (duran 7 segundos y se van solos) ----
+function chatBubble(m) {
+  const feed = ui('chatFeed'); if (!feed) return;
+  const box = document.createElement('div'); box.className = 'chat-bubble';
+  box.dataset.chatFrom = m.name;   // con Enter se contesta al último que habló
+  const quien = document.createElement('b'); quien.textContent = m.name + ': ';
+  const texto = document.createElement('span'); texto.textContent = m.text;
+  const responder = document.createElement('button'); responder.type = 'button';
+  responder.textContent = '💬 Responder';
+  responder.onclick = () => { chatFadeBubble(box); openChatReply(m.name); };
+  box.append(quien, texto, document.createElement('br'), responder);
+  feed.appendChild(box);
+  chat.bubbles.push(box);
+  while (chat.bubbles.length > 3) chatFadeBubble(chat.bubbles[0]);   // no tapamos la pantalla
+  box.chatTimer = setTimeout(() => chatFadeBubble(box), CHAT_BUBBLE_MS);
+  beep(700, .07, .035); vibr(18);
+  // En PC el mouse está atrapado por el juego: el atajo es la forma cómoda de contestar.
+  if (!chat.hinted && !document.body.classList.contains('touch')) { chat.hinted = true; toast('💬 Te escribieron · aprieta Enter para contestar'); }
+}
+function chatFadeBubble(box) {
+  const i = chat.bubbles.indexOf(box); if (i >= 0) chat.bubbles.splice(i, 1);
+  clearTimeout(box.chatTimer);
+  box.classList.add('out');
+  setTimeout(() => box.remove(), 420);
+}
+// ---- Mandar un mensaje ----
+function chatNotice(msg) {
+  if (chat.wallOpen) ui('chatStatus').textContent = msg; else toast('💬 ' + msg);
+}
+async function sendChatMessage(raw) {
+  const texto = cleanChatText(raw);
+  if (!texto) { chatNotice('Escribe algo para mandar'); return false; }
+  const faltan = chatSendWait(chat.lastSent);
+  if (faltan > 0) { chatNotice('Espera ' + Math.ceil(faltan / 1000) + ' s para volver a escribir'); return false; }
+  chat.lastSent = Date.now();
+  const avisoPrevio = ui('chatStatus').textContent;
+  let contestoElServidor = false;
+  try {
+    const r = await fetch(CHAT_API, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ playerId: chatPlayerId(), name: chatName(), text: texto }),
+    });
+    contestoElServidor = true;
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'No se pudo mandar el mensaje');
+    if (data.message) { chat.mine.add(data.message.id); chatReceive([data.message]); renderChatWall(); renderChatTeaser(); }
+    // Solo limpiamos el aviso viejo: si mientras tanto apareció otro (por ejemplo
+    // "espera para volver a escribir"), ese se queda a la vista.
+    if (chat.wallOpen && ui('chatStatus').textContent === avisoPrevio) ui('chatStatus').textContent = '';
+    beep(880, .06, .03);
+    return true;
+  } catch (e) {
+    // Solo si el mensaje no llegó a salir (sin Internet) se puede reintentar al
+    // tiro. Si el servidor contestó (por ejemplo pidiendo calma), la espera queda.
+    if (!contestoElServidor) chat.lastSent = 0;
+    chatNotice(e.message || 'No se pudo mandar el mensaje');
+    return false;
+  }
+}
+// ---- El muro (pantalla de inicio) ----
+// Solo AGREGA lo que llegó: así no se te mueve el texto que estabas leyendo
+// cada vez que el muro pregunta por mensajes nuevos.
+function renderChatWall() {
+  const box = ui('chatRows'); if (!box) return;
+  ui('chatOnline').textContent = chat.online + (chat.online === 1 ? ' jugador' : ' jugadores');
+  const vacio = box.querySelector('[data-chat-empty]');
+  if (!chat.history.length) {
+    if (!vacio) {
+      const aviso = document.createElement('div');
+      aviso.dataset.chatEmpty = '1';
+      aviso.style.cssText = 'padding:22px;text-align:center;color:#94a3b8';
+      aviso.textContent = 'Todavía no hay mensajes. ¡Salúdalos tú!';
+      box.appendChild(aviso);
+    }
+    return;
+  }
+  if (vacio) vacio.remove();
+  const abajo = box.scrollHeight - box.scrollTop - box.clientHeight < 40;   // si estaba leyendo arriba, no lo movemos
+  for (const m of chat.history) {
+    if (box.querySelector('[data-chat-id="' + m.id + '"]')) continue;
+    const fila = document.createElement('div');
+    fila.className = 'chat-line' + (chat.mine.has(m.id) ? ' mine' : '');
+    fila.dataset.chatId = String(m.id);
+    const quien = document.createElement('b'); quien.textContent = m.name;
+    const texto = document.createElement('span'); texto.className = 'chat-text'; texto.textContent = m.text;
+    const hora = document.createElement('small'); hora.textContent = chatTime(m.ts);
+    fila.append(quien, texto, hora); box.appendChild(fila);
+  }
+  while (box.children.length > CHAT_HISTORY) box.removeChild(box.firstChild);
+  if (abajo) box.scrollTop = box.scrollHeight;
+}
+// Adelanto del último mensaje en la pantalla de inicio (invita a entrar al muro).
+function renderChatTeaser() {
+  const el = ui('chatTeaser'); if (!el) return;
+  const ultimo = chat.history[chat.history.length - 1];
+  if (!ultimo) { el.style.display = 'none'; return; }
+  el.textContent = '💬 ' + ultimo.name + ': ' + ultimo.text + (chat.online ? '  ·  ' + chat.online + ' en línea' : '');
+  el.style.display = '';
+}
+function openChatWall() {
+  closeChatReply(); closeShopInput(); closeMathBox();
+  chat.wallOpen = true;
+  releaseLock(); typing = true; for (const k in keys) keys[k] = false;
+  if (state.running) state.paused = true;   // el mundo espera mientras conversas
+  ui('chatbox').style.display = 'flex';
+  ui('chatNameInput').value = chatName();
+  ui('chatStatus').textContent = '';
+  renderChatWall();
+  chatSync(true);
+  setTimeout(() => ui('chatInput').focus(), 40);
+  return true;
+}
+function closeChatWall() {
+  if (!chat.wallOpen) return;
+  chat.wallOpen = false;
+  ui('chatbox').style.display = 'none';
+  typing = algunRecuadroAbierto();
+  if (state.running) state.paused = false;
+}
+// ---- Contestar sin salir de la partida ----
+function openChatReply(aQuien) {
+  if (!state.running) return openChatWall();
+  closeShopInput(); closeMathBox();   // un solo recuadro de escribir a la vez
+  // Sin nombre (tecla Enter o botón 💬): se le contesta al último que habló.
+  const ultimo = chat.bubbles[chat.bubbles.length - 1];
+  if (!aQuien && ultimo) aQuien = ultimo.dataset.chatFrom;
+  chat.replyTo = aQuien || null;
+  releaseLock(); typing = true; for (const k in keys) keys[k] = false;
+  ui('chatReplyTo').textContent = aQuien ? '💬 Respondiendo a ' + aQuien : '💬 Chat mundial · te leen todos los que están jugando';
+  const input = ui('chatReplyInput');
+  input.value = aQuien ? '@' + aQuien + ' ' : '';
+  ui('chatReply').style.display = 'flex';
+  setTimeout(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }, 30);
+}
+function closeChatReply() {
+  const caja = ui('chatReply');
+  if (!caja || caja.style.display !== 'flex') return;
+  caja.style.display = 'none'; ui('chatReplyInput').value = ''; chat.replyTo = null;
+  typing = algunRecuadroAbierto();
+}
+async function sendChatReply() {
+  const input = ui('chatReplyInput');
+  const texto = input.value;
+  input.value = '';
+  if (await sendChatMessage(texto)) closeChatReply(); else input.value = texto;
+}
+// ---- Enganches de la interfaz ----
+ui('chatReplyInput').maxLength = CHAT_MAX_LEN;
+ui('chatInput').maxLength = CHAT_MAX_LEN;
+ui('chatNameInput').maxLength = CHAT_NAME_MAX;
+ui('startChatBtn').onclick = () => openChatWall();
+ui('chatTeaser').onclick = () => openChatWall();
+ui('chatTeaser').onkeydown = e => { if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); openChatWall(); } };
+ui('chatClose').onclick = closeChatWall;
+ui('chatRefresh').onclick = () => chatSync(true);
+ui('chatbox').onclick = e => { if (e.target === ui('chatbox')) closeChatWall(); };   // tocar fuera cierra
+ui('chatNameInput').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') ui('chatInput').focus(); });
+ui('chatNameInput').addEventListener('change', () => { ui('chatNameInput').value = setChatName(ui('chatNameInput').value); });
+ui('chatSendBtn').onclick = async () => {
+  setChatName(ui('chatNameInput').value);
+  const input = ui('chatInput'), texto = input.value;
+  input.value = '';
+  if (!(await sendChatMessage(texto))) input.value = texto;
+  input.focus();
+};
+ui('chatInput').addEventListener('keydown', e => {
+  e.stopPropagation();   // que el teclado del juego no lo vea
+  if (e.code === 'Enter') ui('chatSendBtn').click();
+  else if (e.code === 'Escape') closeChatWall();
+});
+ui('chatReplyInput').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.code === 'Enter') sendChatReply();
+  else if (e.code === 'Escape') closeChatReply();
+});
+ui('chatReplySend').onclick = () => sendChatReply();
+ui('chatReplyClose').onclick = closeChatReply;
+ui('chatReplyWall').onclick = () => openChatWall();
+setInterval(() => chatSync(false), 2500);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) chatSync(false); });
+chatSync(true);   // el muro del inicio ya llega con la conversación cargada
+
 
 function saveGame() {
   if (!state.running || state.phase === 'OVER') return;
@@ -9102,7 +9450,7 @@ function openBank() {
   ui('bankbox').style.display = 'flex'; renderBank();
   beep(600, 0.1, 0.04);
 }
-function closeBank() { ui('bankbox').style.display = 'none'; if (ui('shopbox').style.display !== 'flex' && ui('mathbox').style.display !== 'flex') typing = false; }
+function closeBank() { ui('bankbox').style.display = 'none'; typing = algunRecuadroAbierto(); }
 function tryBank() {
   if (state.planet !== 'tierra') return false;
   if (dist2D(player.position, BANK_POS) > 7) return false;
@@ -9166,7 +9514,7 @@ function openRocket() {
   ui('rocketbox').style.display = 'flex'; renderRocket();
   beep(600, 0.1, 0.04);
 }
-function closeRocket() { ui('rocketbox').style.display = 'none'; if (!ui('shopbox') || ui('shopbox').style.display !== 'flex') typing = false; }
+function closeRocket() { ui('rocketbox').style.display = 'none'; typing = algunRecuadroAbierto(); }
 function tryRocket() {   // interactuar cerca del cohete abre los cajones
   if (!state.rocket) return false;
   if (dist2D(player.position, state.rocket.position) > 6) return false;
@@ -9369,7 +9717,7 @@ function renderMathProblem() {
 function openMathBox() {
   if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
   if ((state.mathLeft || 0) <= 0) { toast('🧮 Ya resolviste los 5 desafíos de hoy. ¡Mañana hay más!'); return; }
-  closeShopInput(); closeRocket(); releaseLock();
+  closeShopInput(); closeRocket(); closeChatReply(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar teclas para no caminar solo
   ui('mathbox').style.display = 'flex';
@@ -9377,7 +9725,7 @@ function openMathBox() {
 }
 function closeMathBox() {
   ui('mathbox').style.display = 'none';
-  if (ui('shopbox').style.display !== 'flex') typing = false;
+  typing = algunRecuadroAbierto();
   mathProblem = null;
 }
 function answerMath(v) {

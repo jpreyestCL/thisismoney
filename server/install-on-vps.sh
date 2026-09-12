@@ -16,7 +16,9 @@ cd "$WEBROOT/server"
 npm install --prefix "$WEBROOT/server" --omit=dev --ignore-scripts --no-package-lock
 MODULE_DIR=$(npm root --prefix "$WEBROOT/server")
 test -d "$MODULE_DIR/pg"
-sudo chmod -R a+rX "$MODULE_DIR" package.json leaderboard.mjs
+# src/chat.js lo comparten el navegador y la API (mismas reglas del chat), así
+# que el servicio también tiene que poder leer esa carpeta.
+sudo chmod -R a+rX "$MODULE_DIR" package.json leaderboard.mjs "$WEBROOT/src"
 sudo install -m 0644 thisismoney-leaderboard.service "/etc/systemd/system/$SERVICE.service"
 sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE"

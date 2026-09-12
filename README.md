@@ -73,11 +73,12 @@ CLAUDE.md             Detailed developer notes (in Spanish)
 | `C` / `V` / `O` · `G` · `Z` | Dad: follow / stay / clean · arm him · make him rest |
 | `H` | Summon a helper (after meeting mom) |
 | `R` | Launch the rocket |
+| `Enter` | World chat: write a message everyone playing can read |
 | `I` · `Esc` | Help menu · Pause menu |
 
 **Mobile / tablet (touch)**
 
-Touch devices are detected automatically (`pointer: coarse`) and get: a virtual joystick (left), drag-to-look anywhere on screen, and action buttons on the right — 👊 hit, 🤝 interact, 🛒 shop, 🍖 eat, 🌙 night, 🔨 build, ✋ place, 🪏 dig, 🔥 campfire, 🌱 plant, and a ⋯ panel with the rest (rotate, delete, dad modes, math, helper, rocket, help). A hint asks you to rotate the phone to landscape. Touch controls can also be forced on from the help menu.
+Touch devices are detected automatically (`pointer: coarse`) and get: a virtual joystick (left), drag-to-look anywhere on screen, and action buttons on the right — 👊 hit, 🤝 interact, 🛒 shop, 🍖 eat, 🌙 night, 🔨 build, ✋ place, 🪏 dig, 🔥 campfire, 🌱 plant, and a ⋯ panel with the rest (rotate, delete, dad modes, math, 💬 world chat, helper, rocket, help). A hint asks you to rotate the phone to landscape. Touch controls can also be forced on from the help menu.
 
 ### Saves and settings
 
@@ -181,16 +182,18 @@ El `.gitignore` usa lista blanca para `assets/`: solo esos cuatro archivos está
 | `C` / `V` / `O` · `G` · `Z` | Papá: seguir / quedarse / limpiar · armarlo · mandarlo a descansar |
 | `H` | Invocar un ayudante (después de conocer a la mamá) |
 | `R` | Lanzar el cohete |
+| `Enter` | Chat mundial: escribirle a todos los que están jugando |
 | `I` · `Esc` | Menú de ayuda · Menú de pausa |
 
 **Celular / tablet (táctil)**
 
-Se detecta pantalla táctil automáticamente (`pointer: coarse`): joystick virtual (izquierda), arrastrar la pantalla para mirar y botones de acción a la derecha — 👊 pegar, 🤝 usar, 🛒 tienda, 🍖 comer, 🌙 noche, 🔨 construir, ✋ poner, 🪏 cavar, 🔥 fogata, 🌱 plantar, y un panel ⋯ con el resto (girar, borrar, modos del papá, mates, hijo, cohete, ayuda). Un aviso pide girar el teléfono a horizontal. Los controles táctiles también se pueden forzar desde el menú de ayuda.
+Se detecta pantalla táctil automáticamente (`pointer: coarse`): joystick virtual (izquierda), arrastrar la pantalla para mirar y botones de acción a la derecha — 👊 pegar, 🤝 usar, 🛒 tienda, 🍖 comer, 🌙 noche, 🔨 construir, ✋ poner, 🪏 cavar, 🔥 fogata, 🌱 plantar, y un panel ⋯ con el resto (girar, borrar, modos del papá, mates, 💬 chat mundial, hijo, cohete, ayuda). Un aviso pide girar el teléfono a horizontal. Los controles táctiles también se pueden forzar desde el menú de ayuda.
 
 ### Guardado y ajustes
 
 Las partidas se guardan en `localStorage`; la tabla trimestral mundial es el único dato compartido en el servidor:
 
+- `tim_chat_name` — el nombre con el que apareces en el chat mundial
 - `tim_save_<nombre>` — una partida por perfil (plata, stats, inventario, casa, vehículos, plantas, ayudantes, papá, fogatas, minas, planeta, banco…)
 - `tim_profiles`, `tim_profile` — lista de perfiles y el último usado
 - `tim_best`, `tim_daily` — récord personal y racha diaria
@@ -347,3 +350,35 @@ El HUD muestra un aviso grande de gasolina cuando el tanque baja de 25%:
 indica el porcentaje restante y recomienda buscar la gasolinera. Bajo 10% el
 aviso parpadea en rojo; con 0% indica que el auto quedó sin gasolina.
 Pruebas: `node tests/fuel-warning.test.mjs`.
+
+### Chat mundial (muro global)
+
+Todos los que están jugando comparten **una sola sala de chat**, sin importar
+si juegan solos o en una sala de amigos.
+
+- **En el inicio** hay un botón **💬 MURO GLOBAL** que abre el muro: la
+  conversación completa, cuántos jugadores hay conectados ahora, un campo para
+  tu nombre y otro para escribir. Bajo los botones aparece además el último
+  mensaje como adelanto (se puede tocar para entrar al muro).
+- **Jugando**, cada mensaje nuevo llega como un globo en la esquina izquierda
+  con el botón **💬 Responder**. Si no contestas, **el globo se borra solo a
+  los 7 segundos** y el juego sigue igual. Se muestran hasta tres globos a la vez.
+- Para escribir sin salir de la partida: tecla **Enter** en PC o el botón **💬**
+  del panel **⋯** en celular. Mientras el chat está abierto el teclado del juego
+  queda bloqueado (`typing`), y al cerrar con **Esc** vuelves al control normal.
+- Al responder desde un globo, el mensaje ya viene con `@Nombre` escrito.
+
+Cómo funciona por dentro: es la misma API mundial del ranking
+(`server/leaderboard.mjs`, tabla `chat_messages` en PostgreSQL) con dos rutas
+nuevas — `GET /api/chat` (los últimos mensajes, o solo los posteriores a un id
+con `?since=`) y `POST /api/chat`. El navegador pregunta cada 4 s con el muro
+abierto, cada 7 s jugando y cada 20 s en el menú; si la red falla, espacia los
+intentos solo. La presencia (`chat_presence`) es la que muestra el contador de
+jugadores conectados.
+
+Como lo juegan niños, las reglas del chat viven en un módulo compartido por el
+navegador y el servidor (`src/chat.js`), así el mensaje que se ve es el mismo
+que se guarda: máximo 140 caracteres, una sola línea, enlaces reemplazados por
+`(enlace)`, groserías tapadas con `***`, 2,5 s de espera entre mensajes y un
+límite por IP en el servidor. El muro guarda dos días de conversación.
+Pruebas: `node tests/chat.test.mjs`.

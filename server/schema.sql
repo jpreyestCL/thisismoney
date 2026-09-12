@@ -28,3 +28,32 @@ create index if not exists leaderboard_recent_idx
 
 revoke all on leaderboard_scores from public;
 grant select, insert, update on leaderboard_scores to timleaderboard;
+
+-- CHAT MUNDIAL: el muro del inicio y los mensajes que aparecen jugando.
+create table if not exists chat_messages (
+  id bigserial primary key,
+  player_id uuid not null,
+  display_name text not null,
+  body text not null,
+  source_hash text not null default '',
+  created_at timestamptz not null default now(),
+  check (char_length(display_name) between 1 and 20),
+  check (char_length(body) between 1 and 140)
+);
+
+create index if not exists chat_messages_created_idx on chat_messages (created_at);
+
+-- Quién está en el chat ahora (para mostrar "12 jugadores conectados").
+create table if not exists chat_presence (
+  player_id uuid primary key,
+  display_name text not null default 'Jugador',
+  seen_at timestamptz not null default now()
+);
+
+create index if not exists chat_presence_seen_idx on chat_presence (seen_at desc);
+
+revoke all on chat_messages from public;
+revoke all on chat_presence from public;
+grant select, insert, delete on chat_messages to timleaderboard;
+grant usage, select on sequence chat_messages_id_seq to timleaderboard;
+grant select, insert, update, delete on chat_presence to timleaderboard;

@@ -358,3 +358,53 @@ Playwright hay que instalar `three@0.160.0` desde npm e interceptar las peticion
 - Rama de desarrollo: **`claude/money-mobile-gameplay-n1ho6s`** (no pushear a otra rama sin permiso).
 - `git push -u origin claude/money-mobile-gameplay-n1ho6s` y abrir PR en **draft** si no existe uno abierto.
 - Repo con scope de GitHub: `jpreyestcl/thisismoney`.
+
+## Chat mundial (muro global + globos en el juego)
+
+Una sola sala para TODOS los que están jugando (es aparte de las salas P2P de "jugar con
+amigos": el chat no pasa por PeerJS, va por la API mundial del VPS).
+
+- **Servidor** (`server/leaderboard.mjs`, el mismo servicio del ranking): `GET /chat`
+  devuelve los últimos `CHAT_HISTORY` mensajes; `?since=<id>` solo lo dicho después de ese id
+  (los globos del juego) y `?since=-1` nada, solo `{lastId, online}` para empezar a escuchar
+  sin repetir lo viejo. `POST /chat {playerId, name, text}` publica. Tablas `chat_messages` y
+  `chat_presence` (`server/schema.sql`); `?me=<uuid>&name=` marca presencia (ventana de 75 s)
+  y con eso se cuenta "X jugadores". `chatPrune()` borra mensajes de más de 48 h cada 10 min.
+  Rutas nuevas en `server/nginx-location.conf` (`/api/chat`) y chequeo en `deploy.yml`.
+- **Reglas compartidas** (`src/chat.js`, lo importan el navegador y el servidor, para que el
+  mensaje que ves sea el que se guarda): `cleanChatText` (140 caracteres, una línea, enlaces →
+  `(enlace)`, groserías → `***`), `cleanChatName`, `chatSendWait` (2,5 s entre mensajes),
+  `CHAT_BUBBLE_MS = 7000`. Pruebas: `node tests/chat.test.mjs`.
+- **Cliente** (sección `CHAT MUNDIAL` en `index.html`, después del ranking): objeto `chat`
+  (`lastId`, `history`, `mine`, `bubbles`, `backoff`…). `chatSync()` corre en un `setInterval`
+  de 2,5 s pero solo pregunta según dónde estés: 4 s con el muro abierto, 7 s jugando, 20 s en
+  el menú y nunca con la pestaña oculta; si la red falla, `backoff` espacia hasta 60 s.
+  `chatBubble()` crea el globo (máx. 3) y lo borra a los 7 s (`chatFadeBubble`).
+  `renderChatWall()` **solo agrega** las filas nuevas (`data-chat-id`) para no mover el texto
+  que estás leyendo. La identidad es el mismo uuid anónimo del ranking (`randomUuid()`).
+- **UI**: `#chatbox` (muro, botón `💬 MURO GLOBAL` del inicio + `#chatTeaser` con el último
+  mensaje), `#chatFeed` (globos) y `#chatReply` (barra para contestar). Abrir el muro estando
+  en partida pausa el juego, como el menú de ayuda.
+- **Controles**: `Enter` abre la barra de chat (solo si el foco está en el canvas/cuerpo),
+  `Esc` la cierra, botón `💬` en el panel `⋯` del celular (`press('chat')`) y tocar fuera
+  también cierra. Mientras escribes, `typing = true` bloquea el teclado del juego.
+- El nombre sale de `tim_chat_name` (lo que escribas en el muro) o del perfil de la partida.
+- **Un solo recuadro de escribir a la vez** (arreglo del code review): abrir el chat cierra
+  vendedor/mates y viceversa, y todos los cierres usan `algunRecuadroAbierto()` (lista
+  `TYPING_BOXES`) en vez de comparar a mano contra otros paneles. Antes, cerrar uno devolvía
+  el teclado al juego aunque quedara otro abierto.
+- **`chatName()` no puede leer `net` directo** (`nombreDeLaSala()`): `const net` se declara al
+  final del archivo, así que en la primera consulta del chat (que ahora sale al cargar la
+  página) leerlo lanzaba ReferenceError y dejaba `chat.busy` trabado para SIEMPRE: nadie
+  registraba presencia y el muro no se actualizaba nunca. Por lo mismo, preparar la consulta
+  quedó dentro del `try` de `chatSync`: pase lo que pase, `busy` se libera.
+- Otros arreglos del review: el muro carga la conversación aunque la primera consulta falle
+  (`chat.historyLoaded`, antes quedaba pegado en "no hay mensajes" al entrar a jugar); la
+  espera entre mensajes NO se borra cuando el servidor contesta 429 (solo si no hubo red);
+  el primer aviso de presencia sale al tiro (`lastPresence = null`, antes el muro decía
+  "0 jugadores" los primeros 20 s); `validPlayerId` exige la forma real de un uuid (antes un
+  id mal formado llegaba a PostgreSQL y devolvía 500, también en el ranking); el POST del
+  chat responde antes de la presencia y la limpieza (si fallaban, el jugador reenviaba y el
+  mensaje salía dos veces); el filtro ya no se come "conocí"/"conos"/"Vergara" (lista de
+  terminaciones en vez de "cualquier sufijo corto") ni parte los emoji de familia (el ZWJ
+  se conserva).

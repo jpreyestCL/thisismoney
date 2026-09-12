@@ -54,3 +54,8 @@ jobs:
             https://tim.strivexlatam.com/api/leaderboard/health)
           echo "leaderboard -> HTTP $api_code"
           test "$api_code" = "200"
+          chat_code=$(curl -s -o /dev/null -w '%{http_code}' \
+            --resolve tim.strivexlatam.com:443:127.0.0.1 \
+            'https://tim.strivexlatam.com/api/chat?since=-1')
+          echo "chat mundial -> HTTP $chat_code"
+          test "$chat_code" = "200"

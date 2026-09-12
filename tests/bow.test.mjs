@@ -29,6 +29,6 @@ assert.match(html, /Mantén para tensar el arco/);
 assert.match(html, /item\.bow \|\| item\.key === 'arco'/);
 assert.match(html, /clearPlayerArrows\(\)/);
 assert.doesNotMatch(html, /if \(e\.code === 'KeyE'\) \{ const alexaTarget=e\.shiftKey&&aimedFurniture\(\);if\(alexaTarget&&alexaTarget\.key==='alexa'\)\{useAlexaText\(alexaTarget\);return;\}if \(!tryRefuelCar/);
-assert.match(sw, /tim-v23/);
+assert.match(sw, /tim-v24/);
 
 console.log('bow and arrow: ok');

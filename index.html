@@ -1035,9 +1035,20 @@ function pixelateModel(root) {
 // ===================================================================
 
 const canvas = document.getElementById('game');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: new URLSearchParams(location.search).has('debug') });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
+// Equipos lentos (celular, 4 núcleos o menos, ahorro de datos): arrancan ya en calidad baja.
+// Si el jugador apagó Rendimiento a mano (tim_perf=0), se respeta.
+let preferLowPerf = false;
+try {
+  const savedPerf = localStorage.getItem('tim_perf');
+  preferLowPerf = savedPerf === '1' || (savedPerf !== '0' && (
+    matchMedia('(pointer: coarse)').matches
+    || (navigator.hardwareConcurrency || 8) <= 4
+    || !!(navigator.connection && navigator.connection.saveData)
+  ));
+} catch (e) {}
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !preferLowPerf, powerPreference: 'high-performance', preserveDrawingBuffer: new URLSearchParams(location.search).has('debug') });
+renderer.setPixelRatio(Math.min(devicePixelRatio, preferLowPerf ? 1 : 1.5));
+renderer.shadowMap.enabled = !preferLowPerf;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
@@ -1046,8 +1057,16 @@ const SKY_NIGHT = new THREE.Color(0x0a1026);
 const SKY_RAIN = new THREE.Color(0x6b7f96), SKY_DUST = new THREE.Color(0xc06a2e), SKY_ECLIPSE = new THREE.Color(0x05060a), _skyBase = new THREE.Color();
 scene.background = SKY_DAY.clone();
 scene.fog = new THREE.Fog(SKY_DAY.getHex(), 40, 160);
+// Carteles y sprites que miran a cámara. Lista propia: recorrer TODA la escena cada frame laguea.
+const billboards = [];
+function trackBillboard(o) {
+  if (!o || o.userData._bb) return o;
+  o.userData._bb = true;
+  billboards.push(o);
+  return o;
+}
 
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 600);
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, preferLowPerf ? 320 : 600);
 
 // Ajuste de tamaño robusto: el canvas SIEMPRE llena la pantalla, aunque Safari cambie el
 // viewport o el usuario haga zoom. Usa visualViewport si existe y NO escribe estilos inline
@@ -1068,11 +1087,11 @@ const ambient = new THREE.HemisphereLight(0xffffff, 0x445533, 1.0);
 scene.add(ambient);
 const sun = new THREE.DirectionalLight(0xffffff, 1.0);
 sun.position.set(40, 70, 25);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.castShadow = !preferLowPerf;
+sun.shadow.mapSize.set(preferLowPerf ? 512 : 1024, preferLowPerf ? 512 : 1024);
 sun.shadow.camera.near = 1; sun.shadow.camera.far = 240;
-sun.shadow.camera.left = -90; sun.shadow.camera.right = 90;
-sun.shadow.camera.top = 90; sun.shadow.camera.bottom = -90;
+sun.shadow.camera.left = -70; sun.shadow.camera.right = 70;
+sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
 sun.shadow.bias = -0.0004;
 scene.add(sun);
 // Saca un objeto de la escena Y libera geometría/material de la GPU de él y de todos sus hijos
@@ -1466,7 +1485,7 @@ function makeSign(text, color) {
   ctx.fillText(text, 256, 64);
   const tex = new THREE.CanvasTexture(cv);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
-  m.userData.billboard = true;
+  m.userData.billboard = true; trackBillboard(m);
   return m;
 }
 
@@ -1474,7 +1493,7 @@ function makeSign(text, color) {
 function makeDynSign(text, color) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true }));
-  m.userData.billboard = true; m.userData.cv = cv;
+  m.userData.billboard = true; m.userData.cv = cv; trackBillboard(m);
   refreshSignText(m, text, color);
   return m;
 }
@@ -1521,7 +1540,7 @@ function makeSprite(frames, w, h) {
   const g = new THREE.Group();
   const m = new THREE.MeshBasicMaterial({ map: texs[0], transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); plane.position.y = h / 2;
-  g.add(plane); g.userData.spriteBillboard = true; g.userData.plane = plane; g.userData.baseY = h / 2;
+  g.add(plane); g.userData.spriteBillboard = true; g.userData.plane = plane; g.userData.baseY = h / 2; trackBillboard(g);
   g.userData.frames = texs; g.userData.frameMat = m;
   return g;
 }
@@ -2222,9 +2241,11 @@ function updateNPCs(dt) {
     if (distance > .7 && b.wait <= 0) {
       let dx = (b.goal.x - n.position.x) / distance, dz = (b.goal.z - n.position.z) / distance;
       // Separación corta: evita que los peatones se atraviesen o formen una sola masa.
-      for (const other of npcs) if (other !== n && other.visible) {
-        const d = dist2D(n.position, other.position);
-        if (d > .01 && d < 1.25) { dx += (n.position.x - other.position.x) / d * .7; dz += (n.position.z - other.position.z) / d * .7; }
+      if (dist2D(n.position, player.position) < 32) {
+        for (const other of npcs) if (other !== n && other.visible) {
+          const d = dist2D(n.position, other.position);
+          if (d > .01 && d < 1.25) { dx += (n.position.x - other.position.x) / d * .7; dz += (n.position.z - other.position.z) / d * .7; }
+        }
       }
       const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
       const speed = b.speed * (b.activity === 'flee' ? 2.8 : 1), step = speed * dt;
@@ -2881,15 +2902,48 @@ const TREASURE_ISLAND = { x: -1060, z: -155, w: 440, d: 400, surface: .72 };
 let boat = null, oceanStormT = 35, templeTrapT = 0, oceanHazardCd = 0, oceanCurrentWarnAt = 0;
 const oceanWaves = [], oceanFish = [], oceanSharks = [], islandOres = [], islandTemples = [], templeArrows = [], templeChests = [], templeLava = [];
 const islandTrees = [], islandTempleTraps = [], islandTempleGroups = [];
+let oceanFxGroup = null;
 let activeIslandTemple = -1, templeRunHp = 0, templeTripCd = 0;
 function inIslandMine() { return !!(state.underground && state.shelterHole && state.shelterHole.islandMine); }
 function mineFloorY(h) {
   return (h && h.islandMine ? TREASURE_ISLAND.surface : 0) - (h ? h.depth : 0) * DEPTH_STEP;
 }
-function syncIslandSurfaceDecor() {
-  const show = !inIslandMine();
-  for (const t of islandTrees) t.visible = show;
-  for (const t of islandTempleGroups) t.visible = show;
+function syncIslandSurfaceDecor() { syncFarWorld(); }
+
+function nearSkiNow() {
+  return !!(state.skiing || state.skiLiftRide || ((player.position.x - SKI_RESORT.x) ** 2 + (player.position.z - SKI_RESORT.z) ** 2) < 400 * 400);
+}
+function nearIslandNow(r) {
+  const rr = r || 520;
+  return inIslandMine() || ((player.position.x - TREASURE_ISLAND.x) ** 2 + (player.position.z - TREASURE_ISLAND.z) ** 2) < rr * rr;
+}
+function nearParksNow() {
+  if (parkRide) return true;
+  const px = player.position.x, pz = player.position.z;
+  return ((px - FUN_PARK.x) ** 2 + (pz - FUN_PARK.z) ** 2) < 160 * 160
+    || ((px - CONDO_PARK.x) ** 2 + (pz - CONDO_PARK.z) ** 2) < 90 * 90
+    || ((px - WATER_PARK.x) ** 2 + (pz - WATER_PARK.z) ** 2) < 100 * 100;
+}
+function syncFarWorld() {
+  skiResortGroup.visible = nearSkiNow();
+  if (oceanFxGroup) oceanFxGroup.visible = !!(state.sailing || state.swimming || player.position.x < -160);
+  const nearIsl = nearIslandNow(520);
+  for (const h of holes) {
+    const here = !!(state.underground && state.shelterHole === h);
+    if (h.islandMine) h.group.visible = nearIsl || here;
+    h.group.traverse(o => { if (o.isLight) o.visible = here; });
+  }
+  for (const o of islandOres) {
+    if (o.userData.hp <= 0) { o.visible = false; continue; }
+    o.visible = !!(state.underground && o.userData.mineHole === state.shelterHole);
+  }
+  const showIsland = !inIslandMine() && nearIsl;
+  for (const t of islandTrees) t.visible = showIsland;
+  for (const t of islandTempleGroups) {
+    t.visible = showIsland;
+    const lit = showIsland && dist2D(player.position, t.position) < 42;
+    t.traverse(o => { if (o.isLight) o.visible = lit; });
+  }
 }
 function worldWestLimit() {
   if (creativeFlying || state.jetOn || (state.driving && car && car.helicopter)) return -1300;
@@ -2936,7 +2990,7 @@ function buildIslandTemple(tx, tz) {
   wire.position.set(0, 2.72, 8); temple.add(wire);
   const pegL = new THREE.Mesh(new THREE.BoxGeometry(.12, .7, .12), mat(0x44403c)); pegL.position.set(-8, 2.5, 8); temple.add(pegL);
   const pegR = pegL.clone(); pegR.position.x = 8; temple.add(pegR);
-  const torch = new THREE.PointLight(0xfbbf24, 1.35, 18); torch.position.set(0, 8.5, 0); temple.add(torch);
+  const torch = new THREE.PointLight(0xfbbf24, 1.35, 18); torch.position.set(0, 8.5, 0); torch.visible = false; temple.add(torch);
   const chest = new THREE.Group(), cb = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.2, 1.5), mat(0x8b5a2b)); cb.position.y = .6; chest.add(cb);
   const lock = new THREE.Mesh(new THREE.BoxGeometry(.35, .45, .12), mat(0xfacc15)); lock.position.set(0, .65, .81); chest.add(lock);
   chest.position.set(0, 2.52, -11); temple.add(chest);
@@ -2956,24 +3010,25 @@ function buildOceanExpedition() {
   const seabed = new THREE.Mesh(new THREE.BoxGeometry(OCEAN.waterW, .5, OCEAN.waterD), mat(0x23465a)); seabed.position.set(OCEAN.cx,OCEAN.bottom-.25,OCEAN.cz);scene.add(seabed);
   const water = new THREE.Mesh(new THREE.PlaneGeometry(OCEAN.waterW, OCEAN.waterD), new THREE.MeshStandardMaterial({ color: 0x075985, transparent: true, opacity: .86, roughness: .18, metalness: .08, side: THREE.DoubleSide, depthWrite: false }));
   water.rotation.x = -Math.PI / 2; water.position.set(OCEAN.cx, OCEAN.surface, OCEAN.cz); scene.add(water);
-  for (let i = 0; i < 110; i++) { const wave = new THREE.Mesh(new THREE.BoxGeometry(9 + Math.random() * 15, .08, .35), new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: .55 })); wave.position.set(-220 - Math.random() * 840, .62, OCEAN.cz + (Math.random() - .5) * 390); wave.userData.phase = Math.random() * 6.28; scene.add(wave); oceanWaves.push(wave); }
+  oceanFxGroup = new THREE.Group(); scene.add(oceanFxGroup);
+  for (let i = 0; i < 48; i++) { const wave = new THREE.Mesh(new THREE.BoxGeometry(9 + Math.random() * 15, .08, .35), new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: .55 })); wave.position.set(-220 - Math.random() * 840, .62, OCEAN.cz + (Math.random() - .5) * 390); wave.userData.phase = Math.random() * 6.28; oceanFxGroup.add(wave); oceanWaves.push(wave); }
   const kelpGeo=new THREE.BoxGeometry(.35,3,.35),kelpMat=mat(0x166534),kelp=new THREE.InstancedMesh(kelpGeo,kelpMat,100),matrix=new THREE.Matrix4();
   for(let i=0;i<100;i++){matrix.makeTranslation(-240-Math.random()*780,OCEAN.bottom+1.5,OCEAN.cz+(Math.random()-.5)*380);kelp.setMatrixAt(i,matrix);}kelp.instanceMatrix.needsUpdate=true;scene.add(kelp);
-  for(let i=0;i<36;i++){const fish=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(.65,.3,1.15),mat(i%3===0?0xf59e0b:i%3===1?0x38bdf8:0xcbd5e1));fish.add(body);const tail=new THREE.Mesh(new THREE.ConeGeometry(.28,.55,4),body.material);tail.rotation.x=Math.PI/2;tail.position.z=-.75;fish.add(tail);fish.position.set(-250-Math.random()*760,-1-Math.random()*8,OCEAN.cz+(Math.random()-.5)*370);fish.userData.speed=1+Math.random()*2;scene.add(fish);oceanFish.push(fish);}
-  for(let i=0;i<7;i++){const shark=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.3,.65,3.4),mat(0x64748b));shark.add(body);const fin=new THREE.Mesh(new THREE.ConeGeometry(.55,1.1,4),mat(0x475569));fin.position.y=.75;shark.add(fin);shark.position.set(-300-Math.random()*700,-.9-Math.random()*2,OCEAN.cz+(Math.random()-.5)*340);shark.userData.speed=2.5+Math.random()*1.5;scene.add(shark);oceanSharks.push(shark);}
+  for(let i=0;i<18;i++){const fish=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(.65,.3,1.15),mat(i%3===0?0xf59e0b:i%3===1?0x38bdf8:0xcbd5e1));fish.add(body);const tail=new THREE.Mesh(new THREE.ConeGeometry(.28,.55,4),body.material);tail.rotation.x=Math.PI/2;tail.position.z=-.75;fish.add(tail);fish.position.set(-250-Math.random()*760,-1-Math.random()*8,OCEAN.cz+(Math.random()-.5)*370);fish.userData.speed=1+Math.random()*2;oceanFxGroup.add(fish);oceanFish.push(fish);}
+  for(let i=0;i<4;i++){const shark=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.3,.65,3.4),mat(0x64748b));shark.add(body);const fin=new THREE.Mesh(new THREE.ConeGeometry(.55,1.1,4),mat(0x475569));fin.position.y=.75;shark.add(fin);shark.position.set(-300-Math.random()*700,-.9-Math.random()*2,OCEAN.cz+(Math.random()-.5)*340);shark.userData.speed=2.5+Math.random()*1.5;oceanFxGroup.add(shark);oceanSharks.push(shark);}
   const island = new THREE.Mesh(new THREE.CylinderGeometry(220, 205, 2.8, 30), new THREE.MeshStandardMaterial({ color: 0xb78b52, roughness: 1 })); island.scale.z = TREASURE_ISLAND.d / TREASURE_ISLAND.w; island.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface - 1.55, TREASURE_ISLAND.z); island.receiveShadow = true; scene.add(island);
   const grass = new THREE.Mesh(new THREE.CircleGeometry(214, 30), new THREE.MeshStandardMaterial({ color: 0x4a9a4c, roughness: 1 })); grass.scale.y = TREASURE_ISLAND.d / TREASURE_ISLAND.w; grass.rotation.x = -Math.PI / 2; grass.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface + .05, TREASURE_ISLAND.z); scene.add(grass);
   // Bosque de la isla: copas verdes, no negras, para que se vea de día.
   const templeSpots = [[-125, -115], [65, -125], [125, 35], [-55, 125], [20, 20], [145, -75], [-145, 45]];
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 55; i++) {
     const a = Math.random() * Math.PI * 2, r = 28 + Math.random() * 168;
     const x = TREASURE_ISLAND.x + Math.cos(a) * r, z = TREASURE_ISLAND.z + Math.sin(a) * r * .86;
     if (templeSpots.some(([tx, tz]) => Math.hypot(x - (TREASURE_ISLAND.x + tx), z - (TREASURE_ISLAND.z + tz)) < 30)) continue;
     const g = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.1, 16 + Math.random() * 8, 8), mat(0x5a3a22)); trunk.position.y = 9; trunk.castShadow = true; g.add(trunk);
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.1, 16 + Math.random() * 8, 8), mat(0x5a3a22)); trunk.position.y = 9; g.add(trunk);
     for (let c = 0; c < 3; c++) {
       const crown = new THREE.Mesh(new THREE.SphereGeometry(5.5 + Math.random() * 2.4, 10, 8), mat(c % 2 ? 0x2f8a46 : 0x247a3c));
-      crown.position.set((c - 1) * 3.6, 18 + Math.random() * 4, (Math.random() - .5) * 5); crown.castShadow = true; g.add(crown);
+      crown.position.set((c - 1) * 3.6, 18 + Math.random() * 4, (Math.random() - .5) * 5); g.add(crown);
     }
     g.position.set(x, TREASURE_ISLAND.surface, z); scene.add(g); islandTrees.push(g);
   }
@@ -2981,6 +3036,7 @@ function buildOceanExpedition() {
   for (const [tx, tz] of [[-125, -115], [65, -125], [125, 35], [-55, 125], [20, 20], [145, -75], [-145, 45]]) buildIslandTemple(tx, tz);
 }
 buildOceanExpedition();
+if (oceanFxGroup) oceanFxGroup.visible = false;
 function makeBoat() {
   const g = new THREE.Group(), wood = mat(0x713f12);
   const hull = new THREE.Mesh(new THREE.BoxGeometry(10, 2, 22), wood); hull.position.y = 1; hull.castShadow = true; g.add(hull);
@@ -3009,10 +3065,15 @@ function toggleBoat() {
 }
 function inTreasureIsland(x,z) { return Math.abs(x-TREASURE_ISLAND.x)<TREASURE_ISLAND.w*.48 && Math.abs(z-TREASURE_ISLAND.z)<TREASURE_ISLAND.d*.46; }
 function updateOceanExpedition(dt) {
+  const nearWater = !!(state.sailing || state.swimming || player.position.x < -160);
+  if (oceanFxGroup) oceanFxGroup.visible = nearWater;
+  if (nearWater) {
+    const storm = boat && boat.sailing && state.weather === 'rain';
+    for (const w of oceanWaves) { w.position.y = OCEAN.surface + .12 + Math.sin(performance.now()*.0025+w.userData.phase)*(storm ? .75 : .24); w.rotation.z = Math.sin(performance.now()*.0018+w.userData.phase)*.08; }
+    for(const fish of oceanFish){fish.position.x-=fish.userData.speed*dt;if(fish.position.x<-1140)fish.position.x=-230;fish.rotation.y=Math.PI/2;}
+    for(const shark of oceanSharks){shark.position.x-=shark.userData.speed*dt;if(shark.position.x<-1140)shark.position.x=-250;shark.rotation.y=Math.PI/2;}
+  }
   const storm = boat && boat.sailing && state.weather === 'rain';
-  for (const w of oceanWaves) { w.position.y = OCEAN.surface + .12 + Math.sin(performance.now()*.0025+w.userData.phase)*(storm ? .75 : .24); w.rotation.z = Math.sin(performance.now()*.0018+w.userData.phase)*.08; }
-  for(const fish of oceanFish){fish.position.x-=fish.userData.speed*dt;if(fish.position.x<-1140)fish.position.x=-230;fish.rotation.y=Math.PI/2;}
-  for(const shark of oceanSharks){shark.position.x-=shark.userData.speed*dt;if(shark.position.x<-1140)shark.position.x=-250;shark.rotation.y=Math.PI/2;}
   const swimmingOcean=!!waterZoneAt(player.position.x,player.position.z)&&player.position.x<-220&&!state.sailing;
   oceanHazardCd=Math.max(0,oceanHazardCd-dt);
   if(swimmingOcean){state.hp-=1.15*dt;for(const shark of oceanSharks){if(dist2D(player.position,shark.position)<4&&oceanHazardCd<=0){oceanHazardCd=2.2;damagePlayer(16,shark.position);toast('🦈 ¡Un tiburón te mordió! Busca el barco');break;}}if(oceanHazardCd<=0&&Math.random()<dt*.18){oceanHazardCd=2;toast('🥶 El océano está helado · necesitas el barco');}}
@@ -3706,7 +3767,7 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
   const rand = () => { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
   const m = { x: cx, z: cz, r, h, ph: (seed || 1) * 1.7, planet: planet || 'tierra', ski: !!o.ski };
   mountains.push(m);
-  const CELL = 2.1, cols = [], extentZ = o.ski ? r * 1.8 : r;
+  const CELL = o.cell || (o.ski ? 4.2 : 2.8), cols = [], extentZ = o.ski ? r * 1.8 : r;
   for (let gx = -r; gx <= r; gx += CELL) for (let gz = -extentZ; gz <= extentZ; gz += CELL) {
     const hh = mountainProfile(m, gx, gz);
     if (hh > .4) cols.push([gx, gz, hh]);
@@ -3714,7 +3775,7 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
   const geo = new THREE.BoxGeometry(CELL * 1.03, 1, CELL * 1.03);
   const matCol = new THREE.MeshStandardMaterial({ map: rockTex, color: 0xffffff, roughness: 1, metalness: 0, flatShading: true });
   const im = new THREE.InstancedMesh(geo, matCol, cols.length);
-  im.castShadow = true; im.receiveShadow = true;
+  im.castShadow = false; im.receiveShadow = true;
   const m4 = new THREE.Matrix4(), pos = new THREE.Vector3(), qq = new THREE.Quaternion(), scl = new THREE.Vector3(), col = new THREE.Color();
   cols.forEach(([gx, gz, hh], i) => {
     const bottom = -2.5;                                   // las columnas nacen bajo el pasto
@@ -3776,7 +3837,7 @@ const skiVisitors = [], skiObstacles = [], skiRamps = [], skiPisteWalls = [];
 const skiWallWorld = new THREE.Vector3();
 let skiGearMesh = null;
 function skiBox(parent, x, y, z, w, h, d, color, obstacle = false) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); parent.add(m);
   if (obstacle) skiObstacles.push(addObstacle(x, z, w, d, y + h / 2));
   if (obstacle || color === 0x7c4a21 || color === 0x8b5a2b) skiPisteWalls.push({ mesh: m, hw: w / 2, hd: d / 2, h });
   return m;
@@ -3983,6 +4044,7 @@ function updateSkiVisitors(dt) {
   }
 }
 buildSkiResort();
+skiResortGroup.visible = false;
 
 buildCondoPark(); buildFunPark(); buildWaterPark(); buildEarthMountains();
 WATER_ZONES.push(POOL);   // en la piscina grande se nada igual que en el mar
@@ -9237,6 +9299,7 @@ function startGame() {
   if (ruinsRoom) ruinsRoom.visible = false;
   scene.fog.far = 160;   // niebla normal de la Tierra
   resetWeather();
+  syncFarWorld();
   toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
   toast('📍 PRIMER PASO · Sigue la flecha hasta el súper');
 }
@@ -9918,23 +9981,25 @@ function hasSave() { return getProfiles().some(n => { try { return !!localStorag
 // ===================================================================
 //  PAUSA (Esc / botón ⏸️) con ajustes: sensibilidad, botones, rendimiento
 // ===================================================================
-let lookMult = 1, btnScale = 1, perfMode = false;
+let lookMult = 1, btnScale = 1, perfMode = preferLowPerf;
 try {
   lookMult = parseFloat(localStorage.getItem('tim_sens')) || 1;
   btnScale = parseFloat(localStorage.getItem('tim_btnsize')) || 1;
-  perfMode = localStorage.getItem('tim_perf') === '1';
+  const savedPerf = localStorage.getItem('tim_perf');
+  if (savedPerf === '1') perfMode = true;
+  else if (savedPerf === '0') perfMode = false;
 } catch (e) {}
 function applyBtnScale() { document.documentElement.style.setProperty('--btnscale', btnScale); }
 let perfExtra = false;       // 2ª etapa del detector de lag: aún menos resolución y distancia
 function applyPerfMode() {   // modo rendimiento: sin sombras, menos resolución y menos distancia de dibujo
   sun.castShadow = !perfMode;
   renderer.shadowMap.enabled = !perfMode;
-  renderer.setPixelRatio(perfMode ? (perfExtra ? 0.75 : 1) : Math.min(devicePixelRatio, 2));
+  sun.shadow.mapSize.set(perfMode ? 512 : 1024, perfMode ? 512 : 1024);
+  renderer.setPixelRatio(perfMode ? (perfExtra ? 0.75 : 1) : Math.min(devicePixelRatio, 1.5));
   // la niebla tapa todo desde ~160: dibujar hasta 600 es puro gasto en equipos lentos
   camera.far = perfMode ? (perfExtra ? 220 : 320) : 600; camera.updateProjectionMatrix();
-  scene.traverse(o => { if (o.isMesh && o.material) o.material.needsUpdate = true; });
 }
-// ---- Detector de lag: si el juego va lento varios segundos, baja la calidad solo ----
+// ---- Detector de lag: si el juego va lento un par de segundos, baja la calidad solo ----
 let fpsMedT = 0, fpsMedN = 0, fpsLento = 0, autoPerfStage = 0, autoPerfLock = false, fpsPrev = 0;
 function updateAutoPerf() {
   if (!state.running || state.paused || autoPerfLock || autoPerfStage >= 2 || document.hidden) return;
@@ -9943,8 +10008,8 @@ function updateAutoPerf() {
   fpsPrev = now;
   if (fpsMedT < 1000) return;                       // promedio cada 1 segundo
   const fps = fpsMedN * 1000 / fpsMedT; fpsMedT = 0; fpsMedN = 0;
-  if (fps < 22) fpsLento++; else fpsLento = Math.max(0, fpsLento - 1);
-  if (fpsLento < 5) return;                         // 5 s seguidos de lag → actuar
+  if (fps < 28) fpsLento++; else fpsLento = Math.max(0, fpsLento - 1);
+  if (fpsLento < 2) return;                         // 2 s seguidos de lag → actuar
   fpsLento = 0; autoPerfStage++;
   if (!perfMode) { perfMode = true; try { localStorage.setItem('tim_perf', '1'); } catch (e) {} }
   else perfExtra = true;                            // ya estaba en rendimiento: 2ª etapa
@@ -10526,6 +10591,7 @@ function loadGame() {
   state.bestiary = d.bestiary || {};
   state.album = d.album || {}; state.albumDone = !!d.albumDone;
   state.recordShown = state.totalEarned >= ((getBest() || {}).total || 0);   // no re-celebrar el récord de esta misma partida
+  syncFarWorld();
   return true;
 }
 function continueGame() {
@@ -10687,7 +10753,7 @@ function spawnCar(opts) {
   }
   g.position.set(hx, (opts && opts.y != null) ? opts.y : 0, hz); g.rotation.y = heading; scene.add(g);
   // barra de vida flotante
-  const barG = new THREE.Group(); barG.userData.billboard = true;
+  const barG = new THREE.Group(); barG.userData.billboard = true; trackBillboard(barG);
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
@@ -10713,7 +10779,7 @@ function stealCar(g) {
     g.userData.obstacle = null;
   }
   g.userData.moving = false;
-  const barG = new THREE.Group(); barG.userData.billboard = true;
+  const barG = new THREE.Group(); barG.userData.billboard = true; trackBillboard(barG);
   const bbg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x111111 }));
   const bfg = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.24), new THREE.MeshBasicMaterial({ color: 0x22c55e })); bfg.position.z = 0.01;
   barG.add(bbg); barG.add(bfg); scene.add(barG);
@@ -11882,12 +11948,11 @@ function renderIslandMineTunnels(h, dy, roomH, dirt, darkDirt, floorMat) {
   if (beams.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(new THREE.BoxGeometry(MINE_CELL * .92, .14, .22), wood, beams.length), beams));
   if (torches.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(mineTorchStickGeo, torchWood, torches.length), torches));
   if (flames.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(mineTorchFlameGeo, flameMat, flames.length), flames));
-  const lightN = Math.min(8, Math.max(4, Math.floor(flames.length / 12)));
-  for (let i = 0; i < lightN; i++) {
-    const f = flames[Math.floor(i * flames.length / lightN)];
-    if (!f) continue;
+  // 1 luz por mina, apagada hasta que entres (decenas de PointLight en la escena matan el GPU).
+  if (flames.length) {
+    const f = flames[Math.floor(flames.length / 2)];
     const light = new THREE.PointLight(0xff9a3a, 1.35, 15, 2);
-    light.position.set(f[0], f[1], f[2]); h.group.add(light);
+    light.position.set(f[0], f[1], f[2]); light.visible = false; h.group.add(light);
   }
   for (const r of (h.rooms || [])) {
     if (!h.tunnels.has(tunnelKey(r.cx, r.cz))) continue;
@@ -11917,13 +11982,13 @@ function renderHole(h) {   // (re)construye la malla del hoyo según su profundi
   }
   // La boca queda abierta al cielo y proyecta claridad hasta el fondo del pozo.
   const shaftLight = new THREE.PointLight(0xfff4d6, h.islandMine ? 3.2 : 2.2, dy + 14, 1.2);
-  shaftLight.position.set(0, .7, 0); h.group.add(shaftLight);
+  shaftLight.position.set(0, .7, 0); shaftLight.visible = false; h.group.add(shaftLight);
   if (h.islandMine) {
     const midLight = new THREE.PointLight(0xffc37a, 1.5, 20, 1.4);
-    midLight.position.set(0, -dy * .45, 0); h.group.add(midLight);
+    midLight.position.set(0, -dy * .45, 0); midLight.visible = false; h.group.add(midLight);
   }
   const reflectedLight = new THREE.PointLight(0xbfe3ff, h.islandMine ? 1.6 : 1.1, h.islandMine ? 16 : 11, 1.5);
-  reflectedLight.position.set(0, -dy + roomH * .55, 0); h.group.add(reflectedLight);
+  reflectedLight.position.set(0, -dy + roomH * .55, 0); reflectedLight.visible = false; h.group.add(reflectedLight);
   if (h.islandMine) renderIslandMineTunnels(h, dy, roomH, dirt, darkDirt, floorMat);
   else {
     // Cada celda excavada tiene piso/techo; solo conserva paredes en bordes no excavados.
@@ -11970,6 +12035,7 @@ function setupIslandMines() {
   });
 }
 setupIslandMines();
+syncFarWorld();
 function clearHoles() { for(let i=holes.length-1;i>=0;i--){if(holes[i].islandMine)continue;scene.remove(holes[i].group);holes.splice(i,1);} }
 function findHole(x, z) { for (const h of holes) if (Math.hypot(x - h.x, z - h.z) < HOLE_FIND) return h; return null; }
 function nearEnterableHole() { for (const h of holes) if (h.enterable && Math.hypot(player.position.x - h.x, player.position.z - h.z) < (h.islandMine ? 5.2 : 3.4)) return h; return null; }
@@ -12383,11 +12449,15 @@ function updateCombo(dt) {
 //  BUCLE PRINCIPAL
 // ===================================================================
 const clock = new THREE.Clock();
-let billboardTick = 0, hudTick = 0, minimapTick = 0;
+let billboardTick = 0, hudTick = 0, minimapTick = 0, lodTick = 0, titleSkip = 0;
 function loop() {
   requestAnimationFrame(loop);
+  if (document.hidden) return;
   const dt = Math.min(clock.getDelta(), 0.05);
-  updateAutoPerf();   // si el juego va lento varios segundos, baja la calidad solo
+  updateAutoPerf();   // si el juego va lento un par de segundos, baja la calidad solo
+  lodTick += dt; if (lodTick >= .25) { syncFarWorld(); lodTick = 0; }
+  const onPlatus = state.planet === 'platus';
+  const onEarth = state.planet === 'tierra';
   if (state.running && !state.paused && (state.phase === 'DAY' || state.phase === 'NIGHT')) {
     updateCountryNPCs(dt);                 // la gente del país que estás visitando
     updateNet(dt);                         // amigos online: manda tu posición y mueve sus muñecos
@@ -12415,8 +12485,8 @@ function loop() {
     updateBusiness(dt);
     updateParkBusiness(dt);
     updateWorldEvents(dt);
-    updateParks(dt);                       // rueda, carrusel, columpios y montaña rusa de los parques
-    updateSkiVisitors(dt);                  // visitantes de las pistas nevadas
+    if (nearParksNow()) updateParks(dt);  // rueda, carrusel y montaña rusa solo si estás cerca
+    if (nearSkiNow()) updateSkiVisitors(dt);
     swingLimbs(mom, dt);
     updateArrow();
     updateTutorial();
@@ -12434,26 +12504,27 @@ function loop() {
     updateMeteorVisual(dt);                // el meteorito que se ve caer del cielo
     if (state.cinematic) updateCinematic(dt);
     updatePolice(dt);                      // policía persigue si estás buscado
-    updateCold(dt);                        // noches heladas de Platus (fogatas)
+    if (onPlatus) {
+      updateCold(dt);                        // noches heladas de Platus (fogatas)
+      updateMeteorShower(dt);                // lluvia de meteoritos de noche en Platus (botín)
+      updateMushrooms(dt);                   // hongos bioluminiscentes de Platus (curan al recogerlos)
+      updateRuins(dt);                       // ruinas alien: recoger orbes/cofre estando adentro
+      updateTrail(dt);                       // rastro bioluminiscente bajo tus pasos (Platus)
+      updateShootingStar(dt);                // estrella fugaz: tócala para un deseo (Platus, noche)
+      updateEggs(dt); updateEggPets(dt);     // huevos alien: recoger, incubar y mascotas nacidas
+      updateEclipse(dt);                     // eclipse cósmico
+      updateCastle(dt);                      // castillo alien
+      updateTitanBoss(dt);                   // jefe TITÁN
+      updateArena(dt);                       // coliseo alien
+      updateFloatingWorld(dt);               // islas flotantes + géiseres
+      updatePlatusNuclear(dt);               // reactor de Platus
+    }
     updateMiners(dt);                      // mineros automáticos: acumulan carbón y plata
-
-    updateMeteorShower(dt);                // lluvia de meteoritos de noche en Platus (botín)
-    updateMushrooms(dt);                   // hongos bioluminiscentes de Platus (curan al recogerlos)
-    updateRuins(dt);                       // ruinas alien: recoger orbes/cofre estando adentro
-    updateTrail(dt);                       // rastro bioluminiscente bajo tus pasos (Platus)
-    updateShootingStar(dt);                // estrella fugaz: tócala para un deseo (Platus, noche)
-    updateEggs(dt); updateEggPets(dt);     // huevos alien: recoger, incubar y mascotas nacidas
-    updateEclipse(dt);                     // eclipse cósmico: evento raro (gravedad casi cero + lluvia de botín)
-    updateCastle(dt);                      // castillo alien: laberinto con tesoros y aliens buenos/malos
     updateDetector(dt);                    // detector de tesoros enterrados (pita caliente/frío)
-    updateTitanBoss(dt);                   // jefe TITÁN (kaiju gigante, raro)
-    updateArena(dt);                       // coliseo alien: oleadas de enemigos
-    updateFloatingWorld(dt);               // islas flotantes (cofres) + géiseres
-    updatePlatusNuclear(dt);               // reactor y trabajador alien que energizan todo Platus
     updateBaseDefense(dt);                 // torretas de la base espacial disparan de noche
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
-    updateOceanExpedition(dt);             // barco, oleaje, tormentas y trampas de la isla
+    if (onEarth) updateOceanExpedition(dt);
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
     if (state.creative) { state.hp = 100; state.dadHp = 100; if (state.hunger < 20) state.hunger = 20; }   // creativo: no se puede morir (ni tú ni el papá)
@@ -12462,8 +12533,14 @@ function loop() {
     else if (!state.creative && state.dadHp <= 0 && dad.visible) gameOver();
     updateTimers(dt);
   }
+  if (!state.running) {
+    updateSky(dt);
+    titleSkip += dt;
+    if (titleSkip >= .05) { renderer.render(scene, camera); titleSkip = 0; }
+    return;
+  }
   for (const e of enemies) swingLimbs(e, dt);
-  if (state.running) updatePlayerCamera(dt);
+  updatePlayerCamera(dt);
   billboardTick += dt; if (billboardTick >= .05) { updateBillboards(billboardTick); updateGamerRGB(); billboardTick = 0; }
   updateFloats(dt); updateCoins(dt); updateCombo(dt); updateImpactVoxels(dt);   // feedback de combate y recompensas
   updateSky(dt);
@@ -13461,10 +13538,11 @@ function updateGamerRGB() {
   }
 }
 function updateBillboards(dt) {
-  scene.traverse(o => {
-    if (!o.userData) return;
-    if (o.userData.billboard) { o.quaternion.copy(camera.quaternion); return; }      // carteles/barras: miran de frente
-    if (!o.userData.spriteBillboard) return;
+  for (let i = billboards.length - 1; i >= 0; i--) {
+    const o = billboards[i];
+    if (!o.parent) { billboards.splice(i, 1); continue; }
+    if (o.userData.billboard) { o.quaternion.copy(camera.quaternion); continue; }      // carteles/barras: miran de frente
+    if (!o.userData.spriteBillboard) continue;
     o.rotation.y = Math.atan2(camera.position.x - o.position.x, camera.position.z - o.position.z);  // figuras: giran hacia ti
     // balanceo al caminar (rebote + inclinación) para que NO parezca que flota
     const px = o.userData.spx == null ? o.position.x : o.userData.spx;
@@ -13487,7 +13565,7 @@ function updateBillboards(dt) {
       }
     }
 
-  });
+  }
 }
 // Una habitación solo queda a oscuras si el jugador está bajo un techo y hay una
 // pared en cada dirección. Se recalcula pocas veces por segundo para cuidar los FPS.

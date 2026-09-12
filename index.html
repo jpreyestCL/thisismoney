@@ -7653,7 +7653,7 @@ addEventListener('keydown', e => {
     if (state.creative && now - lastCreativeZTap < 360) {
       creativeFlying = !creativeFlying;
       if (!creativeFlying && state.skiGearWorn && state.skiGear && inSkiResort()) {
-        state.skiing = true;
+        state.skiing = true; beginSkiCarve();
         toast('❄️ Aterrizaste con los esquís puestos · ¡sigue esquiando!');
       }
       toast(creativeFlying ? '🪽 Vuelo creativo activado · WASD mueve · Espacio sube · Ctrl baja · doble Z para aterrizar' : '🛬 Vuelo creativo desactivado');
@@ -9450,7 +9450,7 @@ function updateSkiLiftRide(dt) {
   grounded = true; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
   if (ride.t >= 1) {
     state.skiLiftRide = null;
-    state.skiing = false;
+    state.skiing = false; stopSkiCarve();
     const hollowFloor = ride.kind === 'andarivel' ? skiSlopeHeight(x, z) - 1.2 : skiSlopeHeight(x, z) + .25;
     player.position.y = hollowFloor + PLAYER_EYE;
     toast('🏔️ Llegaste a una zona plana · prepárate o elige otro andarivel');
@@ -9463,7 +9463,7 @@ function trySkiResort() {
   const dl = dist2D(player.position, SKI_LIFT_BOTTOM), dl2 = dist2D(player.position, SKI_LIFT2_BOTTOM), dt = dist2D(player.position, SKI_TOW_BOTTOM), ds = dist2D(player.position, SKI_SUMMIT_LIFT_BOTTOM);
   if (dl < 9 || dl2 < 9 || dt < 9 || ds < 9) {
     if (!state.skiPass || !state.skiGear) { toast('🎫 Necesitas la tarjeta y esquís o snowboard para subir'); return true; }
-    const best = Math.min(dl, dl2, dt, ds); state.skiGearWorn = true; state.skiing = false; state.skiLiftRide = { kind: best === ds ? 'cumbre' : best === dt ? 'arrastre' : best === dl2 ? 'andarivel2' : 'andarivel', t: 0 }; toast('🚡 Subiendo en el ' + (state.skiLiftRide.kind === 'cumbre' ? 'andarivel a la cumbre' : state.skiLiftRide.kind === 'andarivel2' ? 'andarivel 2' : state.skiLiftRide.kind) + ' · espera arriba'); return true;
+    const best = Math.min(dl, dl2, dt, ds); state.skiGearWorn = true; state.skiing = false; stopSkiCarve(); state.skiLiftRide = { kind: best === ds ? 'cumbre' : best === dt ? 'arrastre' : best === dl2 ? 'andarivel2' : 'andarivel', t: 0 }; toast('🚡 Subiendo en el ' + (state.skiLiftRide.kind === 'cumbre' ? 'andarivel a la cumbre' : state.skiLiftRide.kind === 'andarivel2' ? 'andarivel 2' : state.skiLiftRide.kind) + ' · espera arriba'); return true;
   }
   if (dg < 14) {
     if (!state.skiPass) {
@@ -9471,7 +9471,9 @@ function trySkiResort() {
       state.money -= 500; state.skiPass = true; addMoney(0); toast('🎫 ¡Tarjeta de acceso comprada! Ya puedes subir a las pistas'); saveGame(); return true;
     }
     if (!state.skiGear) { toast('⛷️ Compra esquís o snowboard en la caseta azul'); return true; }
-    state.skiGearWorn = true; state.skiing = !state.skiing; toast(state.skiing ? '❄️ ¡A esquiar! A/D o flechas para girar · S/↓ para frenar · Espacio para saltar' : '🛑 Dejaste de esquiar'); return true;
+    state.skiGearWorn = true; state.skiing = !state.skiing;
+    if (state.skiing) beginSkiCarve(); else stopSkiCarve();
+    toast(state.skiing ? '❄️ ¡A esquiar! A/D inclina el canto y doblas en curva · S/↓ frena · Espacio salta' : '🛑 Dejaste de esquiar'); return true;
   }
   if (de < 10 || de2 < 10) {
     if (!state.skiPass) { toast('🎫 Primero compra la tarjeta en la entrada · $500'); return true; }
@@ -10889,14 +10891,17 @@ function ensurePlayerSkiVisual() {
   const board = new THREE.Mesh(new THREE.BoxGeometry(.24, .07, 1.65), mat(0x7c3aed)); board.position.y = .04; board.visible = false; skiGearMesh.add(board); skiGearMesh.userData.board = board;
   return skiGearMesh;
 }
+function beginSkiCarve() {
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  skiVelX = fx * 6; skiVelZ = fz * 6; skiRampBoost = 0;
+}
+function stopSkiCarve() { skiVelX = 0; skiVelZ = 0; skiRampBoost = 0; }
 function updateSkiMovement(dt) {
   if (!state.skiPass || !state.skiGear) { if (skiGearMesh) skiGearMesh.visible = false; return false; }
   const gearVisual = ensurePlayerSkiVisual(); gearVisual.visible = !!state.skiGearWorn || !!state.skiing; gearVisual.userData.board.visible = state.skiGear === 'snowboard';
-  if (!state.skiing) { skiRampBoost = 0; return false; }
+  if (!state.skiing) { stopSkiCarve(); return false; }
   const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
-  // Las flechas también mantienen la cámara controlable durante la bajada.
-  // El giro se comparte con los esquís para que vista y movimiento coincidan.
   const lookSpeed = 1.8 * dt;
   if (keys['ArrowLeft']) yaw += lookSpeed * .7;
   if (keys['ArrowRight']) yaw -= lookSpeed * .7;
@@ -10905,47 +10910,56 @@ function updateSkiMovement(dt) {
   pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
   const steer = Math.max(-1, Math.min(1, (right ? 1 : 0) - (left ? 1 : 0) + (touch.moveX || 0)));
   const push = (fwd ? 1 : 0) - (back ? .55 : 0);
-  // El cuerpo acompaña la orientación de los esquís para que el giro cambie
-  // también la trayectoria del jugador y no queden desalineados.
-  if (steer) yaw -= steer * 2.2 * dt;
-  player.rotation.y = yaw;
-  // Los esquís siguen la curva: giran y se inclinan con la dirección elegida.
-  // El modelo de los esquís mira al sentido opuesto del eje local, por eso
-  // invertimos su giro visual para que las flechas coincidan con la dirección.
-  const turn = -steer * 1.05;
-  gearVisual.rotation.y += (turn - gearVisual.rotation.y) * Math.min(1, dt * 9);
-  gearVisual.rotation.z += (steer * .16 - gearVisual.rotation.z) * Math.min(1, dt * 10);
-  gearVisual.position.x += (steer * .3 - gearVisual.position.x) * Math.min(1, dt * 12);
-  // La pendiente determina la velocidad: las pistas negras aceleran más y las
-  // suaves conservan un ritmo tranquilo, como en una bajada real.
-  const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x, player.position.z + 8));
   const braking = keys['KeyS'] || keys['ArrowDown'];
-  const downhillSpeed = braking ? 0 : 4.5 + Math.min(12, slopeDrop * .55);
-  const speed = downhillSpeed + Math.max(0, push) * 5.5 + skiRampBoost;
-  // La trayectoria sigue a donde giras: derecha = derecha de la pista, izquierda = izquierda.
-  // No usamos el eje X del mundo: al bajar mirando la pista, +X es la izquierda de la pantalla.
-  const skiFwdX = -Math.sin(yaw);
-  const skiFwdZ = -Math.cos(yaw);
-  const glideZ = (braking && skiRampBoost <= 0) ? 0 : Math.max(0.3, skiFwdZ) * speed;
-  player.position.x += skiFwdX * speed * dt;
-  player.position.z += glideZ * dt;
+  const speedNow = Math.hypot(skiVelX, skiVelZ);
+  // Canto real: a más velocidad, curva más amplia. En el aire casi no doblas.
+  const edge = grounded ? 2.6 : 0.55;
+  yaw -= steer * (edge / (1 + speedNow * 0.07)) * dt;
+  player.rotation.y = yaw;
+  const skiFwdX = -Math.sin(yaw), skiFwdZ = -Math.cos(yaw);
+  const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x + skiFwdX * 8, player.position.z + skiFwdZ * 8));
+  // Los esquís se inclinan hacia el canto; el cuerpo sigue la curva, no un desliz lateral.
+  const lean = steer * (state.skiGear === 'snowboard' ? .42 : .28);
+  gearVisual.rotation.y += ((-steer * .35) - gearVisual.rotation.y) * Math.min(1, dt * 8);
+  gearVisual.rotation.z += (lean - gearVisual.rotation.z) * Math.min(1, dt * 9);
+  gearVisual.position.x += (steer * .22 - gearVisual.position.x) * Math.min(1, dt * 10);
+  if (grounded) {
+    let accel = 4.2 + Math.min(16, slopeDrop * .85);
+    if (push > 0) accel += 7;
+    if (braking) { skiVelX *= Math.max(0, 1 - 5.5 * dt); skiVelZ *= Math.max(0, 1 - 5.5 * dt); }
+    else {
+      skiVelX += skiFwdX * accel * dt; skiVelZ += skiFwdZ * accel * dt;
+      skiVelX *= Math.max(0, 1 - 0.35 * dt); skiVelZ *= Math.max(0, 1 - 0.35 * dt);
+    }
+    // El canto agarra: la velocidad se curva hacia donde apuntan los esquís (no un strafe).
+    const grip = state.skiGear === 'snowboard' ? 5.5 : 8.2;
+    const vx = skiVelX, vz = skiVelZ, spd0 = Math.hypot(vx, vz);
+    skiVelX += (skiFwdX * spd0 - vx) * Math.min(1, grip * dt);
+    skiVelZ += (skiFwdZ * spd0 - vz) * Math.min(1, grip * dt);
+  }
+  skiRampBoost = Math.max(0, skiRampBoost - 9 * dt);
+  let spd = Math.hypot(skiVelX, skiVelZ);
+  const maxSpd = 24 + skiRampBoost;
+  if (spd > maxSpd) { skiVelX *= maxSpd / spd; skiVelZ *= maxSpd / spd; spd = maxSpd; }
+  player.position.x += skiVelX * dt;
+  player.position.z += skiVelZ * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);
   player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 178, SKI_RESORT.z + 190);
   const snowY = mountainHeightAt(player.position.x, player.position.z), skiFloor = snowY + PLAYER_EYE;
   const jumpPressed = keys['Space'] || touch.jump;
   touch.jump = false;
   const wasAirborne = !grounded;
-  if (grounded && downhillSpeed > 2) {
+  if (grounded && spd > 4) {
     const ramp = skiRamps.find(r => Math.hypot(player.position.x - r.x, player.position.z - r.z) < r.radius);
     if (ramp) {
-      // La rampa lanza lejos por la pista: más altura y un empujón fuerte hacia adelante.
       skiJumpVy = 40;
       skiRampBoost = 36;
+      skiVelX += skiFwdX * 28; skiVelZ += skiFwdZ * 34;
       grounded = false;
       toast('⬆️ ¡Rampa! ¡Salto larguísimo!');
     }
   }
-  if (jumpPressed && !skiJumpHeld && grounded) { skiJumpVy = 11; skiRampBoost = 0; grounded = false; }
+  if (jumpPressed && !skiJumpHeld && grounded) { skiJumpVy = 11; grounded = false; }
   skiJumpHeld = !!jumpPressed;
   if (!grounded || skiJumpVy > 0) {
     skiJumpVy -= (skiRampBoost > 0 ? 18 : 25) * dt;
@@ -10953,20 +10967,18 @@ function updateSkiMovement(dt) {
     if (player.position.y <= skiFloor) { player.position.y = skiFloor; skiJumpVy = 0; skiRampBoost = 0; grounded = true; }
   } else {
     player.position.y = skiFloor;
-    skiRampBoost = 0;
   }
   const trickDir = (keys['KeyE'] ? 1 : 0) - (keys['KeyQ'] ? 1 : 0);
   if (!grounded && trickDir) { gearVisual.rotation.y += trickDir * 8 * dt; skiTrickActive = true; }
   if (wasAirborne && grounded && skiTrickActive) { skiTrickActive = false; toast('✨ ¡Truco 360!'); }
   vy = 0;
-  // Las murallas de la pista son sólidas: te deslizan a lo largo, no te dejan atravesarlas.
   resolveSkiPisteWalls();
   if (grounded) player.position.y = mountainHeightAt(player.position.x, player.position.z) + PLAYER_EYE;
-  if (player.position.z > SKI_RESORT.z + 178) { player.position.z = SKI_RESORT.z + 178; state.skiing = false; toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
+  if (player.position.z > SKI_RESORT.z + 178) { player.position.z = SKI_RESORT.z + 178; state.skiing = false; stopSkiCarve(); toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;
 }
-let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false, skiTrickActive = false, skiRampBoost = 0;
+let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false, skiTrickActive = false, skiRampBoost = 0, skiVelX = 0, skiVelZ = 0;
 function updateSkiGearHold(dt) {
   if (!state.skiGear) { skiRemoveHold = 0; return; }
   if (keys['KeyE'] && !state.skiing && !state.skiLiftRide) {

@@ -8937,10 +8937,15 @@ function chatPlayerId() {
   if (!chat.tempId) chat.tempId = randomUuid();   // sin localStorage igual se puede conversar
   return chat.tempId;
 }
+// `net` (la sala de amigos) se declara mucho más abajo con const: al cargar la
+// página todavía no existe y leerlo lanza error, así que preguntamos con cuidado.
+function nombreDeLaSala() {
+  try { return net.name || ''; } catch (e) { return ''; }
+}
 function chatName() {
   let nombre = '';
   try { nombre = localStorage.getItem('tim_chat_name') || ''; } catch (e) {}
-  if (!nombre) nombre = currentProfile || (typeof net !== 'undefined' && net.name) || '';
+  if (!nombre) nombre = currentProfile || nombreDeLaSala();
   return cleanChatName(nombre);
 }
 function setChatName(nombre) {
@@ -8962,18 +8967,21 @@ async function chatSync(force) {
   if (!force && (!espera || performance.now() - chat.lastPoll < espera)) return;
   if (document.hidden && !force) return;
   chat.busy = true; chat.lastPoll = performance.now();
-  const params = new URLSearchParams();
-  // El muro necesita la conversación completa; dentro de la partida, en cambio, la
-  // primera consulta NO repite lo viejo (since=-1): solo escuchamos lo que venga.
-  const quiereHistorial = !chat.historyLoaded && (chat.wallOpen || !state.running);
-  if (quiereHistorial) { /* sin `since`: el servidor manda los últimos mensajes */ }
-  else if (chat.lastId !== null) params.set('since', String(chat.lastId));
-  else params.set('since', '-1');
-  if (chat.lastPresence === null || performance.now() - chat.lastPresence > 20000) {   // avisamos "sigo aquí" cada 20 s
-    params.set('me', chatPlayerId()); params.set('name', chatName());
-    chat.lastPresence = performance.now();
-  }
+  // Preparar la consulta también va dentro del try: si algo fallara antes de
+  // pedir los mensajes, el chat no puede quedarse trabado (`busy`) para siempre.
+  let quiereHistorial = false;
   try {
+    const params = new URLSearchParams();
+    // El muro necesita la conversación completa; dentro de la partida, en cambio, la
+    // primera consulta NO repite lo viejo (since=-1): solo escuchamos lo que venga.
+    quiereHistorial = !chat.historyLoaded && (chat.wallOpen || !state.running);
+    if (quiereHistorial) { /* sin `since`: el servidor manda los últimos mensajes */ }
+    else if (chat.lastId !== null) params.set('since', String(chat.lastId));
+    else params.set('since', '-1');
+    if (chat.lastPresence === null || performance.now() - chat.lastPresence > 20000) {   // avisamos "sigo aquí" cada 20 s
+      params.set('me', chatPlayerId()); params.set('name', chatName());
+      chat.lastPresence = performance.now();
+    }
     const q = params.toString();
     const r = await fetch(CHAT_API + (q ? '?' + q : ''), { cache: 'no-store' });
     if (!r.ok) throw new Error('chat ' + r.status);

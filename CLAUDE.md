@@ -393,6 +393,11 @@ amigos": el chat no pasa por PeerJS, va por la API mundial del VPS).
   vendedor/mates y viceversa, y todos los cierres usan `algunRecuadroAbierto()` (lista
   `TYPING_BOXES`) en vez de comparar a mano contra otros paneles. Antes, cerrar uno devolvía
   el teclado al juego aunque quedara otro abierto.
+- **`chatName()` no puede leer `net` directo** (`nombreDeLaSala()`): `const net` se declara al
+  final del archivo, así que en la primera consulta del chat (que ahora sale al cargar la
+  página) leerlo lanzaba ReferenceError y dejaba `chat.busy` trabado para SIEMPRE: nadie
+  registraba presencia y el muro no se actualizaba nunca. Por lo mismo, preparar la consulta
+  quedó dentro del `try` de `chatSync`: pase lo que pase, `busy` se libera.
 - Otros arreglos del review: el muro carga la conversación aunque la primera consulta falle
   (`chat.historyLoaded`, antes quedaba pegado en "no hay mensajes" al entrar a jugar); la
   espera entre mensajes NO se borra cuando el servidor contesta 429 (solo si no hubo red);

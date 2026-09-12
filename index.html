@@ -382,6 +382,25 @@
   .control-row:first-of-type { border-top:0; }
   kbd { min-width:58px; padding:5px 7px; border:1px solid oklch(85% .01 230 / .28); border-bottom-width:3px; border-radius:5px; background:oklch(29% .025 230); color:var(--ink); font:800 11px ui-monospace, SFMono-Regular, Consolas, monospace; text-align:center; }
 
+  #startAccount {
+    position:absolute; top:14px; right:14px; z-index:3;
+    display:flex; align-items:center; gap:8px; max-width:min(62vw, 240px);
+    padding:6px 12px 6px 6px; border:1px solid var(--line); border-radius:999px;
+    background:var(--panel); color:var(--ink); cursor:pointer; pointer-events:all;
+    font-weight:800; font-size:13px; text-align:left;
+  }
+  #startAccount:hover { transform:translateY(-1px); }
+  .accChipAv, .profAv, #accountAvatar {
+    width:36px; height:36px; border-radius:50%; flex:0 0 auto;
+    background:#1e293b center/cover no-repeat; display:flex; align-items:center; justify-content:center;
+    font-size:18px; overflow:hidden;
+  }
+  .accChipName { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #accountbox { position:fixed; inset:0; display:none; z-index:34; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all; }
+  #accountWallPreview { width:100%; height:92px; border-radius:10px; background:#0b1220 center/cover no-repeat; border:1px solid var(--line); }
+  body.watch #startAccount { top:4px; right:4px; padding:3px 8px 3px 3px; font-size:10px; }
+  body.watch .accChipAv { width:22px; height:22px; font-size:12px; }
+
   .topbar { top:10px; left:10px; right:10px; gap:8px; align-items:flex-start; }
   .topbar > div { gap:4px !important; }
   .stat { padding:6px 9px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--panel); backdrop-filter:none; box-shadow:0 6px 20px oklch(5% .02 235 / .2); }
@@ -545,6 +564,7 @@
         <button class="bankBtn" id="pauseHelp">📖 Ayuda</button>
         <button class="bankBtn" id="pauseCode">💾 Copiar código</button>
         <button class="bankBtn" id="pauseLoad">📥 Cargar código</button>
+        <button class="bankBtn" id="pauseAccount" style="grid-column:1 / span 2;">👤 Mi cuenta</button>
         <button class="bankBtn" id="pauseWatch" style="grid-column:1 / span 2;">⌚ Modo reloj</button>
       </div>
       <div id="pauseCreativeRow" style="display:none; align-items:center; justify-content:center; gap:8px; margin-top:12px; padding:8px; background:rgba(168,85,247,.18); border-radius:10px;">
@@ -659,6 +679,13 @@
 </div>
 
 <div class="screen" id="start" style="background:url('assets/img_58.png') center/cover;">
+  <button type="button" id="startAccount" aria-label="Mi cuenta">
+    <span class="accChipAv">👤</span>
+    <span>
+      <small style="display:block; opacity:.65; font-size:10px; letter-spacing:.08em; text-transform:uppercase;">Mi cuenta</small>
+      <span class="accChipName">Jugador</span>
+    </span>
+  </button>
   <div class="start-shell">
     <main class="start-copy">
       <div class="start-eyebrow">Supervivencia, construcción y economía</div>
@@ -699,7 +726,7 @@
   <div style="width:min(94vw,430px); background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:20px; text-align:center; color:#e2e8f0;">
     <h2 style="margin:0 0 6px; color:#7dd3fc;">🌐 JUGAR CON AMIGOS</h2>
     <p style="font-size:13px; opacity:.8; margin:0 0 14px;">Uno crea la sala y les pasa el CÓDIGO. Los demás lo escriben y aparecen en el mismo mundo: se ven caminar, comparten lo que construyen y el día y la noche.</p>
-    <input id="netName" type="text" maxlength="12" placeholder="Tu nombre" style="width:100%; padding:9px 10px; font-size:15px; border-radius:8px; border:1px solid #38bdf8; background:#0b1220; color:#fff; outline:none; margin-bottom:10px;">
+    <input id="netName" type="text" maxlength="20" placeholder="Tu nombre" style="width:100%; padding:9px 10px; font-size:15px; border-radius:8px; border:1px solid #38bdf8; background:#0b1220; color:#fff; outline:none; margin-bottom:10px;">
     <button class="btn" id="netCreateBtn" style="width:100%; margin-bottom:8px;">CREAR SALA</button>
     <div id="netCodeBox" style="display:none; margin:8px 0; font-size:14px;">Código de tu sala: <b id="netCode" style="font-size:24px; letter-spacing:4px; color:#4ade80;"></b></div>
     <div style="display:flex; gap:8px; margin-top:8px;">
@@ -912,7 +939,7 @@
   <div style="width:min(90vw,340px); background:rgba(6,10,20,.97); border:2px solid #4ade80; border-radius:16px; padding:22px; text-align:center;">
     <h3 style="margin:0 0 10px; color:#4ade80;">👤 ¿Cómo te llamas?</h3>
     <p style="font-size:12px; opacity:.65; margin:0 0 10px;">Tu partida se guarda con tu nombre: cada uno tiene la suya.</p>
-    <input id="nameInput" maxlength="12" placeholder="Tu nombre…" autocomplete="off" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #4ade80; background:#0b1220; color:#fff; text-align:center; outline:none;">
+    <input id="nameInput" maxlength="20" placeholder="Tu nombre…" autocomplete="off" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #4ade80; background:#0b1220; color:#fff; text-align:center; outline:none;">
     <div style="display:flex; gap:8px; margin-top:14px; justify-content:center;">
       <button class="btn" id="nameOk">¡JUGAR!</button>
       <button class="btn" id="nameCancel" style="background:linear-gradient(90deg,#64748b,#475569);">Volver</button>
@@ -924,6 +951,31 @@
     <h3 style="margin:0 0 12px; color:#38bdf8;">👥 ¿Quién juega?</h3>
     <div id="profileList" style="display:flex; flex-direction:column; gap:8px;"></div>
     <button class="btn" id="profileCancel" style="margin-top:12px; background:linear-gradient(90deg,#64748b,#475569);">Volver</button>
+  </div>
+</div>
+<div id="accountbox">
+  <div style="width:min(92vw,400px); max-height:88vh; overflow-y:auto; background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:20px; text-align:center; color:#e2e8f0;">
+    <h2 style="margin:0 0 6px; color:#7dd3fc;">👤 MI CUENTA</h2>
+    <p style="font-size:13px; opacity:.75; margin:0 0 14px;">Cambia tu nombre, tu foto y el fondo de la sala. Queda guardado en este dispositivo.</p>
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; text-align:left;">
+      <div id="accountAvatar">👤</div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+        <button type="button" class="bankBtn" id="accountPhotoBtn">📷 Elegir foto</button>
+        <button type="button" class="bankBtn" id="accountPhotoReset">Quitar foto</button>
+      </div>
+    </div>
+    <input id="accountName" type="text" maxlength="20" placeholder="Tu nombre…" autocomplete="off" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #38bdf8; background:#0b1220; color:#fff; text-align:center; outline:none;">
+    <button type="button" class="btn" id="accountNameBtn" style="width:100%; margin-top:8px;">Guardar nombre</button>
+    <div style="margin-top:16px; text-align:left;">
+      <div style="font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; opacity:.7; margin-bottom:6px;">Fondo de la sala</div>
+      <div id="accountWallPreview"></div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+        <button type="button" class="bankBtn" id="accountWallBtn">🖼️ Elegir fondo</button>
+        <button type="button" class="bankBtn" id="accountWallReset">Fondo original</button>
+      </div>
+    </div>
+    <input id="accountFile" type="file" accept="image/*" style="display:none;">
+    <button type="button" class="btn secondary" id="accountClose" style="width:100%; margin-top:14px;">Listo</button>
   </div>
 </div>
 <div id="win" class="screen hidden" style="background:linear-gradient(rgba(6,40,20,.88),rgba(2,6,23,.95));">
@@ -8224,7 +8276,7 @@ const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
 let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
 // Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
-const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply'];
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply', 'accountbox'];
 function algunRecuadroAbierto() {
   return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
 }
@@ -8233,6 +8285,7 @@ const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jump
 addEventListener('keydown', e => {
   if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
+  if (e.code === 'Escape' && ui('accountbox').style.display === 'flex') { closeAccountBox(); return; }
   if (e.code === 'Escape' && ui('rankingBox').style.display === 'flex') { closeLeaderboard(); return; }
   if (e.code === 'Escape' && ui('chatbox').style.display === 'flex') { closeChatWall(); return; }
   if (e.code === 'Escape' && ui('chatReply').style.display === 'flex') { closeChatReply(); return; }
@@ -8616,8 +8669,9 @@ ui('creativeBtn').onclick = () => openNamebox('creative');
 ui('startRankingBtn').onclick = () => openLeaderboard();
 ui('nameCancel').onclick = () => { ui('namebox').style.display = 'none'; };
 ui('nameOk').onclick = () => {
-  const name = (ui('nameInput').value.trim() || 'Jugador').slice(0, 12);
+  const name = desiredAccountName(ui('nameInput').value) || 'Jugador';
   setProfile(name);
+  syncAccountNames(name);
   ui('namebox').style.display = 'none';
   startGame();
   if (pendingMode === 'creative') {
@@ -8638,10 +8692,17 @@ function openProfilebox() {
     try { const d = JSON.parse(localStorage.getItem(profileKey(n))); info = 'Etapa ' + (d.stage || 1) + ' · $' + (d.money || 0) + (d.planet === 'platus' ? ' · 🪐' : '') + (d.creative ? ' · 🎨' : ''); } catch (e) {}
     const row = document.createElement('div'); row.style.cssText = 'display:flex; gap:8px; align-items:stretch;';
     const b = document.createElement('button'); b.className = 'bankBtn'; b.style.flex = '1'; b.style.textAlign = 'left';
-    b.innerHTML = '<b>👤 ' + n + '</b><br><small style="opacity:.7">' + info + '</small>';
+    b.style.display = 'flex'; b.style.alignItems = 'center'; b.style.gap = '10px';
+    const av = document.createElement('span'); av.className = 'profAv';
+    const acc = loadAccount(n);
+    if (acc.photo) av.style.backgroundImage = cssUrl(acc.photo);
+    else av.textContent = '👤';
+    const txt = document.createElement('span'); txt.style.flex = '1';
+    txt.innerHTML = '<b>' + n + '</b><br><small style="opacity:.7">' + info + '</small>';
+    b.append(av, txt);
     b.onclick = () => { setProfile(n); ui('profilebox').style.display = 'none'; continueGame(); };
     const del = document.createElement('button'); del.className = 'bankBtn'; del.textContent = '🗑️';
-    del.onclick = () => { if (confirm('¿Borrar la partida de ' + n + '?')) { try { localStorage.removeItem(profileKey(n)); saveProfiles(getProfiles().filter(x => x !== n)); } catch (e) {} openProfilebox(); } };
+    del.onclick = () => { if (confirm('¿Borrar la partida de ' + n + '?')) { try { localStorage.removeItem(profileKey(n)); localStorage.removeItem(accountKey(n)); saveProfiles(getProfiles().filter(x => x !== n)); } catch (e) {} openProfilebox(); } };
     row.appendChild(b); row.appendChild(del); box.appendChild(row);
   });
   ui('profilebox').style.display = 'flex';
@@ -8901,6 +8962,7 @@ function saveAndExit() {
   ui('start').classList.add('has-save');
   ui('continueBtn').style.display = '';   // ya hay partida guardada para continuar
   showBestLine();
+  applyLobbyLook();
 }
 
 function startGame() {
@@ -8961,10 +9023,178 @@ function profileKey(name) { return 'tim_save_' + name; }
 function saveKey() { return currentProfile ? profileKey(currentProfile) : 'tim_save'; }
 function getProfiles() { try { return JSON.parse(localStorage.getItem('tim_profiles') || '[]'); } catch (e) { return []; } }
 function saveProfiles(list) { try { localStorage.setItem('tim_profiles', JSON.stringify(list)); } catch (e) {} }
+function accountKey(name) { return 'tim_account_' + name; }
+function activeProfile() { return currentProfile || (() => { try { return localStorage.getItem('tim_profile'); } catch (e) { return null; } })() || 'Jugador'; }
+function desiredAccountName(raw) {
+  return String(raw || '').normalize('NFKC').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, CHAT_NAME_MAX);
+}
+function cssUrl(src) { return 'url("' + String(src).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '")'; }
+function loadAccount(name) {
+  try {
+    const d = JSON.parse(localStorage.getItem(accountKey(name || activeProfile())) || '{}');
+    return { photo: typeof d.photo === 'string' ? d.photo : '', wallpaper: typeof d.wallpaper === 'string' ? d.wallpaper : '' };
+  } catch (e) { return { photo: '', wallpaper: '' }; }
+}
+function saveAccount(name, acc) {
+  try {
+    localStorage.setItem(accountKey(name), JSON.stringify({ photo: acc.photo || '', wallpaper: acc.wallpaper || '' }));
+    return true;
+  } catch (e) {
+    toast('La imagen es muy grande para guardarla aquí. Prueba con otra más liviana.');
+    return false;
+  }
+}
+function syncAccountNames(name) {
+  setChatName(name);
+  try { localStorage.setItem('tim_netname', name); } catch (e) {}
+  try { net.name = name; } catch (e) {}
+  const netEl = ui('netName'); if (netEl) netEl.value = name;
+  const chatEl = ui('chatNameInput'); if (chatEl) chatEl.value = name;
+}
+function applyLobbyLook() {   // foto y fondo de la sala (inicio, chat y amigos)
+  const name = activeProfile();
+  const acc = loadAccount(name);
+  const start = ui('start');
+  if (start) {
+    start.style.backgroundImage = cssUrl(acc.wallpaper || 'assets/img_58.png');
+    start.style.backgroundSize = 'cover';
+    start.style.backgroundPosition = 'center';
+  }
+  const overlay = acc.wallpaper
+    ? 'linear-gradient(rgba(2,6,23,.72),rgba(2,6,23,.88)), ' + cssUrl(acc.wallpaper)
+    : '';
+  ['chatbox', 'netbox'].forEach(id => {
+    const el = ui(id); if (!el) return;
+    el.style.backgroundImage = overlay;
+    el.style.backgroundSize = overlay ? 'cover' : '';
+    el.style.backgroundPosition = overlay ? 'center' : '';
+  });
+  const chip = ui('startAccount');
+  if (chip) {
+    const av = chip.querySelector('.accChipAv');
+    const nm = chip.querySelector('.accChipName');
+    if (nm) nm.textContent = name;
+    if (av) {
+      av.style.backgroundImage = acc.photo ? cssUrl(acc.photo) : '';
+      av.textContent = acc.photo ? '' : '👤';
+    }
+  }
+}
 function setProfile(name) {
+  const prev = currentProfile || activeProfile();
   currentProfile = name;
   try { localStorage.setItem('tim_profile', name); const p = getProfiles(); if (!p.includes(name)) { p.push(name); saveProfiles(p); } } catch (e) {}
+  try {
+    if (name && prev && name !== prev && !localStorage.getItem(accountKey(name))) {
+      const old = localStorage.getItem(accountKey(prev));
+      if (old) localStorage.setItem(accountKey(name), old);
+    }
+  } catch (e) {}
+  applyLobbyLook();
 }
+function renameProfile(raw) {
+  const oldName = activeProfile();
+  const next = desiredAccountName(raw);
+  if (!next) { toast('Pon un nombre (letras y números)'); return false; }
+  if (next === oldName) { setProfile(next); syncAccountNames(next); return true; }
+  if (getProfiles().includes(next)) { toast('Ese nombre ya existe'); return false; }
+  try {
+    const save = localStorage.getItem(profileKey(oldName));
+    if (save) { localStorage.setItem(profileKey(next), save); localStorage.removeItem(profileKey(oldName)); }
+    const acc = localStorage.getItem(accountKey(oldName));
+    if (acc) { localStorage.setItem(accountKey(next), acc); localStorage.removeItem(accountKey(oldName)); }
+  } catch (e) { toast('No se pudo cambiar el nombre'); return false; }
+  const list = getProfiles().map(n => n === oldName ? next : n);
+  if (!list.includes(next)) list.push(next);
+  saveProfiles(list);
+  setProfile(next);
+  syncAccountNames(next);
+  toast('👤 Ahora te llamas ' + next);
+  return true;
+}
+function compressImageFile(file, opts) {
+  return new Promise((resolve, reject) => {
+    if (!file || !String(file.type || '').startsWith('image/')) { reject(new Error('no imagen')); return; }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const max = opts.max || 256, square = !!opts.square;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (square) {
+        const side = Math.min(img.width, img.height);
+        sx = (img.width - side) / 2; sy = (img.height - side) / 2; sw = sh = side;
+      }
+      const scale = Math.min(1, max / Math.max(sw, sh));
+      const dw = Math.max(1, Math.round(sw * scale)), dh = Math.max(1, Math.round(sh * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = dw; canvas.height = dh;
+      canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+      resolve(canvas.toDataURL('image/jpeg', opts.quality || 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('no se pudo leer')); };
+    img.src = url;
+  });
+}
+let accountFileMode = 'photo';
+function renderAccountBox() {
+  const name = activeProfile();
+  const acc = loadAccount(name);
+  ui('accountName').value = name;
+  const av = ui('accountAvatar');
+  av.style.backgroundImage = acc.photo ? cssUrl(acc.photo) : '';
+  av.textContent = acc.photo ? '' : '👤';
+  ui('accountWallPreview').style.backgroundImage = cssUrl(acc.wallpaper || 'assets/img_58.png');
+}
+function openAccountBox() {
+  releaseLock(); typing = true; for (const k in keys) keys[k] = false;
+  renderAccountBox();
+  ui('accountbox').style.display = 'flex';
+}
+function closeAccountBox() {
+  ui('accountbox').style.display = 'none';
+  if (!state.paused && !algunRecuadroAbierto()) typing = false;
+}
+function pickAccountImage(mode) {
+  accountFileMode = mode;
+  const inp = ui('accountFile');
+  inp.value = '';
+  inp.click();
+}
+ui('startAccount').onclick = openAccountBox;
+ui('pauseAccount').onclick = openAccountBox;
+ui('accountClose').onclick = closeAccountBox;
+ui('accountbox').onclick = e => { if (e.target === ui('accountbox')) closeAccountBox(); };
+ui('accountPhotoBtn').onclick = () => pickAccountImage('photo');
+ui('accountWallBtn').onclick = () => pickAccountImage('wallpaper');
+ui('accountPhotoReset').onclick = () => {
+  const name = activeProfile(); const acc = loadAccount(name); acc.photo = '';
+  if (!saveAccount(name, acc)) return;
+  applyLobbyLook(); renderAccountBox(); toast('Foto quitada');
+};
+ui('accountWallReset').onclick = () => {
+  const name = activeProfile(); const acc = loadAccount(name); acc.wallpaper = '';
+  if (!saveAccount(name, acc)) return;
+  applyLobbyLook(); renderAccountBox(); toast('Fondo de sala restaurado');
+};
+ui('accountNameBtn').onclick = () => { if (renameProfile(ui('accountName').value)) renderAccountBox(); };
+ui('accountName').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') ui('accountNameBtn').click(); });
+ui('accountFile').addEventListener('change', async () => {
+  const file = ui('accountFile').files && ui('accountFile').files[0];
+  if (!file) return;
+  try {
+    const data = await compressImageFile(file, accountFileMode === 'photo'
+      ? { max: 256, square: true, quality: 0.72 }
+      : { max: 1280, square: false, quality: 0.62 });
+    const name = activeProfile();
+    if (!currentProfile) setProfile(name);
+    const acc = loadAccount(name);
+    if (accountFileMode === 'photo') acc.photo = data; else acc.wallpaper = data;
+    if (!saveAccount(name, acc)) return;
+    applyLobbyLook(); renderAccountBox();
+    toast(accountFileMode === 'photo' ? '📷 Foto de cuenta lista' : '🖼️ Fondo de la sala cambiado');
+  } catch (e) { toast('No pude leer esa imagen'); }
+});
 // migración: la partida vieja (tim_save sin nombre) pasa a llamarse "Jugador"
 (function migrateOldSave() {
   try {
@@ -8978,6 +9208,7 @@ function setProfile(name) {
   } catch (e) {}
   // el botón CONTINUAR se evaluó antes de esta migración; re-evaluarlo ahora que ya hay perfiles
   try { if (hasSave() && ui('continueBtn')) ui('continueBtn').style.display = ''; } catch (e) {}
+  applyLobbyLook();
 })();
 
 // Ranking mundial trimestral. La identidad anónima distingue este navegador sin publicar datos privados.
@@ -9469,6 +9700,7 @@ ui('pausePerf').onclick = () => { perfMode = !perfMode; perfExtra = false; autoP
 ui('pauseFoto').onclick = () => { togglePause(false); setTimeout(takePhoto, 100); };
 ui('pauseHelp').onclick = () => { togglePause(false); toggleHelp(true); };
 ui('pauseExit').onclick = () => { togglePause(false); saveAndExit(); };
+ui('pauseAccount').onclick = openAccountBox;
 
 // ===================================================================
 //  BANCO: ahorrar con interés (educativo) y préstamos con deuda
@@ -12761,7 +12993,7 @@ function openNetBox() {
 }
 function closeNetBox() { ui('netbox').style.display = 'none'; }
 function netTomarNombre() {
-  const n = (ui('netName').value || '').trim().slice(0, 12);
+  const n = desiredAccountName(ui('netName').value);
   net.name = n || currentProfile || 'Jugador';
   try { localStorage.setItem('tim_netname', net.name); } catch (e) {}
 }

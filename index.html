@@ -977,7 +977,7 @@ function pixelateModel(root) {
 // ===================================================================
 
 const canvas = document.getElementById('game');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: new URLSearchParams(location.search).has('debug') });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -12370,7 +12370,34 @@ function netHandle(raw, fromConn) {
 }
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
-try { if (new URLSearchParams(location.search).has('debug')) window.__tim = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner }); } catch (e) {}
+try { if (new URLSearchParams(location.search).has('debug')) {
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner });
+  timDump.snapshot = () => ({
+    x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
+    flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
+    pool: { cx: POOL.cx, cz: POOL.cz, surface: POOL.surface, bottom: POOL.bottom },
+    liftTop: { x: SKI_LIFT_BOTTOM.x, z: SKI_LIFT_BOTTOM.z - 340 },
+  });
+  timDump.beginCreative = () => {
+    pendingMode = 'creative'; startGame(); state.creative = true; state.money = 999999999;
+    const intro = ui('intro'); if (intro) intro.style.display = 'none';
+  };
+  timDump.setPos = (x, y, z) => { player.position.set(x, y, z); vy = 0; grounded = false; };
+  timDump.setFly = (v) => { creativeFlying = !!v; if (!v) grounded = false; };
+  timDump.finishLift = (kind) => {
+    state.skiPass = true; state.skiGear = 'skis'; state.skiGearWorn = true; state.skiing = false;
+    state.skiLiftRide = { kind: kind || 'andarivel', t: 1 };
+    updateSkiLiftRide(.1);
+  };
+  timDump.tick = (n, dt) => {
+    const step = dt == null ? .05 : dt;
+    for (let i = 0; i < (n || 40); i++) { updateMovement(step); updateWater(step); }
+    updateContextPrompt();
+    renderer.render(scene, camera);
+  };
+  timDump.look = (y, p) => { yaw = y; pitch = p; camera.rotation.set(p, y, 0, 'YXZ'); renderer.render(scene, camera); };
+  window.__tim = timDump;
+} } catch (e) {}
 function netAddConn(c) {
   netStartTimer();
   net.conns.push(c);

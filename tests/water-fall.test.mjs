@@ -13,5 +13,7 @@ assert.match(html, /mcFloor\(g, \(left \+ holeL\) \/ 2, cz, holeL - left, 60, 0x
 assert.match(html, /const deep = 3\.2, tileMat = mat\(0xf8fafc\), wallMat = mat\(0x7dd3fc\)/);
 assert.match(html, /obj\.poolZone = \{ surface: by \+ \.14, bottom: by - deep \}/);
 assert.match(html, /Espacio sube · Ctrl se hunde · mira el vaso de la piscina/);
+assert.match(html, /timDump\.tick = \(n, dt\)/);
+assert.match(html, /timDump\.beginCreative = \(\) => \{/);
 assert.doesNotMatch(html, /obj\.poolZone=\{surface:by\+\.55,bottom:by\}/);
 console.log('water fall and pool dive: ok');

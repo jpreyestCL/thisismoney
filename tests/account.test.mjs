@@ -11,7 +11,7 @@ assert.match(html, /id="accountWallBtn"/);
 assert.match(html, /id="accountFile"/);
 assert.match(html, /accept="image\/\*"/);
 assert.match(html, /id="pauseAccount"/);
-assert.match(html, /function applyLobbyLook\(/);
+assert.match(html, /has-wall/);
 assert.match(html, /function renameProfile\(/);
 assert.match(html, /function compressImageFile\(/);
 assert.match(html, /tim_account_/);

@@ -362,6 +362,7 @@
 
   #start { align-items: stretch; justify-content: center; text-align: left; padding: clamp(18px, 4vw, 56px); }
   #start::before { content:""; position:absolute; inset:0; background:linear-gradient(90deg, oklch(10% .025 235 / .96) 0 42%, oklch(10% .025 235 / .62) 68%, oklch(10% .025 235 / .4)); pointer-events:none; }
+  #start.has-wall::before { background:linear-gradient(90deg, oklch(10% .025 235 / .78) 0 36%, oklch(10% .025 235 / .45) 64%, oklch(10% .025 235 / .18)); }
   .start-shell { position:relative; width:min(100%, 1080px); margin:auto; display:grid; grid-template-columns:minmax(0, 580px) 1fr; gap:clamp(24px, 6vw, 72px); align-items:end; }
   .start-copy { max-width: 620px; }
   .start-eyebrow { display:flex; align-items:center; gap:8px; color:var(--action); font:800 12px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing:.13em; text-transform:uppercase; }
@@ -9059,6 +9060,7 @@ function applyLobbyLook() {   // foto y fondo de la sala (inicio, chat y amigos)
     start.style.backgroundImage = cssUrl(acc.wallpaper || 'assets/img_58.png');
     start.style.backgroundSize = 'cover';
     start.style.backgroundPosition = 'center';
+    start.classList.toggle('has-wall', !!acc.wallpaper);
   }
   const overlay = acc.wallpaper
     ? 'linear-gradient(rgba(2,6,23,.72),rgba(2,6,23,.88)), ' + cssUrl(acc.wallpaper)

@@ -54,6 +54,11 @@
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
+  #flighthud { display: none; position: absolute; top: 84px; left: 50%; transform: translateX(-50%); z-index: 8; width: min(560px, 90vw);
+    background: rgba(8, 24, 48, .88); border: 1px solid #7dd3fc; color: #e0f2fe; padding: 8px 16px; border-radius: 12px;
+    font-size: 13px; font-weight: 800; text-align: center; pointer-events: none; letter-spacing: .02em; }
+  body.inflight #flighthud { display: block; }
+  body.inflight #flyfx { display: none !important; }
   .bankBtn { pointer-events: all; cursor: pointer; background: rgba(250,204,21,.18); border: 1px solid #facc15; color: #fff; padding: 10px 6px; font-size: 13px; font-weight: 800; border-radius: 9px; }
   .ranking-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:12px 0; }
   .ranking-tab.active { background:rgba(56,189,248,.3); border-color:#38bdf8; }
@@ -794,6 +799,7 @@
   </div>
 </div>
 <div id="flyfx" style="position:absolute; inset:0; display:none; z-index:15; background:rgba(2,6,23,.95); align-items:center; justify-content:center; color:#7dd3fc; font-size:26px; font-weight:900; text-align:center; pointer-events:none;"></div>
+<div id="flighthud">✈️ Vuelo</div>
 
 <div class="screen hidden" id="jail">
   <h1 style="color:#fbbf24" id="jailTitle">CÁRCEL</h1>
@@ -1060,6 +1066,45 @@ const player = new THREE.Object3D();
 scene.add(player);
 scene.add(camera);
 const PLAYER_EYE = 1.7;
+const MELEE_REACH = 3;   // tres bloques: en el suelo les pegas; arriba los de tierra no llegan
+function torsoY(p) { return p === player.position ? player.position.y - PLAYER_EYE + .9 : (p.y || 0) + .9; }
+function dist3D(a, b) { return Math.hypot(a.x - b.x, torsoY(a) - torsoY(b), a.z - b.z); }
+function inMeleeReach(a, b) { return dist3D(a, b) <= MELEE_REACH; }
+function isFlyingFoe(e) { return !!(e && e.userData && (e.userData.fly || e.userData.ufo)); }
+function airAttackFrom(from) {   // el origen es un volador (flyer / ovni) que sí puede subir
+  if (!from) return false;
+  if (from.userData && (from.userData.fly || from.userData.ufo)) return true;
+  for (let i = 0; i < enemies.length; i++) if (enemies[i].position === from) return isFlyingFoe(enemies[i]);
+  return false;
+}
+function monsterCanHit(e, tgt) {   // en el aire solo los VOLADORES suben y pegan
+  if (tgt === player.position && playerAirborne() && !isFlyingFoe(e)) return false;
+  return inMeleeReach(e.position, tgt);
+}
+function playerStandEyeY() {
+  let floor = state.groundY || 0;
+  if (!state.underground && !state.inCastle && !state.inRuins && !state.inArena) {
+    const cerro = mountainHeightAt(player.position.x, player.position.z);
+    if (cerro > floor) floor = cerro;
+  }
+  return floor + PLAYER_EYE;
+}
+function playerAirborne() {   // vuelo creativo, jetpack, heli o más de 3 bloques sobre el suelo
+  if (creativeFlying || state.jetOn) return true;
+  if (state.driving && car && car.helicopter && car.group.position.y > MELEE_REACH) return true;
+  return player.position.y > playerStandEyeY() + MELEE_REACH;
+}
+function playerHitRange() { return state.laserGun ? 30 : MELEE_REACH; }   // en el suelo (y si un volador se acerca) pegas a 3 bloques
+function flyerChaseY(e) {
+  const ground = mountainHeightAt(e.position.x, e.position.z);
+  if (playerAirborne()) return Math.max(ground + 2, player.position.y - PLAYER_EYE + 1.05);
+  return ground + 3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.3;
+}
+let airMissAt = 0;
+function airCombatMiss(kind) {
+  const now = performance.now(); if (now - airMissAt < 1600) return; airMissAt = now;
+  toast(kind === 'police' ? '🪽 Muy arriba: la policía no te atrapa' : '🪽 En el aire no te pegan los de tierra');
+}
 camera.rotation.order = 'YXZ';
 let yaw = 0, pitch = 0;
 const LOOK_SENS = 0.0025;
@@ -1270,6 +1315,18 @@ function updatePlayerCamera(dt) {
   if (cameraMode === 0) {
     camera.position.copy(player.position);
     camera.rotation.set(pitch, yaw, 0);
+    applyCameraFeedback(dt);
+    return;
+  }
+
+  if (state.inFlight) {
+    const side = cameraMode === 1 ? 1 : -1;
+    const dist = 22 + Math.sin(-pitch) * 4;
+    cameraAim.set(FLIGHT.x, FLIGHT.y + 1.2, FLIGHT.z);
+    cameraOffset.set(Math.sin(yaw) * dist * side, 7.2 + Math.sin(-pitch) * 5, Math.cos(yaw) * dist * side);
+    cameraDesired.copy(cameraAim).add(cameraOffset);
+    camera.position.lerp(cameraDesired, 1 - Math.exp(-10 * Math.min(dt || 0.016, 0.05)));
+    camera.lookAt(FLIGHT.x, FLIGHT.y + 1.15, FLIGHT.z);
     applyCameraFeedback(dt);
     return;
   }
@@ -1569,6 +1626,7 @@ function requestButlerOrder() {
 }
 function updateButler(dt) {
   butler.visible = !!butler.userData.hired; if (!butler.visible) return;
+  if (state.inFlight) return;
   const world = state.planet + ':' + (state.country || '');
   if (butler.userData.world !== world) {
     butler.userData.world = world; butler.position.copy(player.position);
@@ -2579,7 +2637,10 @@ function updatePolice(dt) {
       const speed = (driving ? 22 : 7) + lvl * (driving ? 1.2 : 0.4);
       const catchD = driving ? 3.4 : 1.9;
       const d = dist2D(p.position, player.position);
-      if (d <= catchD) { policeCatch(); return; }
+      if (d <= catchD) {
+        if (playerAirborne()) { airCombatMiss('police'); continue; }   // volando: te persiguen abajo, no te esposan
+        policeCatch(); return;
+      }
       moveToward(p, player.position, speed * dt);
       const face = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
       if (p.userData.car) {
@@ -3472,12 +3533,43 @@ const SKI_SUMMIT_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z - 170 };
 const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 300, ph: 28 * 1.7, ski: true };
 const skiSlopeHeight = (x, z) => mountainProfile(SKI_MOUNTAIN_PROFILE, x - SKI_RESORT.x, z - SKI_RESORT.z);
 const skiResortGroup = new THREE.Group(); scene.add(skiResortGroup);
-const skiVisitors = [], skiObstacles = [], skiRamps = [];
+const skiVisitors = [], skiObstacles = [], skiRamps = [], skiPisteWalls = [];
+const skiWallWorld = new THREE.Vector3();
 let skiGearMesh = null;
 function skiBox(parent, x, y, z, w, h, d, color, obstacle = false) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
-  if (obstacle) skiObstacles.push(addObstacle(x, z, w, d));
+  if (obstacle) skiObstacles.push(addObstacle(x, z, w, d, y + h / 2));
+  if (obstacle || color === 0x7c4a21 || color === 0x8b5a2b) skiPisteWalls.push({ mesh: m, hw: w / 2, hd: d / 2, h });
   return m;
+}
+function resolveSkiPisteWalls() {
+  const r = 0.75, p = player.position, pies = p.y - PLAYER_EYE;
+  let hitN = 0, nx = 0, nz = 0;
+  for (let pass = 0; pass < 3; pass++) {
+    for (const w of skiPisteWalls) {
+      const m = w.mesh;
+      m.getWorldPosition(skiWallWorld);
+      if (pies > skiWallWorld.y + w.h / 2 + 0.85) continue;   // solo un salto alto pasa por encima
+      const dx = p.x - skiWallWorld.x, dz = p.z - skiWallWorld.z;
+      const ang = m.rotation.y, c = Math.cos(ang), s = Math.sin(ang);
+      const lx = dx * c - dz * s, lz = dx * s + dz * c;
+      const hw = w.hw + r, hd = w.hd + r;
+      if (lx <= -hw || lx >= hw || lz <= -hd || lz >= hd) continue;
+      const pushX = lx >= 0 ? hw - lx : -hw - lx;
+      const pushZ = lz >= 0 ? hd - lz : -hd - lz;
+      let nlx = 0, nlz = 0;
+      if (Math.abs(pushX) < Math.abs(pushZ)) nlx = pushX; else nlz = pushZ;
+      const wx = nlx * c + nlz * s, wz = -nlx * s + nlz * c;
+      p.x += wx; p.z += wz;
+      const len = Math.hypot(wx, wz) || 1;
+      nx += wx / len; nz += wz / len; hitN++;
+    }
+  }
+  if (hitN) {
+    const nlen = Math.hypot(nx, nz) || 1; nx /= nlen; nz /= nlen;
+    const into = skiVelX * nx + skiVelZ * nz;
+    if (into < 0) { skiVelX -= into * nx; skiVelZ -= into * nz; }   // no sigas metiéndote a través
+  }
 }
 function buildSkiRoad() {
   const curve = new THREE.CatmullRomCurve3([
@@ -3499,12 +3591,12 @@ function buildSkiResort() {
   mcMountain(skiResortGroup, SKI_RESORT.x, SKI_RESORT.z, SKI_RESORT.r, 300, 0xf1f5f9, 0xffffff, 28, 'tierra', { grass: 0xffffff, soil: 0xf8fafc, leaf: 0xe2e8f0, trees: 8, ski: true });
   buildSkiRoad();
   // Zona de llegada plana: la bajada termina aquí y no en un borde abrupto.
-  const landing = new THREE.Mesh(new THREE.BoxGeometry(300, .55, 300), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 82, SKI_RESORT.z + 170); landing.receiveShadow = true; skiResortGroup.add(landing); addLandingSurface(landing.position.x, landing.position.z, 300, 300, 82.275, landing);
-  const landingSign = makeSign('❄️ PLATAFORMA DE NIEVE · FINAL DE LAS PISTAS', 0xe0f2fe); landingSign.scale.set(.38, .38, .38); landingSign.position.set(SKI_RESORT.x, 86, SKI_RESORT.z + 174); skiResortGroup.add(landingSign);
+  const landing = new THREE.Mesh(new THREE.BoxGeometry(340, .55, 360), mat(0xffffff)); landing.position.set(SKI_RESORT.x, 62, SKI_RESORT.z + 255); landing.receiveShadow = true; skiResortGroup.add(landing); addLandingSurface(landing.position.x, landing.position.z, 340, 360, 62.275, landing);
+  const landingSign = makeSign('❄️ PLATAFORMA DE NIEVE · FINAL DE LAS PISTAS', 0xe0f2fe); landingSign.scale.set(.38, .38, .38); landingSign.position.set(SKI_RESORT.x, 66, SKI_RESORT.z + 258); skiResortGroup.add(landingSign);
   // Senderos bajos y anchos por ambos costados: rodean la montaña sin bordes.
   for (const side of [-1, 1]) {
-    const connector = new THREE.Mesh(new THREE.BoxGeometry(18, .8, 430), mat(0xffffff));
-    connector.position.set(SKI_RESORT.x + side * 212, .4, SKI_RESORT.z + 8); connector.receiveShadow = true; skiResortGroup.add(connector);
+    const connector = new THREE.Mesh(new THREE.BoxGeometry(18, .8, 640), mat(0xffffff));
+    connector.position.set(SKI_RESORT.x + side * 212, .4, SKI_RESORT.z + 40); connector.receiveShadow = true; skiResortGroup.add(connector);
   }
   const backside = new THREE.Mesh(new THREE.BoxGeometry(210, .5, 90), mat(0xffffff)); backside.position.set(SKI_RESORT.x, 5, SKI_RESORT.z - 112); backside.receiveShadow = true; skiResortGroup.add(backside);
   for (let i = 0; i < 3; i++) { const path = new THREE.CatmullRomCurve3([new THREE.Vector3(SKI_RESORT.x - 72 + i * 60, 38 - i * 7, SKI_RESORT.z - 68), new THREE.Vector3(SKI_RESORT.x - 55 + i * 55, 23 - i * 5, SKI_RESORT.z - 105), new THREE.Vector3(SKI_RESORT.x - 35 + i * 48, 5, SKI_RESORT.z - 145)]); const backTrail = new THREE.Mesh(new THREE.TubeGeometry(path, 24, 3.8, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); backTrail.scale.y = .12; skiResortGroup.add(backTrail); }
@@ -3516,7 +3608,7 @@ function buildSkiResort() {
   // Pistas principales: llegan desde la parte alta hasta la zona plana final.
   for (const [lane, side] of [['AZUL', -1], ['ROJA', 1]]) {
     const pts = [];
-    for (let i = 0; i <= 24; i++) { const t = i / 24, x = SKI_RESORT.x + side * (28 + t * 48) + Math.sin(t * 8) * 4, z = SKI_RESORT.z - 150 + t * 310; pts.push(new THREE.Vector3(x, mountainProfile(mountains.at(-1), x - SKI_RESORT.x, z - SKI_RESORT.z) + .12, z)); }
+    for (let i = 0; i <= 40; i++) { const t = i / 40, x = SKI_RESORT.x + side * (28 + t * 48) + Math.sin(t * 8) * 4, z = SKI_RESORT.z - 230 + t * 520; pts.push(new THREE.Vector3(x, mountainProfile(mountains.at(-1), x - SKI_RESORT.x, z - SKI_RESORT.z) + .12, z)); }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 3.2, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; trail.userData.skiLane = lane; skiResortGroup.add(trail);
     const tag = makeSign(lane + ' · PISTA', lane === 'AZUL' ? 0x93c5fd : 0xfca5a5); tag.scale.set(.42, .42, .42); tag.position.copy(pts[5]); tag.position.y += 3; skiResortGroup.add(tag);
     // Separadores de pista: postes con banderas que hacen visible dónde comienza y termina cada bajada.
@@ -3534,9 +3626,9 @@ function buildSkiResort() {
     }
   }
   // Más pistas angostas, paralelas y cercanas entre sí, cada una encerrada por muros.
-  for (const [name, offset, color, start, length] of [['VERDE', -112, 0x22c55e, -70, 175], ['NEGRA', 0, 0x111827, -155, 345], ['AMARILLA', 112, 0xfacc15, -90, 240]]) {
+  for (const [name, offset, color, start, length] of [['VERDE', -112, 0x22c55e, -90, 340], ['NEGRA', 0, 0x111827, -230, 530], ['AMARILLA', 112, 0xfacc15, -120, 430]]) {
     const pts = [];
-    for (let i = 0; i <= 24; i++) { const t = i / 24, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 4, z = SKI_RESORT.z + start + t * length; pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .18, z)); }
+    for (let i = 0; i <= 36; i++) { const t = i / 36, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 4, z = SKI_RESORT.z + start + t * length; pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .18, z)); }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 2.1, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })); trail.scale.y = .12; skiResortGroup.add(trail);
     const marker = makeSign(name + ' · PISTA', color); marker.scale.set(.34, .34, .34); marker.position.copy(pts[5]); marker.position.y += 2.8; skiResortGroup.add(marker);
     for (let i = 1; i < pts.length - 1; i++) { const p = pts[i]; for (const edge of [-2.65, 2.65]) skiBox(skiResortGroup, p.x + edge, p.y + 2.1, p.z, .58, 4.2, 7.4, 0x7c4a21, true); }
@@ -3546,8 +3638,8 @@ function buildSkiResort() {
   // recorridos que rodean la montaña hacia el oeste y el este.
   for (const [name, side, color, zOffset] of [['OESTE', -1, 0x38bdf8, -82], ['ESTE', 1, 0xf472b6, -28]]) {
     const pts = [];
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20, x = SKI_RESORT.x + side * (126 + t * 48), z = SKI_RESORT.z + zOffset + Math.sin(t * 6) * 10;
+    for (let i = 0; i <= 32; i++) {
+      const t = i / 32, x = SKI_RESORT.x + side * (126 + t * 70), z = SKI_RESORT.z + zOffset + t * 210 + Math.sin(t * 6) * 10;
       pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .2, z));
     }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 44, 3, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
@@ -3564,8 +3656,8 @@ function buildSkiResort() {
   // pendiente suave y sus muros llegan hasta el final del recorrido.
   for (const [name, offset, color] of [['TRASERA AZUL', -92, 0x60a5fa], ['TRASERA ROJA', 0, 0xf87171], ['TRASERA VERDE', 92, 0x4ade80]]) {
     const pts = [];
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 3, z = SKI_RESORT.z - 198 - t * 145;
+    for (let i = 0; i <= 32; i++) {
+      const t = i / 32, x = SKI_RESORT.x + offset + Math.sin(t * 7 + offset) * 3, z = SKI_RESORT.z - 220 - t * 280;
       pts.push(new THREE.Vector3(x, skiSlopeHeight(x, z) + .2, z));
     }
     const trail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 44, 2.6, 6, false), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
@@ -3584,7 +3676,7 @@ function buildSkiResort() {
     skiBox(skiResortGroup, x - 1.4, y + .8, z, .18, 1.6, .18, 0xef4444); skiBox(skiResortGroup, x + 1.4, y + .8, z, .18, 1.6, .18, 0xef4444);
   }
   // Rampas altas entre las pistas: al pasar con velocidad lanzan al esquiador.
-  for (const [xOffset, zOffset] of [[-82, 452], [82, 488], [-42, 548], [44, 612]]) {
+  for (const [xOffset, zOffset] of [[-82, 452], [82, 488], [-42, 548], [44, 612], [-60, 680], [50, 740]]) {
     const x = SKI_RESORT.x + xOffset, z = SKI_RESORT.z + zOffset - SKI_RESORT.z, y = skiSlopeHeight(x, z) + 1.7;
     const ramp = skiBox(skiResortGroup, x, y, z, 7.5, 3.4, 12, 0xf97316, true);
     ramp.rotation.x = -.38; skiRamps.push({ x, z, radius: 5 });
@@ -3609,13 +3701,13 @@ function buildSkiResort() {
     const platform = new THREE.Mesh(new THREE.BoxGeometry(w, .5, d), mat(0xffffff));
     platform.position.set(x, top - .25, z); platform.receiveShadow = true; skiResortGroup.add(platform);
     addLandingSurface(x, z, w, d, top, platform);
-    const sign = makeSign('⛷️ ZONA PLANA · PREPÁRATE', 0xe0f2fe); sign.scale.set(.3, .3, .3); sign.position.set(x, top + 3.2, z); skiResortGroup.add(sign);
+    const sign = makeSign('⛷️ ZONA PLANA · BAJA LA PISTA', 0xe0f2fe); sign.scale.set(.3, .3, .3); sign.position.set(x, top + 3.2, z); skiResortGroup.add(sign);
   }
   // La llegada principal está dentro de un hoyo/alcoba de nieve: tres bordes
   // altos la contienen y queda abierta hacia la pista para poder salir.
   const mainTop = skiSlopeHeight(SKI_LIFT_BOTTOM.x, SKI_LIFT_BOTTOM.z - 340) + .25, mainTopZ = SKI_LIFT_BOTTOM.z - 340;
-  skiBox(skiResortGroup, SKI_LIFT_BOTTOM.x - 35, mainTop + 1.2, mainTopZ, 1.8, 2.4, 46, 0xffffff, true);
-  skiBox(skiResortGroup, SKI_LIFT_BOTTOM.x + 35, mainTop + 1.2, mainTopZ, 1.8, 2.4, 46, 0xffffff, true);
+  skiBox(skiResortGroup, SKI_LIFT_BOTTOM.x - 35, mainTop + 1.2, mainTopZ - 10, 1.8, 2.4, 28, 0xffffff, true);
+  skiBox(skiResortGroup, SKI_LIFT_BOTTOM.x + 35, mainTop + 1.2, mainTopZ - 10, 1.8, 2.4, 28, 0xffffff, true);
   skiBox(skiResortGroup, SKI_LIFT_BOTTOM.x, mainTop + 1.2, mainTopZ - 22, 70, 2.4, 1.8, 0xffffff, true);
   const hollowSign = makeSign('🏔️ HOYO DE LLEGADA', 0xfef3c7); hollowSign.scale.set(.32, .32, .32); hollowSign.position.set(SKI_LIFT_BOTTOM.x, mainTop + 3.1, mainTopZ - 20); skiResortGroup.add(hollowSign);
   const summitTop = skiSlopeHeight(SKI_SUMMIT_LIFT_BOTTOM.x, SKI_SUMMIT_LIFT_BOTTOM.z - 72) + .25;
@@ -3670,8 +3762,13 @@ function nearestSeat(maxD = 2.6) {
 }
 function standUp(silent) {
   if (!sitOn) return false;
-  const p = sitOn.mesh.position, era = sitOn.key;
+  const p = sitOn.mesh.position, era = sitOn.key, plane = sitOn.flightSeat;
   sitOn = null;
+  if (plane) {
+    player.position.set(FLIGHT.x, FLIGHT.y + PLAYER_EYE, plane.z);
+    if (!silent) { toast('🚶 De vuelta al pasillo · camina o siéntate otra vez con E'); beep(520, .08, .04); }
+    return true;
+  }
   player.position.set(p.x, p.y + PLAYER_EYE, p.z + 1.3);
   if (!silent) {
     state.hp = Math.min(100, state.hp + 8);
@@ -3777,8 +3874,9 @@ function updateParks(dt) {
 
 // ===================================================================
 //  AEROPUERTO Y VIAJES A OTROS PAÍSES
-//  Terminal + aviones comerciales. Compras un ticket y viajas: en cada
-//  país la gente te habla EN SU IDIOMA (inglés, chino, ruso, francés…).
+//  Terminal + aviones comerciales. Compras un ticket y viajas 2 minutos
+//  DENTRO del avión (pasillo, asientos y película). En cada país la gente
+//  te habla EN SU IDIOMA (inglés, chino, ruso, francés…).
 // ===================================================================
 const AIRPORT = new THREE.Vector3(120, 0, -150);   // pista larga al sureste
 const COUNTRIES = [
@@ -4065,6 +4163,7 @@ function openAirport() {
 }
 function closeAirport() { ui('airportbox').style.display = 'none'; typing = false; }
 function tryAirport() {
+  if (state.inFlight) return tryFlightSeat();
   if (state.planet !== 'tierra') return false;
   if (state.country) {   // volver a casa desde el país
     if (dist2D(player.position, { x: COUNTRY_C.x, z: COUNTRY_C.z - 73 }) < 6) { flyHome(); return true; }
@@ -4073,39 +4172,386 @@ function tryAirport() {
   if (dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6) return openAirport();
   return false;
 }
-function flyCinematic(txt, then) {
-  typing = true; ui('airportbox').style.display = 'none';
-  const fx = ui('flyfx'); fx.style.display = 'flex'; fx.textContent = txt;
-  beep(400, .2, .05); setTimeout(() => beep(520, .25, .05), 250);
-  setTimeout(() => { fx.style.display = 'none'; typing = false; then(); }, 2200);
+const FLIGHT_LEN = 120;
+const FLIGHT = { x: 24, y: 255, z: -2080 };
+let flight = null, flightCabin = null, flightMovie = null;
+const flightWalls = [], flightSeats = [], flightPax = [];
+function flightBox(parent, x, y, z, w, h, d, color, em) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), em != null
+    ? new THREE.MeshStandardMaterial({ color, emissive: em, emissiveIntensity: .55, roughness: .42 })
+    : mcMat(color));
+  m.position.set(x, y, z); parent.add(m); return m;
 }
-function flyTo(c) {
-  if (state.money < c.price) { toast('💸 El ticket a ' + c.name + ' cuesta $' + c.price); return; }
-  addMoney(-c.price);
-  flyCinematic('✈️ Volando a ' + c.flag + ' ' + c.name + '…', () => {
-    state.country = c.id;
-    syncPlacedCountryVisibility();
-    buildCountry(c); setCountryVisible(true);
-    setEarthWorld(false); setCityVisible(false);
-    scene.background.set(c.sky); scene.fog.far=320;
-    player.position.set(COUNTRY_C.x, PLAYER_EYE, COUNTRY_C.z - 56); yaw = Math.PI; pitch = 0;
-    dad.position.set(COUNTRY_C.x + 2, 0, COUNTRY_C.z - 54);
-    toast(c.flag + ' ¡Llegaste a ' + c.city + ', ' + c.name + '! Acá se habla ' + c.lang + ' · visita ' + c.monu + ' al fondo del pueblo');
-    phaseText(c.flag + ' ' + c.city);
-  });
+function addFlightWall(lx, lz, w, d) {
+  flightWalls.push({ minX: FLIGHT.x + lx - w / 2, maxX: FLIGHT.x + lx + w / 2, minZ: FLIGHT.z + lz - d / 2, maxZ: FLIGHT.z + lz + d / 2 });
 }
-function flyHome() {
-  const c = currentCountry();
-  flyCinematic('✈️ Volviendo a casa…', () => {
+function ensureFlightMovie() {
+  if (flightMovie) return flightMovie;
+  const cv = document.createElement('canvas'); cv.width = 640; cv.height = 360;
+  const tex = new THREE.CanvasTexture(cv); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: .92, roughness: 1 });
+  flightMovie = { cv, ctx: cv.getContext('2d'), tex, mat };
+  return flightMovie;
+}
+function flightPerson(ctx, x, y, scale, shirt, walking, t) {
+  const bob = walking ? Math.sin(t * 8) * 2 : 0;
+  ctx.fillStyle = '#1f2937'; ctx.fillRect(x - 6 * scale, y + bob, 5 * scale, 14 * scale); ctx.fillRect(x + 1 * scale, y + bob, 5 * scale, 14 * scale);
+  ctx.fillStyle = shirt; ctx.fillRect(x - 8 * scale, y - 16 * scale + bob, 16 * scale, 18 * scale);
+  ctx.fillStyle = '#f1c27d'; ctx.fillRect(x - 6 * scale, y - 28 * scale + bob, 12 * scale, 12 * scale);
+  ctx.fillStyle = '#111827'; ctx.fillRect(x - 6 * scale, y - 30 * scale + bob, 12 * scale, 4 * scale);
+}
+function drawFlightMovie(t, dest) {
+  const { ctx, tex } = ensureFlightMovie();
+  const w = 640, h = 360, u = ((t % FLIGHT_LEN) + FLIGHT_LEN) % FLIGHT_LEN;
+  const name = dest ? dest.flag + '  ' + dest.city : 'CASA';
+  const letterbox = () => { ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, w, 34); ctx.fillRect(0, h - 34, w, 34); };
+  if (u < 11) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#0f172a'); g.addColorStop(.45, '#9a3412'); g.addColorStop(1, '#f59e0b');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(520, 78, 38, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 42px sans-serif'; ctx.fillText('CIELO ABIERTO', 36, 150);
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '20px sans-serif'; ctx.fillText('Un corto de This is Money Air', 36, 188);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '16px sans-serif'; ctx.fillText('Destino  ' + name, 36, 228);
+  } else if (u < 34) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#38bdf8'); g.addColorStop(.55, '#7dd3fc'); g.addColorStop(.7, '#0ea5e9'); g.addColorStop(1, '#0369a1');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(70 + Math.sin(t * .2) * 8, 64, 26, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    for (let i = 0; i < 9; i++) { const cx = ((t * 42 + i * 90) % 760) - 80; ctx.beginPath(); ctx.ellipse(cx, 88 + (i % 3) * 16, 48, 14, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#0f766e'; ctx.fillRect(0, 248, w, 112);
+    ctx.fillStyle = 'rgba(255,255,255,.25)';
+    for (let i = 0; i < 14; i++) ctx.fillRect(((t * 90 + i * 70) % 700) - 20, 260 + (i % 4) * 12, 36, 3);
+    ctx.fillStyle = '#4ade80'; ctx.fillRect(410, 232, 90, 28); ctx.fillStyle = '#166534'; ctx.fillRect(430, 210, 18, 28);
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(180 + Math.sin(t) * 8, 168, 150, 22);
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(300, 178, 18, 8);
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(210, 160, 70, 10);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 18px sans-serif'; ctx.fillText('Sobre el océano', 28, 320);
+  } else if (u < 58) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#020617'); g.addColorStop(.45, '#1e1b4b'); g.addColorStop(1, '#111827');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 18; i++) {
+      const bx = 20 + (i * 47) % 620, bw = 28 + (i % 4) * 10, bh = 80 + (i % 5) * 28;
+      ctx.fillStyle = i % 3 ? '#1e293b' : '#0f172a'; ctx.fillRect(bx, 300 - bh, bw, bh);
+      ctx.fillStyle = '#fde047';
+      for (let wy = 0; wy < 6; wy++) for (let wx = 0; wx < 2; wx++) {
+        if ((i + wy + Math.floor(t * 2)) % 3) ctx.fillRect(bx + 6 + wx * 10, 308 - bh + wy * 14, 5, 6);
+      }
+    }
+    ctx.fillStyle = '#f97316';
+    for (let i = 0; i < 8; i++) ctx.fillRect(((t * 70 + i * 90) % 700) - 10, 310, 16, 4);
+    ctx.fillStyle = 'rgba(125,211,252,.18)'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#e0f2fe'; ctx.font = 'bold 22px sans-serif'; ctx.fillText('La ciudad no duerme', 28, 48);
+  } else if (u < 86) {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#1d4ed8'); g.addColorStop(.4, '#ea580c'); g.addColorStop(1, '#7c2d12');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(560, 70, 32, 0, 7); ctx.fill();
+    ctx.fillStyle = '#111827';
+    for (let i = 0; i < 12; i++) ctx.fillRect(10 + i * 54, 210, 40, 150);
+    ctx.fillStyle = '#334155'; ctx.fillRect(0, 248, w, 80);
+    flightPerson(ctx, 250, 268, 1.15, '#2563eb', true, t);
+    flightPerson(ctx, 292, 268, 1.12, '#db2777', true, t + .4);
+    ctx.fillStyle = '#fff'; ctx.font = 'italic 20px sans-serif'; ctx.fillText('«Nunca dejes de volar.»', 36, 70);
+    ctx.fillStyle = '#fde68a'; ctx.font = '16px sans-serif'; ctx.fillText('Ana y Nico cruzan el mundo', 36, 102);
+  } else if (u < 108) {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, '#0c4a6e'); g.addColorStop(1, '#7c3aed');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    for (let i = 0; i < 10; i++) {
+      const cx = ((t * 28 + i * 80) % 720) - 40, cy = 60 + (i % 4) * 40;
+      ctx.beginPath(); ctx.ellipse(cx, cy, 60, 18, 0, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(240, 150, 170, 18);
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(270, 142, 50, 8);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 20px sans-serif'; ctx.fillText('Entre nubes, hacia ' + name, 28, 320);
+  } else {
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 32px sans-serif'; ctx.fillText('CIELO ABIERTO', 40, 120);
+    ctx.fillStyle = '#38bdf8'; ctx.font = '20px sans-serif'; ctx.fillText('Próxima parada  ' + name, 40, 168);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '16px sans-serif'; ctx.fillText('Abrocha el cinturón  ·  This is Money Air', 40, 214);
+    ctx.fillStyle = '#facc15'; ctx.font = '18px sans-serif'; ctx.fillText('Gracias por volar con nosotros', 40, 268);
+  }
+  letterbox();
+  tex.needsUpdate = true;
+}
+function flightGlass(parent, x, y, z, w, h, d) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({
+    color: 0x7dd3fc, transparent: true, opacity: .22, roughness: .06, metalness: .2, emissive: 0x38bdf8, emissiveIntensity: .22
+  }));
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+function flightSkin(parent, x, y, z, w, h, d, color, metal) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, metalness: metal ? .48 : .08, roughness: metal ? .32 : .7 }));
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
+}
+function ensureFlightCabin() {
+  if (flightCabin) return flightCabin;
+  ensureFlightMovie();
+  const g = new THREE.Group(); g.position.set(FLIGHT.x, FLIGHT.y, FLIGHT.z); scene.add(g); flightCabin = g;
+  // Fuselaje y alas: se ven enteros en tercera persona.
+  flightSkin(g, 0, 1.35, .4, 5.15, 2.9, 18.8, 0xe2e8f0, true);
+  flightSkin(g, 0, 2.28, -10.9, 3.5, .28, 5.4, 0xe2e8f0, true);   // techo de cabina
+  flightSkin(g, -1.88, 1.15, -10.9, .28, 2.3, 5.4, 0xe2e8f0, true);
+  flightSkin(g, 1.88, 1.15, -10.9, .28, 2.3, 5.4, 0xe2e8f0, true);
+  flightSkin(g, 0, .42, -13.5, 2.4, .7, 2.4, 0xcbd5e1, true);   // nariz, debajo del vidrio
+  flightSkin(g, -7.35, .55, 1.1, 9.6, .18, 4.6, 0xcbd5e1, true);
+  flightSkin(g, 7.35, .55, 1.1, 9.6, .18, 4.6, 0xcbd5e1, true);
+  flightSkin(g, -7.35, .62, 1.1, 9.5, .08, 1.15, 0xdc2626, false);
+  flightSkin(g, 7.35, .62, 1.1, 9.5, .08, 1.15, 0xdc2626, false);
+  for (const sx of [-7.4, 7.4]) {
+    flightSkin(g, sx, .15, 1.35, 1.5, .7, 3.4, 0x334155, true);
+    flightSkin(g, sx, .15, 3.15, .55, .7, .55, 0x111827, true);
+  }
+  flightSkin(g, 0, 2.6, 10.6, .22, 3.4, 2.4, 0xe2e8f0, true);   // cola
+  flightSkin(g, 0, 1.1, 10.8, 5.2, .14, 2.2, 0xcbd5e1, true);
+  flightSkin(g, 0, 2.5, 10.55, .08, 1.6, 1.4, 0xdc2626, false);
+  // Interior: piso, pasillo, techo y ventanas.
+  flightBox(g, 0, .05, -1.2, 4.6, .12, 21.6, 0x7f1d1d);
+  flightBox(g, 0, .07, -1.2, 1.15, .04, 21.4, 0x1e3a5f);
+  flightBox(g, 0, 2.55, -1.2, 4.6, .12, 21.6, 0xe2e8f0);
+  for (let i = -8; i <= 7; i++) flightBox(g, 0, 2.42, i * 1.15, .35, .08, .55, 0xf8fafc, 0xfde68a);
+  for (const sx of [-2.28, 2.28]) {
+    flightBox(g, sx, 1.25, -.4, .18, 2.5, 17.2, 0xf1f5f9);
+    addFlightWall(sx, -.4, .28, 17.2);
+    for (let i = -6; i <= 6; i++) flightGlass(g, sx + (sx > 0 ? .16 : -.12), 1.45, i * 1.2, .08, .72, .78);
+  }
+  // Puerta de cabina: hueco en el pasillo para pasar al piloto.
+  flightBox(g, -1.7, 1.25, -7.85, 1.35, 2.5, .2, 0xcbd5e1);
+  flightBox(g, 1.7, 1.25, -7.85, 1.35, 2.5, .2, 0xcbd5e1);
+  flightBox(g, 0, 2.28, -7.85, 1.25, .45, .2, 0xcbd5e1);
+  addFlightWall(-1.7, -7.85, 1.4, .35); addFlightWall(1.7, -7.85, 1.4, .35);
+  flightBox(g, -0.78, 1.15, -7.55, .08, 2.15, .7, 0x334155);   // hoja abierta
+  const doorSign = makeSign('👨‍✈️ CABINA DE MANDO', 0xfef3c7); doorSign.scale.set(.22, .22, .22); doorSign.position.set(0, 2.12, -7.68); g.add(doorSign);
+  const big = new THREE.Mesh(new THREE.BoxGeometry(2.15, .82, .06), flightMovie.mat);
+  big.position.set(0, 1.92, -7.72); g.add(big);
+  // Cabina de mando: asientos, tablero y vidrio para ver el cielo.
+  flightBox(g, 0, .05, -10.3, 3.5, .12, 5.1, 0x1e293b);
+  flightBox(g, 0, .07, -10.3, 1.05, .04, 5, 0x0f172a);
+  for (const sx of [-1.72, 1.72]) { flightBox(g, sx, 1.2, -10.3, .16, 2.4, 5.1, 0x334155); addFlightWall(sx, -10.3, .28, 5.1); }
+  flightGlass(g, 0, 1.55, -12.55, 2.55, 1.35, .1);   // parabrisas
+  addFlightWall(0, -12.45, 3.2, .3);
+  flightGlass(g, -1.55, 1.5, -11.3, .08, 1.05, 1.6);
+  flightGlass(g, 1.55, 1.5, -10.3, .08, 1.05, 1.6);
+  flightBox(g, 0, 2.32, -10.3, 3.4, .12, 5.1, 0x1e293b);   // techo interior de la cabina
+  flightBox(g, 0, .72, -11.85, 2.5, .55, .7, 0x0f172a);   // tablero
+  addFlightWall(0, -11.55, 2.7, .85);   // no pases por delante de los pilotos
+  for (let i = -2; i <= 2; i++) flightBox(g, i * .38, .95, -11.62, .28, .16, .08, 0x22c55e, 0x22c55e);
+  flightBox(g, 0, .88, -11.5, .7, .12, .18, 0x38bdf8, 0x38bdf8);
+  for (const sx of [-.52, .52]) {
+    flightBox(g, sx, .42, -10.55, .62, .16, .58, 0x111827);
+    flightBox(g, sx, .88, -10.28, .62, .7, .14, 0x1e293b);
+    const yoke = flightBox(g, sx, .78, -11.15, .42, .06, .22, 0x94a3b8);
+    g.userData.yokes = g.userData.yokes || []; g.userData.yokes.push(yoke);
+  }
+  const pilots = [];
+  for (const [sx, shirt] of [[-.52, 0x0f172a], [.52, 0x1e3a8a]]) {
+    const p = makePerson(shirt, 0xf1c27d);
+    p.position.set(sx, 0, -10.55); p.rotation.y = Math.PI;
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(.42, .12, .46), new THREE.MeshStandardMaterial({ color: 0x111827, roughness: .7 }));
+    cap.position.set(0, 2.34, 0); p.add(cap);
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(.42, .04, .18), new THREE.MeshStandardMaterial({ color: 0x334155 }));
+    visor.position.set(0, 2.3, .18); p.add(visor);
+    g.add(p); pilots.push(p);
+  }
+  g.userData.pilots = pilots;
+  flightBox(g, 0, 1.25, 9.15, 4.6, 2.5, .22, 0xcbd5e1);
+  addFlightWall(0, 9.15, 4.6, .4);
+  flightBox(g, 1.5, .9, 8.4, 1.2, 1.6, .8, 0x334155);
+  const lamp = new THREE.PointLight(0xffe7c2, 1.35, 16); lamp.position.set(0, 2.15, 0); g.add(lamp);
+  const lamp2 = new THREE.PointLight(0xbae6fd, .55, 12); lamp2.position.set(0, 1.8, -6); g.add(lamp2);
+  const cockpitLamp = new THREE.PointLight(0x67e8f9, .7, 8); cockpitLamp.position.set(0, 2.05, -10.6); g.add(cockpitLamp);
+  for (const sx of [-1.55, 1.55]) for (let i = -6; i <= 6; i++) flightBox(g, sx, 2.18, i * 1.15, 1.3, .28, 1, 0xdbeafe);
+  const colors = [0x1d4ed8, 0x0f172a, 0x1e3a8a];
+  let ri = 0;
+  for (let row = 0; row < 7; row++) {
+    const z = -6.4 + row * 1.85;
+    for (const x of [-1.62, -.88, .88, 1.62]) {
+      const col = colors[(ri++) % 3];
+      flightBox(g, x, .42, z, .66, .16, .62, col);
+      flightBox(g, x, .88, z + .26, .66, .72, .14, col);
+      flightBox(g, x - .36, .55, z, .08, .28, .55, 0x1e293b);
+      flightBox(g, x + .36, .55, z, .08, .28, .55, 0x1e293b);
+      const scr = new THREE.Mesh(new THREE.BoxGeometry(.4, .24, .04), flightMovie.mat);
+      scr.position.set(x, 1.12, z + .2); g.add(scr);
+      addFlightWall(x, z, .66, .62);
+      flightSeats.push({ x: FLIGHT.x + x, y: FLIGHT.y + .42, z: FLIGHT.z + z, taken: false });
+    }
+  }
+  const paxIdx = [2, 3, 5, 8, 11, 14, 16, 19, 22, 25];
+  const shirts = [0x2563eb, 0xdc2626, 0x16a34a, 0x7c3aed, 0xf59e0b, 0x0ea5e9];
+  for (const i of paxIdx) {
+    const s = flightSeats[i]; if (!s) continue;
+    s.taken = true;
+    const n = makePerson(shirts[i % shirts.length], 0xf1c27d);
+    n.position.set(s.x, FLIGHT.y, s.z + .05); n.rotation.y = Math.PI;
+    scene.add(n); flightPax.push(n);
+  }
+  const dadSeat = flightSeats.find(s => Math.abs(s.x - (FLIGHT.x - .88)) < .2 && Math.abs(s.z - (FLIGHT.z + 5.4)) < 1.2);
+  if (dadSeat) dadSeat.taken = true;
+  const att = makePerson(0x0f172a, 0xf1c27d);
+  att.position.set(FLIGHT.x, FLIGHT.y, FLIGHT.z + 2); att.userData.flightAtt = true;
+  scene.add(att); flightPax.push(att); g.userData.attendant = att;
+  g.userData.clouds = [];
+  for (let i = 0; i < 18; i++) {
+    const cld = flightBox(g, (i % 2 ? 10 : -8) + (i % 5) * .5, 1.4 + (i % 3) * .7, -16 - (i % 6) * 2.4, 3.6, 1.15, 2.4, 0xffffff, 0xe2e8f0);
+    g.userData.clouds.push(cld);
+  }
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 10), new THREE.MeshBasicMaterial({ color: 0xfde047 }));
+  sun.position.set(9, 4.2, -22); g.add(sun); g.userData.sun = sun;
+  g.visible = false;
+  return g;
+}
+function resolveFlightWalls() {
+  const R = .45, p = player.position;
+  for (const w of flightWalls) {
+    if (p.x > w.minX - R && p.x < w.maxX + R && p.z > w.minZ - R && p.z < w.maxZ + R) {
+      const cx = (w.minX + w.maxX) / 2, cz = (w.minZ + w.maxZ) / 2;
+      const ox = (w.maxX - w.minX) / 2 + R - Math.abs(p.x - cx);
+      const oz = (w.maxZ - w.minZ) / 2 + R - Math.abs(p.z - cz);
+      if (ox < oz) p.x += p.x < cx ? -ox : ox; else p.z += p.z < cz ? -oz : oz;
+    }
+  }
+}
+function tryFlightSeat() {
+  if (!state.inFlight) return false;
+  if (sitOn) { standUp(false); return true; }
+  let best = null, bd = 1.7;
+  for (const s of flightSeats) {
+    if (s.taken) continue;
+    const d = dist2D(player.position, s);
+    if (d < bd) { bd = d; best = s; }
+  }
+  if (!best) { toast('🚶 Camina el pasillo y acércate a un asiento vacío'); return true; }
+  sitOn = { mesh: { position: { x: best.x, y: best.y, z: best.z }, rotation: { y: Math.PI } }, key: 'silla', flightSeat: best };
+  yaw = 0; pitch = -.12;
+  toast('🎬 La película del vuelo está en la pantalla · E para volver al pasillo');
+  beep(420, .1, .04);
+  return true;
+}
+function restoreWorldAfterFlight() {
+  if (state.planet === 'platus') {
+    setEarthWorld(false); setCityVisible(false); setCountryVisible(false);
+    scene.background.set(state.planetSky || 0xd98c5f); scene.fog.near = 10; scene.fog.far = 160;
+    return;
+  }
+  if (state.country) {
+    const c = currentCountry();
+    setEarthWorld(false); setCityVisible(false); setCountryVisible(true);
+    if (c) scene.background.set(c.sky);
+    scene.fog.near = 10; scene.fog.far = 320;
+  } else {
+    setEarthWorld(true); setCityVisible(true); setCountryVisible(false);
+    scene.background.set(0x87ceeb); scene.fog.near = 10; scene.fog.far = 160;
+  }
+}
+function abortFlight() {
+  if (!state.inFlight && !flight) return;
+  if (sitOn && sitOn.flightSeat) sitOn = null;
+  if (flightCabin) flightCabin.visible = false;
+  flightPax.forEach(n => n.visible = false);
+  state.inFlight = false; flight = null;
+  document.body.classList.remove('inflight');
+  const hud = ui('flighthud'); if (hud) hud.style.display = 'none';
+  restoreWorldAfterFlight();
+}
+function startFlight(opts) {
+  closeAirport();
+  ensureFlightCabin();
+  flightCabin.visible = true;
+  flightPax.forEach(n => n.visible = true);
+  state.inFlight = true;
+  flight = { t: 0, dest: opts.dest || null, home: !!opts.home, from: opts.from || null };
+  if (state.planet === 'tierra') { setEarthWorld(false); setCityVisible(false); }
+  if (state.country) setCountryVisible(false);
+  scene.fog.near = 8; scene.fog.far = 90; scene.background.set(0x5ec8f2);
+  standUp(true);
+  state.inWater = state.underwater = false; state.air = 100;
+  player.position.set(FLIGHT.x, FLIGHT.y + PLAYER_EYE, FLIGHT.z + 6.4);
+  yaw = 0; pitch = 0; grounded = true; vy = 0;
+  dad.position.set(FLIGHT.x - .88, FLIGHT.y, FLIGHT.z + 5.4); dad.rotation.y = Math.PI;
+  dad.userData.resting = false; dad.rotation.x = 0;
+  document.body.classList.add('inflight');
+  const hud = ui('flighthud'); if (hud) hud.style.display = 'block';
+  toast('✈️ ¡Despegamos! Camina el pasillo hasta la puerta de la cabina · F5 ves el avión entero con alas');
+  phaseText('✈️ VUELO · 2 MIN');
+  beep(480, .18, .05); setTimeout(() => beep(620, .2, .05), 220);
+}
+function endFlight() {
+  if (!state.inFlight && !flight) return;
+  const dest = flight && flight.dest, home = flight && flight.home, from = flight && flight.from;
+  abortFlight();
+  if (home) {
     state.country = null;
     syncPlacedCountryVisibility();
     setCountryVisible(false);
     setEarthWorld(true); setCityVisible(true);
-    scene.background.set(0x87ceeb); scene.fog.far=160;
-    player.position.set(AIRPORT.x, PLAYER_EYE, AIRPORT.z - 6); yaw = 0;
+    scene.background.set(0x87ceeb); scene.fog.far = 160;
+    player.position.set(AIRPORT.x, PLAYER_EYE, AIRPORT.z - 6); yaw = 0; pitch = 0;
     dad.position.set(AIRPORT.x + 2, 0, AIRPORT.z - 5);
-    toast('🏠 ¡De vuelta en casa! ' + (c ? 'Volviste de ' + c.name : ''));
-  });
+    toast('🏠 ¡De vuelta en casa!' + (from ? ' Volviste de ' + from.name : ''));
+  } else if (dest) {
+    state.country = dest.id;
+    syncPlacedCountryVisibility();
+    buildCountry(dest); setCountryVisible(true);
+    setEarthWorld(false); setCityVisible(false);
+    scene.background.set(dest.sky); scene.fog.far = 320;
+    player.position.set(COUNTRY_C.x, PLAYER_EYE, COUNTRY_C.z - 56); yaw = Math.PI; pitch = 0;
+    dad.position.set(COUNTRY_C.x + 2, 0, COUNTRY_C.z - 54);
+    toast(dest.flag + ' ¡Llegaste a ' + dest.city + ', ' + dest.name + '! Acá se habla ' + dest.lang + ' · visita ' + dest.monu + ' al fondo del pueblo');
+    phaseText(dest.flag + ' ' + dest.city);
+  }
+}
+function updateFlight(dt) {
+  if (!state.inFlight || !flight) return;
+  flight.t += dt;
+  drawFlightMovie(flight.t, flight.dest);
+  if (flightCabin && flightCabin.userData.clouds) {
+    for (const c of flightCabin.userData.clouds) {
+      c.position.z += 9 * dt;
+      if (c.position.z > 18) c.position.z = -26;
+    }
+  }
+  if (flightCabin && flightCabin.userData.yokes) {
+    for (const yk of flightCabin.userData.yokes) yk.rotation.x = Math.sin(flight.t * 1.4) * .12;
+  }
+  if (flightCabin && flightCabin.userData.pilots) {
+    for (const p of flightCabin.userData.pilots) p.rotation.y = Math.PI + Math.sin(flight.t * .6) * .08;
+  }
+  if (player.position.z < FLIGHT.z - 8.05 && !flight.cockpitSeen) {
+    flight.cockpitSeen = true;
+    toast('👨‍✈️ Cabina de mando · el piloto está volando · mira por el vidrio');
+  }
+  if (Math.sin(flight.t * 1.3) > .97) cameraShake = Math.max(cameraShake, .08);
+  const att = flightCabin && flightCabin.userData.attendant;
+  if (att && att.visible) {
+    att.position.x = FLIGHT.x;
+    att.position.y = FLIGHT.y;
+    att.position.z = FLIGHT.z + Math.sin(flight.t * .35) * 6.2;
+    att.rotation.y = Math.cos(flight.t * .35) >= 0 ? 0 : Math.PI;
+    swingLimbs(att, dt);
+  }
+  const left = Math.max(0, FLIGHT_LEN - flight.t);
+  const hud = ui('flighthud');
+  if (hud) {
+    const m = Math.floor(left / 60), s = Math.floor(left % 60);
+    const dest = flight.dest ? (flight.dest.flag + ' ' + flight.dest.city) : 'casa';
+    hud.textContent = '✈️ ' + (flight.home ? 'A casa' : dest) + ' · ' + m + ':' + String(s).padStart(2, '0') + ' · pasillo → puerta 👨‍✈️ · F5 avión entero · E peli';
+  }
+  if (flight.t >= 60 && !flight.half) { flight.half = true; toast('✈️ Mitad del vuelo · sigue la peli o camina'); }
+  if (flight.t >= 110 && !flight.landSoon) { flight.landSoon = true; toast('🛬 Preparando el aterrizaje'); }
+  if (flight.t >= FLIGHT_LEN) endFlight();
+}
+function flyTo(c) {
+  if (state.money < c.price) { toast('💸 El ticket a ' + c.name + ' cuesta $' + c.price); return; }
+  addMoney(-c.price);
+  startFlight({ dest: c, home: false });
+}
+function flyHome() {
+  startFlight({ dest: null, home: true, from: currentCountry() });
 }
 // La gente del país te saluda en su idioma
 function countryHello() {
@@ -4485,8 +4931,8 @@ function giveCastleGift(pos) {
 }
 function attackCastleFoe() {   // pegarle a un alien malo del castillo (👊/clic o láser)
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5; let best = null, bd = range;
-  for (const f of castleFoes) { if (!f.alive) continue; const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
+  const range = playerHitRange(); if (range <= 0) return; let best = null, bd = range;
+  for (const f of castleFoes) { if (!f.alive) continue; const d = dist3D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position, '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
   if (state.laserGun) shootBeam(best.mesh.position);
@@ -4508,8 +4954,8 @@ function updateCastle(dt) {
     if (!f.alive) continue;
     f.mesh.position.y = 0.5 + Math.sin(performance.now() * 0.004 + f.mesh.position.x) * 0.15;
     const d = dist2D(f.mesh.position, player.position);
-    if (d > 1.4) { moveToward(f.mesh, player.position, 2.6 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
-    else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; if (!state.creative) state.hp -= 8 * state.armorFactor; } }
+    if (playerAirborne() || !inMeleeReach(f.mesh.position, player.position)) { moveToward(f.mesh, player.position, 2.6 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
+    else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; damagePlayer(8, f.mesh.position); } }
     swingLimbs(f.mesh, dt);
   }
 }
@@ -4632,8 +5078,8 @@ function defeatTitan() {
 function hitTitan(dmg) {
   if (!titan) return false;
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 34 : 6;
-  if (dist2D(p, titan.mesh.position) > range) return false;
+  const range = state.laserGun ? 34 : MELEE_REACH;
+  if (dist3D(p, titan.mesh.position) > range) return false;
   const to = new THREE.Vector3().subVectors(titan.mesh.position, p).normalize();
   if (to.dot(dir) < 0.2) return false;
   titan.hp -= dmg; floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15); beep(180, 0.05, 0.035);
@@ -4644,8 +5090,12 @@ function hitTitan(dmg) {
 function updateTitan(dt) {
   const t = titan; t.stepT += dt;
   const d = dist2D(t.mesh.position, player.position);
-  if (d > 4.5) { moveToward(t.mesh, player.position, 2.3 * dt); t.mesh.rotation.y = Math.atan2(player.position.x - t.mesh.position.x, player.position.z - t.mesh.position.z); if (t.mesh.userData.legs) { t.mesh.userData.legs[0].rotation.x = Math.sin(t.stepT * 4) * 0.4; t.mesh.userData.legs[1].rotation.x = -Math.sin(t.stepT * 4) * 0.4; } }
-  else { t.atkCd -= dt; if (t.atkCd <= 0) { t.atkCd = 1.5; if (!state.creative && !isPlayerHidden()) state.hp -= 18 * state.armorFactor; floatText(player.position, '🐙 ¡PISOTÓN!', '#ef4444', 18); beep(70, 0.3, 0.06); } }
+  if (playerAirborne() || d > 4.5) {
+    moveToward(t.mesh, player.position, 2.3 * dt); t.mesh.rotation.y = Math.atan2(player.position.x - t.mesh.position.x, player.position.z - t.mesh.position.z);
+    if (t.mesh.userData.legs) { t.mesh.userData.legs[0].rotation.x = Math.sin(t.stepT * 4) * 0.4; t.mesh.userData.legs[1].rotation.x = -Math.sin(t.stepT * 4) * 0.4; }
+  } else {
+    t.atkCd -= dt; if (t.atkCd <= 0) { t.atkCd = 1.5; damagePlayer(18, t.mesh.position); floatText(player.position, '🐙 ¡PISOTÓN!', '#ef4444', 18); beep(70, 0.3, 0.06); }
+  }
   t.bar.g.position.set(t.mesh.position.x, 13, t.mesh.position.z); t.bar.g.quaternion.copy(camera.quaternion);
   const f = Math.max(0, t.hp / t.maxhp); t.bar.fg.scale.x = f || 0.001;
 }
@@ -4704,8 +5154,8 @@ function tryColiseum() {
 }
 function hitArenaFoe() {
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5; let best = null, bd = range;
-  for (const f of arenaFoes) { const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
+  const range = playerHitRange(); if (range <= 0) return; let best = null, bd = range;
+  for (const f of arenaFoes) { const d = dist3D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position.clone().setY(2), '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
   if (state.laserGun) shootBeam(best.mesh.position.clone().setY(2));
@@ -4715,10 +5165,12 @@ function updateArena(dt) {
   if (!state.inArena) return;
   if (arenaFoes.length) {
     for (const f of arenaFoes) {
-      if (f.spd) { const fly = ENEMY_DEFS[f.type].fly; if (fly) f.mesh.position.y = 3 + Math.sin(performance.now() * 0.004 + f.mesh.position.x) * 0.3; }
+      const fly = !!(f.spd && ENEMY_DEFS[f.type] && ENEMY_DEFS[f.type].fly);
+      if (fly) { f.mesh.userData.fly = true; f.mesh.position.y = flyerChaseY(f.mesh); }
       const d = dist2D(f.mesh.position, player.position);
-      if (d > 1.5) { moveToward(f.mesh, player.position, (f.spd ? f.spd(state.stage) : 2) * 0.85 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
-      else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; if (!state.creative) state.hp -= f.dmg * 0.5 * state.armorFactor; } }
+      const canMelee = inMeleeReach(f.mesh.position, player.position) && (fly || !playerAirborne());
+      if (!canMelee) { moveToward(f.mesh, player.position, (f.spd ? f.spd(state.stage) : 2) * 0.85 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
+      else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; damagePlayer(f.dmg * 0.5, f.mesh.position, fly); } }
       swingLimbs(f.mesh, dt);
     }
     return;
@@ -4808,7 +5260,7 @@ function updateFloatingWorld(dt) {
         }
       } else {
         alien.userData.attackCd -= dt;
-        if (alien.userData.attackCd <= 0) { alien.userData.attackCd = .85; damagePlayer(8, floatingAlienWorld); startEnemyAttack(alien); beep(155, .08, .04); }
+        if (alien.userData.attackCd <= 0) { alien.userData.attackCd = .85; damagePlayer(8, floatingAlienWorld, true); startEnemyAttack(alien); beep(155, .08, .04); }
       }
       alien.rotation.y = Math.atan2(dx, dz);
     } else {
@@ -4839,12 +5291,12 @@ function alienShootPlayer(alien) {
   const to = player.position.clone().add(new THREE.Vector3(0, -.45, 0)), dir = new THREE.Vector3().subVectors(to, from), len = dir.length() || 1;
   const shot = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, len, 5), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
   shot.position.copy(from).addScaledVector(dir, .5); shot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); scene.add(shot);
-  setTimeout(() => killMesh(shot), 110); damagePlayer(5, from); tone(520, .055, .035, 'square'); alien.userData.attackAnim = .22;
+  setTimeout(() => killMesh(shot), 110); damagePlayer(5, from, true); tone(520, .055, .035, 'square'); alien.userData.attackAnim = .22;
 }
 function tryHitFloatingCitizen(dmg) {
   if (state.planet !== 'platus') return false;
   const dir = new THREE.Vector3(); getAimDirection(dir);
-  let best = null, bestD = state.laserGun ? 30 : 4.5;
+  let best = null, bestD = state.laserGun ? 30 : playerHitRange();
   for (const alien of floatingCitizens) {
     if (!alien.visible || alien.userData.hp <= 0) continue;
     alien.getWorldPosition(floatingAlienWorld); const d = player.position.distanceTo(floatingAlienWorld);
@@ -6574,7 +7026,7 @@ function launchBull(k) {
   const e = makeBull(); e.position.copy(k.position); e.rotation.y = Math.atan2(dx, dz);
   e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, dmg: (k.userData.dmg || 17), vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
 }
-function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena; }   // bajo tierra / ruinas / castillo / coliseo: los monstruos de la superficie NO te ven
+function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena || state.inFlight; }   // bajo tierra / ruinas / castillo / coliseo / avión: los monstruos de la superficie NO te ven
 function livingCompanions() { return [...helpers, ...(pet ? [pet] : []), ...(petAlien ? [petAlien] : []), ...eggPets].filter(c => c.visible && c.userData.hp > 0); }
 function initCompanionHealth(c, maxHp, hp = maxHp) {
   c.userData.maxHp = maxHp;
@@ -6596,7 +7048,12 @@ function damageCompanion(c, amount) {
   return true;
 }
 function damageEnemyTarget(target, amount, from, poison = false) {
-  if (target === player.position) { damagePlayer(amount, from); if (poison) applyPoison('player'); }
+  if (target === player.position) {
+    const air = airAttackFrom(from);
+    if (playerAirborne() && !air) return;
+    if (from && !inMeleeReach(from, player.position)) return;
+    damagePlayer(amount, from, air); if (poison) applyPoison('player');
+  }
   else if (target === dad.position) { damageDad(amount * .7, from); if (poison) applyPoison('dad'); }
   else { const c = livingCompanions().find(c => c.position === target); if (c) damageCompanion(c, amount); }
 }
@@ -6618,16 +7075,18 @@ function moveToward(e, target, step) {
   const ground = mountainHeightAt(e.position.x, e.position.z);
   const isHoverPet = e === petAlien || eggPets.includes(e);
   const flies = e.userData && (e.userData.fly || e.userData.ufo);
-  const hover = isHoverPet ? 0.3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.12
-    : flies ? 3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.3 : 0;
-  e.position.y = ground + hover;
+  if (flies) e.position.y = flyerChaseY(e);
+  else {
+    const hover = isHoverPet ? 0.3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.12 : 0;
+    e.position.y = ground + hover;
+  }
 }
 function removeEnemy(i) { const e = enemies[i]; if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); enemies.splice(i, 1); }
 function killEnemy(e) { const i = enemies.indexOf(e); if (i >= 0) removeEnemy(i); }
 function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; netMobs.clear(); projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; bombProjectiles.forEach(p => scene.remove(p)); bombProjectiles.length = 0; removeChest(); clearMeteorShower(); }   // netMobs.clear(): los monstruos del anfitrión se vuelven a recibir enseguida
 function throwZombieBomb(e,target){const p=new THREE.Group(),shell=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),mat(0x111827));shell.castShadow=true;p.add(shell);const fuse=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.22,6),mat(0x92400e));fuse.position.y=.3;fuse.rotation.z=.35;p.add(fuse);p.add(new THREE.PointLight(0xff6b00,1.5,4));p.position.set(e.position.x,e.position.y+1.7,e.position.z);const flight=1.15,ground=mountainHeightAt(target.x,target.z),gravity=11;p.userData.vel=new THREE.Vector3((target.x-p.position.x)/flight,(ground+.15-p.position.y+.5*gravity*flight*flight)/flight,(target.z-p.position.z)/flight);p.userData.life=flight;scene.add(p);bombProjectiles.push(p);beep(180,.12,.05);}
 function spawnBombCrater(x,z){const g=new THREE.Group(),pit=new THREE.Mesh(new THREE.CircleGeometry(2.35,20),new THREE.MeshStandardMaterial({color:0x160c06,roughness:1}));pit.rotation.x=-Math.PI/2;pit.position.y=.025;g.add(pit);for(let k=0;k<10;k++){const a=k/10*Math.PI*2,rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.34+Math.random()*.22,0),mat(0x4a2c17));rock.position.set(Math.cos(a)*(2.05+Math.random()*.35),.12,Math.sin(a)*(2.05+Math.random()*.35));rock.scale.y=.55;g.add(rock);}g.position.set(x,mountainHeightAt(x,z),z);scene.add(g);bombCraters.push(g);}
-function explodeZombieBomb(p){const pos=p.position.clone();pos.y=mountainHeightAt(pos.x,pos.z);voxelImpact(pos.clone().setY(pos.y+.3),0xf97316,18);cameraShake=Math.max(cameraShake,.45);beep(65,.45,.12);if(dist2D(pos,player.position)<4.5)damagePlayer(24,pos);if(dad.visible&&!dad.userData.resting&&dist2D(pos,dad.position)<4.5)damageDad(18,pos);damageCompanionsInRadius(pos,4.5,18);spawnBombCrater(pos.x,pos.z);}
+function explodeZombieBomb(p){const pos=p.position.clone();pos.y=mountainHeightAt(pos.x,pos.z);voxelImpact(pos.clone().setY(pos.y+.3),0xf97316,18);cameraShake=Math.max(cameraShake,.45);beep(65,.45,.12);if(!playerAirborne()&&dist3D(pos,player.position)<4.5)damagePlayer(24,pos);if(dad.visible&&!dad.userData.resting&&dist2D(pos,dad.position)<4.5)damageDad(18,pos);damageCompanionsInRadius(pos,4.5,18);spawnBombCrater(pos.x,pos.z);}
 function updateBombProjectiles(dt){for(let i=bombProjectiles.length-1;i>=0;i--){const p=bombProjectiles[i],ud=p.userData;ud.vel.y-=11*dt;p.position.addScaledVector(ud.vel,dt);p.rotation.x+=dt*7;p.rotation.z+=dt*5;ud.life-=dt;if(ud.life<=0||p.position.y<=mountainHeightAt(p.position.x,p.position.z)+.12){explodeZombieBomb(p);scene.remove(p);bombProjectiles.splice(i,1);}}}
 function clearBombCraters(){bombCraters.forEach(c=>scene.remove(c));bombCraters.length=0;}
 function updateProjectiles(dt) {
@@ -6638,7 +7097,7 @@ function updateProjectiles(dt) {
     if (ud.friendly) {                                  // dardo de ballesta/torreta: pega a los monstruos
       for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (e.userData.type === 'bull') continue; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
     } else {                                            // proyectil enemigo: te pega a ti o al papá
-      if (dist2D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
+      if (!playerAirborne() && dist3D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
       else if (dad.visible && !dad.userData.resting && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg, p.position); hit = true; }
       else { const companion = livingCompanions().find(c => dist2D(p.position, c.position) < 1.2); if (companion) { damageCompanion(companion, ud.dmg); hit = true; } }
     }
@@ -6705,6 +7164,7 @@ function spawnHelper() {   // puedes tener TODOS los hijos que quieras ($300 c/u
   toast('👧 ¡Nuevo hijo! Tienes ' + helpers.length + ' (cada uno cuesta $300)');
 }
 function updateHelpers(dt) {
+  if (state.inFlight) return;
   const dmg = state.helperWeapon ? 45 : 20;                 // con arma pegan mucho más fuerte
   const cd = state.helperArmor ? 0.4 : 0.6;                 // con armadura atacan más seguido
   const cols = Math.min(5, Math.max(3, Math.ceil(Math.sqrt(helpers.length))));
@@ -6759,7 +7219,7 @@ function spawnPet(hp = 120) {
 }
 function removePet() { if (pet) { scene.remove(pet); pet = null; } }
 function updatePet(dt) {
-  if (!pet) return;
+  if (!pet || state.inFlight) return;
   let near = null, nd = 18;
   if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(pet.position, e.position); if (d < nd) { nd = d; near = e; } }
   if (near) {   // ataca al monstruo más cercano (muerde fuerte)
@@ -6790,7 +7250,7 @@ function spawnAlienPet(hp = 160) {
 }
 function removeAlienPet() { if (petAlien) { scene.remove(petAlien); petAlien = null; } }
 function updatePetAlien(dt) {
-  if (!petAlien) return;
+  if (!petAlien || state.inFlight) return;
   petAlien.position.y = 0.3 + Math.sin(performance.now() * 0.004) * 0.12;   // flota
   let near = null, nd = 20;
   if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(petAlien.position, e.position); if (d < nd) { nd = d; near = e; } }
@@ -7034,6 +7494,12 @@ function toggleDadArm() {
 const dadIntercept = new THREE.Vector3();
 function updateDad(dt) {
   if (!dad.visible) return;
+  if (state.inFlight) {
+    dad.position.set(FLIGHT.x - .88, FLIGHT.y, FLIGHT.z + 5.4);
+    dad.rotation.set(0, Math.PI, 0);
+    dad.userData.resting = false;
+    return;
+  }
   dad.userData.coverCd = Math.max(0, (dad.userData.coverCd || 0) - dt);
   const attackAnim = Math.max(0, (dad.userData.attackAnim || 0) - dt), defendAnim = Math.max(0, (dad.userData.defendAnim || 0) - dt);
   dad.userData.attackAnim = attackAnim; dad.userData.defendAnim = defendAnim;
@@ -7140,7 +7606,7 @@ const state = {
   incubTime: 0, eggQueue: 0, petPoint: null,   // huevos alien: incubación + cola + banderita de reunión 🚩
   album: {}, albumDone: false,   // álbum de criaturas alien (colección)
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
-  coreClaimed: false, relics: 0, trophies: 0, floor2Rot: 0, floors2: [], country: null,   // país que estás visitando (aeropuerto)   // núcleo (reliquias) + trofeos + segundos pisos
+  coreClaimed: false, relics: 0, trophies: 0, floor2Rot: 0, floors2: [], country: null, inFlight: false,   // país que estás visitando (aeropuerto) · vuelo en cabina   // núcleo (reliquias) + trofeos + segundos pisos
   riding: false,   // montando una criatura firma domada
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
@@ -7336,7 +7802,11 @@ function tryDiscoverSecret() {
 }
 function syncWorldSecrets() { for (const s of worldSecrets) s.visible = state.planet === 'tierra' && !state.foundSecrets[s.userData.secret.id]; }
 
-function damagePlayer(amount, fromPos) {
+function damagePlayer(amount, fromPos, fromAirFoe) {
+  if (playerAirborne() && !fromAirFoe && !airAttackFrom(fromPos)) {   // en el aire los de tierra no llegan; un volador sí
+    if (fromPos) airCombatMiss();
+    return;
+  }
   if ((isPlayerHidden() && !(state.underground && state.shelterHole && state.shelterHole.islandMine)) || state.invulnerable > 0) return;
   const rawAmount = amount;
   const coveredByDad = !!(fromPos && dad.visible && !dad.userData.resting && dad.userData.armed && state.dadArmor < 1 && state.dadHp > 0 && dist2D(dad.position, player.position) < 4.8 && dist2D(dad.position, fromPos) < 6.5);
@@ -7640,6 +8110,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && state.sportGame) { finishSportGame(true); return; }
   if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
   if (e.code === 'F5' && state.running && !typing) { e.preventDefault(); cycleCameraMode(); return; }
+  if (e.code === 'F4' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugFlightCabin(); return; }
   if (state.paused) return;   // en pausa el teclado no hace nada (solo Esc, arriba)
   if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
   if (e.code === 'Space' && !e.repeat && state.running) {
@@ -7696,10 +8167,10 @@ addEventListener('keydown', e => {
     if (state.creative && now - lastCreativeZTap < 360) {
       creativeFlying = !creativeFlying;
       if (!creativeFlying && state.skiGearWorn && state.skiGear && inSkiResort()) {
-        state.skiing = true;
+        state.skiing = true; beginSkiCarve();
         toast('❄️ Aterrizaste con los esquís puestos · ¡sigue esquiando!');
       }
-      toast(creativeFlying ? '🪽 Vuelo creativo activado · WASD mueve · Espacio sube · Ctrl baja · doble Z para aterrizar' : '🛬 Vuelo creativo desactivado');
+      toast(creativeFlying ? '🪽 Vuelo creativo · 3 bloques · los de tierra no te pegan · la policía no te atrapa' : '🛬 Vuelo creativo desactivado');
       lastCreativeZTap = 0;
     } else lastCreativeZTap = now;
     toggleDadRest();
@@ -8281,7 +8752,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
 function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; ui('parkBusinessBtn').style.display = 'block'; startMusic(); }
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
-  leaveParkRide(true); standUp(true);   // si estabas en una atracción, te bajas antes de guardar
+  leaveParkRide(true); if (state.inFlight) endFlight(); standUp(true);   // si estabas en una atracción o en el avión, te bajas antes de guardar
   closeChatReply();
   saveGame();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
@@ -8311,6 +8782,7 @@ function startGame() {
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT; state.country = null; setCountryVisible(false); updateHouseAnchor(); syncPlacedCountryVisibility();
   state.phase = 'DAY'; state.running = true; state.paused = false; ui('pause').style.display = 'none';
   state.cinematic = false; document.body.classList.remove('cine');
+  abortFlight();
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
@@ -8769,6 +9241,10 @@ function saveGame() {
       business: state.business || null, businessOrders: state.businessOrders || 0,
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
     };
+    if (state.inFlight && flight) {   // no guardar al jugador en el cielo: al recargar aterriza
+      if (flight.home) { data.country = null; data.px = AIRPORT.x; data.pz = AIRPORT.z - 6; }
+      else if (flight.dest) { data.country = flight.dest.id; data.px = COUNTRY_C.x; data.pz = COUNTRY_C.z - 56; }
+    }
     localStorage.setItem(saveKey(), JSON.stringify(data));
     submitLeaderboard();
   } catch (e) {}
@@ -9294,13 +9770,14 @@ function loadGame() {
   let d; try { d = JSON.parse(localStorage.getItem(saveKey())); } catch (e) { return false; }
   if (!d) return false;
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
+  abortFlight();
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPolice(); clearPlants(); clearHelpers();
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: d.night || 0,
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')), country:COUNTRIES.some(c=>c.id===d.country)?d.country:null,
-    wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
+    wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, inFlight: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
     hasPhone: !!d.hasPhone, skiPass: !!d.skiPass, skiGear: d.skiGear || null, skiGearWorn: d.skiGearWorn != null ? !!d.skiGearWorn : !!d.skiGear, skiing: false, skiLiftRide: null,
     streak: d.streak || 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   });
@@ -9416,6 +9893,7 @@ function resetAll() {
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint(); endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
+  abortFlight();
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
@@ -9483,6 +9961,11 @@ function findVehicleDeliverySpot(radius) {
 function debugVehicleDelivery() {
   const v = spawnCar({ moto:vehicles.length % 2 === 1 }); if (!v) return;
   player.position.set(v.group.position.x,PLAYER_EYE,v.group.position.z+4); yaw=0; pitch=-.08;
+}
+function debugFlightCabin() {
+  if (!state.running) startGame();
+  const intro = ui('intro'); if (intro) intro.style.display = 'none';
+  startFlight({ dest: { id: 'chile', flag: '🇨🇱', city: 'Santiago', name: 'Chile', lang: 'español', sky: 0x87ceeb, monu: 'torre', price: 0 }, home: false });
 }
 function spawnCar(opts) {
   const g = new THREE.Group();
@@ -9750,13 +10233,48 @@ function tryArcadeRewards() {
 
 function inSkiResort() {
   if (state.planet !== 'tierra' || state.country) return false;
+  const px = player.position.x, pz = player.position.z;
   return dist2D(player.position, SKI_RESORT) < SKI_RESORT.r + 8
     || dist2D(player.position, SKI_RESORT.gate) < 18
     || dist2D(player.position, SKI_RESORT.gear) < 14
-    || dist2D(player.position, SKI_RESORT.gear2) < 14;
+    || dist2D(player.position, SKI_RESORT.gear2) < 14
+    || (Math.abs(px - SKI_RESORT.x) < 220 && pz > SKI_RESORT.z - 530 && pz < SKI_RESORT.z + 310);
+}
+function skiReadySpots() {
+  return [
+    { x: SKI_LIFT_BOTTOM.x, z: SKI_LIFT_BOTTOM.z - 340, r: 38 },
+    { x: SKI_LIFT2_BOTTOM.x, z: SKI_LIFT2_BOTTOM.z - 340, r: 34 },
+    { x: SKI_TOW_BOTTOM.x, z: SKI_TOW_BOTTOM.z - 340, r: 32 },
+    { x: SKI_SUMMIT_LIFT_BOTTOM.x, z: SKI_SUMMIT_LIFT_BOTTOM.z - 72, r: 30 },
+  ];
 }
 function inSkiTopHollow() {
-  return state.planet === 'tierra' && !state.country && dist2D(player.position, { x: SKI_LIFT_BOTTOM.x, z: SKI_LIFT_BOTTOM.z - 340 }) < 36;
+  if (state.planet !== 'tierra' || state.country) return false;
+  return skiReadySpots().some(s => dist2D(player.position, s) < s.r);
+}
+function faceSkiDownhill() {
+  yaw = Math.PI;   // mirar hacia +Z, que es cuesta abajo en el cerro
+  player.rotation.y = yaw;
+}
+function toggleSkiing(on, msg) {
+  state.skiGearWorn = true;
+  state.skiing = on;
+  if (on) { faceSkiDownhill(); beginSkiCarve(); toast(msg || '❄️ ¡A esquiar! A/D curva · S frena · Espacio salta'); }
+  else { stopSkiCarve(); toast(msg || '🛑 Dejaste de esquiar'); }
+}
+function nearSkiLiftBoarding() {
+  const stations = [
+    { p: SKI_LIFT_BOTTOM, kind: 'andarivel' },
+    { p: SKI_LIFT2_BOTTOM, kind: 'andarivel2' },
+    { p: SKI_TOW_BOTTOM, kind: 'arrastre' },
+    { p: SKI_SUMMIT_LIFT_BOTTOM, kind: 'cumbre' },
+  ];
+  let best = null, bestD = 9;
+  for (const s of stations) {
+    const d = dist2D(player.position, s.p);
+    if (d < bestD) { bestD = d; best = s; }
+  }
+  return best;
 }
 function updateSkiLiftRide(dt) {
   const ride = state.skiLiftRide; if (!ride) return false;
@@ -9768,20 +10286,24 @@ function updateSkiLiftRide(dt) {
   grounded = true; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
   if (ride.t >= 1) {
     state.skiLiftRide = null;
-    state.skiing = false;
-    const hollowFloor = ride.kind === 'andarivel' ? skiSlopeHeight(x, z) - 1.2 : skiSlopeHeight(x, z) + .25;
-    player.position.y = hollowFloor + PLAYER_EYE;
-    toast('🏔️ Llegaste a una zona plana · prepárate o elige otro andarivel');
+    // Te deja un poco cuesta abajo, fuera del hoyo y del siguiente andarivel,
+    // mirando la pista para poder largar sin quedar trabado.
+    const zOut = (base.z - distance) + 26;
+    player.position.set(x, skiSlopeHeight(x, zOut) + PLAYER_EYE, zOut);
+    toggleSkiing(true, '🏔️ Zona plana · ya puedes bajar la pista · E para parar');
   }
   return true;
 }
 function trySkiResort() {
   if (!inSkiResort()) return false;
   const dg = dist2D(player.position, SKI_RESORT.gate), de = dist2D(player.position, SKI_RESORT.gear), de2 = dist2D(player.position, SKI_RESORT.gear2);
-  const dl = dist2D(player.position, SKI_LIFT_BOTTOM), dl2 = dist2D(player.position, SKI_LIFT2_BOTTOM), dt = dist2D(player.position, SKI_TOW_BOTTOM), ds = dist2D(player.position, SKI_SUMMIT_LIFT_BOTTOM);
-  if (dl < 9 || dl2 < 9 || dt < 9 || ds < 9) {
+  const lift = nearSkiLiftBoarding();
+  if (lift) {
     if (!state.skiPass || !state.skiGear) { toast('🎫 Necesitas la tarjeta y esquís o snowboard para subir'); return true; }
-    const best = Math.min(dl, dl2, dt, ds); state.skiGearWorn = true; state.skiing = false; state.skiLiftRide = { kind: best === ds ? 'cumbre' : best === dt ? 'arrastre' : best === dl2 ? 'andarivel2' : 'andarivel', t: 0 }; toast('🚡 Subiendo en el ' + (state.skiLiftRide.kind === 'cumbre' ? 'andarivel a la cumbre' : state.skiLiftRide.kind === 'andarivel2' ? 'andarivel 2' : state.skiLiftRide.kind) + ' · espera arriba'); return true;
+    state.skiGearWorn = true; state.skiing = false; stopSkiCarve();
+    state.skiLiftRide = { kind: lift.kind, t: 0 };
+    toast('🚡 Subiendo en el ' + (lift.kind === 'cumbre' ? 'andarivel a la cumbre' : lift.kind === 'andarivel2' ? 'andarivel 2' : lift.kind) + ' · espera arriba');
+    return true;
   }
   if (dg < 14) {
     if (!state.skiPass) {
@@ -9789,14 +10311,17 @@ function trySkiResort() {
       state.money -= 500; state.skiPass = true; addMoney(0); toast('🎫 ¡Tarjeta de acceso comprada! Ya puedes subir a las pistas'); saveGame(); return true;
     }
     if (!state.skiGear) { toast('⛷️ Compra esquís o snowboard en la caseta azul'); return true; }
-    state.skiGearWorn = true; state.skiing = !state.skiing; toast(state.skiing ? '❄️ ¡A esquiar! A/D o flechas para girar · S/↓ para frenar · Espacio para saltar' : '🛑 Dejaste de esquiar'); return true;
+    toggleSkiing(!state.skiing); return true;
   }
   if (de < 10 || de2 < 10) {
     if (!state.skiPass) { toast('🎫 Primero compra la tarjeta en la entrada · $500'); return true; }
-    if (state.skiGear) { toast('⛷️ Ya tienes ' + (state.skiGear === 'skis' ? 'esquís' : 'un snowboard') + ' · E en la entrada para esquiar'); return true; }
+    if (state.skiGear) { toast('⛷️ Ya tienes ' + (state.skiGear === 'skis' ? 'esquís' : 'un snowboard') + ' · E para esquiar o sube por un andarivel'); return true; }
     const gear = de2 < de ? 'snowboard' : 'skis';
     if (state.money < 200) { toast('💸 Los esquís cuestan $200'); return true; }
-    state.money -= 200; state.skiGear = gear; state.skiGearWorn = true; toast((gear === 'snowboard' ? '🏂 Compraste snowboard' : '⛷️ Compraste esquís') + ' por $200 · vuelve a la entrada y pulsa E'); saveGame(); return true;
+    state.money -= 200; state.skiGear = gear; state.skiGearWorn = true; toast((gear === 'snowboard' ? '🏂 Compraste snowboard' : '⛷️ Compraste esquís') + ' por $200 · E en la entrada o sube el andarivel'); saveGame(); return true;
+  }
+  if (state.skiPass && state.skiGear && (state.skiGearWorn || state.skiing || inSkiTopHollow() || mountainHeightAt(player.position.x, player.position.z) > 20)) {
+    toggleSkiing(!state.skiing); return true;
   }
   return false;
 }
@@ -10394,7 +10919,7 @@ function goToPlanet() {
   state.planetSky = P.sky; state.planetHazard = P.hazard; state.planetGrav = P.grav; state.planetCreature = P.creature;   // rasgos propios del planeta
   state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
-  clearPlants(); clearHelpers(); removePet(); removeAllFloors2(); leaveParkRide(true); standUp(true); clearCampfires(); clearMiners(); dad.visible = true;
+  clearPlants(); clearHelpers(); removePet(); removeAllFloors2(); leaveParkRide(true); if (state.inFlight) abortFlight(); standUp(true); clearCampfires(); clearMiners(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
   clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false; removeMount();   // cada planeta tiene su propio núcleo; la montura no viaja
   clearTitan(); titanTimer = 150 + Math.random() * 130;
@@ -10490,7 +11015,8 @@ function updateUfoBoss(e, dt) {
   const hx = player.position.x + Math.cos(ud.hoverT * 0.5) * 10, hz = player.position.z + Math.sin(ud.hoverT * 0.5) * 10;
   e.position.x += (hx - e.position.x) * Math.min(1, dt * 0.8);
   e.position.z += (hz - e.position.z) * Math.min(1, dt * 0.8);
-  e.position.y = 10 + Math.sin(ud.hoverT * 1.5) * 1.2;
+  const baseHover = 10 + Math.sin(ud.hoverT * 1.5) * 1.2;
+  e.position.y += ((playerAirborne() ? Math.max(baseHover, player.position.y - PLAYER_EYE + 1.5) : baseHover) - e.position.y) * Math.min(1, dt * 1.6);
   if (ud.spin) ud.spin.rotation.y += dt * 2;
   ud.barY = e.position.y + 3;   // la barra de vida sigue su altura
   ud.beamCd -= dt;
@@ -10499,7 +11025,9 @@ function updateUfoBoss(e, dt) {
     const n = 1 + (state.stage >= 3 ? 1 : 0);
     for (let k = 0; k < n; k++) spawnEnemy(Math.random() < 0.5 ? 'alienBig' : 'alien', new THREE.Vector3(e.position.x + (Math.random() * 4 - 2), 0, e.position.z + (Math.random() * 4 - 2)));
     floatText(e.position, '🛸 ¡suelta aliens!', '#22d3ee', 16); beep(300, 0.2, 0.05);
-    if (dist2D(e.position, player.position) < 6) damagePlayer(ud.dmg || 22, e.position);   // rayo si estás justo debajo
+    if (playerAirborne() ? dist3D(e.position, player.position) < 8 : dist2D(e.position, player.position) < 6) {
+      damagePlayer(ud.dmg || 22, e.position, true);   // el ovni es volador: el rayo sí llega si subió a por ti
+    }
   }
 }
 function attack(multiplier = 1) {
@@ -10510,11 +11038,12 @@ function attack(multiplier = 1) {
   if (titan && hitTitan(state.weaponDmg)) return;      // golpear al TITÁN
   if (tryHitFloatingCitizen(Math.round(state.weaponDmg * multiplier))) return;
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5, dmg = Math.round(state.weaponDmg * multiplier);
+  const range = playerHitRange(), dmg = Math.round(state.weaponDmg * multiplier);
+  if (range <= 0) return;
   let best = null, bestD = range;
   for (const e of enemies) {
     if (e.userData.type === 'bull') continue;
-    const d = dist2D(p, e.position);
+    const d = dist3D(p, e.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
   if (best) { hitEnemy(best, dmg, p); if (state.laserGun) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
@@ -10541,10 +11070,10 @@ function attackNPC() {
   if (state.planet === 'platus') { vmSwing = 1; if (!tryHitFloatingCitizen(state.weaponDmg) && !tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus: ciudadanos, geodas, cristales o carbón
   if (tryMineIslandOre()) { vmSwing=1; beep(310,.06,.035); return; }
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = 4;
+  const range = MELEE_REACH;
   let best = null, bestD = range;
   for (const person of npcs.concat(victims)) {
-    const d = dist2D(p, person.position);
+    const d = dist3D(p, person.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(person.position, p).normalize(); if (to.dot(dir) > 0.2) { best = person; bestD = d; } }
   }
   if (!best) return;
@@ -10708,7 +11237,7 @@ function updateMoles(dt) {
     if (!tgt) continue;
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
-    if (d > 1.4) { moveToward(e, tgt, ud.speed * dt); if(inSameMine)e.position.y=state.groundY; e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
+    if (!inMeleeReach(e.position, tgt) || (isPlayer && playerAirborne())) { moveToward(e, tgt, ud.speed * dt); if(inSameMine)e.position.y=state.groundY; e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
     else if (ud.attackCd <= 0) { ud.attackCd = 1; startEnemyAttack(e); damageEnemyTarget(tgt, ud.dmg, e.position); }
   }
 }
@@ -10742,7 +11271,7 @@ function updateNight(dt) {
     if (ud.type === 'bull') {
       e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
       e.position.y = mountainHeightAt(e.position.x, e.position.z);
-      if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
+      if (!playerAirborne() && inMeleeReach(e.position, player.position)) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
       if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8, e.position); removeEnemy(i); continue; }
       const companion = livingCompanions().find(c => dist2D(e.position, c.position) < 1.6);
       if (companion) { damageCompanion(companion, ud.dmg || 17); removeEnemy(i); continue; }
@@ -10771,7 +11300,7 @@ function updateNight(dt) {
       const isBarrier = !o.baseY && (o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'wallMetal' || (o.key === 'door' && !ud.opensDoors)); // los inteligentes abren puertas · las paredes del 2º piso no frenan a los de abajo
       if (isBarrier && o.hp > 0 && dist2D(e.position, o.mesh.position) < 2.2) blocked = o;
     } }
-    if (flies) e.position.y = mountainHeightAt(e.position.x, e.position.z) + 3 + Math.sin(state.nightTime * 4 + i) * 0.3;   // flotar sobre el terreno
+    if (flies) e.position.y = flyerChaseY(e);   // si estás volando, el flyer sube a por ti
     // monstruo volador: destruye las construcciones aéreas (techos) que encuentra
     if (ud.breaksAir && ud.attackCd <= 0) {
       let roof = null, rd = 4;
@@ -10780,14 +11309,15 @@ function updateNight(dt) {
     }
     if (blocked) {
       if (ud.attackCd <= 0) { startEnemyAttack(e); voxelImpact(blocked.mesh.position.clone().setY(1.4), 0xf59e0b, 5); const fortify = 1 - Math.min(.5, houseStats().protection / 200); blocked.hp -= (ud.opensDoors ? 30 : (ud.dmg || 10)) * fortify; ud.attackCd = 1; state.nightDamage = true; if (blocked.hp <= 0) removePlaced(blocked); }
-    } else if (d > 1.4) {
-      if (ud.role === 'scout' && d > 4) {
+    } else if (!(isPlayer ? monsterCanHit(e, tgt) : inMeleeReach(e.position, tgt))) {
+      if (ud.role === 'scout' && d > 4 && !flies) {
         if (!ud.flankSign) ud.flankSign = Math.random() < .5 ? -1 : 1;
         const dx = tgt.x - e.position.x, dz = tgt.z - e.position.z, len = Math.hypot(dx, dz) || 1, step = ud.speed * dt;
         e.position.x += (dx / len * .72 - dz / len * .69 * ud.flankSign) * step;
         e.position.z += (dz / len * .72 + dx / len * .69 * ud.flankSign) * step;
         e.position.y = mountainHeightAt(e.position.x, e.position.z);
       } else moveToward(e, tgt, ud.speed * dt);
+      if (flies) e.position.y = flyerChaseY(e);
       e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
     } else if (ud.attackCd <= 0) {
       ud.attackCd = 1;
@@ -10842,6 +11372,7 @@ function surviveNight() {
 }
 function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
+  if (state.inFlight) abortFlight();
   state.driving = false; removeMount(); leaveParkRide(true); standUp(true);
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
   // En los planetas NO hay cárcel (ni policía): te rescata el cohete y despiertas ahí
@@ -10859,6 +11390,7 @@ function goToJail() {
 }
 function gameOver() {
   if (state.phase === 'OVER') return;
+  if (state.inFlight) abortFlight();
   clearWaves(); dad.visible = false; state.phase = 'OVER'; state.running = false;
   ui('hud').style.display = 'none';
   ui('over-score').textContent = 'Etapa ' + state.stage + ' · $' + state.totalEarned + ' ganados';
@@ -11000,6 +11532,7 @@ function loop() {
     updateNet(dt);                         // amigos online: manda tu posición y mueve sus muñecos
     updateMirrors();                       // enciende el espejo más cercano (antes de dibujar tu cuerpo)
     updateMovement(dt);
+    updateFlight(dt);                  // cabina del avión: pasillo, asientos y película (2 min)
     updateSkiGearHold(dt);
     updateWater(dt);                       // aire limitado y daño por ahogo bajo el mar
     updateViewmodel(dt);
@@ -11111,6 +11644,7 @@ function updateHunger(dt) {
 // Morir de hambre: te desmayas y revives en casa (no es la cárcel; es por no comer)
 function faintFromHunger() {
   state.hp = 60; state.hunger = 45; lastHp = 60; state.driving = false; state.riding = false;
+  if (state.inFlight) abortFlight();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // al desmayarte se pierde la búsqueda
   if (state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = 0; }
   player.position.set(10, PLAYER_EYE, 16);
@@ -11207,57 +11741,82 @@ function ensurePlayerSkiVisual() {
   const board = new THREE.Mesh(new THREE.BoxGeometry(.24, .07, 1.65), mat(0x7c3aed)); board.position.y = .04; board.visible = false; skiGearMesh.add(board); skiGearMesh.userData.board = board;
   return skiGearMesh;
 }
+function beginSkiCarve() {
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+  skiVelX = fx * 6; skiVelZ = fz * 6; skiRampBoost = 0;
+}
+function stopSkiCarve() { skiVelX = 0; skiVelZ = 0; skiRampBoost = 0; }
 function updateSkiMovement(dt) {
   if (!state.skiPass || !state.skiGear) { if (skiGearMesh) skiGearMesh.visible = false; return false; }
   const gearVisual = ensurePlayerSkiVisual(); gearVisual.visible = !!state.skiGearWorn || !!state.skiing; gearVisual.userData.board.visible = state.skiGear === 'snowboard';
-  if (!state.skiing) return false;
+  if (!state.skiing) { stopSkiCarve(); return false; }
   const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
-  // Las flechas también mantienen la cámara controlable durante la bajada.
-  // El giro se comparte con los esquís para que vista y movimiento coincidan.
   const lookSpeed = 1.8 * dt;
   if (keys['ArrowLeft']) yaw += lookSpeed * .7;
   if (keys['ArrowRight']) yaw -= lookSpeed * .7;
   if (keys['ArrowUp']) pitch += lookSpeed * .45;
   if (keys['ArrowDown']) pitch -= lookSpeed * .45;
   pitch = THREE.MathUtils.clamp(pitch, -1.3, 1.3);
-  const steer = (right ? 1 : 0) - (left ? 1 : 0), push = (fwd ? 1 : 0) - (back ? .55 : 0);
-  // El cuerpo acompaña la orientación de los esquís para que el giro cambie
-  // también la trayectoria del jugador y no queden desalineados.
-  if (steer) yaw -= steer * 2.2 * dt;
-  player.rotation.y = yaw;
-  // Los esquís siguen la curva: giran y se inclinan con la dirección elegida.
-  // El modelo de los esquís mira al sentido opuesto del eje local, por eso
-  // invertimos su giro visual para que las flechas coincidan con la dirección.
-  const turn = -steer * 1.05;
-  gearVisual.rotation.y += (turn - gearVisual.rotation.y) * Math.min(1, dt * 9);
-  gearVisual.rotation.z += (steer * .16 - gearVisual.rotation.z) * Math.min(1, dt * 10);
-  gearVisual.position.x += (steer * .3 - gearVisual.position.x) * Math.min(1, dt * 12);
-  // La pendiente determina la velocidad: las pistas negras aceleran más y las
-  // suaves conservan un ritmo tranquilo, como en una bajada real.
-  const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x, player.position.z + 8));
+  const steer = Math.max(-1, Math.min(1, (right ? 1 : 0) - (left ? 1 : 0) + (touch.moveX || 0)));
+  const push = (fwd ? 1 : 0) - (back ? .55 : 0);
   const braking = keys['KeyS'] || keys['ArrowDown'];
-  const downhillSpeed = braking ? 0 : 4.5 + Math.min(12, slopeDrop * .55);
-  const lateralSpeed = 22 + downhillSpeed * .2;
-  // En la pista, izquierda y derecha son directas y no dependen del giro de cámara.
-  player.position.x += steer * lateralSpeed * dt;
-  player.position.z += (downhillSpeed + push * 5.5) * dt;
-  player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);
-  player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 178, SKI_RESORT.z + 190);
+  const speedNow = Math.hypot(skiVelX, skiVelZ);
+  // Canto real: a más velocidad, curva más amplia. En el aire casi no doblas.
+  const edge = grounded ? 3.35 : 0.55;
+  yaw -= steer * (edge / (1 + speedNow * 0.055)) * dt;
+  player.rotation.y = yaw;
+  const skiFwdX = -Math.sin(yaw), skiFwdZ = -Math.cos(yaw);
+  const skiRightX = skiFwdZ, skiRightZ = -skiFwdX;   // derecha de los esquís = derecha de la pista
+  const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x + skiFwdX * 8, player.position.z + skiFwdZ * 8));
+  const lean = steer * (state.skiGear === 'snowboard' ? .55 : .38);
+  gearVisual.rotation.y += ((-steer * .45) - gearVisual.rotation.y) * Math.min(1, dt * 8);
+  gearVisual.rotation.z += (lean - gearVisual.rotation.z) * Math.min(1, dt * 9);
+  gearVisual.position.x += (steer * .28 - gearVisual.position.x) * Math.min(1, dt * 10);
+  if (grounded) {
+    let accel = 4.2 + Math.min(16, slopeDrop * .85);
+    if (push > 0) accel += 7;
+    if (braking) { skiVelX *= Math.max(0, 1 - 5.5 * dt); skiVelZ *= Math.max(0, 1 - 5.5 * dt); }
+    else {
+      skiVelX += skiFwdX * accel * dt; skiVelZ += skiFwdZ * accel * dt;
+      skiVelX += skiRightX * steer * (8 + speedNow * 0.45) * dt;   // el canto te mete a la curva
+      skiVelZ += skiRightZ * steer * (8 + speedNow * 0.45) * dt;
+      skiVelX *= Math.max(0, 1 - 0.35 * dt); skiVelZ *= Math.max(0, 1 - 0.35 * dt);
+    }
+    // El canto agarra: la velocidad se curva hacia donde apuntan los esquís (no un strafe).
+    const grip = state.skiGear === 'snowboard' ? 5.5 : 8.2;
+    const vx = skiVelX, vz = skiVelZ, spd0 = Math.hypot(vx, vz);
+    skiVelX += (skiFwdX * spd0 - vx) * Math.min(1, grip * dt);
+    skiVelZ += (skiFwdZ * spd0 - vz) * Math.min(1, grip * dt);
+  }
+  skiRampBoost = Math.max(0, skiRampBoost - 9 * dt);
+  let spd = Math.hypot(skiVelX, skiVelZ);
+  const maxSpd = 24 + skiRampBoost;
+  if (spd > maxSpd) { skiVelX *= maxSpd / spd; skiVelZ *= maxSpd / spd; spd = maxSpd; }
+  player.position.x += skiVelX * dt;
+  player.position.z += skiVelZ * dt;
+  player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 210, SKI_RESORT.x + 210);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 520, SKI_RESORT.z + 300);
   const snowY = mountainHeightAt(player.position.x, player.position.z), skiFloor = snowY + PLAYER_EYE;
   const jumpPressed = keys['Space'] || touch.jump;
   touch.jump = false;
   const wasAirborne = !grounded;
-  if (grounded && downhillSpeed > 2) {
+  if (grounded && spd > 4) {
     const ramp = skiRamps.find(r => Math.hypot(player.position.x - r.x, player.position.z - r.z) < r.radius);
-    if (ramp) { skiJumpVy = 27; grounded = false; toast('⬆️ ¡Rampa! Saltaste muy alto'); }
+    if (ramp) {
+      skiJumpVy = 40;
+      skiRampBoost = 36;
+      skiVelX += skiFwdX * 28; skiVelZ += skiFwdZ * 34;
+      grounded = false;
+      toast('⬆️ ¡Rampa! ¡Salto larguísimo!');
+    }
   }
   if (jumpPressed && !skiJumpHeld && grounded) { skiJumpVy = 11; grounded = false; }
   skiJumpHeld = !!jumpPressed;
   if (!grounded || skiJumpVy > 0) {
-    skiJumpVy -= 25 * dt;
+    skiJumpVy -= (skiRampBoost > 0 ? 18 : 25) * dt;
     player.position.y += skiJumpVy * dt;
-    if (player.position.y <= skiFloor) { player.position.y = skiFloor; skiJumpVy = 0; grounded = true; }
+    if (player.position.y <= skiFloor) { player.position.y = skiFloor; skiJumpVy = 0; skiRampBoost = 0; grounded = true; }
   } else {
     player.position.y = skiFloor;
   }
@@ -11265,13 +11824,14 @@ function updateSkiMovement(dt) {
   if (!grounded && trickDir) { gearVisual.rotation.y += trickDir * 8 * dt; skiTrickActive = true; }
   if (wasAirborne && grounded && skiTrickActive) { skiTrickActive = false; toast('✨ ¡Truco 360!'); }
   vy = 0;
-  // Durante la bajada las murallas son guías visuales; no deben congelar el
-  // giro lateral del esquiador al rozarlas.
-  if (player.position.z > SKI_RESORT.z + 178) { player.position.z = SKI_RESORT.z + 178; state.skiing = false; toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
+  resolveSkiPisteWalls();
+  resolveCollisions();   // también las cajas de las casetas y postes
+  if (grounded) player.position.y = mountainHeightAt(player.position.x, player.position.z) + PLAYER_EYE;
+  if (player.position.z > SKI_RESORT.z + 278) { player.position.z = SKI_RESORT.z + 278; state.skiing = false; stopSkiCarve(); toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;
 }
-let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false, skiTrickActive = false;
+let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false, skiTrickActive = false, skiRampBoost = 0, skiVelX = 0, skiVelZ = 0;
 function updateSkiGearHold(dt) {
   if (!state.skiGear) { skiRemoveHold = 0; return; }
   if (keys['KeyE'] && !state.skiing && !state.skiLiftRide) {
@@ -11297,7 +11857,7 @@ function updateCreativeFlight(dt) {
   const vertical = (keys['Space'] ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] ? 1 : 0);
   player.position.y = Math.max(PLAYER_EYE, player.position.y + vertical * speed * dt);
   player.position.x = THREE.MathUtils.clamp(player.position.x, -800, 800);
-  player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 800);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 820);
   grounded = false; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
 }
 function updateMovement(dt) {
@@ -11343,6 +11903,15 @@ function updateMovement(dt) {
   const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }   // no ir más rápido en diagonal
   player.position.addScaledVector(forward, az * step);
   player.position.addScaledVector(rightV, ax * step);
+  if (state.inFlight) {   // cabina en el cielo: el pasillo es el suelo, no caigas al vacío
+    player.position.x = THREE.MathUtils.clamp(player.position.x, FLIGHT.x - 1.85, FLIGHT.x + 1.85);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, FLIGHT.z - 11.05, FLIGHT.z + 8.55);
+    player.position.y = FLIGHT.y + (crouch ? CROUCH_EYE : PLAYER_EYE);
+    vy = 0; grounded = true; state.inWater = state.underwater = false;
+    resolveFlightWalls();
+    camera.rotation.y = yaw; camera.rotation.x = pitch;
+    return;
+  }
   // Entrada física: al pisar la abertura, el suelo deja de sostenerte y caes con gravedad.
   const holeEntryY = inTreasureIsland(player.position.x,player.position.z) ? TREASURE_ISLAND.surface + PLAYER_EYE + .25 : PLAYER_EYE + .25;
   if (!state.underground && grounded && player.position.y <= holeEntryY) {
@@ -11435,7 +12004,7 @@ function updateMovement(dt) {
     player.position.z = THREE.MathUtils.clamp(player.position.z, COUNTRY_C.z - 175, COUNTRY_C.z + 175);
   } else {
     player.position.x = THREE.MathUtils.clamp(player.position.x, boat || state.islandDiscovered ? -1300 : -800, 800);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 800);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 820);
   }
   // La montaña no se puede atravesar por detrás: si el siguiente paso intenta
   // subir una pared demasiado pronunciada, conserva la posición anterior.
@@ -11447,9 +12016,14 @@ function updateMovement(dt) {
       if (performance.now() - skiAccessWarnAt > 1800) { skiAccessWarnAt = performance.now(); toast('🚡 La montaña bloquea el paso · sube por un andarivel o el arrastre'); }
     }
   }
-  if (state.skiGearWorn && !state.skiing && !state.skiLiftRide && inSkiResort() && !inSkiTopHollow() && mountainHeightAt(player.position.x, player.position.z) > 85) {
-    player.position.x = moveStartX; player.position.z = moveStartZ;
-    if (performance.now() - skiAccessWarnAt > 1800) { skiAccessWarnAt = performance.now(); toast('🚡 No puedes subir con los esquís puestos · usa un andarivel o el arrastre'); }
+  if (state.skiGearWorn && !state.skiing && !state.skiLiftRide && inSkiResort() && !inSkiTopHollow()) {
+    const prevSnow = mountainHeightAt(moveStartX, moveStartZ), nextSnow = mountainHeightAt(player.position.x, player.position.z);
+    if (nextSnow > 85 && nextSnow > prevSnow + 1.8) {
+      player.position.x = moveStartX; player.position.z = moveStartZ;
+      if (performance.now() - skiAccessWarnAt > 1800) { skiAccessWarnAt = performance.now(); toast('🚡 No puedes subir con los esquís puestos · usa un andarivel'); }
+    } else if (nextSnow > 40) {
+      toggleSkiing(true);   // al salir de la zona plana hacia la pista, largas solo
+    }
   }
   resolveCollisions();
   camera.rotation.y = yaw; camera.rotation.x = pitch;
@@ -11866,6 +12440,7 @@ function updateArrow() {
 }
 
 function updateDayNight(dt) {
+  if (state.inFlight) return;   // el vuelo de 2 min no se come el día/noche de la Tierra
   if (state.phase === 'DAY') {
     state.dayTime += dt;
     if (state.dayTime >= currentDayLength()) startNight();   // al acabarse el día SIEMPRE viene la noche
@@ -12014,6 +12589,13 @@ function playerInClosedRoom() {
   return closedRoomResult;
 }
 function updateSky(dt) {
+  if (state.inFlight) {   // de día o de noche: el vuelo se ve cielo y nubes, nunca negro
+    scene.background.setHex(0x5ec8f2); scene.fog.color.setHex(0xb9e7ff);
+    scene.fog.near = 8; scene.fog.far = 90;
+    ambient.intensity += (1.05 - ambient.intensity) * 0.12;
+    sun.intensity += (0.85 - sun.intensity) * 0.12;
+    return;
+  }
   if (state.cinematic) {
     scene.background.setHex(0x020617); scene.fog.color.setHex(0x020617); scene.fog.near=220; scene.fog.far=600;
     return;
@@ -12063,6 +12645,11 @@ function updateContextPrompt() {
     }
     else if (state.driving && car && dist2D(car.group.position, GAS_STATION_POS) <= 11 && !car.helicopter) action = { key: 'E', touch: '⛽', text: 'Cargar gasolina · $3 por unidad' };
     else if (state.driving && car) action = { key: 'E', touch: '🤝', text: car.helicopter ? 'Salir del helicóptero' : 'Bajar del vehículo' };
+    else if (state.inFlight) {
+      if (player.position.z < FLIGHT.z - 8.05) action = { key: '👀', touch: '👨‍✈️', text: 'Cabina de mando · el piloto vuela · vidrio al frente' };
+      else if (sitOn && sitOn.flightSeat) action = { key: 'E', touch: '🤝', text: 'Levantarte · la peli sigue en las pantallas' };
+      else action = { key: 'E · F5', touch: '🎬', text: 'E asiento = peli · pasillo hasta la puerta 👨‍✈️ · F5 ves las alas' };
+    }
     else {
       const harvest = nearestHarvestable(2.8);
       let owned = null;
@@ -12078,10 +12665,11 @@ function updateContextPrompt() {
       const vecinoPais = state.country ? countryNPCs.find(n => dist2D(player.position, n.position) < 12) : null;
       const nearSkiGate = !state.country && dist2D(player.position, SKI_RESORT.gate) < 14;
       const nearSkiGear = !state.country && (dist2D(player.position, SKI_RESORT.gear) < 10 || dist2D(player.position, SKI_RESORT.gear2) < 10);
-      const nearSkiLift = !state.country && (dist2D(player.position, SKI_LIFT_BOTTOM) < 9 || dist2D(player.position, SKI_LIFT2_BOTTOM) < 9 || dist2D(player.position, SKI_TOW_BOTTOM) < 9 || dist2D(player.position, SKI_SUMMIT_LIFT_BOTTOM) < 9);
-      if (nearSkiLift) { const d1=dist2D(player.position,SKI_LIFT_BOTTOM), d2=dist2D(player.position,SKI_LIFT2_BOTTOM), da=dist2D(player.position,SKI_TOW_BOTTOM), ds=dist2D(player.position,SKI_SUMMIT_LIFT_BOTTOM), best=Math.min(d1,d2,da,ds); action = { key: 'E', touch: '🚡', text: 'Subir al ' + (best === ds ? 'andarivel a la cumbre' : best === da ? 'arrastre' : 'andarivel') }; }
+      const nearSkiLift = !state.country && !!nearSkiLiftBoarding();
+      if (nearSkiLift) { const lift = nearSkiLiftBoarding(); action = { key: 'E', touch: '🚡', text: 'Subir al ' + (lift.kind === 'cumbre' ? 'andarivel a la cumbre' : lift.kind === 'arrastre' ? 'arrastre' : 'andarivel') }; }
       else if (nearSkiGate) action = { key: 'E', touch: '🎫', text: state.skiPass ? (state.skiGear ? 'Empezar / parar esquí · E' : 'Compra equipo en la caseta azul') : 'Comprar tarjeta de esquí · $500' };
       else if (nearSkiGear) action = { key: 'E', touch: '⛷️', text: dist2D(player.position, SKI_RESORT.gear2) < dist2D(player.position, SKI_RESORT.gear) ? 'Comprar snowboard · $200' : 'Comprar esquís · $200' };
+      else if (state.skiPass && state.skiGear && inSkiResort() && !state.skiLiftRide) action = { key: 'E', touch: state.skiing ? '🛑' : '⛷️', text: state.skiing ? 'Dejar de esquiar' : 'Largar / esquiar ahora' };
       else if (nearArcadeRewards) action = { key: 'E', touch: '🎁', text: 'Canjear premios · tickets' };
       else if (nearLeaderboard) action = { key: 'E', touch: '🏆', text: 'Ver ranking mundial trimestral' };
       else if (state.planet === 'tierra' && !state.country && ARCADE_MACHINES.some(m => dist2D(player.position, m) < 3.2)) action = { key: 'E', touch: '🎮', text: 'Jugar ' + ARCADE_MACHINES.find(m => dist2D(player.position, m) < 3.2).name + ' · E' };
@@ -12212,6 +12800,7 @@ function renderHUD() {
   if (currentBlueprint()) gear.unshift('📐 ' + currentBlueprint().name + ' · ' + currentBlueprint().parts.length + ' piezas');
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');
+  if (playerAirborne()) gear.unshift('🪽 en el aire · 3 bloques · los de tierra no te pegan · policía no te atrapa');
   if (state.ngplus) gear.unshift('⭐ Partida+');
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));
@@ -12227,6 +12816,10 @@ function renderHUD() {
   if (state.baseLevel && state.planet === 'platus') gear.push('🏕️ base' + (state.baseTurrets ? ' 🔫' + state.baseTurrets : '') + (state.baseGenerator ? ' ⚡' : ''));
   if (state.inCastle) gear.push('🏰 castillo — bóveda 🏆 al fondo (E sale)');
   if (state.inArena) gear.push('🏟️ COLISEO oleada ' + arenaWave + ' · quedan ' + arenaFoes.length + ' (E sale)');
+  else if (state.inFlight && flight) {
+    const left = Math.max(0, FLIGHT_LEN - flight.t);
+    gear.push('✈️ ' + Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') + (player.position.z < FLIGHT.z - 8.05 ? ' · 👨‍✈️ cabina' : sitOn && sitOn.flightSeat ? ' · 🎬 peli' : ' · pasillo'));
+  }
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   const hsNow = houseStats();
@@ -12254,6 +12847,11 @@ function renderHUD() {
   let obj = '';
   if (state.sportGame) obj = '🏟️ ' + state.sportGame.name + ' · ' + SPORT_LEVELS[state.sportGame.level].name + ' · objetivo ' + SPORT_TARGETS[state.sportGame.type][state.sportGame.level] + ' puntos';
   else if (state.tutorial && !state.tutorial.complete) obj = '📍 PASO ' + (state.tutorial.step + 1) + '/' + TUTORIAL_STEPS.length + ' · ' + TUTORIAL_STEPS[state.tutorial.step].text;
+  else if (state.inFlight && flight) {
+    const left = Math.max(0, FLIGHT_LEN - flight.t);
+    const dest = flight.home ? 'casa' : (flight.dest ? flight.dest.flag + ' ' + flight.dest.city : 'destino');
+    obj = '✈️ Vuelo a ' + dest + ' · ' + Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') + ' · camina el pasillo · E asiento = película';
+  }
   else if (state.worldEvent) obj = state.worldEvent.icon + ' ' + state.worldEvent.name + ' · ' + state.worldEvent.text + ' · ' + fmt(state.worldEventTime);
   else if (state.chapter < CHAPTERS.length) { const ch = currentChapter(); obj = '📖 CAP. ' + (state.chapter + 1) + ' · ' + ch.title + ' · ' + ch.goal; }
   else if (state.phase === 'DAY') {

@@ -11258,54 +11258,199 @@ function awakenMineMoles(h, underground) {
   toast('🦣 ¡Al romper el bloque 10 despertaste ' + (n > 1 ? n + ' topos' : 'un topo') + '!');
   return true;
 }
+const ISLAND_MINE_SPOTS = [[-155, -55], [-80, 70], [80, 105], [145, -25], [25, -120], [-180, 150]];
+const ISLAND_MINE_ROOM_H = 4.6;
+const ISLAND_MINE_ROOM_NAMES = ['SALA DE ORO', 'SALA DE GEMAS', 'CÁMARA OCULTA', 'POZO HONDO', 'SALA DEL REY', 'DEPÓSITO', 'CÁMARA RARA', 'CRUCE HONDO'];
+const mineStamp = new THREE.Object3D();
+const mineTorchStickGeo = new THREE.CylinderGeometry(.045, .06, .52, 5);
+const mineTorchFlameGeo = new THREE.SphereGeometry(.13, 6, 6);
+function islandMineCellOk(hx, hz, cx, cz, myIndex) {
+  const x = hx + cx * MINE_CELL, z = hz + cz * MINE_CELL;
+  if (!inTreasureIsland(x, z)) return false;
+  for (let i = 0; i < ISLAND_MINE_SPOTS.length; i++) {
+    if (i === myIndex) continue;
+    const ox = TREASURE_ISLAND.x + ISLAND_MINE_SPOTS[i][0], oz = TREASURE_ISLAND.z + ISLAND_MINE_SPOTS[i][1];
+    if (Math.hypot(x - ox, z - oz) < 38) return false;
+  }
+  return true;
+}
+function islandMineLayout(seed, hx, hz, myIndex) {
+  const cells = new Set(), rooms = [];
+  const add = (cx, cz) => {
+    if (!islandMineCellOk(hx, hz, cx, cz, myIndex)) return false;
+    cells.add(tunnelKey(cx, cz)); return true;
+  };
+  const addRect = (x0, z0, x1, z1) => { for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) add(x, z); };
+  addRect(-4, -4, 4, 4);   // hall grande alrededor del pozo
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
+  dirs.forEach((d, i) => {
+    const cardinal = d[0] === 0 || d[1] === 0;
+    const len = (cardinal ? 16 : 11) + ((seed + i * 13) % (cardinal ? 6 : 5));
+    let x = d[0] * 4, z = d[1] * 4;
+    for (let k = 0; k < len; k++) {
+      x += d[0]; z += d[1];
+      if (!add(x, z)) break;
+      if (cardinal) add(x - d[1], z + d[0]);   // pasillos cardinales de 2 de ancho
+      if (k !== Math.floor(len * .42)) continue;
+      const p = [-d[1] || (i % 2 ? 1 : -1), d[0] || (i % 2 ? 1 : -1)];
+      let bx = x, bz = z, ok = true;
+      const bl = 6 + ((seed + i) % 5);
+      for (let b = 0; b < bl; b++) { bx += p[0]; bz += p[1]; if (!add(bx, bz)) { ok = false; break; } }
+      if (ok) {
+        addRect(bx - 1, bz - 1, bx + 1, bz + 1);
+        rooms.push({ cx: bx, cz: bz, name: ISLAND_MINE_ROOM_NAMES[(i + 4) % ISLAND_MINE_ROOM_NAMES.length] });
+      }
+    }
+    addRect(x - 1, z - 1, x + 1, z + 1);
+    rooms.push({ cx: x, cz: z, name: ISLAND_MINE_ROOM_NAMES[i % ISLAND_MINE_ROOM_NAMES.length] });
+  });
+  return { cells: [...cells].map(k => k.split(',').map(Number)), rooms };
+}
+function stampMineInstanced(mesh, list) {
+  list.forEach((p, i) => {
+    mineStamp.position.set(p[0], p[1], p[2]);
+    mineStamp.rotation.set(p[3] || 0, p[4] || 0, p[5] || 0);
+    mineStamp.scale.set(1, 1, 1);
+    mineStamp.updateMatrix();
+    mesh.setMatrixAt(i, mineStamp.matrix);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  return mesh;
+}
+function renderIslandMineTunnels(h, dy, roomH, dirt, darkDirt, floorMat) {
+  const half = MINE_CELL / 2, wallT = .18, wood = mat(0x6b3f1f);
+  const torchWood = mat(0x5c3310), flameMat = new THREE.MeshBasicMaterial({ color: 0xff9933 });
+  const floors = [], ceils = [], wallsNS = [], wallsEW = [], torches = [], flames = [], beams = [];
+  const isShaft = (cx, cz) => Math.abs(cx) <= 1 && Math.abs(cz) <= 1;
+  for (const key of h.tunnels) {
+    const [cx, cz] = key.split(',').map(Number), x = cx * MINE_CELL, z = cz * MINE_CELL;
+    floors.push([x, -dy - .1, z]);
+    if (!isShaft(cx, cz)) {
+      ceils.push([x, -dy + roomH, z]);
+      if ((cx + cz) % 3 === 0) beams.push([x, -dy + roomH - .16, z]);
+    }
+    for (const [dx, dz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      if (h.tunnels.has(tunnelKey(cx + dx, cz + dz))) continue;
+      const wx = x + dx * half, wz = z + dz * half, wy = -dy + roomH / 2;
+      if (dx === 0) wallsNS.push([wx, wy, wz]);
+      else wallsEW.push([wx, wy, wz]);
+      if (isShaft(cx, cz) || ((cx + cz + dx + dz + 16) % 2)) continue;
+      const tx = x + dx * (half - .16), tz = z + dz * (half - .16);
+      torches.push([tx, -dy + 1.85, tz, 0, Math.atan2(dx, dz), .35 * dx]);
+      flames.push([tx - dx * .08, -dy + 2.18, tz - dz * .08]);
+    }
+  }
+  if (floors.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(new THREE.BoxGeometry(MINE_CELL, .2, MINE_CELL), floorMat, floors.length), floors));
+  if (ceils.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(new THREE.BoxGeometry(MINE_CELL, .18, MINE_CELL), darkDirt, ceils.length), ceils));
+  if (wallsNS.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(new THREE.BoxGeometry(MINE_CELL, roomH, wallT), dirt, wallsNS.length), wallsNS));
+  if (wallsEW.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(new THREE.BoxGeometry(wallT, roomH, MINE_CELL), dirt, wallsEW.length), wallsEW));
+  if (beams.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(new THREE.BoxGeometry(MINE_CELL * .92, .14, .22), wood, beams.length), beams));
+  if (torches.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(mineTorchStickGeo, torchWood, torches.length), torches));
+  if (flames.length) h.group.add(stampMineInstanced(new THREE.InstancedMesh(mineTorchFlameGeo, flameMat, flames.length), flames));
+  const lightN = Math.min(8, Math.max(4, Math.floor(flames.length / 12)));
+  for (let i = 0; i < lightN; i++) {
+    const f = flames[Math.floor(i * flames.length / lightN)];
+    if (!f) continue;
+    const light = new THREE.PointLight(0xff9a3a, 1.35, 15, 2);
+    light.position.set(f[0], f[1], f[2]); h.group.add(light);
+  }
+  for (const r of (h.rooms || [])) {
+    if (!h.tunnels.has(tunnelKey(r.cx, r.cz))) continue;
+    const sign = makeSign(r.name, 0xf59e0b);
+    sign.scale.set(.28, .28, .28);
+    sign.position.set(r.cx * MINE_CELL, -dy + 2.7, r.cz * MINE_CELL);
+    sign.userData.billboard = true; h.group.add(sign);
+  }
+}
 function renderHole(h) {   // (re)construye la malla del hoyo según su profundidad
   while (h.group.children.length) h.group.remove(h.group.children[0]);
   const dy = h.depth * DEPTH_STEP, half = MINE_CELL / 2, wallT = 0.18;
+  const roomH = h.islandMine ? ISLAND_MINE_ROOM_H : 2.55;
   const dirt = mat(0x5b3a1e), darkDirt = mat(0x382315), floorMat = mat(0x6b4423);
+  const shaftHalf = h.islandMine ? MINE_CELL * 1.5 : half;
+  const rimW = shaftHalf * 2 + 1;
   // Boca cuadrada y paredes verticales hechas de bloques, no un cilindro.
-  const rimParts = [[0, -half - .25, MINE_CELL + 1, .5], [0, half + .25, MINE_CELL + 1, .5], [-half - .25, 0, .5, MINE_CELL], [half + .25, 0, .5, MINE_CELL]];
+  const rimParts = [[0, -shaftHalf - .25, rimW, .5], [0, shaftHalf + .25, rimW, .5], [-shaftHalf - .25, 0, .5, rimW], [shaftHalf + .25, 0, .5, rimW]];
   for (const [x, z, w, d] of rimParts) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, .22, d), dirt); b.position.set(x, .04, z); h.group.add(b); }
   // Tapa visual negra solo vista desde arriba: simula el terreno realmente recortado.
   // Al caer, su cara trasera desaparece y deja ver el cielo por el conducto.
-  const opening = new THREE.Mesh(new THREE.PlaneGeometry(MINE_CELL - .12, MINE_CELL - .12), new THREE.MeshBasicMaterial({ color: 0x090705, side: THREE.FrontSide }));
+  const opening = new THREE.Mesh(new THREE.PlaneGeometry(shaftHalf * 2 - .12, shaftHalf * 2 - .12), new THREE.MeshBasicMaterial({ color: 0x090705, side: THREE.FrontSide }));
   opening.rotation.x = -Math.PI / 2; opening.position.y = .065; h.group.add(opening);
-  const shaftOpenH = Math.max(0, dy - 2.4);
-  if (shaftOpenH > 0) for (const [x, z, w, d] of [[0,-half,MINE_CELL,wallT],[0,half,MINE_CELL,wallT],[-half,0,wallT,MINE_CELL],[half,0,wallT,MINE_CELL]]) {
+  const shaftOpenH = Math.max(0, dy - roomH);
+  if (shaftOpenH > 0) for (const [x, z, w, d] of [[0, -shaftHalf, shaftHalf * 2, wallT], [0, shaftHalf, shaftHalf * 2, wallT], [-shaftHalf, 0, wallT, shaftHalf * 2], [shaftHalf, 0, wallT, shaftHalf * 2]]) {
     const wmesh = new THREE.Mesh(new THREE.BoxGeometry(w, shaftOpenH, d), darkDirt); wmesh.position.set(x, -shaftOpenH / 2, z); h.group.add(wmesh);
   }
   // La boca queda abierta al cielo y proyecta claridad hasta el fondo del pozo.
-  const shaftLight = new THREE.PointLight(0xfff4d6, 2.2, dy + 12, 1.2);
+  const shaftLight = new THREE.PointLight(0xfff4d6, h.islandMine ? 3.2 : 2.2, dy + 14, 1.2);
   shaftLight.position.set(0, .7, 0); h.group.add(shaftLight);
-  const reflectedLight = new THREE.PointLight(0xbfe3ff, 1.1, 11, 1.5);
-  reflectedLight.position.set(0, -dy + 2.2, 0); h.group.add(reflectedLight);
-  // Cada celda excavada tiene piso/techo; solo conserva paredes en bordes no excavados.
-  for (const key of h.tunnels) {
-    const [cx, cz] = key.split(',').map(Number), x = cx * MINE_CELL, z = cz * MINE_CELL;
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .2, MINE_CELL), floorMat); floor.position.set(x, -dy - .1, z); h.group.add(floor);
-    if (cx !== 0 || cz !== 0) {   // la celda central es el conducto vertical: desde abajo se ve la luz exterior
-      const ceiling = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .18, MINE_CELL), darkDirt); ceiling.position.set(x, -dy + 2.55, z); h.group.add(ceiling);
-    }
-    for (const [dx, dz, wx, wz] of [[0,-1,MINE_CELL,wallT],[0,1,MINE_CELL,wallT],[-1,0,wallT,MINE_CELL],[1,0,wallT,MINE_CELL]]) {
-      if (h.tunnels.has(tunnelKey(cx + dx, cz + dz))) continue;
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(wx, 2.55, wz), dirt);
-      wall.position.set(x + dx * half, -dy + 1.275, z + dz * half); h.group.add(wall);
+  if (h.islandMine) {
+    const midLight = new THREE.PointLight(0xffc37a, 1.5, 20, 1.4);
+    midLight.position.set(0, -dy * .45, 0); h.group.add(midLight);
+  }
+  const reflectedLight = new THREE.PointLight(0xbfe3ff, h.islandMine ? 1.6 : 1.1, h.islandMine ? 16 : 11, 1.5);
+  reflectedLight.position.set(0, -dy + roomH * .55, 0); h.group.add(reflectedLight);
+  if (h.islandMine) renderIslandMineTunnels(h, dy, roomH, dirt, darkDirt, floorMat);
+  else {
+    // Cada celda excavada tiene piso/techo; solo conserva paredes en bordes no excavados.
+    for (const key of h.tunnels) {
+      const [cx, cz] = key.split(',').map(Number), x = cx * MINE_CELL, z = cz * MINE_CELL;
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .2, MINE_CELL), floorMat); floor.position.set(x, -dy - .1, z); h.group.add(floor);
+      if (cx !== 0 || cz !== 0) {   // la celda central es el conducto vertical: desde abajo se ve la luz exterior
+        const ceiling = new THREE.Mesh(new THREE.BoxGeometry(MINE_CELL, .18, MINE_CELL), darkDirt); ceiling.position.set(x, -dy + roomH, z); h.group.add(ceiling);
+      }
+      for (const [dx, dz, wx, wz] of [[0, -1, MINE_CELL, wallT], [0, 1, MINE_CELL, wallT], [-1, 0, wallT, MINE_CELL], [1, 0, wallT, MINE_CELL]]) {
+        if (h.tunnels.has(tunnelKey(cx + dx, cz + dz))) continue;
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(wx, roomH, wz), dirt);
+        wall.position.set(x + dx * half, -dy + roomH / 2, z + dz * half); h.group.add(wall);
+      }
     }
   }
   h.enterable = h.depth >= ENTER_DIGS;
-  const sign = makeSign('MINA ↓', 0x8b5a2b); sign.scale.set(.45, .45, .45); sign.position.y = 1.7; sign.userData.billboard = true; h.group.add(sign);
+  const sign = makeSign(h.islandMine ? 'MINA GRANDE ↓' : 'MINA ↓', 0x8b5a2b); sign.scale.set(.45, .45, .45); sign.position.y = 1.7; sign.userData.billboard = true; h.group.add(sign);
 }
-function spawnHole(x, z, depth, tunnels) {   // (los hoyos también se avisan a la sala)
-  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+function spawnHole(x, z, depth, tunnels, extra) {   // (los hoyos también se avisan a la sala)
+  const g = new THREE.Group(); g.position.set(x, extra && extra.islandMine ? TREASURE_ISLAND.surface : 0, z); scene.add(g);
   const cells = tunnels && tunnels.length ? tunnels.map(c => tunnelKey(c[0], c[1])) : [tunnelKey(0, 0)];
   const h = { x, z, depth, group: g, enterable: false, tunnels: new Set(cells) };
+  if (extra) Object.assign(h, extra);
   holes.push(h); renderHole(h); return h;
 }
-function setupIslandMines(){for(const [ox,oz] of [[-155,-55],[-80,70],[80,105],[145,-25],[25,-120],[-145,120]]){const cells=[];for(let x=-3;x<=3;x++)for(let z=-3;z<=3;z++)cells.push([x,z]);const h=spawnHole(TREASURE_ISLAND.x+ox,TREASURE_ISLAND.z+oz,24,cells);h.islandMine=true;h.group.position.y=TREASURE_ISLAND.surface;renderHole(h);const oreY=mineFloorY(h)+.7;for(let i=0;i<14;i++){const diamond=i%5===0,cx=-3+Math.floor(Math.random()*7),cz=-3+Math.floor(Math.random()*7),ore=new THREE.Mesh(new THREE.DodecahedronGeometry(.75+Math.random()*.45),new THREE.MeshStandardMaterial({color:diamond?0x22d3ee:0xfacc15,emissive:diamond?0x0891b2:0xca8a04,emissiveIntensity:.55}));ore.position.set(h.x+cx*MINE_CELL,oreY,h.z+cz*MINE_CELL);ore.userData.hp=3;ore.userData.diamond=diamond;ore.userData.mineHole=h;scene.add(ore);islandOres.push(ore);}}}
+function setupIslandMines() {
+  ISLAND_MINE_SPOTS.forEach(([ox, oz], i) => {
+    const hx = TREASURE_ISLAND.x + ox, hz = TREASURE_ISLAND.z + oz;
+    const layout = islandMineLayout(i * 19 + 7, hx, hz, i);
+    const h = spawnHole(hx, hz, 24, layout.cells, { islandMine: true, rooms: layout.rooms });
+    const oreY=mineFloorY(h)+.7;
+    const cellList = layout.cells.filter(([cx, cz]) => Math.abs(cx) > 1 || Math.abs(cz) > 1);
+    const nOre = Math.min(36, Math.max(22, Math.floor(cellList.length * .1)));
+    for (let k = 0; k < nOre; k++) {
+      const [cx, cz] = cellList[(k * 17 + i * 3) % cellList.length];
+      const inRoom = (h.rooms || []).some(r => Math.abs(r.cx - cx) <= 1 && Math.abs(r.cz - cz) <= 1);
+      const diamond = k % 6 === 0 || (inRoom && k % 4 === 0);
+      const ore = new THREE.Mesh(new THREE.DodecahedronGeometry(.75 + (k % 5) * .09), new THREE.MeshStandardMaterial({ color: diamond ? 0x22d3ee : 0xfacc15, emissive: diamond ? 0x0891b2 : 0xca8a04, emissiveIntensity: .55 }));
+      ore.position.set(h.x + cx * MINE_CELL, oreY, h.z + cz * MINE_CELL);
+      ore.userData.hp = diamond ? 4 : 3; ore.userData.diamond = diamond; ore.userData.mineHole = h;
+      scene.add(ore); islandOres.push(ore);
+    }
+  });
+}
 setupIslandMines();
 function clearHoles() { for(let i=holes.length-1;i>=0;i--){if(holes[i].islandMine)continue;scene.remove(holes[i].group);holes.splice(i,1);} }
 function findHole(x, z) { for (const h of holes) if (Math.hypot(x - h.x, z - h.z) < HOLE_FIND) return h; return null; }
-function nearEnterableHole() { for (const h of holes) if (h.enterable && Math.hypot(player.position.x - h.x, player.position.z - h.z) < 3.4) return h; return null; }
-function populateIslandMine(h){if(!h||!h.islandMine||enemies.some(e=>e.userData.mineHole===h&&e.userData.mineZombie))return;const zy=mineFloorY(h);for(let i=0;i<6;i++){const e=spawnEnemy(i>3?'zombieArmored':'zombie',new THREE.Vector3(h.x+(Math.random()-.5)*16,zy,h.z+(Math.random()-.5)*16));e.userData.mineHole=h;e.userData.mineZombie=true;}}
+function nearEnterableHole() { for (const h of holes) if (h.enterable && Math.hypot(player.position.x - h.x, player.position.z - h.z) < (h.islandMine ? 5.2 : 3.4)) return h; return null; }
+function populateIslandMine(h) {
+  if (!h || !h.islandMine || enemies.some(e => e.userData.mineHole === h && e.userData.mineZombie)) return;
+  const zy = mineFloorY(h);
+  const spots = [[0, 0], ...((h.rooms || []).map(r => [r.cx, r.cz]))];
+  let n = 0;
+  for (const [cx, cz] of spots) {
+    const count = (cx === 0 && cz === 0) ? 4 : 1;
+    for (let i = 0; i < count && n < 18; i++) {
+      const e = spawnEnemy(n > 10 ? 'zombieArmored' : 'zombie', new THREE.Vector3(h.x + cx * MINE_CELL + (Math.random() - .5) * 2, zy, h.z + cz * MINE_CELL + (Math.random() - .5) * 2));
+      e.userData.mineHole = h; e.userData.mineZombie = true; n++;
+    }
+  }
+}
 
 // Cavar con la PALA (tecla T): profundiza el mismo hoyo y a veces salen topos/plata
 function digHole() {
@@ -12081,13 +12226,17 @@ function updateMovement(dt) {
   // Entrada física: al pisar la abertura, el suelo deja de sostenerte y caes con gravedad.
   const holeEntryY = inTreasureIsland(player.position.x,player.position.z) ? TREASURE_ISLAND.surface + PLAYER_EYE + .25 : PLAYER_EYE + .25;
   if (!state.underground && grounded && player.position.y <= holeEntryY) {
-    const fallHole = holes.find(h => h.enterable && Math.hypot(player.position.x - h.x, player.position.z - h.z) < MINE_CELL * .42);
+    const fallHole = holes.find(h => {
+      if (!h.enterable) return false;
+      const dx = Math.abs(player.position.x - h.x), dz = Math.abs(player.position.z - h.z);
+      return h.islandMine ? (dx < MINE_CELL * 1.48 && dz < MINE_CELL * 1.48) : Math.hypot(dx, dz) < MINE_CELL * .42;
+    });
     if (fallHole) {
       state.underground = true; state.shelterHole = fallHole; state.groundY = mineFloorY(fallHole);
       populateIslandMine(fallHole);
       syncIslandSurfaceDecor();
       grounded = false; vy = 0; beep(170, .12, .04);
-      toast('⬇️ ¡Caíste en la mina! T cava bloques; E es la salida de emergencia.');
+      toast(fallHole.islandMine ? '⬇️ ¡Mina enorme! Sigue los túneles con antorchas. T pica · E sale.' : '⬇️ ¡Caíste en la mina! T cava bloques; E es la salida de emergencia.');
     }
   }
   // Natación: si vienes cayendo desde el aire, primero caes (como en tierra)
@@ -12902,7 +13051,7 @@ function updateContextPrompt() {
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };
       else if (att) action = { key: 'E', touch: '🎟️', text: (att.slide ? 'Tirarte por ' : 'Subirte a ') + att.name + (att.price ? ' · boleto $' + att.price : ' · ¡gratis!') };
-      else if (state.underground && state.shelterHole && state.shelterHole.islandMine) action = { key: 'E · 👊', touch: '⛏️', text: 'Golpea las vetas · E sale de la mina' };
+      else if (state.underground && state.shelterHole && state.shelterHole.islandMine) action = { key: 'E · 👊', touch: '⛏️', text: 'Túneles con antorchas · golpea vetas · E sale' };
       else if (boat && dist2D(player.position, boat.group.position) < 7) action = { key: 'E', touch: '⛵', text: boat.sailing ? 'Desembarcar' : 'Subir al barco y zarpar a la isla' };
       else if (islandTempleAt(player.position.x, player.position.z) >= 0) {
         const ti = islandTempleAt(player.position.x, player.position.z), t = islandTemples[ti], c = templeChests[ti];

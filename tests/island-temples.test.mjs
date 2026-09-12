@@ -25,6 +25,6 @@ assert.match(html, /TREASURE_ISLAND\.surface - 1\.55/);
 assert.match(html, /TREASURE_ISLAND\.surface \+ \.05/);
 assert.doesNotMatch(html, /copas densas y oscuras/);
 assert.doesNotMatch(html, /islandShade \? \.78/);
-assert.match(html, /Golpea las vetas · E sale de la mina/);
+assert.match(html, /Túneles con antorchas · golpea vetas · E sale/);
 assert.match(html, /Abrir el cofre del templo/);
 console.log('island temples: ok');

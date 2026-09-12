@@ -9105,6 +9105,8 @@ function renameProfile(raw) {
     if (save) { localStorage.setItem(profileKey(next), save); localStorage.removeItem(profileKey(oldName)); }
     const acc = localStorage.getItem(accountKey(oldName));
     if (acc) { localStorage.setItem(accountKey(next), acc); localStorage.removeItem(accountKey(oldName)); }
+    const rankId = localStorage.getItem(rankingIdKey(oldName));
+    if (rankId) { localStorage.setItem(rankingIdKey(next), rankId); localStorage.removeItem(rankingIdKey(oldName)); }
   } catch (e) { toast('No se pudo cambiar el nombre'); return false; }
   const list = getProfiles().map(n => n === oldName ? next : n);
   if (!list.includes(next)) list.push(next);
@@ -9213,10 +9215,50 @@ ui('accountFile').addEventListener('change', async () => {
   applyLobbyLook();
 })();
 
-// Ranking mundial trimestral. La identidad anónima distingue este navegador sin publicar datos privados.
-let leaderboardPlayerId = null, leaderboardLastSent = 0, leaderboardSort = 'money';
+// Ranking mundial trimestral. Cada CUENTA (nombre de perfil) tiene su propio
+// id anónimo: si en el mismo celular juegan varios, no se pisan en la tabla.
+let leaderboardPlayerId = null, leaderboardSort = 'money';
+const leaderboardSentAt = Object.create(null);
 function randomUuid() {
   return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+}
+function validRankingId(id) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ''));
+}
+function rankingIdKey(name) { return 'tim_rank_id_' + name; }
+function rankingIdFor(name) {
+  name = name || 'Jugador';
+  try {
+    const stored = localStorage.getItem(rankingIdKey(name));
+    if (validRankingId(stored)) return stored;
+    const last = localStorage.getItem('tim_profile') || name;
+    const legacy = localStorage.getItem('tim_leaderboard_id');
+    const used = new Set();
+    for (const n of getProfiles()) {
+      const id = localStorage.getItem(rankingIdKey(n));
+      if (validRankingId(id)) used.add(id);
+    }
+    if (validRankingId(legacy) && name === last && !used.has(legacy)) {
+      localStorage.setItem(rankingIdKey(name), legacy);
+      return legacy;
+    }
+    const id = randomUuid();
+    localStorage.setItem(rankingIdKey(name), id);
+    return id;
+  } catch (e) {
+    return validRankingId(leaderboardPlayerId) ? leaderboardPlayerId : null;
+  }
+}
+function leaderboardStatsFor(name) {
+  const who = currentProfile || (state.running ? activeProfile() : null);
+  if (state.running && name === who) {
+    return { money: state.money, stage: state.stage, creative: !!state.creative };
+  }
+  try {
+    const d = JSON.parse(localStorage.getItem(profileKey(name)) || 'null');
+    if (!d) return null;
+    return { money: Math.max(0, Math.floor(Number(d.money) || 0)), stage: d.stage || 1, creative: !!d.creative };
+  } catch (e) { return null; }
 }
 const LEADERBOARD_API = location.protocol === 'file:' ? 'https://tim.strivexlatam.com/api/leaderboard' : '/api/leaderboard';
 try {
@@ -9226,26 +9268,47 @@ try {
     localStorage.setItem('tim_leaderboard_id', leaderboardPlayerId);
   }
 } catch (e) {}
-async function submitLeaderboard(force = false) {
-  if (!leaderboardPlayerId || !state.running || state.creative) return false;
-  const leaderboardName = currentProfile || (typeof net !== 'undefined' && net.name) || 'Jugador';
-  const now = Date.now(); if (!force && now - leaderboardLastSent < 60_000) return false;
-  leaderboardLastSent = now;
+async function submitOneLeaderboard(name, force = false) {
+  const stats = leaderboardStatsFor(name);
+  if (!stats || stats.creative) return false;
+  const playerId = rankingIdFor(name);
+  if (!playerId) return false;
+  const now = Date.now();
+  if (!force && leaderboardSentAt[name] && now - leaderboardSentAt[name] < 60_000) return false;
+  leaderboardSentAt[name] = now;
   try {
-    const response = await fetch(LEADERBOARD_API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: leaderboardName, money: state.money, stage: state.stage, creative: !!state.creative }) });   // dinero actual, no el récord
+    const response = await fetch(LEADERBOARD_API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId, name, money: stats.money, stage: stats.stage, creative: !!stats.creative }) });   // dinero actual, no el récord
     if (!response.ok) throw new Error('ranking ' + response.status);
     return true;
-  } catch (e) { leaderboardLastSent = 0; return false; }
+  } catch (e) { leaderboardSentAt[name] = 0; return false; }
+}
+async function submitAllLeaderboards() {
+  const names = new Set(getProfiles());
+  if (currentProfile) names.add(currentProfile);
+  let ok = false;
+  for (const name of names) {
+    if (await submitOneLeaderboard(name, true)) ok = true;
+  }
+  return ok;
+}
+async function submitLeaderboard(force = false) {
+  if (force) return submitAllLeaderboards();
+  const name = currentProfile || activeProfile();
+  return submitOneLeaderboard(name, false);
 }
 function renderLeaderboard(data) {
   ui('rankingQuarter').textContent = 'Tabla trimestral · ' + (data.quarter || 'actual');
   ui('rankingTotal').textContent = (data.totalPlayers || 0) + ((data.totalPlayers || 0) === 1 ? ' jugador' : ' jugadores');
   const rows = ui('rankingRows'); rows.replaceChildren();
   if (!data.players || !data.players.length) { const empty = document.createElement('div'); empty.style.cssText = 'padding:24px;text-align:center;color:#94a3b8'; empty.textContent = 'Todavía no hay jugadores en este trimestre.'; rows.appendChild(empty); return; }
+  const localNames = new Set(getProfiles());
+  if (currentProfile) localNames.add(currentProfile);
   data.players.forEach((p, index) => {
     const row = document.createElement('div'); row.className = 'ranking-row';
+    const mine = localNames.has(p.display_name);
+    if (mine) row.style.background = 'rgba(74,222,128,.16)';
     const pos = document.createElement('span'); pos.className = 'rank-number'; pos.textContent = '#' + (index + 1);
-    const name = document.createElement('b'); name.textContent = p.display_name + (p.creative ? ' 🎨' : '');
+    const name = document.createElement('b'); name.textContent = p.display_name + (mine ? ' · tú' : '') + (p.creative ? ' 🎨' : '');
     const money = document.createElement('span'); money.className = 'rank-money'; money.textContent = '$' + Number(p.best_money || 0).toLocaleString('es-CL');
     const stage = document.createElement('span'); stage.className = 'rank-stage'; stage.textContent = '⭐ ' + Number(p.best_stage || 1);
     row.append(pos, name, money, stage); rows.appendChild(row);
@@ -9256,7 +9319,7 @@ async function loadLeaderboard(sort = leaderboardSort) {
   ui('rankingRows').innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8">Cargando ranking…</div>';
   document.querySelectorAll('.ranking-tab').forEach(b => b.classList.toggle('active', b.dataset.ranking === sort));
   try {
-    const response = await fetch(LEADERBOARD_API + '?sort=' + encodeURIComponent(sort) + '&limit=100', { cache: 'no-store' });
+    const response = await fetch(LEADERBOARD_API + '?sort=' + encodeURIComponent(sort) + '&limit=200', { cache: 'no-store' });
     if (!response.ok) throw new Error('ranking ' + response.status);
     renderLeaderboard(await response.json());
     ui('rankingStatus').textContent = 'Datos mundiales actualizados';
@@ -9277,7 +9340,7 @@ function tryLeaderboard() {
   openLeaderboard(); return true;
 }
 ui('rankingClose').onclick = closeLeaderboard;
-ui('rankingRefresh').onclick = () => loadLeaderboard(leaderboardSort);
+ui('rankingRefresh').onclick = async () => { await submitLeaderboard(true); loadLeaderboard(leaderboardSort); };
 document.querySelectorAll('.ranking-tab').forEach(b => b.onclick = () => loadLeaderboard(b.dataset.ranking));
 
 // ===================================================================

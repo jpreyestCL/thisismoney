@@ -51,7 +51,7 @@ async function readBody(req) {
 }
 async function list(req, res, url) {
   const sort = ['money', 'stage', 'players'].includes(url.searchParams.get('sort')) ? url.searchParams.get('sort') : 'money';
-  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 50));
+  const limit = Math.min(250, Math.max(1, Number(url.searchParams.get('limit')) || 100));
   const order = sort === 'stage' ? 'best_stage desc, best_money desc' : sort === 'players' ? 'updated_at desc' : 'best_money desc, best_stage desc';
   const q = quarter();
   const [rows, count] = await Promise.all([

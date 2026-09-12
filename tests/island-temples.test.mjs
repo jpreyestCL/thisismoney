@@ -21,6 +21,8 @@ assert.match(html, /tryIslandTempleChest\(\) && !tryFocusedFurniture/);
 assert.match(html, /onIsland\) \{ scene\.fog\.near \+= \(40 - scene\.fog\.near\)/);
 assert.match(html, /scene\.fog\.far \+= \(800 - scene\.fog\.far\)/);
 assert.match(html, /function debugTreasureIsland\(/);
+assert.match(html, /TREASURE_ISLAND\.surface - 1\.55/);
+assert.match(html, /TREASURE_ISLAND\.surface \+ \.05/);
 assert.doesNotMatch(html, /copas densas y oscuras/);
 assert.doesNotMatch(html, /islandShade \? \.78/);
 assert.match(html, /Golpea las vetas · E sale de la mina/);

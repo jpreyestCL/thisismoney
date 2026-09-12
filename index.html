@@ -2848,8 +2848,8 @@ function buildOceanExpedition() {
   for(let i=0;i<100;i++){matrix.makeTranslation(-240-Math.random()*780,OCEAN.bottom+1.5,OCEAN.cz+(Math.random()-.5)*380);kelp.setMatrixAt(i,matrix);}kelp.instanceMatrix.needsUpdate=true;scene.add(kelp);
   for(let i=0;i<36;i++){const fish=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(.65,.3,1.15),mat(i%3===0?0xf59e0b:i%3===1?0x38bdf8:0xcbd5e1));fish.add(body);const tail=new THREE.Mesh(new THREE.ConeGeometry(.28,.55,4),body.material);tail.rotation.x=Math.PI/2;tail.position.z=-.75;fish.add(tail);fish.position.set(-250-Math.random()*760,-1-Math.random()*8,OCEAN.cz+(Math.random()-.5)*370);fish.userData.speed=1+Math.random()*2;scene.add(fish);oceanFish.push(fish);}
   for(let i=0;i<7;i++){const shark=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(1.3,.65,3.4),mat(0x64748b));shark.add(body);const fin=new THREE.Mesh(new THREE.ConeGeometry(.55,1.1,4),mat(0x475569));fin.position.y=.75;shark.add(fin);shark.position.set(-300-Math.random()*700,-.9-Math.random()*2,OCEAN.cz+(Math.random()-.5)*340);shark.userData.speed=2.5+Math.random()*1.5;scene.add(shark);oceanSharks.push(shark);}
-  const island = new THREE.Mesh(new THREE.CylinderGeometry(220, 205, 2.8, 30), new THREE.MeshStandardMaterial({ color: 0xb78b52, roughness: 1 })); island.scale.z = TREASURE_ISLAND.d / TREASURE_ISLAND.w; island.position.set(TREASURE_ISLAND.x, -.65, TREASURE_ISLAND.z); island.receiveShadow = true; scene.add(island);
-  const grass = new THREE.Mesh(new THREE.CircleGeometry(214, 30), new THREE.MeshStandardMaterial({ color: 0x4a9a4c, roughness: 1 })); grass.scale.y = TREASURE_ISLAND.d / TREASURE_ISLAND.w; grass.rotation.x = -Math.PI / 2; grass.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface, TREASURE_ISLAND.z); scene.add(grass);
+  const island = new THREE.Mesh(new THREE.CylinderGeometry(220, 205, 2.8, 30), new THREE.MeshStandardMaterial({ color: 0xb78b52, roughness: 1 })); island.scale.z = TREASURE_ISLAND.d / TREASURE_ISLAND.w; island.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface - 1.55, TREASURE_ISLAND.z); island.receiveShadow = true; scene.add(island);
+  const grass = new THREE.Mesh(new THREE.CircleGeometry(214, 30), new THREE.MeshStandardMaterial({ color: 0x4a9a4c, roughness: 1 })); grass.scale.y = TREASURE_ISLAND.d / TREASURE_ISLAND.w; grass.rotation.x = -Math.PI / 2; grass.position.set(TREASURE_ISLAND.x, TREASURE_ISLAND.surface + .05, TREASURE_ISLAND.z); scene.add(grass);
   // Bosque de la isla: copas verdes, no negras, para que se vea de día.
   const templeSpots = [[-125, -115], [65, -125], [125, 35], [-55, 125], [20, 20], [145, -75], [-145, 45]];
   for (let i = 0; i < 90; i++) {
@@ -10081,9 +10081,9 @@ function debugTreasureIsland() {
   if (!state.running) startGame();
   const intro = ui('intro'); if (intro) intro.style.display = 'none';
   state.islandDiscovered = true;
-  player.position.set(TREASURE_ISLAND.x + 20, TREASURE_ISLAND.surface + PLAYER_EYE, TREASURE_ISLAND.z + 40);
-  yaw = Math.PI; pitch = -.12;
-  toast('🏝️ Debug: ISLA DEL TESORO · templos, minas y el hilo de lava');
+  player.position.set(TREASURE_ISLAND.x + 25, TREASURE_ISLAND.surface + PLAYER_EYE, TREASURE_ISLAND.z - 114);
+  yaw = 0; pitch = -.18;
+  toast('🏝️ Debug: ISLA DEL TESORO · mina adelante · templos al fondo');
 }
 function spawnCar(opts) {
   const g = new THREE.Group();

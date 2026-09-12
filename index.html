@@ -1921,7 +1921,7 @@ const leaderboardBoard = new THREE.Group();
   }
   const title = makeSign('RANKING MUNDIAL (E)', 0x38bdf8);
   title.scale.set(.7, .7, .7); title.position.set(0, 3.65, .2); leaderboardBoard.add(title);
-  const lines = makeSign('DINERO  ·  ETAPA  ·  TRIMESTRE', 0xfacc15);
+  const lines = makeSign('DINERO ACTUAL  ·  ETAPA', 0xfacc15);
   lines.scale.set(.43, .43, .43); lines.position.set(0, 2.65, .2); leaderboardBoard.add(lines);
 }
 leaderboardBoard.position.copy(LEADERBOARD_POS); scene.add(leaderboardBoard);
@@ -8999,7 +8999,7 @@ async function submitLeaderboard(force = false) {
   const now = Date.now(); if (!force && now - leaderboardLastSent < 60_000) return false;
   leaderboardLastSent = now;
   try {
-    const response = await fetch(LEADERBOARD_API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: leaderboardName, money: state.money, stage: state.stage, creative: !!state.creative }) });
+    const response = await fetch(LEADERBOARD_API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: leaderboardPlayerId, name: leaderboardName, money: state.money, stage: state.stage, creative: !!state.creative }) });   // dinero actual, no el récord
     if (!response.ok) throw new Error('ranking ' + response.status);
     return true;
   } catch (e) { leaderboardLastSent = 0; return false; }

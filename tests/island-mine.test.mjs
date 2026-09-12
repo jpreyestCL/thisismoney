@@ -66,5 +66,5 @@ for (let i = 0; i < ISLAND_MINE_SPOTS.length; i++) {
 }
 
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-assert.match(sw, /tim-v18/);
+assert.match(sw, /tim-v19/);
 console.log('island mine tunnels: ok');

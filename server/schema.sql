@@ -2,7 +2,7 @@ create table if not exists leaderboard_scores (
   quarter text not null,
   player_id uuid not null,
   display_name text not null,
-  best_money bigint not null default 0 check (best_money >= 0 and best_money <= 1000000000000),
+  best_money bigint not null default 0 check (best_money >= 0 and best_money <= 1000000000000),   -- dinero actual, no el máximo histórico
   best_stage integer not null default 1 check (best_stage between 1 and 10000),
   creative boolean not null default false,
   source_hash text not null default '',

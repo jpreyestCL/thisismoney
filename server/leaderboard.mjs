@@ -61,6 +61,7 @@ async function list(req, res, url) {
   json(res, 200, { quarter: q, totalPlayers: count.rows[0].total, sort, players: rows.rows });
 }
 async function submit(req, res) {
+  // El ranking muestra la partida AHORA: si gastas o pierdes plata, baja tu puesto.
   if (rateLimited(req)) return json(res, 429, { error: 'Demasiadas actualizaciones' });
   const body = await readBody(req);
   const playerId = validPlayerId(body.playerId);
@@ -74,8 +75,8 @@ async function submit(req, res) {
      values ($1, $2::uuid, $3, $4, $5, $6, $7)
      on conflict (quarter, player_id) do update set
        display_name = excluded.display_name,
-       best_money = greatest(leaderboard_scores.best_money, excluded.best_money),
-       best_stage = greatest(leaderboard_scores.best_stage, excluded.best_stage),
+       best_money = excluded.best_money,
+       best_stage = excluded.best_stage,
        creative = excluded.creative,
        source_hash = excluded.source_hash,
        updated_at = now()`,

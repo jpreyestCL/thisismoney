@@ -3420,12 +3420,34 @@ const SKI_SUMMIT_LIFT_BOTTOM = { x: SKI_RESORT.x + 25, z: SKI_RESORT.z - 170 };
 const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r, h: 300, ph: 28 * 1.7, ski: true };
 const skiSlopeHeight = (x, z) => mountainProfile(SKI_MOUNTAIN_PROFILE, x - SKI_RESORT.x, z - SKI_RESORT.z);
 const skiResortGroup = new THREE.Group(); scene.add(skiResortGroup);
-const skiVisitors = [], skiObstacles = [], skiRamps = [];
+const skiVisitors = [], skiObstacles = [], skiRamps = [], skiPisteWalls = [];
 let skiGearMesh = null;
 function skiBox(parent, x, y, z, w, h, d, color, obstacle = false) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
   if (obstacle) skiObstacles.push(addObstacle(x, z, w, d));
+  // Murallas de madera de las pistas: colisión orientada para no atravesarlas esquiando.
+  if (color === 0x7c4a21) skiPisteWalls.push({ mesh: m, hw: w / 2, hd: d / 2, h });
   return m;
+}
+function resolveSkiPisteWalls() {
+  const r = 0.55, p = player.position, pies = p.y - PLAYER_EYE;
+  for (let pass = 0; pass < 2; pass++) {
+    for (const w of skiPisteWalls) {
+      const m = w.mesh;
+      if (pies > m.position.y + w.h / 2 - 0.2) continue;   // un salto alto sí pasa por encima
+      const dx = p.x - m.position.x, dz = p.z - m.position.z;
+      const ang = m.rotation.y, c = Math.cos(ang), s = Math.sin(ang);
+      const lx = dx * c - dz * s, lz = dx * s + dz * c;
+      const hw = w.hw + r, hd = w.hd + r;
+      if (lx <= -hw || lx >= hw || lz <= -hd || lz >= hd) continue;
+      const pushX = lx >= 0 ? hw - lx : -hw - lx;
+      const pushZ = lz >= 0 ? hd - lz : -hd - lz;
+      let nlx = 0, nlz = 0;
+      if (Math.abs(pushX) < Math.abs(pushZ)) nlx = pushX; else nlz = pushZ;
+      p.x += nlx * c + nlz * s;
+      p.z += -nlx * s + nlz * c;
+    }
+  }
 }
 function buildSkiRoad() {
   const curve = new THREE.CatmullRomCurve3([
@@ -10937,8 +10959,9 @@ function updateSkiMovement(dt) {
   if (!grounded && trickDir) { gearVisual.rotation.y += trickDir * 8 * dt; skiTrickActive = true; }
   if (wasAirborne && grounded && skiTrickActive) { skiTrickActive = false; toast('✨ ¡Truco 360!'); }
   vy = 0;
-  // Durante la bajada las murallas son guías visuales; no deben congelar el
-  // giro lateral del esquiador al rozarlas.
+  // Las murallas de la pista son sólidas: te deslizan a lo largo, no te dejan atravesarlas.
+  resolveSkiPisteWalls();
+  if (grounded) player.position.y = mountainHeightAt(player.position.x, player.position.z) + PLAYER_EYE;
   if (player.position.z > SKI_RESORT.z + 178) { player.position.z = SKI_RESORT.z + 178; state.skiing = false; toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;

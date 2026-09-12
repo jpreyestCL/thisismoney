@@ -54,6 +54,11 @@
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 8px #000; }
+  #flighthud { display: none; position: absolute; top: 84px; left: 50%; transform: translateX(-50%); z-index: 8; width: min(560px, 90vw);
+    background: rgba(8, 24, 48, .88); border: 1px solid #7dd3fc; color: #e0f2fe; padding: 8px 16px; border-radius: 12px;
+    font-size: 13px; font-weight: 800; text-align: center; pointer-events: none; letter-spacing: .02em; }
+  body.inflight #flighthud { display: block; }
+  body.inflight #flyfx { display: none !important; }
   .bankBtn { pointer-events: all; cursor: pointer; background: rgba(250,204,21,.18); border: 1px solid #facc15; color: #fff; padding: 10px 6px; font-size: 13px; font-weight: 800; border-radius: 9px; }
   .ranking-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:12px 0; }
   .ranking-tab.active { background:rgba(56,189,248,.3); border-color:#38bdf8; }
@@ -744,6 +749,7 @@
   </div>
 </div>
 <div id="flyfx" style="position:absolute; inset:0; display:none; z-index:15; background:rgba(2,6,23,.95); align-items:center; justify-content:center; color:#7dd3fc; font-size:26px; font-weight:900; text-align:center; pointer-events:none;"></div>
+<div id="flighthud">✈️ Vuelo</div>
 
 <div class="screen hidden" id="jail">
   <h1 style="color:#fbbf24" id="jailTitle">CÁRCEL</h1>
@@ -1556,6 +1562,7 @@ function requestButlerOrder() {
 }
 function updateButler(dt) {
   butler.visible = !!butler.userData.hired; if (!butler.visible) return;
+  if (state.inFlight) return;
   const world = state.planet + ':' + (state.country || '');
   if (butler.userData.world !== world) {
     butler.userData.world = world; butler.position.copy(player.position);
@@ -3691,8 +3698,13 @@ function nearestSeat(maxD = 2.6) {
 }
 function standUp(silent) {
   if (!sitOn) return false;
-  const p = sitOn.mesh.position, era = sitOn.key;
+  const p = sitOn.mesh.position, era = sitOn.key, plane = sitOn.flightSeat;
   sitOn = null;
+  if (plane) {
+    player.position.set(FLIGHT.x, FLIGHT.y + PLAYER_EYE, plane.z);
+    if (!silent) { toast('🚶 De vuelta al pasillo · camina o siéntate otra vez con E'); beep(520, .08, .04); }
+    return true;
+  }
   player.position.set(p.x, p.y + PLAYER_EYE, p.z + 1.3);
   if (!silent) {
     state.hp = Math.min(100, state.hp + 8);
@@ -3798,8 +3810,9 @@ function updateParks(dt) {
 
 // ===================================================================
 //  AEROPUERTO Y VIAJES A OTROS PAÍSES
-//  Terminal + aviones comerciales. Compras un ticket y viajas: en cada
-//  país la gente te habla EN SU IDIOMA (inglés, chino, ruso, francés…).
+//  Terminal + aviones comerciales. Compras un ticket y viajas 2 minutos
+//  DENTRO del avión (pasillo, asientos y película). En cada país la gente
+//  te habla EN SU IDIOMA (inglés, chino, ruso, francés…).
 // ===================================================================
 const AIRPORT = new THREE.Vector3(120, 0, -150);   // pista larga al sureste
 const COUNTRIES = [
@@ -4086,6 +4099,7 @@ function openAirport() {
 }
 function closeAirport() { ui('airportbox').style.display = 'none'; typing = false; }
 function tryAirport() {
+  if (state.inFlight) return tryFlightSeat();
   if (state.planet !== 'tierra') return false;
   if (state.country) {   // volver a casa desde el país
     if (dist2D(player.position, { x: COUNTRY_C.x, z: COUNTRY_C.z - 73 }) < 6) { flyHome(); return true; }
@@ -4094,39 +4108,268 @@ function tryAirport() {
   if (dist2D(player.position, { x: AIRPORT.x, z: AIRPORT.z - 11 }) < 6) return openAirport();
   return false;
 }
-function flyCinematic(txt, then) {
-  typing = true; ui('airportbox').style.display = 'none';
-  const fx = ui('flyfx'); fx.style.display = 'flex'; fx.textContent = txt;
-  beep(400, .2, .05); setTimeout(() => beep(520, .25, .05), 250);
-  setTimeout(() => { fx.style.display = 'none'; typing = false; then(); }, 2200);
+const FLIGHT_LEN = 120;
+const FLIGHT = { x: 24, y: 255, z: -2080 };
+let flight = null, flightCabin = null, flightMovie = null;
+const flightWalls = [], flightSeats = [], flightPax = [];
+function flightBox(parent, x, y, z, w, h, d, color, em) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), em != null
+    ? new THREE.MeshStandardMaterial({ color, emissive: em, emissiveIntensity: .55, roughness: .42 })
+    : mcMat(color));
+  m.position.set(x, y, z); parent.add(m); return m;
 }
-function flyTo(c) {
-  if (state.money < c.price) { toast('💸 El ticket a ' + c.name + ' cuesta $' + c.price); return; }
-  addMoney(-c.price);
-  flyCinematic('✈️ Volando a ' + c.flag + ' ' + c.name + '…', () => {
-    state.country = c.id;
-    syncPlacedCountryVisibility();
-    buildCountry(c); setCountryVisible(true);
-    setEarthWorld(false); setCityVisible(false);
-    scene.background.set(c.sky); scene.fog.far=320;
-    player.position.set(COUNTRY_C.x, PLAYER_EYE, COUNTRY_C.z - 56); yaw = Math.PI; pitch = 0;
-    dad.position.set(COUNTRY_C.x + 2, 0, COUNTRY_C.z - 54);
-    toast(c.flag + ' ¡Llegaste a ' + c.city + ', ' + c.name + '! Acá se habla ' + c.lang + ' · visita ' + c.monu + ' al fondo del pueblo');
-    phaseText(c.flag + ' ' + c.city);
-  });
+function addFlightWall(lx, lz, w, d) {
+  flightWalls.push({ minX: FLIGHT.x + lx - w / 2, maxX: FLIGHT.x + lx + w / 2, minZ: FLIGHT.z + lz - d / 2, maxZ: FLIGHT.z + lz + d / 2 });
 }
-function flyHome() {
-  const c = currentCountry();
-  flyCinematic('✈️ Volviendo a casa…', () => {
+function ensureFlightMovie() {
+  if (flightMovie) return flightMovie;
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 180;
+  const tex = new THREE.CanvasTexture(cv); tex.magFilter = THREE.NearestFilter;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: .85, roughness: 1 });
+  flightMovie = { cv, ctx: cv.getContext('2d'), tex, mat };
+  return flightMovie;
+}
+function drawFlightMovie(t, dest) {
+  const { ctx, tex } = ensureFlightMovie();
+  const w = 320, h = 180, u = ((t % FLIGHT_LEN) + FLIGHT_LEN) % FLIGHT_LEN;
+  const name = dest ? dest.flag + '  ' + dest.city : 'CASA';
+  if (u < 14) {
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 26px sans-serif'; ctx.fillText('THIS IS MONEY AIR', 16, 62);
+    ctx.fillStyle = '#fde68a'; ctx.font = 'bold 18px sans-serif'; ctx.fillText('Destino  ' + name, 16, 100);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '14px sans-serif'; ctx.fillText('Película de a bordo · 2 minutos', 16, 138);
+  } else if (u < 42) {
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(270, 34, 20, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 6; i++) { const cx = ((t * 55 + i * 70) % 420) - 50; ctx.fillRect(cx, 28 + (i % 3) * 18, 46, 12); }
+    ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 128, w, 52);
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(70, 96, 130, 26);
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(100, 88, 78, 10);
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(188, 100, 22, 14);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.fillText('¡Despegue!', 16, 166);
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(232, 118, 14, 22); ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(239, 112, 8, 0, 7); ctx.fill();
+  } else if (u < 78) {
+    ctx.fillStyle = dest && dest.sky != null ? '#' + dest.sky.toString(16).padStart(6, '0') : '#87ceeb';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#0f172a'; ctx.globalAlpha = .25; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 22px sans-serif'; ctx.fillText(name, 16, 40);
+    ctx.fillStyle = '#64748b'; ctx.fillRect(36, 64, 84, 78);
+    ctx.fillStyle = '#fbbf24'; ctx.fillRect(62, 52, 28, 16);
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(48, 78, 16, 22); ctx.fillRect(92, 78, 16, 22);
+    ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif'; ctx.fillText('Postal del viaje', 16, 164);
+  } else if (u < 104) {
+    ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fb7185'; ctx.fillRect(44, 46, 64, 46);
+    ctx.fillStyle = '#fde68a'; ctx.fillRect(128, 36, 36, 70);
+    ctx.fillStyle = '#67e8f9'; ctx.font = 'bold 18px sans-serif'; ctx.fillText('Snacks a bordo  🍿', 16, 148);
+  } else {
+    ctx.fillStyle = '#0c4a6e'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#e0f2fe'; ctx.font = 'bold 22px sans-serif'; ctx.fillText('Preparando aterrizaje', 16, 78);
+    ctx.fillStyle = '#facc15'; ctx.font = '16px sans-serif'; ctx.fillText('Abrocha el cinturón  ·  ' + name, 16, 118);
+  }
+  tex.needsUpdate = true;
+}
+function ensureFlightCabin() {
+  if (flightCabin) return flightCabin;
+  ensureFlightMovie();
+  const g = new THREE.Group(); g.position.set(FLIGHT.x, FLIGHT.y, FLIGHT.z); scene.add(g); flightCabin = g;
+  flightBox(g, 0, .05, 0, 4.6, .12, 18.4, 0x7f1d1d);
+  flightBox(g, 0, .07, 0, 1.15, .04, 18.2, 0x1e3a5f);
+  flightBox(g, 0, 2.55, 0, 4.6, .12, 18.4, 0xe2e8f0);
+  for (let i = -7; i <= 7; i++) flightBox(g, 0, 2.42, i * 1.15, .35, .08, .55, 0xf8fafc, 0xfde68a);
+  for (const sx of [-2.28, 2.28]) {
+    flightBox(g, sx, 1.25, 0, .18, 2.5, 18.4, 0xf1f5f9);
+    addFlightWall(sx, 0, .28, 18.4);
+    for (let i = -6; i <= 6; i++) flightBox(g, sx + (sx > 0 ? .12 : -.12), 1.45, i * 1.2, .08, .7, .7, 0x7dd3fc, 0x38bdf8);
+  }
+  flightBox(g, 0, 1.25, -9.15, 4.6, 2.5, .22, 0xcbd5e1);
+  addFlightWall(0, -9.15, 4.6, .4);
+  const big = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.25, .06), flightMovie.mat);
+  big.position.set(0, 1.55, -9); g.add(big);
+  flightBox(g, 0, 1.3, -10.4, 3.2, 2.2, 2.2, 0xe2e8f0);
+  flightBox(g, 0, 1.7, -11.3, 2.4, 1.1, .12, 0x7dd3fc, 0x38bdf8);
+  flightBox(g, 0, 1.25, 9.15, 4.6, 2.5, .22, 0xcbd5e1);
+  addFlightWall(0, 9.15, 4.6, .4);
+  flightBox(g, 1.5, .9, 8.4, 1.2, 1.6, .8, 0x334155);
+  const lamp = new THREE.PointLight(0xffe7c2, 1.35, 16); lamp.position.set(0, 2.15, 0); g.add(lamp);
+  const lamp2 = new THREE.PointLight(0xbae6fd, .55, 12); lamp2.position.set(0, 1.8, -6); g.add(lamp2);
+  for (const sx of [-1.55, 1.55]) for (let i = -6; i <= 6; i++) flightBox(g, sx, 2.18, i * 1.15, 1.3, .28, 1, 0xdbeafe);
+  const colors = [0x1d4ed8, 0x0f172a, 0x1e3a8a];
+  let ri = 0;
+  for (let row = 0; row < 7; row++) {
+    const z = -6.4 + row * 1.85;
+    for (const x of [-1.62, -.88, .88, 1.62]) {
+      const col = colors[(ri++) % 3];
+      flightBox(g, x, .42, z, .66, .16, .62, col);
+      flightBox(g, x, .88, z + .26, .66, .72, .14, col);
+      flightBox(g, x - .36, .55, z, .08, .28, .55, 0x1e293b);
+      flightBox(g, x + .36, .55, z, .08, .28, .55, 0x1e293b);
+      const scr = new THREE.Mesh(new THREE.BoxGeometry(.4, .24, .04), flightMovie.mat);
+      scr.position.set(x, 1.12, z + .2); g.add(scr);
+      addFlightWall(x, z, .66, .62);
+      flightSeats.push({ x: FLIGHT.x + x, y: FLIGHT.y + .42, z: FLIGHT.z + z, taken: false });
+    }
+  }
+  const paxIdx = [2, 3, 5, 8, 11, 14, 16, 19, 22, 25];
+  const shirts = [0x2563eb, 0xdc2626, 0x16a34a, 0x7c3aed, 0xf59e0b, 0x0ea5e9];
+  for (const i of paxIdx) {
+    const s = flightSeats[i]; if (!s) continue;
+    s.taken = true;
+    const n = makePerson(shirts[i % shirts.length], 0xf1c27d);
+    n.position.set(s.x, FLIGHT.y, s.z + .05); n.rotation.y = Math.PI;
+    scene.add(n); flightPax.push(n);
+  }
+  const dadSeat = flightSeats.find(s => Math.abs(s.x - (FLIGHT.x - .88)) < .2 && Math.abs(s.z - (FLIGHT.z + 5.4)) < 1.2);
+  if (dadSeat) dadSeat.taken = true;
+  const att = makePerson(0x0f172a, 0xf1c27d);
+  att.position.set(FLIGHT.x, FLIGHT.y, FLIGHT.z + 2); att.userData.flightAtt = true;
+  scene.add(att); flightPax.push(att); g.userData.attendant = att;
+  g.userData.clouds = [];
+  for (let i = 0; i < 16; i++) {
+    const cld = flightBox(g, (i % 2 ? 8 : -8) + (i % 5) * .4, 1.2 + (i % 3) * .6, -20 + i * 3.2, 3.4, 1.1, 2.2, 0xffffff, 0xe2e8f0);
+    g.userData.clouds.push(cld);
+  }
+  g.visible = false;
+  return g;
+}
+function resolveFlightWalls() {
+  const R = .45, p = player.position;
+  for (const w of flightWalls) {
+    if (p.x > w.minX - R && p.x < w.maxX + R && p.z > w.minZ - R && p.z < w.maxZ + R) {
+      const cx = (w.minX + w.maxX) / 2, cz = (w.minZ + w.maxZ) / 2;
+      const ox = (w.maxX - w.minX) / 2 + R - Math.abs(p.x - cx);
+      const oz = (w.maxZ - w.minZ) / 2 + R - Math.abs(p.z - cz);
+      if (ox < oz) p.x += p.x < cx ? -ox : ox; else p.z += p.z < cz ? -oz : oz;
+    }
+  }
+}
+function tryFlightSeat() {
+  if (!state.inFlight) return false;
+  if (sitOn) { standUp(false); return true; }
+  let best = null, bd = 1.7;
+  for (const s of flightSeats) {
+    if (s.taken) continue;
+    const d = dist2D(player.position, s);
+    if (d < bd) { bd = d; best = s; }
+  }
+  if (!best) { toast('🚶 Camina el pasillo y acércate a un asiento vacío'); return true; }
+  sitOn = { mesh: { position: { x: best.x, y: best.y, z: best.z }, rotation: { y: Math.PI } }, key: 'silla', flightSeat: best };
+  yaw = 0; pitch = -.12;
+  toast('🎬 La película del vuelo está en la pantalla · E para volver al pasillo');
+  beep(420, .1, .04);
+  return true;
+}
+function restoreWorldAfterFlight() {
+  if (state.planet === 'platus') {
+    setEarthWorld(false); setCityVisible(false); setCountryVisible(false);
+    scene.background.set(state.planetSky || 0xd98c5f); scene.fog.near = 10; scene.fog.far = 160;
+    return;
+  }
+  if (state.country) {
+    const c = currentCountry();
+    setEarthWorld(false); setCityVisible(false); setCountryVisible(true);
+    if (c) scene.background.set(c.sky);
+    scene.fog.near = 10; scene.fog.far = 320;
+  } else {
+    setEarthWorld(true); setCityVisible(true); setCountryVisible(false);
+    scene.background.set(0x87ceeb); scene.fog.near = 10; scene.fog.far = 160;
+  }
+}
+function abortFlight() {
+  if (!state.inFlight && !flight) return;
+  if (sitOn && sitOn.flightSeat) sitOn = null;
+  if (flightCabin) flightCabin.visible = false;
+  flightPax.forEach(n => n.visible = false);
+  state.inFlight = false; flight = null;
+  document.body.classList.remove('inflight');
+  const hud = ui('flighthud'); if (hud) hud.style.display = 'none';
+  restoreWorldAfterFlight();
+}
+function startFlight(opts) {
+  closeAirport();
+  ensureFlightCabin();
+  flightCabin.visible = true;
+  flightPax.forEach(n => n.visible = true);
+  state.inFlight = true;
+  flight = { t: 0, dest: opts.dest || null, home: !!opts.home, from: opts.from || null };
+  if (state.planet === 'tierra') { setEarthWorld(false); setCityVisible(false); }
+  if (state.country) setCountryVisible(false);
+  scene.fog.near = 8; scene.fog.far = 90; scene.background.set(0x5ec8f2);
+  standUp(true);
+  state.inWater = state.underwater = false; state.air = 100;
+  player.position.set(FLIGHT.x, FLIGHT.y + PLAYER_EYE, FLIGHT.z + 6.4);
+  yaw = 0; pitch = 0; grounded = true; vy = 0;
+  dad.position.set(FLIGHT.x - .88, FLIGHT.y, FLIGHT.z + 5.4); dad.rotation.y = Math.PI;
+  dad.userData.resting = false; dad.rotation.x = 0;
+  document.body.classList.add('inflight');
+  const hud = ui('flighthud'); if (hud) hud.style.display = 'block';
+  toast('✈️ ¡Despegamos! Camina el pasillo · E en un asiento para ver la película');
+  phaseText('✈️ VUELO · 2 MIN');
+  beep(480, .18, .05); setTimeout(() => beep(620, .2, .05), 220);
+}
+function endFlight() {
+  if (!state.inFlight && !flight) return;
+  const dest = flight && flight.dest, home = flight && flight.home, from = flight && flight.from;
+  abortFlight();
+  if (home) {
     state.country = null;
     syncPlacedCountryVisibility();
     setCountryVisible(false);
     setEarthWorld(true); setCityVisible(true);
-    scene.background.set(0x87ceeb); scene.fog.far=160;
-    player.position.set(AIRPORT.x, PLAYER_EYE, AIRPORT.z - 6); yaw = 0;
+    scene.background.set(0x87ceeb); scene.fog.far = 160;
+    player.position.set(AIRPORT.x, PLAYER_EYE, AIRPORT.z - 6); yaw = 0; pitch = 0;
     dad.position.set(AIRPORT.x + 2, 0, AIRPORT.z - 5);
-    toast('🏠 ¡De vuelta en casa! ' + (c ? 'Volviste de ' + c.name : ''));
-  });
+    toast('🏠 ¡De vuelta en casa!' + (from ? ' Volviste de ' + from.name : ''));
+  } else if (dest) {
+    state.country = dest.id;
+    syncPlacedCountryVisibility();
+    buildCountry(dest); setCountryVisible(true);
+    setEarthWorld(false); setCityVisible(false);
+    scene.background.set(dest.sky); scene.fog.far = 320;
+    player.position.set(COUNTRY_C.x, PLAYER_EYE, COUNTRY_C.z - 56); yaw = Math.PI; pitch = 0;
+    dad.position.set(COUNTRY_C.x + 2, 0, COUNTRY_C.z - 54);
+    toast(dest.flag + ' ¡Llegaste a ' + dest.city + ', ' + dest.name + '! Acá se habla ' + dest.lang + ' · visita ' + dest.monu + ' al fondo del pueblo');
+    phaseText(dest.flag + ' ' + dest.city);
+  }
+}
+function updateFlight(dt) {
+  if (!state.inFlight || !flight) return;
+  flight.t += dt;
+  drawFlightMovie(flight.t, flight.dest);
+  if (flightCabin && flightCabin.userData.clouds) {
+    for (const c of flightCabin.userData.clouds) {
+      c.position.z += 7 * dt;
+      if (c.position.z > 16) c.position.z = -22;
+    }
+  }
+  if (Math.sin(flight.t * 1.3) > .97) cameraShake = Math.max(cameraShake, .08);
+  const att = flightCabin && flightCabin.userData.attendant;
+  if (att && att.visible) {
+    att.position.x = FLIGHT.x;
+    att.position.y = FLIGHT.y;
+    att.position.z = FLIGHT.z + Math.sin(flight.t * .35) * 6.2;
+    att.rotation.y = Math.cos(flight.t * .35) >= 0 ? 0 : Math.PI;
+    swingLimbs(att, dt);
+  }
+  const left = Math.max(0, FLIGHT_LEN - flight.t);
+  const hud = ui('flighthud');
+  if (hud) {
+    const m = Math.floor(left / 60), s = Math.floor(left % 60);
+    const dest = flight.dest ? (flight.dest.flag + ' ' + flight.dest.city) : 'casa';
+    hud.textContent = '✈️ ' + (flight.home ? 'A casa' : dest) + ' · ' + m + ':' + String(s).padStart(2, '0') + ' · pasillo libre · E asiento = película';
+  }
+  if (flight.t >= 60 && !flight.half) { flight.half = true; toast('✈️ Mitad del vuelo · sigue la peli o camina'); }
+  if (flight.t >= 110 && !flight.landSoon) { flight.landSoon = true; toast('🛬 Preparando el aterrizaje'); }
+  if (flight.t >= FLIGHT_LEN) endFlight();
+}
+function flyTo(c) {
+  if (state.money < c.price) { toast('💸 El ticket a ' + c.name + ' cuesta $' + c.price); return; }
+  addMoney(-c.price);
+  startFlight({ dest: c, home: false });
+}
+function flyHome() {
+  startFlight({ dest: null, home: true, from: currentCountry() });
 }
 // La gente del país te saluda en su idioma
 function countryHello() {
@@ -6601,7 +6844,7 @@ function launchBull(k) {
   const e = makeBull(); e.position.copy(k.position); e.rotation.y = Math.atan2(dx, dz);
   e.userData = { type: 'bull', hp: 9999, speed: 16, life: 4, dmg: (k.userData.dmg || 17), vel: new THREE.Vector3(dx / len, 0, dz / len) }; scene.add(e); enemies.push(e);
 }
-function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena; }   // bajo tierra / ruinas / castillo / coliseo: los monstruos de la superficie NO te ven
+function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena || state.inFlight; }   // bajo tierra / ruinas / castillo / coliseo / avión: los monstruos de la superficie NO te ven
 function livingCompanions() { return [...helpers, ...(pet ? [pet] : []), ...(petAlien ? [petAlien] : []), ...eggPets].filter(c => c.visible && c.userData.hp > 0); }
 function initCompanionHealth(c, maxHp, hp = maxHp) {
   c.userData.maxHp = maxHp;
@@ -6739,6 +6982,7 @@ function spawnHelper() {   // puedes tener TODOS los hijos que quieras ($300 c/u
   toast('👧 ¡Nuevo hijo! Tienes ' + helpers.length + ' (cada uno cuesta $300)');
 }
 function updateHelpers(dt) {
+  if (state.inFlight) return;
   const dmg = state.helperWeapon ? 45 : 20;                 // con arma pegan mucho más fuerte
   const cd = state.helperArmor ? 0.4 : 0.6;                 // con armadura atacan más seguido
   const cols = Math.min(5, Math.max(3, Math.ceil(Math.sqrt(helpers.length))));
@@ -6793,7 +7037,7 @@ function spawnPet(hp = 120) {
 }
 function removePet() { if (pet) { scene.remove(pet); pet = null; } }
 function updatePet(dt) {
-  if (!pet) return;
+  if (!pet || state.inFlight) return;
   let near = null, nd = 18;
   if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(pet.position, e.position); if (d < nd) { nd = d; near = e; } }
   if (near) {   // ataca al monstruo más cercano (muerde fuerte)
@@ -6824,7 +7068,7 @@ function spawnAlienPet(hp = 160) {
 }
 function removeAlienPet() { if (petAlien) { scene.remove(petAlien); petAlien = null; } }
 function updatePetAlien(dt) {
-  if (!petAlien) return;
+  if (!petAlien || state.inFlight) return;
   petAlien.position.y = 0.3 + Math.sin(performance.now() * 0.004) * 0.12;   // flota
   let near = null, nd = 20;
   if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(petAlien.position, e.position); if (d < nd) { nd = d; near = e; } }
@@ -7068,6 +7312,12 @@ function toggleDadArm() {
 const dadIntercept = new THREE.Vector3();
 function updateDad(dt) {
   if (!dad.visible) return;
+  if (state.inFlight) {
+    dad.position.set(FLIGHT.x - .88, FLIGHT.y, FLIGHT.z + 5.4);
+    dad.rotation.set(0, Math.PI, 0);
+    dad.userData.resting = false;
+    return;
+  }
   dad.userData.coverCd = Math.max(0, (dad.userData.coverCd || 0) - dt);
   const attackAnim = Math.max(0, (dad.userData.attackAnim || 0) - dt), defendAnim = Math.max(0, (dad.userData.defendAnim || 0) - dt);
   dad.userData.attackAnim = attackAnim; dad.userData.defendAnim = defendAnim;
@@ -7174,7 +7424,7 @@ const state = {
   incubTime: 0, eggQueue: 0, petPoint: null,   // huevos alien: incubación + cola + banderita de reunión 🚩
   album: {}, albumDone: false,   // álbum de criaturas alien (colección)
   eclipse: 0,   // eclipse cósmico activo (segundos restantes)
-  coreClaimed: false, relics: 0, trophies: 0, floor2Rot: 0, floors2: [], country: null,   // país que estás visitando (aeropuerto)   // núcleo (reliquias) + trofeos + segundos pisos
+  coreClaimed: false, relics: 0, trophies: 0, floor2Rot: 0, floors2: [], country: null, inFlight: false,   // país que estás visitando (aeropuerto) · vuelo en cabina   // núcleo (reliquias) + trofeos + segundos pisos
   riding: false,   // montando una criatura firma domada
   inCastle: false, inArena: false,   // dentro del castillo (laberinto) / del coliseo (oleadas)
   baseLevel: 0, baseTurrets: 0, baseGenerator: false,   // base espacial propia (cúpula + torretas + generador), se arma en cada planeta
@@ -8305,7 +8555,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
 function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; ui('parkBusinessBtn').style.display = 'block'; startMusic(); }
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
-  leaveParkRide(true); standUp(true);   // si estabas en una atracción, te bajas antes de guardar
+  leaveParkRide(true); if (state.inFlight) endFlight(); standUp(true);   // si estabas en una atracción o en el avión, te bajas antes de guardar
   saveGame();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   state.running = false; state.driving = false; state.cinematic = false; document.body.classList.remove('cine');
@@ -8334,6 +8584,7 @@ function startGame() {
   state.hasSuits = false; state.usedRocket = false; state.meteorAt = METEOR_AT; state.country = null; setCountryVisible(false); updateHouseAnchor(); syncPlacedCountryVisibility();
   state.phase = 'DAY'; state.running = true; state.paused = false; ui('pause').style.display = 'none';
   state.cinematic = false; document.body.classList.remove('cine');
+  abortFlight();
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
@@ -8519,6 +8770,10 @@ function saveGame() {
       business: state.business || null, businessOrders: state.businessOrders || 0,
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
     };
+    if (state.inFlight && flight) {   // no guardar al jugador en el cielo: al recargar aterriza
+      if (flight.home) { data.country = null; data.px = AIRPORT.x; data.pz = AIRPORT.z - 6; }
+      else if (flight.dest) { data.country = flight.dest.id; data.px = COUNTRY_C.x; data.pz = COUNTRY_C.z - 56; }
+    }
     localStorage.setItem(saveKey(), JSON.stringify(data));
     submitLeaderboard();
   } catch (e) {}
@@ -9044,13 +9299,14 @@ function loadGame() {
   let d; try { d = JSON.parse(localStorage.getItem(saveKey())); } catch (e) { return false; }
   if (!d) return false;
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
+  abortFlight();
   placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPolice(); clearPlants(); clearHelpers();
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: d.night || 0,
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel,
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')), country:COUNTRIES.some(c=>c.id===d.country)?d.country:null,
-    wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
+    wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, inFlight: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
     hasPhone: !!d.hasPhone, skiPass: !!d.skiPass, skiGear: d.skiGear || null, skiGearWorn: d.skiGearWorn != null ? !!d.skiGearWorn : !!d.skiGear, skiing: false, skiLiftRide: null,
     streak: d.streak || 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   });
@@ -9166,6 +9422,7 @@ function resetAll() {
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint(); endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
+  abortFlight();
   ui('fade').style.opacity = '0';
   victims.forEach(v => v.userData.robbed = false);
   groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
@@ -10148,7 +10405,7 @@ function goToPlanet() {
   state.planetSky = P.sky; state.planetHazard = P.hazard; state.planetGrav = P.grav; state.planetCreature = P.creature;   // rasgos propios del planeta
   state.meteorTriggered = false; state.escapeTimer = 0; ui('escape').style.display = 'none';
   if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
-  clearPlants(); clearHelpers(); removePet(); removeAllFloors2(); leaveParkRide(true); standUp(true); clearCampfires(); clearMiners(); dad.visible = true;
+  clearPlants(); clearHelpers(); removePet(); removeAllFloors2(); leaveParkRide(true); if (state.inFlight) abortFlight(); standUp(true); clearCampfires(); clearMiners(); dad.visible = true;
   clearHoles(); state.underground = false; state.groundY = 0; state.shelterHole = null;   // los refugios quedan en la Tierra
   clearTrail(); endEclipse(); eclipseTimer = 150 + Math.random() * 150; state.coreClaimed = false; removeMount();   // cada planeta tiene su propio núcleo; la montura no viaja
   clearTitan(); titanTimer = 150 + Math.random() * 130;
@@ -10601,6 +10858,7 @@ function surviveNight() {
 }
 function goToJail() {
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
+  if (state.inFlight) abortFlight();
   state.driving = false; removeMount(); leaveParkRide(true); standUp(true);
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // sales de la cárcel sin búsqueda pendiente
   // En los planetas NO hay cárcel (ni policía): te rescata el cohete y despiertas ahí
@@ -10618,6 +10876,7 @@ function goToJail() {
 }
 function gameOver() {
   if (state.phase === 'OVER') return;
+  if (state.inFlight) abortFlight();
   clearWaves(); dad.visible = false; state.phase = 'OVER'; state.running = false;
   ui('hud').style.display = 'none';
   ui('over-score').textContent = 'Etapa ' + state.stage + ' · $' + state.totalEarned + ' ganados';
@@ -10759,6 +11018,7 @@ function loop() {
     updateNet(dt);                         // amigos online: manda tu posición y mueve sus muñecos
     updateMirrors();                       // enciende el espejo más cercano (antes de dibujar tu cuerpo)
     updateMovement(dt);
+    updateFlight(dt);                  // cabina del avión: pasillo, asientos y película (2 min)
     updateSkiGearHold(dt);
     updateWater(dt);                       // aire limitado y daño por ahogo bajo el mar
     updateViewmodel(dt);
@@ -10870,6 +11130,7 @@ function updateHunger(dt) {
 // Morir de hambre: te desmayas y revives en casa (no es la cárcel; es por no comer)
 function faintFromHunger() {
   state.hp = 60; state.hunger = 45; lastHp = 60; state.driving = false; state.riding = false;
+  if (state.inFlight) abortFlight();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // al desmayarte se pierde la búsqueda
   if (state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = 0; }
   player.position.set(10, PLAYER_EYE, 16);
@@ -11128,6 +11389,15 @@ function updateMovement(dt) {
   const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }   // no ir más rápido en diagonal
   player.position.addScaledVector(forward, az * step);
   player.position.addScaledVector(rightV, ax * step);
+  if (state.inFlight) {   // cabina en el cielo: el pasillo es el suelo, no caigas al vacío
+    player.position.x = THREE.MathUtils.clamp(player.position.x, FLIGHT.x - 1.85, FLIGHT.x + 1.85);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, FLIGHT.z - 8.55, FLIGHT.z + 8.55);
+    player.position.y = FLIGHT.y + (crouch ? CROUCH_EYE : PLAYER_EYE);
+    vy = 0; grounded = true; state.inWater = state.underwater = false;
+    resolveFlightWalls();
+    camera.rotation.y = yaw; camera.rotation.x = pitch;
+    return;
+  }
   // Entrada física: al pisar la abertura, el suelo deja de sostenerte y caes con gravedad.
   const holeEntryY = inTreasureIsland(player.position.x,player.position.z) ? TREASURE_ISLAND.surface + PLAYER_EYE + .25 : PLAYER_EYE + .25;
   if (!state.underground && grounded && player.position.y <= holeEntryY) {
@@ -11651,6 +11921,7 @@ function updateArrow() {
 }
 
 function updateDayNight(dt) {
+  if (state.inFlight) return;   // el vuelo de 2 min no se come el día/noche de la Tierra
   if (state.phase === 'DAY') {
     state.dayTime += dt;
     if (state.dayTime >= currentDayLength()) startNight();   // al acabarse el día SIEMPRE viene la noche
@@ -11799,6 +12070,13 @@ function playerInClosedRoom() {
   return closedRoomResult;
 }
 function updateSky(dt) {
+  if (state.inFlight) {   // de día o de noche: el vuelo se ve cielo y nubes, nunca negro
+    scene.background.setHex(0x5ec8f2); scene.fog.color.setHex(0xb9e7ff);
+    scene.fog.near = 8; scene.fog.far = 90;
+    ambient.intensity += (1.05 - ambient.intensity) * 0.12;
+    sun.intensity += (0.85 - sun.intensity) * 0.12;
+    return;
+  }
   if (state.cinematic) {
     scene.background.setHex(0x020617); scene.fog.color.setHex(0x020617); scene.fog.near=220; scene.fog.far=600;
     return;
@@ -12013,6 +12291,10 @@ function renderHUD() {
   if (state.baseLevel && state.planet === 'platus') gear.push('🏕️ base' + (state.baseTurrets ? ' 🔫' + state.baseTurrets : '') + (state.baseGenerator ? ' ⚡' : ''));
   if (state.inCastle) gear.push('🏰 castillo — bóveda 🏆 al fondo (E sale)');
   if (state.inArena) gear.push('🏟️ COLISEO oleada ' + arenaWave + ' · quedan ' + arenaFoes.length + ' (E sale)');
+  else if (state.inFlight && flight) {
+    const left = Math.max(0, FLIGHT_LEN - flight.t);
+    gear.push('✈️ ' + Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') + (sitOn && sitOn.flightSeat ? ' · 🎬 peli' : ' · pasillo'));
+  }
   else if (state.inv.carbon > 0) gear.push('⚫ ' + state.inv.carbon);
   if (state.streak > 1) gear.push('🔥 racha ' + state.streak);
   const hsNow = houseStats();
@@ -12040,6 +12322,11 @@ function renderHUD() {
   let obj = '';
   if (state.sportGame) obj = '🏟️ ' + state.sportGame.name + ' · ' + SPORT_LEVELS[state.sportGame.level].name + ' · objetivo ' + SPORT_TARGETS[state.sportGame.type][state.sportGame.level] + ' puntos';
   else if (state.tutorial && !state.tutorial.complete) obj = '📍 PASO ' + (state.tutorial.step + 1) + '/' + TUTORIAL_STEPS.length + ' · ' + TUTORIAL_STEPS[state.tutorial.step].text;
+  else if (state.inFlight && flight) {
+    const left = Math.max(0, FLIGHT_LEN - flight.t);
+    const dest = flight.home ? 'casa' : (flight.dest ? flight.dest.flag + ' ' + flight.dest.city : 'destino');
+    obj = '✈️ Vuelo a ' + dest + ' · ' + Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') + ' · camina el pasillo · E asiento = película';
+  }
   else if (state.worldEvent) obj = state.worldEvent.icon + ' ' + state.worldEvent.name + ' · ' + state.worldEvent.text + ' · ' + fmt(state.worldEventTime);
   else if (state.chapter < CHAPTERS.length) { const ch = currentChapter(); obj = '📖 CAP. ' + (state.chapter + 1) + ' · ' + ch.title + ' · ' + ch.goal; }
   else if (state.phase === 'DAY') {

@@ -10870,7 +10870,7 @@ function ensurePlayerSkiVisual() {
 function updateSkiMovement(dt) {
   if (!state.skiPass || !state.skiGear) { if (skiGearMesh) skiGearMesh.visible = false; return false; }
   const gearVisual = ensurePlayerSkiVisual(); gearVisual.visible = !!state.skiGearWorn || !!state.skiing; gearVisual.userData.board.visible = state.skiGear === 'snowboard';
-  if (!state.skiing) return false;
+  if (!state.skiing) { skiRampBoost = 0; return false; }
   const fwd = keys['KeyW'] || keys['ArrowUp'], back = keys['KeyS'] || keys['ArrowDown'];
   const left = keys['KeyA'] || keys['ArrowLeft'], right = keys['KeyD'] || keys['ArrowRight'];
   // Las flechas también mantienen la cámara controlable durante la bajada.
@@ -10899,13 +10899,14 @@ function updateSkiMovement(dt) {
   const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x, player.position.z + 8));
   const braking = keys['KeyS'] || keys['ArrowDown'];
   const downhillSpeed = braking ? 0 : 4.5 + Math.min(12, slopeDrop * .55);
-  const speed = downhillSpeed + Math.max(0, push) * 5.5;
+  const speed = downhillSpeed + Math.max(0, push) * 5.5 + skiRampBoost;
   // La trayectoria sigue a donde giras: derecha = derecha de la pista, izquierda = izquierda.
   // No usamos el eje X del mundo: al bajar mirando la pista, +X es la izquierda de la pantalla.
   const skiFwdX = -Math.sin(yaw);
   const skiFwdZ = -Math.cos(yaw);
+  const glideZ = (braking && skiRampBoost <= 0) ? 0 : Math.max(0.3, skiFwdZ) * speed;
   player.position.x += skiFwdX * speed * dt;
-  player.position.z += (braking ? 0 : Math.max(0.3, skiFwdZ) * speed) * dt;
+  player.position.z += glideZ * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 84, SKI_RESORT.x + 84);
   player.position.z = THREE.MathUtils.clamp(player.position.z, SKI_RESORT.z - 178, SKI_RESORT.z + 190);
   const snowY = mountainHeightAt(player.position.x, player.position.z), skiFloor = snowY + PLAYER_EYE;
@@ -10914,16 +10915,23 @@ function updateSkiMovement(dt) {
   const wasAirborne = !grounded;
   if (grounded && downhillSpeed > 2) {
     const ramp = skiRamps.find(r => Math.hypot(player.position.x - r.x, player.position.z - r.z) < r.radius);
-    if (ramp) { skiJumpVy = 27; grounded = false; toast('⬆️ ¡Rampa! Saltaste muy alto'); }
+    if (ramp) {
+      // La rampa lanza lejos por la pista: más altura y un empujón fuerte hacia adelante.
+      skiJumpVy = 40;
+      skiRampBoost = 36;
+      grounded = false;
+      toast('⬆️ ¡Rampa! ¡Salto larguísimo!');
+    }
   }
-  if (jumpPressed && !skiJumpHeld && grounded) { skiJumpVy = 11; grounded = false; }
+  if (jumpPressed && !skiJumpHeld && grounded) { skiJumpVy = 11; skiRampBoost = 0; grounded = false; }
   skiJumpHeld = !!jumpPressed;
   if (!grounded || skiJumpVy > 0) {
-    skiJumpVy -= 25 * dt;
+    skiJumpVy -= (skiRampBoost > 0 ? 18 : 25) * dt;
     player.position.y += skiJumpVy * dt;
-    if (player.position.y <= skiFloor) { player.position.y = skiFloor; skiJumpVy = 0; grounded = true; }
+    if (player.position.y <= skiFloor) { player.position.y = skiFloor; skiJumpVy = 0; skiRampBoost = 0; grounded = true; }
   } else {
     player.position.y = skiFloor;
+    skiRampBoost = 0;
   }
   const trickDir = (keys['KeyE'] ? 1 : 0) - (keys['KeyQ'] ? 1 : 0);
   if (!grounded && trickDir) { gearVisual.rotation.y += trickDir * 8 * dt; skiTrickActive = true; }
@@ -10935,7 +10943,7 @@ function updateSkiMovement(dt) {
   camera.rotation.y = yaw; camera.rotation.x = pitch;
   return true;
 }
-let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false, skiTrickActive = false;
+let skiRemoveHold = 0, skiAccessWarnAt = 0, skiJumpVy = 0, skiJumpHeld = false, skiTrickActive = false, skiRampBoost = 0;
 function updateSkiGearHold(dt) {
   if (!state.skiGear) { skiRemoveHold = 0; return; }
   if (keys['KeyE'] && !state.skiing && !state.skiLiftRide) {

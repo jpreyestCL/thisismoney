@@ -2736,6 +2736,7 @@ function waterZoneAt(x, z) {
   for (const w of WATER_ZONES) if (Math.abs(x - w.cx) < w.waterW / 2 && Math.abs(z - w.cz) < w.waterD / 2) return w;
   return null;
 }
+function aboveWater(zone, y) { return !zone || y > zone.surface + PLAYER_EYE + .55; }
 function inBeachWater(x, z) { return !!waterZoneAt(x, z); }
 function buildBeach() {
   const sand = new THREE.Mesh(new THREE.PlaneGeometry(88, 70), mat(0xe6c878));
@@ -3454,18 +3455,29 @@ const POOL = { cx: WATER_PARK.x, cz: WATER_PARK.z + 6, waterW: 34, waterD: 22, s
 function buildWaterPark() {
   const g = new THREE.Group(); scene.add(g);
   const cx = WATER_PARK.x, cz = WATER_PARK.z;
-  mcFloor(g, cx, cz, 68, 60, 0x9fd3ea);                       // baldosas del recinto
   mcFence(g, cx, cz, 68, 60, 0x38bdf8, 8);
   mcSign(g, cx, 4.2, cz - 30.4, 'PARQUE ACUATICO', 0x38bdf8);
 
-  // Piscina grande (fondo + bordes + agua)
+  // Piscina grande (fondo + bordes + agua). Las baldosas dejan un hueco
+  // para que, al hundirte, se vea el vaso de la piscina y no un piso tapando.
   const p = POOL;
+  const holeW = p.waterW + 1.8, holeD = p.waterD + 2.6;
+  const left = cx - 34, right = cx + 34, back = cz - 30, front = cz + 30;
+  const holeL = p.cx - holeW / 2, holeR = p.cx + holeW / 2, holeB = p.cz - holeD / 2, holeF = p.cz + holeD / 2;
+  mcFloor(g, (left + holeL) / 2, cz, holeL - left, 60, 0x9fd3ea);
+  mcFloor(g, (right + holeR) / 2, cz, right - holeR, 60, 0x9fd3ea);
+  mcFloor(g, p.cx, (back + holeB) / 2, holeW, holeB - back, 0x9fd3ea);
+  mcFloor(g, p.cx, (front + holeF) / 2, holeW, front - holeF, 0x9fd3ea);
   mcBox(g, p.cx, p.bottom - .3, p.cz, p.waterW, .6, p.waterD, 0x2b7fa8);   // fondo azulejo
   for (const sx of [-1, 1]) mcBox(g, p.cx + sx * (p.waterW / 2 + .6), .3, p.cz, 1.2, .6, p.waterD + 2.4, 0xf1f5f9);
   for (const sz of [-1, 1]) mcBox(g, p.cx, .3, p.cz + sz * (p.waterD / 2 + .6), p.waterW + 2.4, .6, 1.2, 0xf1f5f9);
-  const water = new THREE.Mesh(new THREE.BoxGeometry(p.waterW, .12, p.waterD),
-    new THREE.MeshStandardMaterial({ color: 0x35a7d8, transparent: true, opacity: .78, roughness: .3 }));
-  water.position.set(p.cx, p.surface, p.cz); g.add(water);
+  const waterH = p.surface - p.bottom - .18;
+  const water = new THREE.Mesh(new THREE.BoxGeometry(p.waterW - .55, waterH, p.waterD - .55),
+    new THREE.MeshStandardMaterial({ color: 0x2aa4d4, transparent: true, opacity: .34, roughness: .16, metalness: .04, depthWrite: false, side: THREE.DoubleSide }));
+  water.position.set(p.cx, p.bottom + waterH / 2 + .08, p.cz); g.add(water);
+  for (const sx of [-1, 1]) mcBox(g, p.cx + sx * (p.waterW / 2 - .18), (p.surface + p.bottom) / 2, p.cz, .22, p.surface - p.bottom, p.waterD - .4, 0x7dd3fc);
+  for (const sz of [-1, 1]) mcBox(g, p.cx, (p.surface + p.bottom) / 2, p.cz + sz * (p.waterD / 2 - .18), p.waterW - .4, p.surface - p.bottom, .22, 0x7dd3fc);
+  for (let i = -2; i <= 2; i++) mcBox(g, p.cx + i * 5.2, p.bottom + .04, p.cz, .18, .04, p.waterD - 1.2, 0xe0f2fe);
 
   // Piscina de niños (poca agua, decorativa)
   mcBox(g, cx - 24, .25, cz + 20, 12, .5, 10, 0xf1f5f9);
@@ -6404,12 +6416,16 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     }
   }
   if (key === 'piscina') {
-    const water=new THREE.Mesh(new THREE.BoxGeometry(4.8,.12,3),new THREE.MeshStandardMaterial({color:0x22b8e6,transparent:true,opacity:.72,roughness:.18,metalness:.08,depthWrite:false}));water.position.y=.18;m.add(water);
-    const tileMat=mat(0xf8fafc);
-    for(const sz of [-1,1]){const rim=new THREE.Mesh(new THREE.BoxGeometry(5.7,.22,.36),tileMat);rim.position.set(0,.12,sz*1.72);m.add(rim);}
-    for(const sx of [-1,1]){const rim=new THREE.Mesh(new THREE.BoxGeometry(.36,.22,3.1),tileMat);rim.position.set(sx*2.62,.12,0);m.add(rim);}
-    for(const sx of [-.62,.62]){const rail=new THREE.Mesh(new THREE.TorusGeometry(.28,.035,7,16,Math.PI),mat(0x94a3b8));rail.rotation.z=Math.PI/2;rail.position.set(sx,.5,1.25);m.add(rail);}
-    obj.poolZone={surface:by+.55,bottom:by};
+    const deep = 3.2, tileMat = mat(0xf8fafc), wallMat = mat(0x7dd3fc);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(4.9, .14, 3.05), mat(0x2b7fa8)); floor.position.y = -deep; m.add(floor);
+    for (const sz of [-1, 1]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(5.1, deep, .2), wallMat); wall.position.set(0, -deep / 2, sz * 1.52); m.add(wall); }
+    for (const sx of [-1, 1]) { const wall = new THREE.Mesh(new THREE.BoxGeometry(.2, deep, 3.05), wallMat); wall.position.set(sx * 2.45, -deep / 2, 0); m.add(wall); }
+    const water = new THREE.Mesh(new THREE.BoxGeometry(4.7, deep - .12, 2.85), new THREE.MeshStandardMaterial({ color: 0x22b8e6, transparent: true, opacity: .34, roughness: .16, metalness: .05, depthWrite: false, side: THREE.DoubleSide }));
+    water.position.y = -deep / 2 + .04; m.add(water);
+    for (const sz of [-1, 1]) { const rim = new THREE.Mesh(new THREE.BoxGeometry(5.7, .22, .36), tileMat); rim.position.set(0, .12, sz * 1.72); m.add(rim); }
+    for (const sx of [-1, 1]) { const rim = new THREE.Mesh(new THREE.BoxGeometry(.36, .22, 3.1), tileMat); rim.position.set(sx * 2.62, .12, 0); m.add(rim); }
+    for (const sx of [-.62, .62]) { const rail = new THREE.Mesh(new THREE.TorusGeometry(.28, .035, 7, 16, Math.PI), mat(0x94a3b8)); rail.rotation.z = Math.PI / 2; rail.position.set(sx, .5, 1.25); m.add(rail); }
+    obj.poolZone = { surface: by + .14, bottom: by - deep };
   }
   if (key === 'planta') { const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10), mat(0x22c55e)); leaf.position.y = 0.55; leaf.scale.set(1, 1.3, 1); leaf.castShadow = true; m.add(leaf); }
   if (key === 'mesa_gamer') { legs(1.05, 0.43, 0.75); const edge = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); edge.position.set(0, 0.02, 0.54); m.add(edge); obj.rgbParts = [edge]; }
@@ -10405,11 +10421,13 @@ function updateSkiLiftRide(dt) {
   grounded = true; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
   if (ride.t >= 1) {
     state.skiLiftRide = null;
-    // Te deja un poco cuesta abajo, fuera del hoyo y del siguiente andarivel,
-    // mirando la pista para poder largar sin quedar trabado.
-    const zOut = (base.z - distance) + 26;
-    player.position.set(x, skiSlopeHeight(x, zOut) + PLAYER_EYE, zOut);
-    toggleSkiing(true, '🏔️ Zona plana · ya puedes bajar la pista · E para parar');
+    // En la zona plana de la plataforma, un poco hacia la pista (sin salirte
+    // del deck ni caer encima del andarivel de la cumbre).
+    const topZ = base.z - distance, zOut = topZ + 4;
+    const deck = skiSlopeHeight(x, topZ) + (ride.kind === 'andarivel' ? -1.2 : .25);
+    player.position.set(x, deck + PLAYER_EYE, zOut);
+    state.skiing = false; stopSkiCarve(); faceSkiDownhill();
+    toast('🏔️ Zona plana · camina o pulsa E para bajar la pista');
   }
   return true;
 }
@@ -11977,7 +11995,10 @@ function updateCreativeFlight(dt) {
   player.position.addScaledVector(forward, az * speed * dt);
   player.position.addScaledVector(rightV, ax * speed * dt);
   const vertical = (keys['Space'] ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] ? 1 : 0);
-  const minFlyY = (state.planet === 'tierra' && inTreasureIsland(player.position.x, player.position.z)) ? TREASURE_ISLAND.surface + PLAYER_EYE : PLAYER_EYE;
+  let minFlyY = PLAYER_EYE;
+  if (state.planet === 'tierra' && inTreasureIsland(player.position.x, player.position.z)) minFlyY = TREASURE_ISLAND.surface + PLAYER_EYE;
+  const flyWater = waterZoneAt(player.position.x, player.position.z);
+  if (flyWater) minFlyY = Math.max(minFlyY, flyWater.surface + PLAYER_EYE);
   player.position.y = Math.max(minFlyY, player.position.y + vertical * speed * dt);
   player.position.x = THREE.MathUtils.clamp(player.position.x, worldWestLimit(), 800);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 820);
@@ -12048,21 +12069,29 @@ function updateMovement(dt) {
       toast('⬇️ ¡Caíste en la mina! T cava bloques; E es la salida de emergencia.');
     }
   }
-  // Natación voxel: Espacio sube, Ctrl se hunde; el fondo de arena detiene la caída.
+  // Natación: si vienes cayendo desde el aire, primero caes (como en tierra)
+  // y recién al tocar el agua nadas. Espacio sube, Ctrl se hunde.
   const zone = (!state.underground && !state.inCastle && !state.inRuins) ? waterZoneAt(player.position.x, player.position.z) : null;
-  const swimming = !!zone;
+  const swimming = !!zone && !aboveWater(zone, player.position.y);
   state.inWater = swimming;
   if (swimming) {
     const swimUp = keys['Space'] || touch.jumpHeld, swimDown = keys['ControlLeft'] || keys['ControlRight'] || touch.crouch;
-    const vertical = (swimUp ? 3.8 : 0) - (swimDown ? 3.8 : .7);
-    player.position.y = THREE.MathUtils.clamp(player.position.y + vertical * dt, zone.bottom + PLAYER_EYE, zone.surface + PLAYER_EYE);
+    const minY = zone.bottom + .35, maxY = zone.surface + (crouch ? CROUCH_EYE : PLAYER_EYE);
+    if (vy < -1.2 && !swimUp) {
+      vy = Math.min(0, vy + 18 * dt);
+      player.position.y = Math.max(minY, player.position.y + vy * dt);
+    } else {
+      const vertical = swimUp ? 5.2 : (swimDown ? -6.2 : -3.8);
+      player.position.y = THREE.MathUtils.clamp(player.position.y + vertical * dt, minY, maxY);
+      vy = 0;
+    }
     if (zone === OCEAN && player.position.x < -275 && !state.sailing) {
       player.position.x = -275; player.position.z += Math.sin(performance.now() * .006) * dt * 3;
       cameraShake = Math.max(cameraShake, .09);
       if (performance.now() - oceanCurrentWarnAt > 3000) { oceanCurrentWarnAt = performance.now(); toast('🌊 ¡La corriente de aguas profundas no te deja avanzar! Necesitas el barco'); beep(145,.15,.04); }
     }
-    state.underwater = player.position.y < zone.surface - .05;
-    grounded = player.position.y <= zone.bottom + PLAYER_EYE + .01; vy = 0; touch.jump = false;
+    state.underwater = player.position.y < zone.surface;
+    grounded = player.position.y <= minY + .01; touch.jump = false;
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   state.underwater = false;
@@ -12108,8 +12137,8 @@ function updateMovement(dt) {
     const cerro = mountainHeightAt(player.position.x, player.position.z);
     if (cerro > 0) { floorY = Math.max(floorY, cerro + (crouch ? CROUCH_EYE : PLAYER_EYE)); if (grounded && vy <= 0) player.position.y = floorY; }
   }
-  if (player.position.y <= floorY) { player.position.y = floorY; vy = 0; grounded = true; }
-  if (grounded && geyserBoost()) { vy = 25; grounded = false; beep(400, 0.12, 0.05); floatText(player.position, '⛲ ¡GÉISER!', '#67e8f9', 16); }   // parado sobre un géiser: ¡te lanza altísimo!
+  if (!swimming && player.position.y <= floorY) { player.position.y = floorY; vy = 0; grounded = true; }
+  if (!swimming && grounded && geyserBoost()) { vy = 25; grounded = false; beep(400, 0.12, 0.05); floatText(player.position, '⛲ ¡GÉISER!', '#67e8f9', 16); }   // parado sobre un géiser: ¡te lanza altísimo!
   if (state.underground && state.shelterHole) {   // caminar por las celdas voxel que ya fueron excavadas
     const h = state.shelterHole;
     const cx = Math.round((player.position.x - h.x) / MINE_CELL), cz = Math.round((player.position.z - h.z) / MINE_CELL);
@@ -12802,7 +12831,8 @@ function updateContextPrompt() {
       const nearSkiGate = !state.country && dist2D(player.position, SKI_RESORT.gate) < 14;
       const nearSkiGear = !state.country && (dist2D(player.position, SKI_RESORT.gear) < 10 || dist2D(player.position, SKI_RESORT.gear2) < 10);
       const nearSkiLift = !state.country && !!nearSkiLiftBoarding();
-      if (nearSkiLift) { const lift = nearSkiLiftBoarding(); action = { key: 'E', touch: '🚡', text: 'Subir al ' + (lift.kind === 'cumbre' ? 'andarivel a la cumbre' : lift.kind === 'arrastre' ? 'arrastre' : 'andarivel') }; }
+      if (state.inWater) action = { key: 'Espacio', touch: '🏊', text: 'Espacio sube · Ctrl se hunde · mira el vaso de la piscina' };
+      else if (nearSkiLift) { const lift = nearSkiLiftBoarding(); action = { key: 'E', touch: '🚡', text: 'Subir al ' + (lift.kind === 'cumbre' ? 'andarivel a la cumbre' : lift.kind === 'arrastre' ? 'arrastre' : 'andarivel') }; }
       else if (nearSkiGate) action = { key: 'E', touch: '🎫', text: state.skiPass ? (state.skiGear ? 'Empezar / parar esquí · E' : 'Compra equipo en la caseta azul') : 'Comprar tarjeta de esquí · $500' };
       else if (nearSkiGear) action = { key: 'E', touch: '⛷️', text: dist2D(player.position, SKI_RESORT.gear2) < dist2D(player.position, SKI_RESORT.gear) ? 'Comprar snowboard · $200' : 'Comprar esquís · $200' };
       else if (state.skiPass && state.skiGear && inSkiResort() && !state.skiLiftRide) action = { key: 'E', touch: state.skiing ? '🛑' : '⛷️', text: state.skiing ? 'Dejar de esquiar' : 'Largar / esquiar ahora' };

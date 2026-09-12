@@ -3421,21 +3421,23 @@ const SKI_MOUNTAIN_PROFILE = { x: SKI_RESORT.x, z: SKI_RESORT.z, r: SKI_RESORT.r
 const skiSlopeHeight = (x, z) => mountainProfile(SKI_MOUNTAIN_PROFILE, x - SKI_RESORT.x, z - SKI_RESORT.z);
 const skiResortGroup = new THREE.Group(); scene.add(skiResortGroup);
 const skiVisitors = [], skiObstacles = [], skiRamps = [], skiPisteWalls = [];
+const skiWallWorld = new THREE.Vector3();
 let skiGearMesh = null;
 function skiBox(parent, x, y, z, w, h, d, color, obstacle = false) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); m.castShadow = true; parent.add(m);
-  if (obstacle) skiObstacles.push(addObstacle(x, z, w, d));
-  // Murallas de madera de las pistas: colisión orientada para no atravesarlas esquiando.
-  if (color === 0x7c4a21) skiPisteWalls.push({ mesh: m, hw: w / 2, hd: d / 2, h });
+  if (obstacle) skiObstacles.push(addObstacle(x, z, w, d, y + h / 2));
+  if (obstacle || color === 0x7c4a21 || color === 0x8b5a2b) skiPisteWalls.push({ mesh: m, hw: w / 2, hd: d / 2, h });
   return m;
 }
 function resolveSkiPisteWalls() {
-  const r = 0.55, p = player.position, pies = p.y - PLAYER_EYE;
-  for (let pass = 0; pass < 2; pass++) {
+  const r = 0.75, p = player.position, pies = p.y - PLAYER_EYE;
+  let hitN = 0, nx = 0, nz = 0;
+  for (let pass = 0; pass < 3; pass++) {
     for (const w of skiPisteWalls) {
       const m = w.mesh;
-      if (pies > m.position.y + w.h / 2 - 0.2) continue;   // un salto alto sí pasa por encima
-      const dx = p.x - m.position.x, dz = p.z - m.position.z;
+      m.getWorldPosition(skiWallWorld);
+      if (pies > skiWallWorld.y + w.h / 2 + 0.85) continue;   // solo un salto alto pasa por encima
+      const dx = p.x - skiWallWorld.x, dz = p.z - skiWallWorld.z;
       const ang = m.rotation.y, c = Math.cos(ang), s = Math.sin(ang);
       const lx = dx * c - dz * s, lz = dx * s + dz * c;
       const hw = w.hw + r, hd = w.hd + r;
@@ -3444,9 +3446,16 @@ function resolveSkiPisteWalls() {
       const pushZ = lz >= 0 ? hd - lz : -hd - lz;
       let nlx = 0, nlz = 0;
       if (Math.abs(pushX) < Math.abs(pushZ)) nlx = pushX; else nlz = pushZ;
-      p.x += nlx * c + nlz * s;
-      p.z += -nlx * s + nlz * c;
+      const wx = nlx * c + nlz * s, wz = -nlx * s + nlz * c;
+      p.x += wx; p.z += wz;
+      const len = Math.hypot(wx, wz) || 1;
+      nx += wx / len; nz += wz / len; hitN++;
     }
+  }
+  if (hitN) {
+    const nlen = Math.hypot(nx, nz) || 1; nx /= nlen; nz /= nlen;
+    const into = skiVelX * nx + skiVelZ * nz;
+    if (into < 0) { skiVelX -= into * nx; skiVelZ -= into * nz; }   // no sigas metiéndote a través
   }
 }
 function buildSkiRoad() {
@@ -10913,22 +10922,24 @@ function updateSkiMovement(dt) {
   const braking = keys['KeyS'] || keys['ArrowDown'];
   const speedNow = Math.hypot(skiVelX, skiVelZ);
   // Canto real: a más velocidad, curva más amplia. En el aire casi no doblas.
-  const edge = grounded ? 2.6 : 0.55;
-  yaw -= steer * (edge / (1 + speedNow * 0.07)) * dt;
+  const edge = grounded ? 3.35 : 0.55;
+  yaw -= steer * (edge / (1 + speedNow * 0.055)) * dt;
   player.rotation.y = yaw;
   const skiFwdX = -Math.sin(yaw), skiFwdZ = -Math.cos(yaw);
+  const skiRightX = skiFwdZ, skiRightZ = -skiFwdX;   // derecha de los esquís = derecha de la pista
   const slopeDrop = Math.max(0, mountainHeightAt(player.position.x, player.position.z) - mountainHeightAt(player.position.x + skiFwdX * 8, player.position.z + skiFwdZ * 8));
-  // Los esquís se inclinan hacia el canto; el cuerpo sigue la curva, no un desliz lateral.
-  const lean = steer * (state.skiGear === 'snowboard' ? .42 : .28);
-  gearVisual.rotation.y += ((-steer * .35) - gearVisual.rotation.y) * Math.min(1, dt * 8);
+  const lean = steer * (state.skiGear === 'snowboard' ? .55 : .38);
+  gearVisual.rotation.y += ((-steer * .45) - gearVisual.rotation.y) * Math.min(1, dt * 8);
   gearVisual.rotation.z += (lean - gearVisual.rotation.z) * Math.min(1, dt * 9);
-  gearVisual.position.x += (steer * .22 - gearVisual.position.x) * Math.min(1, dt * 10);
+  gearVisual.position.x += (steer * .28 - gearVisual.position.x) * Math.min(1, dt * 10);
   if (grounded) {
     let accel = 4.2 + Math.min(16, slopeDrop * .85);
     if (push > 0) accel += 7;
     if (braking) { skiVelX *= Math.max(0, 1 - 5.5 * dt); skiVelZ *= Math.max(0, 1 - 5.5 * dt); }
     else {
       skiVelX += skiFwdX * accel * dt; skiVelZ += skiFwdZ * accel * dt;
+      skiVelX += skiRightX * steer * (8 + speedNow * 0.45) * dt;   // el canto te mete a la curva
+      skiVelZ += skiRightZ * steer * (8 + speedNow * 0.45) * dt;
       skiVelX *= Math.max(0, 1 - 0.35 * dt); skiVelZ *= Math.max(0, 1 - 0.35 * dt);
     }
     // El canto agarra: la velocidad se curva hacia donde apuntan los esquís (no un strafe).
@@ -10973,6 +10984,7 @@ function updateSkiMovement(dt) {
   if (wasAirborne && grounded && skiTrickActive) { skiTrickActive = false; toast('✨ ¡Truco 360!'); }
   vy = 0;
   resolveSkiPisteWalls();
+  resolveCollisions();   // también las cajas de las casetas y postes
   if (grounded) player.position.y = mountainHeightAt(player.position.x, player.position.z) + PLAYER_EYE;
   if (player.position.z > SKI_RESORT.z + 178) { player.position.z = SKI_RESORT.z + 178; state.skiing = false; stopSkiCarve(); toast('🏁 Llegaste al final de las pistas · E en la entrada para volver a subir'); }
   camera.rotation.y = yaw; camera.rotation.x = pitch;

@@ -8775,6 +8775,7 @@ function renderShopList(filter) {
 }
 function buyShopItem(item) {
   const priced = { ...item, price: effectivePrice(item) };
+  if ((item.bow || item.key === 'arco') && state.hasBow) { buyItem(priced); renderShopList(ui('shopInput').value); return; }
   if (state.money < priced.price) { toast('💸 Te falta plata para ' + item.name + ' ($' + priced.price + ')'); return; }
   buyItem(priced);
   renderShopList(ui('shopInput').value);   // refresca precios/dinero y el estado de cada fila

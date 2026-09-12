@@ -11,14 +11,20 @@ export const CHAT_HISTORY = 40;         // cuántos mensajes muestra el muro
 export const CHAT_NAME_MAX = 20;
 
 // Raíces de groserías (sin tildes ni mayúsculas). Se tapan también sus plurales
-// y terminaciones cortas: "putas" y "culiaos" caen con "puta" y "culiao".
+// y su género: "putas" y "culiaos" caen con "puta" y "culiao". Las terminaciones
+// permitidas son solo esas, para no tapar palabras normales que empiezan igual
+// ("conocí", "Vergara", "estupidez" no son groserías).
 const BAD_ROOTS = [
   'conchetumadre', 'conchetumare', 'ctm', 'culiao', 'culia', 'maricon', 'maraco',
-  'puta', 'puto', 'mierda', 'verga', 'pendejo', 'pichula', 'zorra', 'cono',
+  'puta', 'puto', 'mierda', 'verga', 'pendejo', 'pichula', 'zorra',
   'joder', 'gilipollas', 'chupalo', 'imbecil', 'estupido',
 ];
+const BAD_SUFFIXES = ['', 's', 'es', 'a', 'as', 'o', 'os'];
 const LINKS = /\b(?:https?:\/\/|www\.)\S+/gi;
 const CONTROL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu;
+// El "unidor" invisible arma los emoji de familia (👨‍👩‍👧): si se borra, el emoji
+// se parte en tres. Es el único carácter invisible que dejamos pasar.
+const ZWJ = String.fromCharCode(0x200d);
 
 // "Culiaoo" y "CULIAO" son la misma palabra: comparamos sin tildes ni signos.
 function fold(word) {
@@ -27,7 +33,7 @@ function fold(word) {
 function isBad(word) {
   const w = fold(word);
   if (!w) return false;
-  return BAD_ROOTS.some(root => w.startsWith(root) && w.length - root.length <= 2);
+  return BAD_ROOTS.some(root => w.startsWith(root) && BAD_SUFFIXES.includes(w.slice(root.length)));
 }
 
 export function maskBadWords(text) {
@@ -39,7 +45,7 @@ export function maskBadWords(text) {
 export function cleanChatText(value) {
   const text = String(value ?? '')
     .normalize('NFKC')
-    .replace(CONTROL, ' ')
+    .replace(CONTROL, c => (c === ZWJ ? c : ' '))
     .replace(LINKS, '(enlace)')
     .replace(/\s+/g, ' ')
     .trim()

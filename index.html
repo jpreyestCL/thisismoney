@@ -7618,7 +7618,12 @@ function callOnlineFriends() {
 // ===================================================================
 const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
-let typing = false;   // true mientras el input del vendedor está abierto (bloquea controles del juego)
+let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
+// Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply'];
+function algunRecuadroAbierto() {
+  return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
+}
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
 addEventListener('keydown', e => {
@@ -7748,7 +7753,7 @@ function nearKeeper() {
 function openShopInput() {
   if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
   if (!nearKeeper()) { toast(state.planet === 'platus' ? '👽 Acércate al VENDEDOR ALIEN (cerca del cohete) y pulsa Y' : state.country ? '🛒 Busca el puesto VENDEDOR de este país y pulsa Y' : '🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
-  closeMathBox(); closeRocket(); releaseLock();
+  closeMathBox(); closeRocket(); closeChatReply(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar todas las teclas para no caminar solo
   const box = ui('shopbox'), inp = ui('shopInput');
@@ -7759,9 +7764,9 @@ function openShopInput() {
   if (!document.body.classList.contains('touch')) inp.focus();   // en PC enfoca; en celular NO (para no abrir el teclado y tapar la lista)
 }
 function closeShopInput() {
-  typing = false;
   ui('shopbox').style.display = 'none';
   ui('shopInput').blur();
+  typing = algunRecuadroAbierto();
 }
 // ===== CONTRATOS del vendedor alien (misiones de Platus): acepta uno, cúmplelo y cóbralo =====
 const CONTRACT_DEFS = [
@@ -8451,8 +8456,8 @@ const chat = {
   history: [],       // lo que muestra el muro
   mine: new Set(),   // mis propios mensajes: no me los muestro como globo
   bubbles: [],       // globos vivos en pantalla
-  wallOpen: false, busy: false, hinted: false,
-  lastPoll: 0, lastSent: 0, lastPresence: 0, backoff: 0, tempId: null, replyTo: null,
+  wallOpen: false, busy: false, hinted: false, historyLoaded: false,
+  lastPoll: 0, lastSent: 0, lastPresence: null, backoff: 0, tempId: null, replyTo: null,
 };
 // El jugador del chat es el mismo anónimo del ranking (no publica nada privado).
 function chatPlayerId() {
@@ -8486,10 +8491,13 @@ async function chatSync(force) {
   if (document.hidden && !force) return;
   chat.busy = true; chat.lastPoll = performance.now();
   const params = new URLSearchParams();
-  // La primera vez dentro de la partida NO repetimos lo viejo: solo escuchamos lo que venga.
-  if (chat.lastId !== null) params.set('since', String(chat.lastId));
-  else if (state.running && !chat.wallOpen) params.set('since', '-1');
-  if (performance.now() - chat.lastPresence > 20000) {   // avisamos "sigo aquí" cada 20 s
+  // El muro necesita la conversación completa; dentro de la partida, en cambio, la
+  // primera consulta NO repite lo viejo (since=-1): solo escuchamos lo que venga.
+  const quiereHistorial = !chat.historyLoaded && (chat.wallOpen || !state.running);
+  if (quiereHistorial) { /* sin `since`: el servidor manda los últimos mensajes */ }
+  else if (chat.lastId !== null) params.set('since', String(chat.lastId));
+  else params.set('since', '-1');
+  if (chat.lastPresence === null || performance.now() - chat.lastPresence > 20000) {   // avisamos "sigo aquí" cada 20 s
     params.set('me', chatPlayerId()); params.set('name', chatName());
     chat.lastPresence = performance.now();
   }
@@ -8500,6 +8508,7 @@ async function chatSync(force) {
     const data = await r.json();
     chat.backoff = 0;
     chat.online = data.online || 0;
+    if (quiereHistorial) chat.historyLoaded = true;
     chatReceive(data.messages || []);
     if (chat.lastId === null || !(data.messages || []).length) chat.lastId = Number(data.lastId) || 0;
     renderChatWall(); renderChatTeaser();
@@ -8554,11 +8563,13 @@ async function sendChatMessage(raw) {
   if (faltan > 0) { chatNotice('Espera ' + Math.ceil(faltan / 1000) + ' s para volver a escribir'); return false; }
   chat.lastSent = Date.now();
   const avisoPrevio = ui('chatStatus').textContent;
+  let contestoElServidor = false;
   try {
     const r = await fetch(CHAT_API, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ playerId: chatPlayerId(), name: chatName(), text: texto }),
     });
+    contestoElServidor = true;
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || 'No se pudo mandar el mensaje');
     if (data.message) { chat.mine.add(data.message.id); chatReceive([data.message]); renderChatWall(); renderChatTeaser(); }
@@ -8568,7 +8579,9 @@ async function sendChatMessage(raw) {
     beep(880, .06, .03);
     return true;
   } catch (e) {
-    chat.lastSent = 0;   // no alcanzó a salir: puede reintentar al tiro
+    // Solo si el mensaje no llegó a salir (sin Internet) se puede reintentar al
+    // tiro. Si el servidor contestó (por ejemplo pidiendo calma), la espera queda.
+    if (!contestoElServidor) chat.lastSent = 0;
     chatNotice(e.message || 'No se pudo mandar el mensaje');
     return false;
   }
@@ -8614,7 +8627,7 @@ function renderChatTeaser() {
   el.style.display = '';
 }
 function openChatWall() {
-  closeChatReply();
+  closeChatReply(); closeShopInput(); closeMathBox();
   chat.wallOpen = true;
   releaseLock(); typing = true; for (const k in keys) keys[k] = false;
   if (state.running) state.paused = true;   // el mundo espera mientras conversas
@@ -8630,12 +8643,13 @@ function closeChatWall() {
   if (!chat.wallOpen) return;
   chat.wallOpen = false;
   ui('chatbox').style.display = 'none';
-  typing = false;
+  typing = algunRecuadroAbierto();
   if (state.running) state.paused = false;
 }
 // ---- Contestar sin salir de la partida ----
 function openChatReply(aQuien) {
   if (!state.running) return openChatWall();
+  closeShopInput(); closeMathBox();   // un solo recuadro de escribir a la vez
   // Sin nombre (tecla Enter o botón 💬): se le contesta al último que habló.
   const ultimo = chat.bubbles[chat.bubbles.length - 1];
   if (!aQuien && ultimo) aQuien = ultimo.dataset.chatFrom;
@@ -8651,7 +8665,7 @@ function closeChatReply() {
   const caja = ui('chatReply');
   if (!caja || caja.style.display !== 'flex') return;
   caja.style.display = 'none'; ui('chatReplyInput').value = ''; chat.replyTo = null;
-  if (!chat.wallOpen) typing = false;
+  typing = algunRecuadroAbierto();
 }
 async function sendChatReply() {
   const input = ui('chatReplyInput');
@@ -8851,7 +8865,7 @@ function openBank() {
   ui('bankbox').style.display = 'flex'; renderBank();
   beep(600, 0.1, 0.04);
 }
-function closeBank() { ui('bankbox').style.display = 'none'; if (ui('shopbox').style.display !== 'flex' && ui('mathbox').style.display !== 'flex') typing = false; }
+function closeBank() { ui('bankbox').style.display = 'none'; typing = algunRecuadroAbierto(); }
 function tryBank() {
   if (state.planet !== 'tierra') return false;
   if (dist2D(player.position, BANK_POS) > 7) return false;
@@ -8915,7 +8929,7 @@ function openRocket() {
   ui('rocketbox').style.display = 'flex'; renderRocket();
   beep(600, 0.1, 0.04);
 }
-function closeRocket() { ui('rocketbox').style.display = 'none'; if (!ui('shopbox') || ui('shopbox').style.display !== 'flex') typing = false; }
+function closeRocket() { ui('rocketbox').style.display = 'none'; typing = algunRecuadroAbierto(); }
 function tryRocket() {   // interactuar cerca del cohete abre los cajones
   if (!state.rocket) return false;
   if (dist2D(player.position, state.rocket.position) > 6) return false;
@@ -9118,7 +9132,7 @@ function renderMathProblem() {
 function openMathBox() {
   if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
   if ((state.mathLeft || 0) <= 0) { toast('🧮 Ya resolviste los 5 desafíos de hoy. ¡Mañana hay más!'); return; }
-  closeShopInput(); closeRocket(); releaseLock();
+  closeShopInput(); closeRocket(); closeChatReply(); releaseLock();
   typing = true;
   for (const k in keys) keys[k] = false;   // soltar teclas para no caminar solo
   ui('mathbox').style.display = 'flex';
@@ -9126,7 +9140,7 @@ function openMathBox() {
 }
 function closeMathBox() {
   ui('mathbox').style.display = 'none';
-  if (ui('shopbox').style.display !== 'flex') typing = false;
+  typing = algunRecuadroAbierto();
   mathProblem = null;
 }
 function answerMath(v) {

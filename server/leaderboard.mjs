@@ -63,8 +63,8 @@ async function list(req, res, url) {
 async function submit(req, res) {
   if (rateLimited(req)) return json(res, 429, { error: 'Demasiadas actualizaciones' });
   const body = await readBody(req);
-  const playerId = String(body.playerId || '');
-  if (!/^[a-f0-9-]{36}$/i.test(playerId)) return json(res, 400, { error: 'Jugador inválido' });
+  const playerId = validPlayerId(body.playerId);
+  if (!playerId) return json(res, 400, { error: 'Jugador inválido' });
   const money = Math.min(1_000_000_000_000, Math.max(0, Math.floor(Number(body.money) || 0)));
   const stage = Math.min(10_000, Math.max(1, Math.floor(Number(body.stage) || 1)));
   const creative = body.creative === true;
@@ -90,7 +90,7 @@ async function submit(req, res) {
 // y el muro funciona igual detrás de cualquier proxy.
 function validPlayerId(value) {
   const id = String(value || '');
-  return /^[a-f0-9-]{36}$/i.test(id) ? id : null;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : null;
 }
 async function touchPresence(id, name) {
   await pool.query(
@@ -145,9 +145,11 @@ async function chatSend(req, res) {
     'insert into chat_messages (player_id, display_name, body, source_hash) values ($1::uuid, $2, $3, $4) returning id, display_name, body, created_at',
     [id, name, text, fingerprint],
   );
-  await touchPresence(id, name);
-  await chatPrune();
   json(res, 200, { ok: true, message: chatRow(saved.rows[0]) });
+  // El mensaje ya quedó guardado: si la presencia o la limpieza fallaran, el
+  // jugador no debe ver un error (lo reenviaría y saldría dos veces en el muro).
+  touchPresence(id, name).catch(e => console.error('presencia', e));
+  chatPrune().catch(e => console.error('limpieza del chat', e));
 }
 
 const server = http.createServer(async (req, res) => {

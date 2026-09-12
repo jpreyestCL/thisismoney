@@ -389,3 +389,17 @@ amigos": el chat no pasa por PeerJS, va por la API mundial del VPS).
   `Esc` la cierra, botón `💬` en el panel `⋯` del celular (`press('chat')`) y tocar fuera
   también cierra. Mientras escribes, `typing = true` bloquea el teclado del juego.
 - El nombre sale de `tim_chat_name` (lo que escribas en el muro) o del perfil de la partida.
+- **Un solo recuadro de escribir a la vez** (arreglo del code review): abrir el chat cierra
+  vendedor/mates y viceversa, y todos los cierres usan `algunRecuadroAbierto()` (lista
+  `TYPING_BOXES`) en vez de comparar a mano contra otros paneles. Antes, cerrar uno devolvía
+  el teclado al juego aunque quedara otro abierto.
+- Otros arreglos del review: el muro carga la conversación aunque la primera consulta falle
+  (`chat.historyLoaded`, antes quedaba pegado en "no hay mensajes" al entrar a jugar); la
+  espera entre mensajes NO se borra cuando el servidor contesta 429 (solo si no hubo red);
+  el primer aviso de presencia sale al tiro (`lastPresence = null`, antes el muro decía
+  "0 jugadores" los primeros 20 s); `validPlayerId` exige la forma real de un uuid (antes un
+  id mal formado llegaba a PostgreSQL y devolvía 500, también en el ranking); el POST del
+  chat responde antes de la presencia y la limpieza (si fallaban, el jugador reenviaba y el
+  mensaje salía dos veces); el filtro ya no se come "conocí"/"conos"/"Vergara" (lista de
+  terminaciones en vez de "cualquier sufijo corto") ni parte los emoji de familia (el ZWJ
+  se conserva).

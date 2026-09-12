@@ -1008,6 +1008,45 @@ const player = new THREE.Object3D();
 scene.add(player);
 scene.add(camera);
 const PLAYER_EYE = 1.7;
+const MELEE_REACH = 3;   // tres bloques: en el suelo les pegas; arriba los de tierra no llegan
+function torsoY(p) { return p === player.position ? player.position.y - PLAYER_EYE + .9 : (p.y || 0) + .9; }
+function dist3D(a, b) { return Math.hypot(a.x - b.x, torsoY(a) - torsoY(b), a.z - b.z); }
+function inMeleeReach(a, b) { return dist3D(a, b) <= MELEE_REACH; }
+function isFlyingFoe(e) { return !!(e && e.userData && (e.userData.fly || e.userData.ufo)); }
+function airAttackFrom(from) {   // el origen es un volador (flyer / ovni) que sí puede subir
+  if (!from) return false;
+  if (from.userData && (from.userData.fly || from.userData.ufo)) return true;
+  for (let i = 0; i < enemies.length; i++) if (enemies[i].position === from) return isFlyingFoe(enemies[i]);
+  return false;
+}
+function monsterCanHit(e, tgt) {   // en el aire solo los VOLADORES suben y pegan
+  if (tgt === player.position && playerAirborne() && !isFlyingFoe(e)) return false;
+  return inMeleeReach(e.position, tgt);
+}
+function playerStandEyeY() {
+  let floor = state.groundY || 0;
+  if (!state.underground && !state.inCastle && !state.inRuins && !state.inArena) {
+    const cerro = mountainHeightAt(player.position.x, player.position.z);
+    if (cerro > floor) floor = cerro;
+  }
+  return floor + PLAYER_EYE;
+}
+function playerAirborne() {   // vuelo creativo, jetpack, heli o más de 3 bloques sobre el suelo
+  if (creativeFlying || state.jetOn) return true;
+  if (state.driving && car && car.helicopter && car.group.position.y > MELEE_REACH) return true;
+  return player.position.y > playerStandEyeY() + MELEE_REACH;
+}
+function playerHitRange() { return state.laserGun ? 30 : MELEE_REACH; }   // en el suelo (y si un volador se acerca) pegas a 3 bloques
+function flyerChaseY(e) {
+  const ground = mountainHeightAt(e.position.x, e.position.z);
+  if (playerAirborne()) return Math.max(ground + 2, player.position.y - PLAYER_EYE + 1.05);
+  return ground + 3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.3;
+}
+let airMissAt = 0;
+function airCombatMiss(kind) {
+  const now = performance.now(); if (now - airMissAt < 1600) return; airMissAt = now;
+  toast(kind === 'police' ? '🪽 Muy arriba: la policía no te atrapa' : '🪽 En el aire no te pegan los de tierra');
+}
 camera.rotation.order = 'YXZ';
 let yaw = 0, pitch = 0;
 const LOOK_SENS = 0.0025;
@@ -2527,7 +2566,10 @@ function updatePolice(dt) {
       const speed = (driving ? 22 : 7) + lvl * (driving ? 1.2 : 0.4);
       const catchD = driving ? 3.4 : 1.9;
       const d = dist2D(p.position, player.position);
-      if (d <= catchD) { policeCatch(); return; }
+      if (d <= catchD) {
+        if (playerAirborne()) { airCombatMiss('police'); continue; }   // volando: te persiguen abajo, no te esposan
+        policeCatch(); return;
+      }
       moveToward(p, player.position, speed * dt);
       const face = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
       if (p.userData.car) {
@@ -4464,8 +4506,8 @@ function giveCastleGift(pos) {
 }
 function attackCastleFoe() {   // pegarle a un alien malo del castillo (👊/clic o láser)
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5; let best = null, bd = range;
-  for (const f of castleFoes) { if (!f.alive) continue; const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
+  const range = playerHitRange(); if (range <= 0) return; let best = null, bd = range;
+  for (const f of castleFoes) { if (!f.alive) continue; const d = dist3D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position, '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
   if (state.laserGun) shootBeam(best.mesh.position);
@@ -4487,8 +4529,8 @@ function updateCastle(dt) {
     if (!f.alive) continue;
     f.mesh.position.y = 0.5 + Math.sin(performance.now() * 0.004 + f.mesh.position.x) * 0.15;
     const d = dist2D(f.mesh.position, player.position);
-    if (d > 1.4) { moveToward(f.mesh, player.position, 2.6 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
-    else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; if (!state.creative) state.hp -= 8 * state.armorFactor; } }
+    if (playerAirborne() || !inMeleeReach(f.mesh.position, player.position)) { moveToward(f.mesh, player.position, 2.6 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
+    else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; damagePlayer(8, f.mesh.position); } }
     swingLimbs(f.mesh, dt);
   }
 }
@@ -4611,8 +4653,8 @@ function defeatTitan() {
 function hitTitan(dmg) {
   if (!titan) return false;
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 34 : 6;
-  if (dist2D(p, titan.mesh.position) > range) return false;
+  const range = state.laserGun ? 34 : MELEE_REACH;
+  if (dist3D(p, titan.mesh.position) > range) return false;
   const to = new THREE.Vector3().subVectors(titan.mesh.position, p).normalize();
   if (to.dot(dir) < 0.2) return false;
   titan.hp -= dmg; floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15); beep(180, 0.05, 0.035);
@@ -4623,8 +4665,12 @@ function hitTitan(dmg) {
 function updateTitan(dt) {
   const t = titan; t.stepT += dt;
   const d = dist2D(t.mesh.position, player.position);
-  if (d > 4.5) { moveToward(t.mesh, player.position, 2.3 * dt); t.mesh.rotation.y = Math.atan2(player.position.x - t.mesh.position.x, player.position.z - t.mesh.position.z); if (t.mesh.userData.legs) { t.mesh.userData.legs[0].rotation.x = Math.sin(t.stepT * 4) * 0.4; t.mesh.userData.legs[1].rotation.x = -Math.sin(t.stepT * 4) * 0.4; } }
-  else { t.atkCd -= dt; if (t.atkCd <= 0) { t.atkCd = 1.5; if (!state.creative && !isPlayerHidden()) state.hp -= 18 * state.armorFactor; floatText(player.position, '🐙 ¡PISOTÓN!', '#ef4444', 18); beep(70, 0.3, 0.06); } }
+  if (playerAirborne() || d > 4.5) {
+    moveToward(t.mesh, player.position, 2.3 * dt); t.mesh.rotation.y = Math.atan2(player.position.x - t.mesh.position.x, player.position.z - t.mesh.position.z);
+    if (t.mesh.userData.legs) { t.mesh.userData.legs[0].rotation.x = Math.sin(t.stepT * 4) * 0.4; t.mesh.userData.legs[1].rotation.x = -Math.sin(t.stepT * 4) * 0.4; }
+  } else {
+    t.atkCd -= dt; if (t.atkCd <= 0) { t.atkCd = 1.5; damagePlayer(18, t.mesh.position); floatText(player.position, '🐙 ¡PISOTÓN!', '#ef4444', 18); beep(70, 0.3, 0.06); }
+  }
   t.bar.g.position.set(t.mesh.position.x, 13, t.mesh.position.z); t.bar.g.quaternion.copy(camera.quaternion);
   const f = Math.max(0, t.hp / t.maxhp); t.bar.fg.scale.x = f || 0.001;
 }
@@ -4683,8 +4729,8 @@ function tryColiseum() {
 }
 function hitArenaFoe() {
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5; let best = null, bd = range;
-  for (const f of arenaFoes) { const d = dist2D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
+  const range = playerHitRange(); if (range <= 0) return; let best = null, bd = range;
+  for (const f of arenaFoes) { const d = dist3D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position.clone().setY(2), '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
   if (state.laserGun) shootBeam(best.mesh.position.clone().setY(2));
@@ -4694,10 +4740,12 @@ function updateArena(dt) {
   if (!state.inArena) return;
   if (arenaFoes.length) {
     for (const f of arenaFoes) {
-      if (f.spd) { const fly = ENEMY_DEFS[f.type].fly; if (fly) f.mesh.position.y = 3 + Math.sin(performance.now() * 0.004 + f.mesh.position.x) * 0.3; }
+      const fly = !!(f.spd && ENEMY_DEFS[f.type] && ENEMY_DEFS[f.type].fly);
+      if (fly) { f.mesh.userData.fly = true; f.mesh.position.y = flyerChaseY(f.mesh); }
       const d = dist2D(f.mesh.position, player.position);
-      if (d > 1.5) { moveToward(f.mesh, player.position, (f.spd ? f.spd(state.stage) : 2) * 0.85 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
-      else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; if (!state.creative) state.hp -= f.dmg * 0.5 * state.armorFactor; } }
+      const canMelee = inMeleeReach(f.mesh.position, player.position) && (fly || !playerAirborne());
+      if (!canMelee) { moveToward(f.mesh, player.position, (f.spd ? f.spd(state.stage) : 2) * 0.85 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
+      else { f.atkCd -= dt; if (f.atkCd <= 0) { f.atkCd = 1; damagePlayer(f.dmg * 0.5, f.mesh.position, fly); } }
       swingLimbs(f.mesh, dt);
     }
     return;
@@ -4787,7 +4835,7 @@ function updateFloatingWorld(dt) {
         }
       } else {
         alien.userData.attackCd -= dt;
-        if (alien.userData.attackCd <= 0) { alien.userData.attackCd = .85; damagePlayer(8, floatingAlienWorld); startEnemyAttack(alien); beep(155, .08, .04); }
+        if (alien.userData.attackCd <= 0) { alien.userData.attackCd = .85; damagePlayer(8, floatingAlienWorld, true); startEnemyAttack(alien); beep(155, .08, .04); }
       }
       alien.rotation.y = Math.atan2(dx, dz);
     } else {
@@ -4818,12 +4866,12 @@ function alienShootPlayer(alien) {
   const to = player.position.clone().add(new THREE.Vector3(0, -.45, 0)), dir = new THREE.Vector3().subVectors(to, from), len = dir.length() || 1;
   const shot = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, len, 5), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
   shot.position.copy(from).addScaledVector(dir, .5); shot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); scene.add(shot);
-  setTimeout(() => killMesh(shot), 110); damagePlayer(5, from); tone(520, .055, .035, 'square'); alien.userData.attackAnim = .22;
+  setTimeout(() => killMesh(shot), 110); damagePlayer(5, from, true); tone(520, .055, .035, 'square'); alien.userData.attackAnim = .22;
 }
 function tryHitFloatingCitizen(dmg) {
   if (state.planet !== 'platus') return false;
   const dir = new THREE.Vector3(); getAimDirection(dir);
-  let best = null, bestD = state.laserGun ? 30 : 4.5;
+  let best = null, bestD = state.laserGun ? 30 : playerHitRange();
   for (const alien of floatingCitizens) {
     if (!alien.visible || alien.userData.hp <= 0) continue;
     alien.getWorldPosition(floatingAlienWorld); const d = player.position.distanceTo(floatingAlienWorld);
@@ -6575,7 +6623,12 @@ function damageCompanion(c, amount) {
   return true;
 }
 function damageEnemyTarget(target, amount, from, poison = false) {
-  if (target === player.position) { damagePlayer(amount, from); if (poison) applyPoison('player'); }
+  if (target === player.position) {
+    const air = airAttackFrom(from);
+    if (playerAirborne() && !air) return;
+    if (from && !inMeleeReach(from, player.position)) return;
+    damagePlayer(amount, from, air); if (poison) applyPoison('player');
+  }
   else if (target === dad.position) { damageDad(amount * .7, from); if (poison) applyPoison('dad'); }
   else { const c = livingCompanions().find(c => c.position === target); if (c) damageCompanion(c, amount); }
 }
@@ -6597,16 +6650,18 @@ function moveToward(e, target, step) {
   const ground = mountainHeightAt(e.position.x, e.position.z);
   const isHoverPet = e === petAlien || eggPets.includes(e);
   const flies = e.userData && (e.userData.fly || e.userData.ufo);
-  const hover = isHoverPet ? 0.3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.12
-    : flies ? 3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.3 : 0;
-  e.position.y = ground + hover;
+  if (flies) e.position.y = flyerChaseY(e);
+  else {
+    const hover = isHoverPet ? 0.3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.12 : 0;
+    e.position.y = ground + hover;
+  }
 }
 function removeEnemy(i) { const e = enemies[i]; if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); enemies.splice(i, 1); }
 function killEnemy(e) { const i = enemies.indexOf(e); if (i >= 0) removeEnemy(i); }
 function clearWaves() { enemies.forEach(e => { if (e.userData.bar) scene.remove(e.userData.bar.g); scene.remove(e); }); enemies.length = 0; netMobs.clear(); projectiles.forEach(p => scene.remove(p)); projectiles.length = 0; bombProjectiles.forEach(p => scene.remove(p)); bombProjectiles.length = 0; removeChest(); clearMeteorShower(); }   // netMobs.clear(): los monstruos del anfitrión se vuelven a recibir enseguida
 function throwZombieBomb(e,target){const p=new THREE.Group(),shell=new THREE.Mesh(new THREE.SphereGeometry(.28,10,8),mat(0x111827));shell.castShadow=true;p.add(shell);const fuse=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.22,6),mat(0x92400e));fuse.position.y=.3;fuse.rotation.z=.35;p.add(fuse);p.add(new THREE.PointLight(0xff6b00,1.5,4));p.position.set(e.position.x,e.position.y+1.7,e.position.z);const flight=1.15,ground=mountainHeightAt(target.x,target.z),gravity=11;p.userData.vel=new THREE.Vector3((target.x-p.position.x)/flight,(ground+.15-p.position.y+.5*gravity*flight*flight)/flight,(target.z-p.position.z)/flight);p.userData.life=flight;scene.add(p);bombProjectiles.push(p);beep(180,.12,.05);}
 function spawnBombCrater(x,z){const g=new THREE.Group(),pit=new THREE.Mesh(new THREE.CircleGeometry(2.35,20),new THREE.MeshStandardMaterial({color:0x160c06,roughness:1}));pit.rotation.x=-Math.PI/2;pit.position.y=.025;g.add(pit);for(let k=0;k<10;k++){const a=k/10*Math.PI*2,rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.34+Math.random()*.22,0),mat(0x4a2c17));rock.position.set(Math.cos(a)*(2.05+Math.random()*.35),.12,Math.sin(a)*(2.05+Math.random()*.35));rock.scale.y=.55;g.add(rock);}g.position.set(x,mountainHeightAt(x,z),z);scene.add(g);bombCraters.push(g);}
-function explodeZombieBomb(p){const pos=p.position.clone();pos.y=mountainHeightAt(pos.x,pos.z);voxelImpact(pos.clone().setY(pos.y+.3),0xf97316,18);cameraShake=Math.max(cameraShake,.45);beep(65,.45,.12);if(dist2D(pos,player.position)<4.5)damagePlayer(24,pos);if(dad.visible&&!dad.userData.resting&&dist2D(pos,dad.position)<4.5)damageDad(18,pos);damageCompanionsInRadius(pos,4.5,18);spawnBombCrater(pos.x,pos.z);}
+function explodeZombieBomb(p){const pos=p.position.clone();pos.y=mountainHeightAt(pos.x,pos.z);voxelImpact(pos.clone().setY(pos.y+.3),0xf97316,18);cameraShake=Math.max(cameraShake,.45);beep(65,.45,.12);if(!playerAirborne()&&dist3D(pos,player.position)<4.5)damagePlayer(24,pos);if(dad.visible&&!dad.userData.resting&&dist2D(pos,dad.position)<4.5)damageDad(18,pos);damageCompanionsInRadius(pos,4.5,18);spawnBombCrater(pos.x,pos.z);}
 function updateBombProjectiles(dt){for(let i=bombProjectiles.length-1;i>=0;i--){const p=bombProjectiles[i],ud=p.userData;ud.vel.y-=11*dt;p.position.addScaledVector(ud.vel,dt);p.rotation.x+=dt*7;p.rotation.z+=dt*5;ud.life-=dt;if(ud.life<=0||p.position.y<=mountainHeightAt(p.position.x,p.position.z)+.12){explodeZombieBomb(p);scene.remove(p);bombProjectiles.splice(i,1);}}}
 function clearBombCraters(){bombCraters.forEach(c=>scene.remove(c));bombCraters.length=0;}
 function updateProjectiles(dt) {
@@ -6617,7 +6672,7 @@ function updateProjectiles(dt) {
     if (ud.friendly) {                                  // dardo de ballesta/torreta: pega a los monstruos
       for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (e.userData.type === 'bull') continue; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
     } else {                                            // proyectil enemigo: te pega a ti o al papá
-      if (dist2D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
+      if (!playerAirborne() && dist3D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
       else if (dad.visible && !dad.userData.resting && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg, p.position); hit = true; }
       else { const companion = livingCompanions().find(c => dist2D(p.position, c.position) < 1.2); if (companion) { damageCompanion(companion, ud.dmg); hit = true; } }
     }
@@ -7315,7 +7370,11 @@ function tryDiscoverSecret() {
 }
 function syncWorldSecrets() { for (const s of worldSecrets) s.visible = state.planet === 'tierra' && !state.foundSecrets[s.userData.secret.id]; }
 
-function damagePlayer(amount, fromPos) {
+function damagePlayer(amount, fromPos, fromAirFoe) {
+  if (playerAirborne() && !fromAirFoe && !airAttackFrom(fromPos)) {   // en el aire los de tierra no llegan; un volador sí
+    if (fromPos) airCombatMiss();
+    return;
+  }
   if ((isPlayerHidden() && !(state.underground && state.shelterHole && state.shelterHole.islandMine)) || state.invulnerable > 0) return;
   const rawAmount = amount;
   const coveredByDad = !!(fromPos && dad.visible && !dad.userData.resting && dad.userData.armed && state.dadArmor < 1 && state.dadHp > 0 && dist2D(dad.position, player.position) < 4.8 && dist2D(dad.position, fromPos) < 6.5);
@@ -7665,7 +7724,7 @@ addEventListener('keydown', e => {
         state.skiing = true; beginSkiCarve();
         toast('❄️ Aterrizaste con los esquís puestos · ¡sigue esquiando!');
       }
-      toast(creativeFlying ? '🪽 Vuelo creativo activado · WASD mueve · Espacio sube · Ctrl baja · doble Z para aterrizar' : '🛬 Vuelo creativo desactivado');
+      toast(creativeFlying ? '🪽 Vuelo creativo · 3 bloques · los de tierra no te pegan · la policía no te atrapa' : '🛬 Vuelo creativo desactivado');
       lastCreativeZTap = 0;
     } else lastCreativeZTap = now;
     toggleDadRest();
@@ -10185,7 +10244,8 @@ function updateUfoBoss(e, dt) {
   const hx = player.position.x + Math.cos(ud.hoverT * 0.5) * 10, hz = player.position.z + Math.sin(ud.hoverT * 0.5) * 10;
   e.position.x += (hx - e.position.x) * Math.min(1, dt * 0.8);
   e.position.z += (hz - e.position.z) * Math.min(1, dt * 0.8);
-  e.position.y = 10 + Math.sin(ud.hoverT * 1.5) * 1.2;
+  const baseHover = 10 + Math.sin(ud.hoverT * 1.5) * 1.2;
+  e.position.y += ((playerAirborne() ? Math.max(baseHover, player.position.y - PLAYER_EYE + 1.5) : baseHover) - e.position.y) * Math.min(1, dt * 1.6);
   if (ud.spin) ud.spin.rotation.y += dt * 2;
   ud.barY = e.position.y + 3;   // la barra de vida sigue su altura
   ud.beamCd -= dt;
@@ -10194,7 +10254,9 @@ function updateUfoBoss(e, dt) {
     const n = 1 + (state.stage >= 3 ? 1 : 0);
     for (let k = 0; k < n; k++) spawnEnemy(Math.random() < 0.5 ? 'alienBig' : 'alien', new THREE.Vector3(e.position.x + (Math.random() * 4 - 2), 0, e.position.z + (Math.random() * 4 - 2)));
     floatText(e.position, '🛸 ¡suelta aliens!', '#22d3ee', 16); beep(300, 0.2, 0.05);
-    if (dist2D(e.position, player.position) < 6) damagePlayer(ud.dmg || 22, e.position);   // rayo si estás justo debajo
+    if (playerAirborne() ? dist3D(e.position, player.position) < 8 : dist2D(e.position, player.position) < 6) {
+      damagePlayer(ud.dmg || 22, e.position, true);   // el ovni es volador: el rayo sí llega si subió a por ti
+    }
   }
 }
 function attack(multiplier = 1) {
@@ -10205,11 +10267,12 @@ function attack(multiplier = 1) {
   if (titan && hitTitan(state.weaponDmg)) return;      // golpear al TITÁN
   if (tryHitFloatingCitizen(Math.round(state.weaponDmg * multiplier))) return;
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 30 : 5, dmg = Math.round(state.weaponDmg * multiplier);
+  const range = playerHitRange(), dmg = Math.round(state.weaponDmg * multiplier);
+  if (range <= 0) return;
   let best = null, bestD = range;
   for (const e of enemies) {
     if (e.userData.type === 'bull') continue;
-    const d = dist2D(p, e.position);
+    const d = dist3D(p, e.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
   if (best) { hitEnemy(best, dmg, p); if (state.laserGun) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
@@ -10236,10 +10299,10 @@ function attackNPC() {
   if (state.planet === 'platus') { vmSwing = 1; if (!tryHitFloatingCitizen(state.weaponDmg) && !tryHitGeode() && !tryMineCrystal()) tryMineCoal(); return; }   // en Platus: ciudadanos, geodas, cristales o carbón
   if (tryMineIslandOre()) { vmSwing=1; beep(310,.06,.035); return; }
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = 4;
+  const range = MELEE_REACH;
   let best = null, bestD = range;
   for (const person of npcs.concat(victims)) {
-    const d = dist2D(p, person.position);
+    const d = dist3D(p, person.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(person.position, p).normalize(); if (to.dot(dir) > 0.2) { best = person; bestD = d; } }
   }
   if (!best) return;
@@ -10403,7 +10466,7 @@ function updateMoles(dt) {
     if (!tgt) continue;
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
-    if (d > 1.4) { moveToward(e, tgt, ud.speed * dt); if(inSameMine)e.position.y=state.groundY; e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
+    if (!inMeleeReach(e.position, tgt) || (isPlayer && playerAirborne())) { moveToward(e, tgt, ud.speed * dt); if(inSameMine)e.position.y=state.groundY; e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
     else if (ud.attackCd <= 0) { ud.attackCd = 1; startEnemyAttack(e); damageEnemyTarget(tgt, ud.dmg, e.position); }
   }
 }
@@ -10437,7 +10500,7 @@ function updateNight(dt) {
     if (ud.type === 'bull') {
       e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
       e.position.y = mountainHeightAt(e.position.x, e.position.z);
-      if (dist2D(e.position, player.position) < 1.5) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
+      if (!playerAirborne() && inMeleeReach(e.position, player.position)) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
       if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8, e.position); removeEnemy(i); continue; }
       const companion = livingCompanions().find(c => dist2D(e.position, c.position) < 1.6);
       if (companion) { damageCompanion(companion, ud.dmg || 17); removeEnemy(i); continue; }
@@ -10466,7 +10529,7 @@ function updateNight(dt) {
       const isBarrier = !o.baseY && (o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'wallMetal' || (o.key === 'door' && !ud.opensDoors)); // los inteligentes abren puertas · las paredes del 2º piso no frenan a los de abajo
       if (isBarrier && o.hp > 0 && dist2D(e.position, o.mesh.position) < 2.2) blocked = o;
     } }
-    if (flies) e.position.y = mountainHeightAt(e.position.x, e.position.z) + 3 + Math.sin(state.nightTime * 4 + i) * 0.3;   // flotar sobre el terreno
+    if (flies) e.position.y = flyerChaseY(e);   // si estás volando, el flyer sube a por ti
     // monstruo volador: destruye las construcciones aéreas (techos) que encuentra
     if (ud.breaksAir && ud.attackCd <= 0) {
       let roof = null, rd = 4;
@@ -10475,14 +10538,15 @@ function updateNight(dt) {
     }
     if (blocked) {
       if (ud.attackCd <= 0) { startEnemyAttack(e); voxelImpact(blocked.mesh.position.clone().setY(1.4), 0xf59e0b, 5); const fortify = 1 - Math.min(.5, houseStats().protection / 200); blocked.hp -= (ud.opensDoors ? 30 : (ud.dmg || 10)) * fortify; ud.attackCd = 1; state.nightDamage = true; if (blocked.hp <= 0) removePlaced(blocked); }
-    } else if (d > 1.4) {
-      if (ud.role === 'scout' && d > 4) {
+    } else if (!(isPlayer ? monsterCanHit(e, tgt) : inMeleeReach(e.position, tgt))) {
+      if (ud.role === 'scout' && d > 4 && !flies) {
         if (!ud.flankSign) ud.flankSign = Math.random() < .5 ? -1 : 1;
         const dx = tgt.x - e.position.x, dz = tgt.z - e.position.z, len = Math.hypot(dx, dz) || 1, step = ud.speed * dt;
         e.position.x += (dx / len * .72 - dz / len * .69 * ud.flankSign) * step;
         e.position.z += (dz / len * .72 + dx / len * .69 * ud.flankSign) * step;
         e.position.y = mountainHeightAt(e.position.x, e.position.z);
       } else moveToward(e, tgt, ud.speed * dt);
+      if (flies) e.position.y = flyerChaseY(e);
       e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
     } else if (ud.attackCd <= 0) {
       ud.attackCd = 1;
@@ -11933,6 +11997,7 @@ function renderHUD() {
   if (currentBlueprint()) gear.unshift('📐 ' + currentBlueprint().name + ' · ' + currentBlueprint().parts.length + ' piezas');
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');
+  if (playerAirborne()) gear.unshift('🪽 en el aire · 3 bloques · los de tierra no te pegan · policía no te atrapa');
   if (state.ngplus) gear.unshift('⭐ Partida+');
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));

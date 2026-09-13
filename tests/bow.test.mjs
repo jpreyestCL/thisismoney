@@ -29,6 +29,14 @@ assert.match(html, /Mantén para tensar el arco/);
 assert.match(html, /item\.bow \|\| item\.key === 'arco'/);
 assert.match(html, /clearPlayerArrows\(\)/);
 assert.doesNotMatch(html, /if \(e\.code === 'KeyE'\) \{ const alexaTarget=e\.shiftKey&&aimedFurniture\(\);if\(alexaTarget&&alexaTarget\.key==='alexa'\)\{useAlexaText\(alexaTarget\);return;\}if \(!tryRefuelCar/);
-assert.match(sw, /tim-v24/);
+assert.match(html, /function selectHandTool\(/);
+assert.match(html, /function equipHandWeapon\(/);
+assert.match(html, /function rememberMeleeWeapon\(/);
+assert.match(html, /slot1TapAt/);
+assert.match(html, /1 dos veces = arco/);
+assert.match(html, /selectSlot\(1, 'wheel'\)/);
+assert.match(html, /meleeName: state\.meleeName/);
+assert.match(html, /if \(bowEquipped\(\)\) \{/);
+assert.match(sw, /tim-v25/);
 
 console.log('bow and arrow: ok');

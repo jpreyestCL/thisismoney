@@ -889,10 +889,10 @@
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Primero contrátalo en el súper por $500. Su sueldo es $100 cada 7 días del juego.</span>
           <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
-          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Mira hacia arriba para que vuele lejos; abajo llega menos.</span>
+          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada y arco: pulsa 1 una vez para la espada y 1 dos veces seguidas para el arco.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
-          <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
+          <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La tecla 1: un toque = espada (o pala), dos toques seguidos = arco. La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
           <kbd>P · L</kbd><span>Girar la pieza al ángulo que quieras: un toque la mueve 15° y si mantienes apretado gira sin parar (igual que el botón 🔄 Girar).</span>
           <kbd>Q / K</kbd><span>Comer o plantar. Shift+K cambia entre manzana, zanahoria, trigo y tomate.</span>
           <kbd>C/V/O</kbd><span>Ordenar a papá: seguir, esperar o limpiar. G lo arma y Z lo deja descansar.</span>
@@ -8039,6 +8039,7 @@ const state = {
   hp: 100, dadHp: 100,
   inv: freshInv(), driving: false, poison: 0, dadPoison: 0,
   weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false, hasShovel: false, hasBow: false,
+  meleeName: 'Puños', meleeDmg: 2, meleeColor: 0x94a3b8,   // la espada/pala se guarda aparte del arco (tecla 1)
   helperWeapon: false, helperArmor: false,   // arma / armadura para los hijos (todos)
   hunger: 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: 0,
   momUnlocked: false, momEventPending: false,
@@ -8638,9 +8639,58 @@ addEventListener('keydown', e => {
 });
 // Inventario tipo Minecraft: elegir un espacio (slot).
 // Los números son de la CATEGORÍA activa (1 = herramienta, 2..10 = piezas de la pestaña).
-function selectSlot(n) {
+function bowShopItem() {
+  return STORE_B.find(i => i.bow || i.key === 'arco') || { name: 'Arco y flechas', dmg: 16, color: 0x8b5a2b };
+}
+function rememberMeleeWeapon(name, dmg, color) {
+  if (!name || weaponKindFromName(name) === 'bow') return;
+  state.meleeName = name;
+  state.meleeDmg = dmg != null ? dmg : 2;
+  state.meleeColor = color != null ? color : weaponVisualColor;
+}
+function resetMeleeWeapon() {
+  rememberMeleeWeapon('Puños', 2, 0x94a3b8);
+}
+function equipHandWeapon(kind) {
+  if (kind === 'bow') {
+    if (!state.hasBow) return false;
+    cancelBowDraw();
+    const b = bowShopItem();
+    state.weaponName = b.name; state.weaponDmg = b.dmg; setWeaponColor(b.color);
+    return true;
+  }
+  cancelBowDraw();
+  const name = state.meleeName || 'Puños';
+  state.weaponName = name;
+  state.weaponDmg = state.meleeDmg != null ? state.meleeDmg : 2;
+  setWeaponColor(state.meleeColor != null ? state.meleeColor : 0x94a3b8);
+  return true;
+}
+let slot1TapAt = 0;
+function selectHandTool() {   // 1 un toque = espada/pala · 1 dos toques = arco
+  state.buildMode = false;
+  if (!state.hasBow) {
+    if (weaponKindFromName(state.weaponName) === 'bow') equipHandWeapon('melee');
+    return;
+  }
+  const now = performance.now();
+  if (now - slot1TapAt < 420) {
+    slot1TapAt = 0;
+    equipHandWeapon('bow');
+    toast('🏹 Arco en la mano · pulsa 1 una vez para la espada');
+  } else {
+    slot1TapAt = now;
+    equipHandWeapon('melee');
+    toast('⚔️ ' + (state.meleeName || 'Puños') + ' · pulsa 1 otra vez para el arco');
+  }
+}
+function selectSlot(n, via) {
   activeBlueprintId = null; blueprintGhost.visible = false;
-  if (n === 1) { state.buildMode = false; return; }           // 1 = herramienta en mano (pala/espada)
+  if (n === 1) {
+    if (via === 'wheel') { state.buildMode = false; return; }   // la rueda solo sale de construir
+    selectHandTool();
+    return;
+  }
   const key = catKeys()[n - 2];
   if (!key) return;
   buildSel = BUILD_KEYS.indexOf(key); state.buildMode = true; resetBuildScale();
@@ -8898,7 +8948,7 @@ canvas.addEventListener('wheel', e => {
   let cur = state.buildMode ? buildSel + 2 : 1;        // número global de slot (1..19)
   cur += dir;
   if (cur < 1) cur = total; else if (cur > total) cur = 1;
-  if (cur === 1) selectSlot(1); else selectBuildKey(BUILD_KEYS[cur - 2]);
+  if (cur === 1) selectSlot(1, 'wheel'); else selectBuildKey(BUILD_KEYS[cur - 2]);
   e.preventDefault();
 }, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -9271,7 +9321,7 @@ function startGame() {
   abortFlight();
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
-  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; state.hasBow = false; applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
+  state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; state.hasBow = false; resetMeleeWeapon(); applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
   state.hasPhone = false;
   state.contract = null;   // sin contratos al empezar
@@ -9919,6 +9969,7 @@ function saveGame() {
       money: state.money, totalEarned: state.totalEarned, stage: state.stage,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
       weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel, hasBow: !!state.hasBow,
+      meleeName: state.meleeName || 'Puños', meleeDmg: state.meleeDmg != null ? state.meleeDmg : 2, meleeColor: state.meleeColor != null ? state.meleeColor : 0x94a3b8,
       dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet, country:state.country||null,
       houseTier: houseTier, inv: state.inv,
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
@@ -10507,6 +10558,9 @@ function loadGame() {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: d.night || 0,
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel, hasBow: !!d.hasBow || String(d.weaponName || '').toLowerCase().includes('arco'),
+    meleeName: d.meleeName || (String(d.weaponName || '').toLowerCase().includes('arco') ? 'Puños' : (d.weaponName || 'Puños')),
+    meleeDmg: d.meleeDmg != null ? d.meleeDmg : (String(d.weaponName || '').toLowerCase().includes('arco') ? 2 : (d.weaponDmg || 2)),
+    meleeColor: d.meleeColor != null ? d.meleeColor : (d.weaponColor || 0x94a3b8),
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')), country:COUNTRIES.some(c=>c.id===d.country)?d.country:null,
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, inFlight: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
     hasPhone: !!d.hasPhone, skiPass: !!d.skiPass, skiGear: d.skiGear || null, skiGearWorn: d.skiGearWorn != null ? !!d.skiGearWorn : !!d.skiGear, skiing: false, skiLiftRide: null,
@@ -10607,7 +10661,7 @@ function resetAll() {
   state.arcadePrizes = {};
   state.parkBusiness = null; closeParkBusiness();
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
-  state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; state.hasBow = false; applyPlayerArmor();
+  state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; state.hasBow = false; resetMeleeWeapon(); applyPlayerArmor();
   state.helperWeapon = false; state.helperArmor = false;
   state.hasPhone = false; state.skiPass = false; state.skiGear = null; state.skiGearWorn = false; state.skiing = false; state.skiLiftRide = null;
   state.dadArmor = 1; applyDadArmor(false);
@@ -11167,13 +11221,14 @@ function paintHouse(color, label) {
 function buyItem(item) {
   if (!state.creative && item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
   if (item.bow || item.key === 'arco') {
-    if (state.hasBow && bowEquipped()) { toast('🏹 Ya tienes el arco en la mano'); return; }
+    if (state.hasBow && bowEquipped()) { toast('🏹 Ya tienes el arco en la mano · pulsa 1 una vez para la espada, dos veces para el arco'); return; }
     if (!state.hasBow) {
       if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
       if (!state.creative) state.money -= item.price;
     }
-    state.hasBow = true; state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color);
-    toast('🏹 Arco listo · mantén E o clic para tensar, suelta para tirar · mira hacia ARRIBA para llegar lejos');
+    if (weaponKindFromName(state.weaponName) !== 'bow') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    state.hasBow = true; equipHandWeapon('bow');
+    toast('🏹 Arco listo · pulsa 1 una vez = espada · pulsa 1 dos veces = arco · mantén E o clic para tensar, mira hacia ARRIBA para llegar lejos');
     saveGame(); return;
   }
   if (state.money < item.price) { toast('💸 Te falta plata'); return; }
@@ -11267,11 +11322,21 @@ function buyItem(item) {
   if (item.build) { state.inv[item.key] = (state.inv[item.key] || 0) + 1; toast('🛒 Compraste ' + item.name + (item.deco ? ' (colócala: B y luego F)' : ' (constrúyela con B/F)')); }
   else if (item.seedType) { state.inv[item.key] = (state.inv[item.key] || 0) + (item.seedCount || 1); toast(shopIcon(item) + ' ' + item.name + ' · K planta · Shift+K cambia cultivo'); }
   else if (item.eat) { state.inv.food++; toast('🍖 ' + item.name + ' guardada en el inventario (pulsa 7 para comer)'); }
-  else if (item.dmg) {   // arma (espada o pala): equipa la más fuerte
+  else if (item.dmg) {   // arma (espada o pala): se guarda aunque el arco pegué más
     const isShovel = item.key && item.key.startsWith('pala');
     if (isShovel) state.hasShovel = true;   // tener CUALQUIER pala habilita CAVAR (T), aunque tu arma equipada sea más fuerte
-    if (item.dmg > state.weaponDmg) { state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color); toast((isShovel ? '🪏 ' : '⚔️ ') + item.name + ' equipada: hace ' + item.dmg + ' de daño' + (isShovel ? ' · ya puedes CAVAR (T)' : '')); }
-    else toast(isShovel ? '🪏 ' + item.name + ' guardada: ya puedes CAVAR (T) aunque tu arma sea otra' : 'Ya tienes un arma más fuerte (' + state.weaponName + ')');
+    const meleeKind = weaponKindFromName(state.meleeName);
+    if (!isShovel) {
+      if (meleeKind !== 'sword' || item.dmg > (state.meleeDmg || 0)) rememberMeleeWeapon(item.name, item.dmg, item.color);
+    } else if (meleeKind === 'fist' || meleeKind === 'shovel') {
+      if (meleeKind === 'fist' || item.dmg > (state.meleeDmg || 0)) rememberMeleeWeapon(item.name, item.dmg, item.color);
+    }
+    if (bowEquipped()) {
+      toast((isShovel ? '🪏 ' : '⚔️ ') + item.name + ' guardada · pulsa 1 una vez para usarla, 1 dos veces para el arco');
+    } else if (item.dmg > state.weaponDmg) {
+      equipHandWeapon('melee');
+      toast((isShovel ? '🪏 ' : '⚔️ ') + item.name + ' equipada: hace ' + item.dmg + ' de daño' + (isShovel ? ' · ya puedes CAVAR (T)' : ''));
+    } else toast(isShovel ? '🪏 ' + item.name + ' guardada: ya puedes CAVAR (T) aunque tu arma sea otra' : 'Ya tienes un arma más fuerte (' + state.weaponName + ')');
   }
   else if (item.factor) {  // armadura: deja la que menos daño recibe
     if (item.factor < state.armorFactor) { state.armorFactor = item.factor; applyPlayerArmor(); toast('🛡️ ' + item.name + ': se te ve puesta (mira con 📷) · un zombi te hace ' + Math.round(10 * item.factor) + ' (antes 10)'); }

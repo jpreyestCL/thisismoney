@@ -25,6 +25,6 @@ assert.match(html, /fps < 28/);
 assert.match(html, /if \(fpsLento < 2\) return/);
 assert.match(html, /light\.visible = false/);
 assert.match(html, /shaftLight\.visible = false/);
-assert.match(sw, /tim-v24/);
+assert.match(sw, /tim-v25/);
 
 console.log('perf lod and startup: ok');

@@ -9609,6 +9609,77 @@ ui('accountFile').addEventListener('change', async () => {
   } catch (e) { toast('No pude leer esa imagen'); }
 });
 // migración: la partida vieja (tim_save sin nombre) pasa a llamarse "Jugador"
+function davidRestoredSave() {   // el mundo de David se borró: lo reconstruimos como lo describió
+  const wall = (x, z, rot) => ({ key: 'wallWood', variant: 'troncos', x, z, rot, hp: 100 });
+  const placed = [
+    wall(6, 5, 0), wall(8, 5, 0), wall(10, 5, 0),
+    wall(5, 6, Math.PI / 2), wall(5, 8, Math.PI / 2), wall(5, 10, Math.PI / 2),
+    wall(11, 6, Math.PI / 2), wall(11, 8, Math.PI / 2), wall(11, 10, Math.PI / 2),
+    { key: 'door', x: 8, z: 11, rot: 0, hp: 100 },
+    { key: 'roof', x: 6, z: 7, rot: 0, hp: 100, variant: 'piramide' },
+    { key: 'roof', x: 8, z: 7, rot: 0, hp: 100, variant: 'piramide' },
+    { key: 'roof', x: 10, z: 7, rot: 0, hp: 100, variant: 'piramide' },
+    { key: 'roof', x: 6, z: 9, rot: 0, hp: 100 }, { key: 'roof', x: 8, z: 8, rot: 0, hp: 100 }, { key: 'roof', x: 10, z: 9, rot: 0, hp: 100 },
+    { key: 'lamp', x: 8, z: 8 }, { key: 'oven', x: 6.4, z: 6.4 }, { key: 'cama', x: 9.6, z: 6.5, rot: Math.PI / 2 },
+    { key: 'planta', x: 4, z: 5 }, { key: 'planta', x: 12, z: 5 }, { key: 'planta', x: 4, z: 11 }, { key: 'planta', x: 12, z: 11 }
+  ];
+  const plants = [];
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 5; j++) plants.push({ x: 14 + i * 2.2, z: 3.5 + j * 2.2, crop: 'apple', grow: 1, produce: 3 });
+  return {
+    saveVersion: GAME_RULES.saveVersion,
+    money: 20000, totalEarned: 20000, stage: 20,
+    hp: 100, dadHp: 100, hunger: 100, night: 6,
+    phase: 'DAY', dayTime: 20, nightTime: 0,
+    weaponName: 'Arco y flechas', weaponDmg: 16, weaponColor: 0x8b5a2b, hasBow: true, hasShovel: true,
+    meleeName: 'Espada obsidiana', meleeDmg: 13, meleeColor: 0x6d28d9, lastNonBow: 'melee',
+    armorFactor: 0.3, dadArmor: 1, dadGun: false,
+    planet: 'platus', planetName: 'PLATUS', planetGround: 0x9c4a2a, planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1,
+    hasRocket: true, usedRocket: true, hasSuits: true, trips: 1, meteorAt: GAME_RULES.meteorAt,
+    inv: { food: 18, semillas: 24, semillas_zanahoria: 8, semillas_trigo: 8, semillas_tomate: 8, carbon: 28, wallWood: 12, roof: 4, door: 1 },
+    px: 10, pz: 16, dadX: 12, dadZ: 13, dadMode: 'follow', dadArmed: false, dadResting: false,
+    placed, plants, selectedCrop: 'apple',
+    miners: [
+      { x: 3, z: 3, coal: 48, money: 620 }, { x: 14, z: 2, coal: 72, money: 880 },
+      { x: 18, z: 8, coal: 36, money: 410 }, { x: 2, z: 10, coal: 90, money: 1100 },
+      { x: 16, z: 14, coal: 25, money: 300 }, { x: 3, z: 16, coal: 64, money: 740 }
+    ],
+    campfires: [{ x: 8, z: 13 }, { x: 12, z: 4 }, { x: 5, z: 8 }],
+    hasFloor2: false, floors2: [], unlocked: {},
+    creative: false, momUnlocked: false, cargo: { food: 4, semillas: 6, carbon: 6 },
+    bank: 0, debt: 0, mathLeft: 5, mathStreak: 0,
+    streak: 1, bestiary: { zombie: 1, alien: 1 }, album: {},
+    tutorial: { step: 6, complete: true }, chapter: 2, chapterFlags: {},
+    houseTier: 1, helperWeapon: false, helperArmor: false, helpers: [],
+    contract: null, eggPets: [], incubTime: 0, eggQueue: 0, petPoint: null,
+    coreClaimed: false, relics: 0, trophies: 0, baseLevel: 0, baseTurrets: 0, baseGenerator: false,
+    hasPhone: false, skiPass: false, arcadeTickets: 0, arcadePrizes: {},
+    cameraMode: 0, savedAt: Date.now()
+  };
+}
+function davidWorldNeedsRestore() {
+  try {
+    const raw = localStorage.getItem(profileKey('David'));
+    if (!raw) return true;
+    const d = JSON.parse(raw);
+    if (!d) return true;
+    if (d.planet === 'platus' && (d.money || 0) >= 15000 && d.hasBow) return false;
+    if ((d.money || 0) > 25000 || (d.totalEarned || 0) > 80000) return false;
+    return true;
+  } catch (e) { return true; }
+}
+function ensureDavidWorld() {   // vuelve a crear el perfil David si se borró o quedó vacío
+  try {
+    if (localStorage.getItem('tim_gift_David_v1') === 'done') return false;
+    if (!davidWorldNeedsRestore()) { localStorage.setItem('tim_gift_David_v1', 'done'); return false; }
+    localStorage.setItem(profileKey('David'), JSON.stringify(davidRestoredSave()));
+    const p = getProfiles(); if (!p.includes('David')) { p.push('David'); saveProfiles(p); }
+    localStorage.setItem('tim_gift_David_v1', 'done');
+    const who = (() => { try { return localStorage.getItem('tim_profile'); } catch (e) { return null; } })();
+    if (!who || who === 'David') setProfile('David');
+    if (ui('continueBtn')) { ui('continueBtn').style.display = ''; ui('start').classList.add('has-save'); }
+    return true;
+  } catch (e) { return false; }
+}
 (function migrateOldSave() {
   try {
     const old = localStorage.getItem('tim_save');
@@ -9619,6 +9690,7 @@ ui('accountFile').addEventListener('change', async () => {
       if (!currentProfile) setProfile('Jugador');
     }
   } catch (e) {}
+  ensureDavidWorld();
   // el botón CONTINUAR se evaluó antes de esta migración; re-evaluarlo ahora que ya hay perfiles
   try { if (hasSave() && ui('continueBtn')) ui('continueBtn').style.display = ''; } catch (e) {}
   applyLobbyLook();

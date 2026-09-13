@@ -5931,13 +5931,17 @@ function updateShootingStar(dt) {
 // ECLIPSE CÓSMICO (evento raro de Platus): se oscurece todo, la gravedad casi desaparece y LLUEVE BOTÍN
 let eclipseTimer = 130 + Math.random() * 120, eclipseDisc = null;
 const eclipseLoot = [];
-function startEclipse() {
-  state.eclipse = 18;
+function startEclipse(left, opts) {
+  if (eclipseDisc) { scene.remove(eclipseDisc); eclipseDisc = null; }
+  eclipseLoot.forEach(l => scene.remove(l.mesh)); eclipseLoot.length = 0;
+  state.eclipse = left != null && left > 0 ? left : 18;
   eclipseDisc = new THREE.Mesh(new THREE.CircleGeometry(34, 44), new THREE.MeshBasicMaterial({ color: 0x08080f }));
   const ring = new THREE.Mesh(new THREE.RingGeometry(34, 40, 44), new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.5, side: THREE.DoubleSide })); eclipseDisc.add(ring);
   scene.add(eclipseDisc);
-  toast('🌑 ¡ECLIPSE CÓSMICO! Gravedad casi CERO 🪶 y ¡LLUVIA DE BOTÍN! Flota y atrápalo');
-  beep(70, 0.7, 0.06); phaseText('🌑 ECLIPSE');
+  if (!(opts && opts.silent)) {
+    toast('🌑 ¡ECLIPSE CÓSMICO! Gravedad casi CERO 🪶 y ¡LLUVIA DE BOTÍN! Flota y atrápalo');
+    beep(70, 0.7, 0.06); phaseText('🌑 ECLIPSE');
+  }
 }
 function endEclipse() {
   state.eclipse = 0;
@@ -10034,6 +10038,12 @@ function saveGame() {
       saveVersion: GAME_RULES.saveVersion,
       money: state.money, totalEarned: state.totalEarned, stage: state.stage,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
+      phase: state.phase === 'NIGHT' ? 'NIGHT' : 'DAY', dayTime: state.dayTime || 0, nightTime: state.nightTime || 0, spawnTimer: state.spawnTimer || 0,
+      hordeOn: !!state.hordeOn, bossNight: !!state.bossNight, nightDamage: !!state.nightDamage, pinataDone: !!state.pinataDone, coldWarned: !!state.coldWarned,
+      chestAt: Array.isArray(state.chestAt) ? state.chestAt : [],
+      weather: state.weather || 'clear', weatherLeft: state.weatherLeft || 0, weatherT: weatherT,
+      eclipse: state.eclipse || 0, eclipseTimer: eclipseTimer,
+      nightEnemies: state.phase === 'NIGHT' ? snapshotNightEnemies() : [],
       weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel, hasBow: !!state.hasBow,
       meleeName: state.meleeName || 'Puños', meleeDmg: state.meleeDmg != null ? state.meleeDmg : 2, meleeColor: state.meleeColor != null ? state.meleeColor : 0x94a3b8, lastNonBow: state.lastNonBow === 'gun' ? 'gun' : 'melee',
       dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet, country:state.country||null,
@@ -10278,11 +10288,66 @@ function ensureRain() {
   return rainObj;
 }
 let weatherT = 90 + Math.random() * 120;
-function resetWeather() {   // deja el clima despejado y reinicia el temporizador (usado en toda transición)
-  state.weather = 'clear'; state.weatherLeft = 0;
-  weatherT = 90 + Math.random() * 120;
-  if (rainObj) rainObj.visible = false;
-  const dx = ui('coldfx'); if (dx) dx.style.opacity = '0';
+function resetWeather() {   // deja el clima despejado y reinicia el temporizador (nuevo juego / viajar de planeta)
+  applyWeatherState('clear', 0, 90 + Math.random() * 120);
+}
+function applyWeatherState(kind, left, nextIn) {   // restaura lluvia o tormenta de polvo tal cual se guardó
+  const w = (kind === 'rain' || kind === 'dust') ? kind : 'clear';
+  state.weather = w;
+  state.weatherLeft = w === 'clear' ? 0 : Math.max(0, +left || 0);
+  weatherT = nextIn != null && nextIn > 0 ? +nextIn : (90 + Math.random() * 120);
+  if (w === 'rain') ensureRain().visible = true;
+  else if (rainObj) rainObj.visible = false;
+  const dx = ui('coldfx');
+  if (dx) dx.style.opacity = w === 'dust' ? '0.7' : '0';
+}
+function snapshotNightEnemies() {
+  return enemies.filter(e => e.userData && e.userData.type !== 'bull' && !e.userData.remote).slice(0, 24).map(e => ({
+    type: e.userData.type, x: +e.position.x.toFixed(2), y: +e.position.y.toFixed(2), z: +e.position.z.toFixed(2),
+    hp: e.userData.hp, maxhp: e.userData.maxhp, pinata: !!e.userData.pinata, bossKill: !!e.userData.bossKill, ufoKill: !!e.userData.ufoKill
+  }));
+}
+function restoreNightEnemies(list) {
+  if (!Array.isArray(list) || !list.length) return;
+  for (const s of list) {
+    const e = spawnEnemy(s.type || 'zombie', new THREE.Vector3(s.x || 0, s.y || 0, s.z || 0));
+    if (s.maxhp) e.userData.maxhp = s.maxhp;
+    if (s.hp != null) e.userData.hp = s.hp;
+    if (s.pinata) { e.userData.pinata = true; state.pinataDone = true; }
+    if (s.bossKill) { e.userData.bossKill = true; e.scale.multiplyScalar(1.6); if (e.userData.baseScale) e.userData.baseScale.copy(e.scale); }
+    if (s.ufoKill) e.userData.ufoKill = true;
+  }
+}
+function snapSkyNow() {   // al cargar, el cielo queda de noche/tormenta/eclipse ya, no se ve un flash de día
+  const night = state.phase === 'NIGHT';
+  let col = night ? SKY_NIGHT : (state.weather === 'rain' ? SKY_RAIN : state.weather === 'dust' ? SKY_DUST : _skyBase);
+  if (state.eclipse > 0) col = SKY_ECLIPSE;
+  scene.background.copy(col); scene.fog.color.copy(col);
+  const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1;
+  ambient.intensity = state.eclipse > 0 ? 0.18 : (night ? 0.25 : 1 * dim);
+  sun.intensity = state.eclipse > 0 ? 0.1 : (night ? 0.15 : 1 * dim);
+}
+function restoreWorldClock(d) {   // noche, clima y eclipse se quedan como al guardar y salir
+  state.phase = d.phase === 'NIGHT' ? 'NIGHT' : 'DAY';
+  state.dayTime = Math.max(0, +d.dayTime || 0);
+  state.nightTime = Math.max(0, +d.nightTime || 0);
+  state.spawnTimer = d.spawnTimer != null ? Math.max(0, +d.spawnTimer) : 0;
+  state.hordeOn = !!d.hordeOn;
+  state.bossNight = !!d.bossNight;
+  state.nightDamage = !!d.nightDamage;
+  state.pinataDone = !!d.pinataDone;
+  state.coldWarned = !!d.coldWarned;
+  state.chestAt = Array.isArray(d.chestAt) ? d.chestAt.slice() : [];
+  _skyBase.setHex(state.planet === 'platus' ? (state.planetSky || 0xd98c5f) : state.country ? (currentCountry()?.sky || SKY_DAY.getHex()) : SKY_DAY.getHex());
+  applyWeatherState(d.weather, d.weatherLeft, d.weatherT);
+  eclipseTimer = d.eclipseTimer != null ? Math.max(8, +d.eclipseTimer) : (130 + Math.random() * 120);
+  endEclipse();
+  if (state.planet === 'platus' && +d.eclipse > 0.4) startEclipse(+d.eclipse, { silent: true });
+  if (state.phase === 'NIGHT') restoreNightEnemies(d.nightEnemies);
+  snapSkyNow();
+  if (state.phase === 'NIGHT' && state.planet === 'platus' && (state.planetHazard === 'cold' || state.planetHazard === 'toxic')) {
+    const fx = ui('coldfx'); if (fx && state.weather !== 'dust') fx.style.opacity = '0.85';
+  }
 }
 function updateWeather(dt) {
   if (!state.running || state.phase === 'TITLE') return;
@@ -10629,7 +10694,7 @@ function loadGame() {
     meleeColor: d.meleeColor != null ? d.meleeColor : (d.weaponColor || 0x94a3b8),
     lastNonBow: d.lastNonBow === 'gun' ? 'gun' : 'melee',
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')), country:COUNTRIES.some(c=>c.id===d.country)?d.country:null,
-    wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, inFlight: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
+    wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, inFlight: false, poison: 0, dadPoison: 0, buildMode: false, phase: d.phase === 'NIGHT' ? 'NIGHT' : 'DAY', dayTime: d.dayTime || 0, nightTime: d.nightTime || 0,
     hasPhone: !!d.hasPhone, skiPass: !!d.skiPass, skiGear: d.skiGear || null, skiGearWorn: d.skiGearWorn != null ? !!d.skiGearWorn : !!d.skiGear, skiing: false, skiLiftRide: null,
     streak: d.streak || 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   });
@@ -10672,7 +10737,6 @@ function loadGame() {
   state.bank = d.bank || 0; state.debt = d.debt || 0;
   state.boatCrew=d.boatCrew||0;state.voyageDays=d.voyageDays||0;state.islandDiscovered=!!d.islandDiscovered;state.sailing=false;
   if(boat){scene.remove(boat.group);boat=null;}if(d.boat){spawnBoat(true);boat.group.position.set(d.boat.x,OCEAN.surface,d.boat.z);boat.heading=d.boat.heading||-Math.PI/2;boat.group.rotation.y=boat.heading;boat.hp=d.boat.hp||100;}
-  resetWeather();   // el clima no se guarda: al cargar empieza despejado (no arrastra la lluvia de la sesión)
   clearCampfires(); (d.campfires || []).forEach(f => spawnCampfire(f.x, f.z));
   clearMiners(); (d.miners || []).forEach(m => spawnMiner(m.x, m.z, m.coal, m.money));
   if (d.savedAt) applyMinerOffline((Date.now() - d.savedAt) / 1000);   // lo que juntaron mientras no jugabas
@@ -10699,7 +10763,7 @@ function loadGame() {
   clearEggPets(); (d.eggPets || []).filter(p => p.hp !== 0).forEach(p => spawnEggPet(p)); state.incubTime = d.incubTime || 0; state.eggQueue = d.eggQueue || 0;   // mascotas de huevos
   removePetFlag(); state.petPoint = d.petPoint || null; if (state.petPoint) spawnPetFlag(state.petPoint.x, state.petPoint.z);   // banderita de reunión
   state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0; state.trophies = d.trophies || 0;
-  endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
+  removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   (d.helpers || []).filter(h => h.hp !== 0).forEach(h => makeHelperAt(h.x, h.z, h.hp));                   // reponer ayudantes (ya equipados)
   const spawnY = (state.planet === 'tierra' && d.px != null && inTreasureIsland(d.px, d.pz)) ? TREASURE_ISLAND.surface + PLAYER_EYE : PLAYER_EYE;
   player.position.set(d.px != null ? d.px : 10, spawnY, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
@@ -10713,6 +10777,7 @@ function loadGame() {
   state.bestiary = d.bestiary || {};
   state.album = d.album || {}; state.albumDone = !!d.albumDone;
   state.recordShown = state.totalEarned >= ((getBest() || {}).total || 0);   // no re-celebrar el récord de esta misma partida
+  restoreWorldClock(d);   // noche, tormenta, eclipse y monstruos: se quedan como al salir
   syncFarWorld();
   return true;
 }
@@ -10720,7 +10785,12 @@ function continueGame() {
   hideScreens();
   state.running = true;
   if (!loadGame()) { startGame(); return; }
-  toast('▶️ Partida cargada — ¡sigue donde ibas!');
+  const bits = [];
+  if (state.phase === 'NIGHT') bits.push('sigue de noche');
+  if (state.weather === 'dust') bits.push('tormenta de polvo');
+  else if (state.weather === 'rain') bits.push('sigue lloviendo');
+  if (state.eclipse > 0) bits.push('eclipse');
+  toast('▶️ Partida cargada' + (bits.length ? ' — ' + bits.join(' · ') : ' — ¡sigue donde ibas!'));
   checkDailyStreak();
 }
 

@@ -46,9 +46,10 @@
   #objective { position: absolute; top: 92px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,.5); padding: 7px 16px; border-radius: 18px; font-size: 14px; font-weight: 600; text-align: center; max-width: 90%; }
   #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; background: #fff; border-radius: 50%; opacity: .8; }
-  #bowcharge { position: absolute; left: 50%; top: calc(50% + 18px); width: 92px; height: 8px; margin-left: -46px; z-index: 8; display: none; overflow: hidden; pointer-events: none; background: rgba(0,0,0,.5); border: 1px solid #fde047; border-radius: 6px; }
+  #bowcharge { position: absolute; left: 50%; top: calc(50% + 18px); width: 200px; margin-left: -90px; z-index: 8; display: none; pointer-events: none; text-align: center; }
   #bowcharge.show { display: block; }
-  #bowcharge i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #b45309, #facc15, #fff7ed); }
+  #bowcharge i { display: block; height: 8px; width: 0; background: linear-gradient(90deg, #b45309, #facc15, #fff7ed); border: 1px solid #fde047; border-radius: 6px; box-sizing: border-box; }
+  #bowdmg { display: block; margin-top: 5px; font-size: 11px; font-weight: 700; color: #fde047; text-shadow: 0 1px 3px #000, 0 0 8px #000; line-height: 1.25; white-space: nowrap; }
   body.cine #bowcharge { display: none !important; }
   #toast { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 8;
     background: rgba(0,0,0,.72); padding: 11px 22px; border-radius: 10px; font-size: 17px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: center; max-width: 86vw; }
@@ -505,7 +506,7 @@
   <div id="escape" style="position:absolute; top:60px; left:50%; transform:translateX(-50%); display:none; background:rgba(127,29,29,.85); color:#fff; padding:8px 18px; border-radius:12px; font-size:20px; font-weight:800; text-shadow:0 2px 6px #000;"></div>
   <div id="objective">Objetivo</div>
   <div id="crosshair"></div>
-  <div id="bowcharge"><i></i></div>
+  <div id="bowcharge"><i></i><span id="bowdmg"></span></div>
   <div id="contextPrompt" role="status" aria-live="polite"><span id="contextKey">E</span><span id="contextText">Interactuar</span></div>
   <div id="toastStack"></div>
   <div id="toast"></div>
@@ -889,7 +890,7 @@
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Primero contrátalo en el súper por $500. Su sueldo es $100 cada 7 días del juego.</span>
           <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
-          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco.</span>
+          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Daño del arco: tensado bajo 9, medio 12 y máximo 18 (si tu arco es de 16). Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
           <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La tecla 1: un toque = espada, pala o pistola láser (nunca los puños si ya las compraste); dos toques seguidos = arco. La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
@@ -5594,6 +5595,19 @@ function alienShootPlayer(alien) {
   shot.position.copy(from).addScaledVector(dir, .5); shot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); scene.add(shot);
   setTimeout(() => killMesh(shot), 110); damagePlayer(5, from, true); tone(520, .055, .035, 'square'); alien.userData.attackAnim = .22;
 }
+function applyFloatingCitizenHit(alien, dmg) {
+  floatingCitizenAggro = 35; alien.getWorldPosition(floatingAlienWorld); flashEnemy(alien, true); setTimeout(() => flashEnemy(alien, false), 130);
+  const hit = Math.max(1, dmg || state.weaponDmg || 1);
+  alien.userData.hp = Math.max(0, alien.userData.hp - hit);
+  voxelImpact(floatingAlienWorld.clone().setY(floatingAlienWorld.y + 1), 0xef4444, 6); zombieHitSound(); floatText(floatingAlienWorld, '−' + hit + ' ❤️ ' + Math.ceil(alien.userData.hp), '#f87171', 15);
+  if (alien.userData.hp <= 0) {
+    const i = floatingCitizens.indexOf(alien); if (i >= 0) floatingCitizens.splice(i, 1);
+    alien.visible = false; if (alien.parent) alien.parent.remove(alien);
+    addMoney(80 + Math.floor(Math.random() * 121));
+    toast('👽 Alien derrotado · recibiste una recompensa');
+  } else toast('🚨 ¡Golpeaste a un alien! Vida: ' + Math.ceil(alien.userData.hp) + '/100 · ¡todos te persiguen!');
+  if (laserEquipped()) shootBeam(floatingAlienWorld); return true;
+}
 function tryHitFloatingCitizen(dmg) {
   if (state.planet !== 'platus') return false;
   const dir = new THREE.Vector3(); getAimDirection(dir);
@@ -5604,17 +5618,20 @@ function tryHitFloatingCitizen(dmg) {
     if (d < bestD) { const to = floatingAlienWorld.clone().sub(player.position).normalize(); if (to.dot(dir) > .25) { best = alien; bestD = d; } }
   }
   if (!best) return false;
-  floatingCitizenAggro = 35; best.getWorldPosition(floatingAlienWorld); flashEnemy(best, true); setTimeout(() => flashEnemy(best, false), 130);
-  const hit = Math.max(1, dmg || state.weaponDmg || 1);
-  best.userData.hp = Math.max(0, best.userData.hp - hit);
-  voxelImpact(floatingAlienWorld.clone().setY(floatingAlienWorld.y + 1), 0xef4444, 6); zombieHitSound(); floatText(floatingAlienWorld, '−' + hit + ' ❤️ ' + Math.ceil(best.userData.hp), '#f87171', 15);
-  if (best.userData.hp <= 0) {
-    const i = floatingCitizens.indexOf(best); if (i >= 0) floatingCitizens.splice(i, 1);
-    best.visible = false; if (best.parent) best.parent.remove(best);
-    addMoney(80 + Math.floor(Math.random() * 121));
-    toast('👽 Alien derrotado · recibiste una recompensa');
-  } else toast('🚨 ¡Golpeaste a un alien! Vida: ' + Math.ceil(best.userData.hp) + '/100 · ¡todos te persiguen!');
-  if (laserEquipped()) shootBeam(floatingAlienWorld); return true;
+  return applyFloatingCitizenHit(best, dmg);
+}
+function hitFloatingCitizenAt(pos, dmg) {
+  if (state.planet !== 'platus') return false;
+  let best = null, bestD = 2.2;
+  for (const alien of floatingCitizens) {
+    if (!alien.visible || alien.userData.hp <= 0) continue;
+    alien.getWorldPosition(floatingAlienWorld);
+    if (!arrowHitsBody(pos, floatingAlienWorld, 1.45, 2.5)) continue;
+    const d = Math.hypot(pos.x - floatingAlienWorld.x, pos.z - floatingAlienWorld.z);
+    if (d < bestD) { best = alien; bestD = d; }
+  }
+  if (!best) return false;
+  return applyFloatingCitizenHit(best, dmg);
 }
 function geyserBoost() {   // devuelve true si el jugador está sobre un géiser (para lanzarlo)
   if (state.planet !== 'platus') return false;
@@ -7469,6 +7486,21 @@ function arrowFloorY(x, z) {
   if (state.planet === 'tierra' && inTreasureIsland(x, z)) y = Math.max(y, TREASURE_ISLAND.surface);
   return y;
 }
+function bowArrowDamage(power) {   // tensado bajo / medio / máximo: 40% + hasta 75% extra
+  return Math.round((state.weaponDmg || 16) * (.4 + .75 * THREE.MathUtils.clamp(power, .2, 1)));
+}
+function renderBowDamageHud(power) {
+  const el = ui('bowdmg'); if (!el) return;
+  const low = bowArrowDamage(.2), mid = bowArrowDamage(.5), max = bowArrowDamage(1);
+  const now = bowArrowDamage(power == null ? bowDrawT : power);
+  el.textContent = 'bajo ' + low + ' · medio ' + mid + ' · máximo ' + max + '  · ahora ' + now;
+}
+function arrowHitsBody(pos, feet, radius, height) {   // cilindro: dist3D suma pecho y las flechas volaban “por encima”
+  const r = radius || 1.35, h = height || 2.4;
+  const dx = pos.x - feet.x, dz = pos.z - feet.z;
+  if (dx * dx + dz * dz > r * r) return false;
+  return pos.y >= feet.y - .2 && pos.y <= feet.y + h;
+}
 function shootBowArrow(power) {
   if (!state.running) return;
   power = THREE.MathUtils.clamp(power, .2, 1);
@@ -7486,25 +7518,26 @@ function shootBowArrow(power) {
   arrow.quaternion.setFromUnitVectors(bowFwd.set(0, 0, 1), bowAimDir);
   arrow.userData.vel = bowAimDir.clone().multiplyScalar(speed);
   arrow.userData.life = 5.2;
-  arrow.userData.dmg = Math.round((state.weaponDmg || 16) * (.4 + .75 * power));
+  arrow.userData.dmg = bowArrowDamage(power);
   arrow.userData.stuck = false;
   scene.add(arrow); playerArrows.push(arrow);
   if (playerArrows.length > 18) { const old = playerArrows.shift(); if (old.parent) scene.remove(old); }
   tone(130 + power * 90, .09, .055, 'sawtooth'); beep(480 + power * 220, .05, .04);
 }
 function hitWithArrow(pos, dmg) {
-  if (titan && dist3D(pos, titan.mesh.position) < 5) {
+  if (titan && arrowHitsBody(pos, titan.mesh.position, 5, 14)) {
     titan.hp -= dmg; floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15);
     if (titan.hp <= 0) defeatTitan(); return true;
   }
   for (let j = enemies.length - 1; j >= 0; j--) {
     const e = enemies[j];
-    if (dist3D(pos, e.position) < 1.05) { hitEnemy(e, dmg, pos); return true; }
+    if (arrowHitsBody(pos, e.position, 1.45, (e.userData.barY || 2.6) + .35)) { hitEnemy(e, dmg, pos); return true; }
   }
+  if (hitFloatingCitizenAt(pos, dmg)) return true;
   if (state.inCastle) {
     for (const f of castleFoes) {
       if (!f.alive) continue;
-      if (dist3D(pos, f.mesh.position) < 1.1) {
+      if (arrowHitsBody(pos, f.mesh.position, 1.35, 2.6)) {
         f.hp -= dmg; floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
         if (f.hp <= 0) { f.alive = false; f.mesh.visible = false; const m = 60 + 20 * state.stage; addMoney(m); coinBurst(f.mesh.position, 8); }
         return true;
@@ -7513,7 +7546,7 @@ function hitWithArrow(pos, dmg) {
   }
   if (state.inArena) {
     for (const f of arenaFoes) {
-      if (dist3D(pos, f.mesh.position) < 1.1) {
+      if (arrowHitsBody(pos, f.mesh.position, 1.35, 2.6)) {
         f.hp -= dmg; floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
         if (f.hp <= 0) { const m = 30 + 10 * state.stage; addMoney(m); coinBurst(f.mesh.position, 5); scene.remove(f.mesh); arenaFoes.splice(arenaFoes.indexOf(f), 1); missionProgress('kills'); }
         return true;
@@ -7522,7 +7555,7 @@ function hitWithArrow(pos, dmg) {
   }
   if (state.phase === 'DAY') {
     for (const person of npcs.concat(victims)) {
-      if (dist3D(pos, person.position) < 1) {
+      if (arrowHitsBody(pos, person.position, 1.2, 2.3)) {
         const push = new THREE.Vector3().subVectors(person.position, pos).setY(0).normalize().multiplyScalar(1.1);
         person.position.add(push); becomeWanted(18, 1); toast('🏹 ¡Le pegaste a alguien con una flecha! Te volviste BUSCADO'); return true;
       }
@@ -7530,17 +7563,20 @@ function hitWithArrow(pos, dmg) {
   }
   return false;
 }
+const arrowPrev = new THREE.Vector3(), arrowMid = new THREE.Vector3();
 function updatePlayerArrows(dt) {
   const grav = 18 * (state.planetGrav || 1);
   for (let i = playerArrows.length - 1; i >= 0; i--) {
     const a = playerArrows[i], ud = a.userData;
     ud.life -= dt;
     if (!ud.stuck) {
+      arrowPrev.copy(a.position);
       ud.vel.y -= grav * dt;
       a.position.addScaledVector(ud.vel, dt);
       const sp = ud.vel.length();
       if (sp > .05) a.quaternion.setFromUnitVectors(bowFwd.set(0, 0, 1), ud.vel.clone().multiplyScalar(1 / sp));
-      if (hitWithArrow(a.position, ud.dmg)) { voxelImpact(a.position.clone(), 0xfde047, 8); scene.remove(a); playerArrows.splice(i, 1); continue; }
+      arrowMid.lerpVectors(arrowPrev, a.position, .5);
+      if (hitWithArrow(a.position, ud.dmg) || hitWithArrow(arrowMid, ud.dmg) || hitWithArrow(arrowPrev, ud.dmg)) { voxelImpact(a.position.clone(), 0xfde047, 8); scene.remove(a); playerArrows.splice(i, 1); continue; }
       const floor = arrowFloorY(a.position.x, a.position.z);
       if (a.position.y <= floor + .06) {
         a.position.y = floor + .04; ud.stuck = true; ud.vel.set(0, 0, 0); ud.life = Math.min(ud.life, 1.8);
@@ -7559,6 +7595,7 @@ function updateBow(dt) {
       if (bowDrawT >= 1 && !bowFullTone) { bowFullTone = true; tone(720, .07, .045, 'sine'); }
       const bar = ui('bowcharge');
       if (bar) { bar.classList.add('show'); const fill = bar.querySelector('i'); if (fill) fill.style.width = (bowDrawT * 100) + '%'; }
+      renderBowDamageHud(bowDrawT);
       applyBowDrawVisual(bowDrawT);
     }
   } else if (bowEquipped()) applyBowDrawVisual(0);
@@ -9624,7 +9661,8 @@ function davidRestoredSave() {   // el mundo de David se borró: lo reconstruimo
     { key: 'planta', x: 4, z: 5 }, { key: 'planta', x: 12, z: 5 }, { key: 'planta', x: 4, z: 11 }, { key: 'planta', x: 12, z: 11 }
   ];
   const plants = [];
-  for (let i = 0; i < 6; i++) for (let j = 0; j < 5; j++) plants.push({ x: 14 + i * 2.2, z: 3.5 + j * 2.2, crop: 'apple', grow: 1, produce: 3 });
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 6; j++) plants.push({ x: 14 + i * 2.2, z: 3.5 + j * 2.2, crop: 'apple', grow: 1, produce: 3 });
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) plants.push({ x: -8 + i * 2.2, z: 14 + j * 2.2, crop: 'apple', grow: 1, produce: 3 });
   return {
     saveVersion: GAME_RULES.saveVersion,
     money: 20000, totalEarned: 20000, stage: 20,
@@ -9659,24 +9697,20 @@ function davidRestoredSave() {   // el mundo de David se borró: lo reconstruimo
 function davidWorldNeedsRestore() {
   try {
     const raw = localStorage.getItem(profileKey('David'));
-    if (!raw) return true;
+    if (!raw) return true;   // se borró: lo volvemos a crear
     const d = JSON.parse(raw);
     if (!d) return true;
-    if (d.planet === 'platus' && (d.money || 0) >= 15000 && d.hasBow) return false;
-    if ((d.money || 0) > 25000 || (d.totalEarned || 0) > 80000) return false;
-    return true;
+    return false;            // si existe cualquier partida David, no la pisamos
   } catch (e) { return true; }
 }
 function ensureDavidWorld() {   // vuelve a crear el perfil David si se borró o quedó vacío
   try {
-    if (localStorage.getItem('tim_gift_David_v1') === 'done') return false;
-    if (!davidWorldNeedsRestore()) { localStorage.setItem('tim_gift_David_v1', 'done'); return false; }
+    if (!davidWorldNeedsRestore()) return false;   // si ya está tu David de Platus, no lo pisamos
     localStorage.setItem(profileKey('David'), JSON.stringify(davidRestoredSave()));
     const p = getProfiles(); if (!p.includes('David')) { p.push('David'); saveProfiles(p); }
-    localStorage.setItem('tim_gift_David_v1', 'done');
-    const who = (() => { try { return localStorage.getItem('tim_profile'); } catch (e) { return null; } })();
-    if (!who || who === 'David') setProfile('David');
+    setProfile('David');   // queda en tu cuenta David para CONTINUAR
     if (ui('continueBtn')) { ui('continueBtn').style.display = ''; ui('start').classList.add('has-save'); }
+    toast('🪐 Restauramos el mundo DAVID · $20.000 en Platus · CONTINUAR');
     return true;
   } catch (e) { return false; }
 }
@@ -11440,7 +11474,7 @@ function buyItem(item) {
     if (held === 'sword' || held === 'shovel') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
     if (held === 'gun') { state.laserGun = true; state.lastNonBow = 'gun'; }
     state.hasBow = true; equipHandWeapon('bow');
-    toast('🏹 Arco listo · pulsa 1 una vez = espada o láser · pulsa 1 dos veces = arco · mantén E o clic para tensar, mira hacia ARRIBA para llegar lejos');
+    toast('🏹 Arco listo · daño bajo ' + bowArrowDamage(.2) + ' · medio ' + bowArrowDamage(.5) + ' · máximo ' + bowArrowDamage(1) + ' · pulsa 1 una vez = espada o láser · 1 dos veces = arco · mantén E o clic para tensar');
     saveGame(); return;
   }
   if (item.key === 'laserpistol') {
@@ -13465,7 +13499,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,

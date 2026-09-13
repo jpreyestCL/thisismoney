@@ -13,10 +13,12 @@ assert.match(html, /meleeName: 'Espada obsidiana'/);
 assert.match(html, /armorFactor: 0\.3/);
 assert.match(html, /hasBow: true/);
 assert.match(html, /weaponName: 'Arco y flechas'/);
-assert.match(html, /tim_gift_David_v1/);
+assert.match(html, /setProfile\('David'\)/);
 assert.match(html, /ensureDavidWorld\(\)/);
 assert.match(html, /miners: \[/);
 assert.match(html, /crop: 'apple', grow: 1, produce: 3/);
-assert.match(sw, /tim-v28/);
+assert.match(html, /Restauramos el mundo DAVID/);
+assert.match(html, /for \(let i = 0; i < 8; i\+\+\) for \(let j = 0; j < 6; j\+\+\)/);
+assert.match(sw, /tim-v29/);
 
 console.log('david restored world: ok');

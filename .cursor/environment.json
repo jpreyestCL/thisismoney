@@ -1,0 +1,15 @@
+{
+  "name": "This is Money",
+  "install": "sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-client && sudo pg_ctlcluster 16 main start || true; for i in $(seq 1 30); do sudo -u postgres pg_isready -q && break; sleep 1; done; sudo -u postgres psql -tAc \"select 1 from pg_roles where rolname='timleaderboard'\" | grep -q 1 || sudo -u postgres createuser timleaderboard; sudo -u postgres psql -tAc \"select 1 from pg_roles where rolname='ubuntu'\" | grep -q 1 || sudo -u postgres createuser ubuntu; sudo -u postgres psql -tAc \"select 1 from pg_database where datname='thisismoney'\" | grep -q 1 || sudo -u postgres createdb --owner=timleaderboard thisismoney; sudo -u postgres psql -v ON_ERROR_STOP=1 -d thisismoney -f /workspace/server/schema.sql; sudo -u postgres psql -d thisismoney -c \"grant select, insert, update on leaderboard_scores to ubuntu;\"; cd /workspace/server && pnpm install --frozen-lockfile",
+  "start": "sudo pg_ctlcluster 16 main start || true; for i in $(seq 1 30); do sudo -u postgres pg_isready -q && break; sleep 1; done",
+  "terminals": [
+    {
+      "name": "game",
+      "command": "cd /workspace && python3 -m http.server 8000"
+    },
+    {
+      "name": "leaderboard",
+      "command": "cd /workspace/server && DATABASE_URL=\"postgresql://ubuntu@/thisismoney?host=/var/run/postgresql\" PORT=8788 node /workspace/server/leaderboard.mjs"
+    }
+  ]
+}

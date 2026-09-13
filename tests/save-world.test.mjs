@@ -14,7 +14,7 @@ assert.match(html, /weather: state\.weather \|\| 'clear'/);
 assert.match(html, /eclipse: state\.eclipse \|\| 0/);
 assert.match(html, /eclipseTimer: eclipseTimer/);
 assert.match(html, /nightEnemies: state\.phase === 'NIGHT'/);
-assert.match(html, /restoreWorldClock\(d\)/);
+assert.match(html, /restoreWorldClock, applyWeatherState, startEclipse/);
 assert.match(html, /d\.phase === 'NIGHT' \? 'NIGHT' : 'DAY'/);
 assert.match(html, /startEclipse\(left, opts\)/);
 assert.match(html, /startEclipse\(\+d\.eclipse, \{ silent: true \}\)/);

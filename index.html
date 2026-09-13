@@ -8726,7 +8726,7 @@ let slot1TapAt = 0, slot1DupAt = 0;
 function selectHandTool() {   // 1 un toque = espada/láser · 1 dos toques = arco · nunca puños si ya compraste arma
   state.buildMode = false;
   const now = performance.now();
-  if (now - slot1DupAt < 80) return;   // un toque en celular a veces llega dos veces (click + tap)
+  if (now - slot1DupAt < 35) return;   // un toque en celular a veces llega dos veces (click + tap), pero un doble toque real suele ser más lento
   slot1DupAt = now;
   sanitizeWeaponPockets();
   const held = weaponKindFromName(state.weaponName);

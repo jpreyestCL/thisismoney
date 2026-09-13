@@ -38,6 +38,7 @@ assert.match(html, /function laserEquipped\(/);
 assert.match(html, /function laserShopItem\(/);
 assert.match(html, /slot1TapAt/);
 assert.match(html, /slot1DupAt/);
+assert.match(html, /now - slot1DupAt < 35/);
 assert.match(html, /1 dos toques = arco/);
 assert.match(html, /selectSlot\(1, 'wheel'\)/);
 assert.match(html, /meleeName: state\.meleeName/);

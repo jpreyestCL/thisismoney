@@ -889,10 +889,10 @@
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Primero contrátalo en el súper por $500. Su sueldo es $100 cada 7 días del juego.</span>
           <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
-          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada y arco: pulsa 1 una vez para la espada y 1 dos veces seguidas para el arco.</span>
+          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
-          <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La tecla 1: un toque = espada (o pala), dos toques seguidos = arco. La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
+          <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La tecla 1: un toque = espada, pala o pistola láser (nunca los puños si ya las compraste); dos toques seguidos = arco. La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
           <kbd>P · L</kbd><span>Girar la pieza al ángulo que quieras: un toque la mueve 15° y si mantienes apretado gira sin parar (igual que el botón 🔄 Girar).</span>
           <kbd>Q / K</kbd><span>Comer o plantar. Shift+K cambia entre manzana, zanahoria, trigo y tomate.</span>
           <kbd>C/V/O</kbd><span>Ordenar a papá: seguir, esperar o limpiar. G lo arma y Z lo deja descansar.</span>
@@ -1172,7 +1172,7 @@ function playerAirborne() {   // vuelo creativo, jetpack, heli o más de 3 bloqu
   if (state.driving && car && car.helicopter && car.group.position.y > MELEE_REACH) return true;
   return player.position.y > playerStandEyeY() + MELEE_REACH;
 }
-function playerHitRange() { return state.laserGun ? 30 : MELEE_REACH; }   // en el suelo (y si un volador se acerca) pegas a 3 bloques
+function playerHitRange() { return laserEquipped() ? 30 : MELEE_REACH; }   // el láser llega lejos solo si lo tienes EN LA MANO
 function flyerChaseY(e) {
   const ground = mountainHeightAt(e.position.x, e.position.z);
   if (playerAirborne()) return Math.max(ground + 2, player.position.y - PLAYER_EYE + 1.05);
@@ -5236,7 +5236,7 @@ function attackCastleFoe() {   // pegarle a un alien malo del castillo (👊/cli
   for (const f of castleFoes) { if (!f.alive) continue; const d = dist3D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position, '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
-  if (state.laserGun) shootBeam(best.mesh.position);
+  if (laserEquipped()) shootBeam(best.mesh.position);
   if (best.hp <= 0) { best.alive = false; best.mesh.visible = false; const m = 60 + 20 * state.stage; addMoney(m); coinBurst(best.mesh.position, 8); floatText(best.mesh.position, '👹 +$' + m, '#4ade80', 16); beep(500, 0.08, 0.05); discoverAlien('castleFoe'); }
 }
 function updateCastle(dt) {
@@ -5379,12 +5379,12 @@ function defeatTitan() {
 function hitTitan(dmg) {
   if (!titan) return false;
   const p = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
-  const range = state.laserGun ? 34 : MELEE_REACH;
+  const range = laserEquipped() ? 34 : MELEE_REACH;
   if (dist3D(p, titan.mesh.position) > range) return false;
   const to = new THREE.Vector3().subVectors(titan.mesh.position, p).normalize();
   if (to.dot(dir) < 0.2) return false;
   titan.hp -= dmg; floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15); beep(180, 0.05, 0.035);
-  if (state.laserGun) shootBeam(titan.mesh.position.clone().setY(8));
+  if (laserEquipped()) shootBeam(titan.mesh.position.clone().setY(8));
   if (titan.hp <= 0) defeatTitan();
   return true;
 }
@@ -5459,7 +5459,7 @@ function hitArenaFoe() {
   for (const f of arenaFoes) { const d = dist3D(p, f.mesh.position); if (d < bd) { const to = new THREE.Vector3().subVectors(f.mesh.position, p).normalize(); if (to.dot(dir) > 0.3) { best = f; bd = d; } } }
   if (!best) return;
   best.hp -= state.weaponDmg; floatText(best.mesh.position.clone().setY(2), '-' + Math.round(state.weaponDmg), '#fbbf24', 13); beep(180, 0.05, 0.035);
-  if (state.laserGun) shootBeam(best.mesh.position.clone().setY(2));
+  if (laserEquipped()) shootBeam(best.mesh.position.clone().setY(2));
   if (best.hp <= 0) { const m = 30 + 10 * state.stage; addMoney(m); coinBurst(best.mesh.position, 5); scene.remove(best.mesh); arenaFoes.splice(arenaFoes.indexOf(best), 1); missionProgress('kills'); }
 }
 function updateArena(dt) {
@@ -5597,7 +5597,7 @@ function alienShootPlayer(alien) {
 function tryHitFloatingCitizen(dmg) {
   if (state.planet !== 'platus') return false;
   const dir = new THREE.Vector3(); getAimDirection(dir);
-  let best = null, bestD = state.laserGun ? 30 : playerHitRange();
+  let best = null, bestD = laserEquipped() ? 30 : playerHitRange();
   for (const alien of floatingCitizens) {
     if (!alien.visible || alien.userData.hp <= 0) continue;
     alien.getWorldPosition(floatingAlienWorld); const d = player.position.distanceTo(floatingAlienWorld);
@@ -5614,7 +5614,7 @@ function tryHitFloatingCitizen(dmg) {
     addMoney(80 + Math.floor(Math.random() * 121));
     toast('👽 Alien derrotado · recibiste una recompensa');
   } else toast('🚨 ¡Golpeaste a un alien! Vida: ' + Math.ceil(best.userData.hp) + '/100 · ¡todos te persiguen!');
-  if (state.laserGun) shootBeam(floatingAlienWorld); return true;
+  if (laserEquipped()) shootBeam(floatingAlienWorld); return true;
 }
 function geyserBoost() {   // devuelve true si el jugador está sobre un géiser (para lanzarlo)
   if (state.planet !== 'platus') return false;
@@ -7421,6 +7421,7 @@ const playerArrows = [];
 const bowFwd = new THREE.Vector3(), bowAimDir = new THREE.Vector3();
 let bowDrawing = false, bowDrawT = 0, bowDrawSrc = null, bowFullTone = false;
 function bowEquipped() { return weaponKindFromName(state.weaponName) === 'bow'; }
+function laserEquipped() { return weaponKindFromName(state.weaponName) === 'gun'; }
 function bowContextBlocksDraw() {
   if (state.skiing || state.skiLiftRide || state.driving || state.sailing || state.sportGame || state.buildMode) return true;
   const box = ui('contextPrompt');
@@ -8039,7 +8040,7 @@ const state = {
   hp: 100, dadHp: 100,
   inv: freshInv(), driving: false, poison: 0, dadPoison: 0,
   weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false, hasShovel: false, hasBow: false,
-  meleeName: 'Puños', meleeDmg: 2, meleeColor: 0x94a3b8,   // la espada/pala se guarda aparte del arco (tecla 1)
+  meleeName: 'Puños', meleeDmg: 2, meleeColor: 0x94a3b8, lastNonBow: 'melee',   // espada/pala aparte del arco y del láser (tecla 1)
   helperWeapon: false, helperArmor: false,   // arma / armadura para los hijos (todos)
   hunger: 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: 0,
   momUnlocked: false, momEventPending: false,
@@ -8642,47 +8643,112 @@ addEventListener('keydown', e => {
 function bowShopItem() {
   return STORE_B.find(i => i.bow || i.key === 'arco') || { name: 'Arco y flechas', dmg: 16, color: 0x8b5a2b };
 }
+function laserShopItem() {
+  return ALIEN_TECH.find(i => i.key === 'laserpistol') || { name: 'Pistola láser', dmg: 22, color: 0xef4444 };
+}
+function storedMeleeIsReal() {
+  const k = weaponKindFromName(state.meleeName);
+  return k === 'sword' || k === 'shovel';
+}
 function rememberMeleeWeapon(name, dmg, color) {
-  if (!name || weaponKindFromName(name) === 'bow') return;
+  const k = weaponKindFromName(name);
+  if (!name || k === 'bow' || k === 'fist' || k === 'gun') return;   // el láser y el arco van en otro bolsillo; los puños no pisan una espada
   state.meleeName = name;
   state.meleeDmg = dmg != null ? dmg : 2;
   state.meleeColor = color != null ? color : weaponVisualColor;
 }
 function resetMeleeWeapon() {
-  rememberMeleeWeapon('Puños', 2, 0x94a3b8);
+  state.meleeName = 'Puños'; state.meleeDmg = 2; state.meleeColor = 0x94a3b8; state.lastNonBow = 'melee';
+}
+function sanitizeWeaponPockets() {
+  const mk = weaponKindFromName(state.meleeName);
+  if (mk === 'gun') state.laserGun = true;
+  if (mk === 'bow' || mk === 'gun' || mk === 'fist') {
+    const hk = weaponKindFromName(state.weaponName);
+    if (hk === 'sword' || hk === 'shovel') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    else if (!storedMeleeIsReal()) { state.meleeName = 'Puños'; state.meleeDmg = 2; state.meleeColor = 0x94a3b8; }
+  }
+  if (weaponKindFromName(state.weaponName) === 'gun') state.laserGun = true;
+  if (state.lastNonBow !== 'gun') state.lastNonBow = 'melee';
+  if (!storedMeleeIsReal() && state.laserGun) state.lastNonBow = 'gun';
+}
+function bestNonBowKind() {
+  sanitizeWeaponPockets();
+  if (storedMeleeIsReal()) return 'melee';   // 1 desde el arco = espada/pala, no el láser ni los puños
+  if (state.laserGun) return 'gun';
+  return 'melee';
+}
+function handWeaponToast(kind) {
+  if (kind === 'bow') return '🏹 ' + (state.weaponName || 'Arco y flechas') + ' · pulsa 1 una vez para tu otra arma';
+  if (kind === 'gun') return '🔫 ' + (state.weaponName || 'Pistola láser') + (state.hasBow ? ' · pulsa 1 para la espada, 1 dos veces para el arco' : ' · pulsa 1 para la espada');
+  const icon = weaponKindFromName(state.weaponName) === 'shovel' ? '🪏 ' : '⚔️ ';
+  let extra = '';
+  if (state.hasBow && state.laserGun) extra = ' · pulsa 1 otra vez para el láser, 1 dos veces para el arco';
+  else if (state.hasBow) extra = ' · pulsa 1 dos veces para el arco';
+  else if (state.laserGun) extra = ' · pulsa 1 para el láser';
+  return icon + (state.weaponName || 'Puños') + extra;
 }
 function equipHandWeapon(kind) {
   if (kind === 'bow') {
     if (!state.hasBow) return false;
+    const k = weaponKindFromName(state.weaponName);
+    if (k === 'sword' || k === 'shovel') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    if (k === 'gun') { state.laserGun = true; state.lastNonBow = 'gun'; }
+    else if (k === 'sword' || k === 'shovel') state.lastNonBow = 'melee';
     cancelBowDraw();
     const b = bowShopItem();
     state.weaponName = b.name; state.weaponDmg = b.dmg; setWeaponColor(b.color);
     return true;
   }
+  if (kind === 'gun') {
+    if (!state.laserGun) return false;
+    const k = weaponKindFromName(state.weaponName);
+    if (k === 'sword' || k === 'shovel') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    cancelBowDraw();
+    const L = laserShopItem();
+    state.weaponName = L.name; state.weaponDmg = L.dmg; setWeaponColor(L.color);
+    state.lastNonBow = 'gun';
+    return true;
+  }
   cancelBowDraw();
-  const name = state.meleeName || 'Puños';
-  state.weaponName = name;
-  state.weaponDmg = state.meleeDmg != null ? state.meleeDmg : 2;
-  setWeaponColor(state.meleeColor != null ? state.meleeColor : 0x94a3b8);
+  if (storedMeleeIsReal()) {
+    state.weaponName = state.meleeName;
+    state.weaponDmg = state.meleeDmg != null ? state.meleeDmg : 2;
+    setWeaponColor(state.meleeColor != null ? state.meleeColor : 0x94a3b8);
+    state.lastNonBow = 'melee';
+    return true;
+  }
+  if (state.laserGun) return equipHandWeapon('gun');
+  state.weaponName = 'Puños'; state.weaponDmg = 2; setWeaponColor(0x94a3b8);
   return true;
 }
-let slot1TapAt = 0;
-function selectHandTool() {   // 1 un toque = espada/pala · 1 dos toques = arco
+let slot1TapAt = 0, slot1DupAt = 0;
+function selectHandTool() {   // 1 un toque = espada/láser · 1 dos toques = arco · nunca puños si ya compraste arma
   state.buildMode = false;
+  const now = performance.now();
+  if (now - slot1DupAt < 80) return;   // un toque en celular a veces llega dos veces (click + tap)
+  slot1DupAt = now;
+  sanitizeWeaponPockets();
+  const held = weaponKindFromName(state.weaponName);
   if (!state.hasBow) {
-    if (weaponKindFromName(state.weaponName) === 'bow') equipHandWeapon('melee');
+    if (state.laserGun && storedMeleeIsReal()) equipHandWeapon(held === 'gun' ? 'melee' : 'gun');
+    else if (held === 'bow') equipHandWeapon(bestNonBowKind());
     return;
   }
-  const now = performance.now();
   if (now - slot1TapAt < 420) {
     slot1TapAt = 0;
     equipHandWeapon('bow');
-    toast('🏹 Arco en la mano · pulsa 1 una vez para la espada');
-  } else {
-    slot1TapAt = now;
-    equipHandWeapon('melee');
-    toast('⚔️ ' + (state.meleeName || 'Puños') + ' · pulsa 1 otra vez para el arco');
+    toast(handWeaponToast('bow'));
+    return;
   }
+  slot1TapAt = now;
+  let which;
+  if (held === 'bow') which = bestNonBowKind();
+  else if (held === 'gun' && storedMeleeIsReal()) which = 'melee';
+  else if ((held === 'sword' || held === 'shovel') && state.laserGun) which = 'gun';
+  else which = bestNonBowKind();
+  equipHandWeapon(which);
+  toast(handWeaponToast(which));
 }
 function selectSlot(n, via) {
   activeBlueprintId = null; blueprintGhost.visible = false;
@@ -9969,7 +10035,7 @@ function saveGame() {
       money: state.money, totalEarned: state.totalEarned, stage: state.stage,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
       weaponDmg: state.weaponDmg, weaponName: state.weaponName, armorFactor: state.armorFactor, weaponColor: wc, hasShovel: !!state.hasShovel, hasBow: !!state.hasBow,
-      meleeName: state.meleeName || 'Puños', meleeDmg: state.meleeDmg != null ? state.meleeDmg : 2, meleeColor: state.meleeColor != null ? state.meleeColor : 0x94a3b8,
+      meleeName: state.meleeName || 'Puños', meleeDmg: state.meleeDmg != null ? state.meleeDmg : 2, meleeColor: state.meleeColor != null ? state.meleeColor : 0x94a3b8, lastNonBow: state.lastNonBow === 'gun' ? 'gun' : 'melee',
       dadGun: state.dadGun, hasRocket: state.hasRocket, momUnlocked: state.momUnlocked, planet: state.planet, country:state.country||null,
       houseTier: houseTier, inv: state.inv,
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
@@ -10558,9 +10624,10 @@ function loadGame() {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: d.night || 0,
     weaponDmg: d.weaponDmg || 2, weaponName: d.weaponName || 'Puños', armorFactor: d.armorFactor || 1, dadArmor: d.dadArmor || 1, hasShovel: !!d.hasShovel, hasBow: !!d.hasBow || String(d.weaponName || '').toLowerCase().includes('arco'),
-    meleeName: d.meleeName || (String(d.weaponName || '').toLowerCase().includes('arco') ? 'Puños' : (d.weaponName || 'Puños')),
-    meleeDmg: d.meleeDmg != null ? d.meleeDmg : (String(d.weaponName || '').toLowerCase().includes('arco') ? 2 : (d.weaponDmg || 2)),
+    meleeName: d.meleeName || (String(d.weaponName || '').toLowerCase().includes('arco') || String(d.weaponName || '').toLowerCase().includes('pistola') || String(d.weaponName || '').toLowerCase().includes('láser') ? 'Puños' : (d.weaponName || 'Puños')),
+    meleeDmg: d.meleeDmg != null ? d.meleeDmg : (String(d.weaponName || '').toLowerCase().includes('arco') || String(d.weaponName || '').toLowerCase().includes('pistola') ? 2 : (d.weaponDmg || 2)),
     meleeColor: d.meleeColor != null ? d.meleeColor : (d.weaponColor || 0x94a3b8),
+    lastNonBow: d.lastNonBow === 'gun' ? 'gun' : 'melee',
     dadGun: !!d.dadGun, hasRocket: !!d.hasRocket, momUnlocked: !!d.momUnlocked, planet: (d.planet === 'marte' ? 'platus' : (d.planet || 'tierra')), country:COUNTRIES.some(c=>c.id===d.country)?d.country:null,
     wanted: 0, wantedLevel: 0, policeDelay: 0, driving: false, inFlight: false, poison: 0, dadPoison: 0, buildMode: false, phase: 'DAY', dayTime: 0,
     hasPhone: !!d.hasPhone, skiPass: !!d.skiPass, skiGear: d.skiGear || null, skiGearWorn: d.skiGearWorn != null ? !!d.skiGearWorn : !!d.skiGear, skiing: false, skiLiftRide: null,
@@ -10615,6 +10682,7 @@ function loadGame() {
   removeAlienPet(); if (d.petAlien && d.petAlienHp !== 0) spawnAlienPet(d.petAlienHp);
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
+  sanitizeWeaponPockets();   // partidas viejas: no dejar Puños si tenías espada en la mano o pistola láser comprada
   leaveParkRide(true); standUp(true);
   updateHouseAnchor();   // recalcula dónde está tu casa (en los planetas la construyes donde quieras)
   removeAllFloors2();   // saves viejos (un solo piso sobre la casa) se migran a la lista floors2
@@ -11221,14 +11289,33 @@ function paintHouse(color, label) {
 function buyItem(item) {
   if (!state.creative && item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
   if (item.bow || item.key === 'arco') {
-    if (state.hasBow && bowEquipped()) { toast('🏹 Ya tienes el arco en la mano · pulsa 1 una vez para la espada, dos veces para el arco'); return; }
+    if (state.hasBow && bowEquipped()) { toast('🏹 Ya tienes el arco en la mano · pulsa 1 una vez para la espada o el láser, dos veces para el arco'); return; }
     if (!state.hasBow) {
       if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
       if (!state.creative) state.money -= item.price;
     }
-    if (weaponKindFromName(state.weaponName) !== 'bow') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    const held = weaponKindFromName(state.weaponName);
+    if (held === 'sword' || held === 'shovel') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    if (held === 'gun') { state.laserGun = true; state.lastNonBow = 'gun'; }
     state.hasBow = true; equipHandWeapon('bow');
-    toast('🏹 Arco listo · pulsa 1 una vez = espada · pulsa 1 dos veces = arco · mantén E o clic para tensar, mira hacia ARRIBA para llegar lejos');
+    toast('🏹 Arco listo · pulsa 1 una vez = espada o láser · pulsa 1 dos veces = arco · mantén E o clic para tensar, mira hacia ARRIBA para llegar lejos');
+    saveGame(); return;
+  }
+  if (item.key === 'laserpistol') {
+    if (state.laserGun && laserEquipped()) { toast('🔫 Ya tienes la pistola láser en la mano · pulsa 1 para la espada, dos veces para el arco'); return; }
+    if (!state.laserGun) {
+      if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
+      if (!state.creative) state.money -= item.price;
+      state.laserGun = true;
+    }
+    const held = weaponKindFromName(state.weaponName);
+    if (held === 'sword' || held === 'shovel') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    if (bowEquipped()) {
+      toast('🔫 Pistola láser lista · pulsa 1 una vez para la espada, otra vez para el láser, 1 dos veces para el arco');
+    } else {
+      equipHandWeapon('gun');
+      toast('🔫 ¡Pistola láser! Dispara LEJOS con un rayo (👊 / clic) · pulsa 1 para la espada, 1 dos veces para el arco');
+    }
     saveGame(); return;
   }
   if (state.money < item.price) { toast('💸 Te falta plata'); return; }
@@ -11295,11 +11382,6 @@ function buyItem(item) {
     state.money -= item.price; spawnAlienPet();
     toast('👽 ¡Mascota alien! Te sigue y pelea de noche (más fuerte que el perro)'); return;
   }
-  if (item.key === 'laserpistol') {
-    state.money -= item.price; state.laserGun = true;
-    if (item.dmg > state.weaponDmg) { state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color); }
-    toast('🔫 ¡Pistola láser! Dispara LEJOS con un rayo (👊 / clic)'); return;
-  }
   if (item.key === 'baseespacial') {
     if (state.baseLevel) { toast('🏕️ Ya tienes tu base espacial'); return; }
     state.money -= item.price; state.baseLevel = 1; spawnBase();
@@ -11331,8 +11413,8 @@ function buyItem(item) {
     } else if (meleeKind === 'fist' || meleeKind === 'shovel') {
       if (meleeKind === 'fist' || item.dmg > (state.meleeDmg || 0)) rememberMeleeWeapon(item.name, item.dmg, item.color);
     }
-    if (bowEquipped()) {
-      toast((isShovel ? '🪏 ' : '⚔️ ') + item.name + ' guardada · pulsa 1 una vez para usarla, 1 dos veces para el arco');
+    if (bowEquipped() || laserEquipped()) {
+      toast((isShovel ? '🪏 ' : '⚔️ ') + item.name + ' guardada · pulsa 1 una vez para usarla' + (state.hasBow ? ', 1 dos veces para el arco' : ''));
     } else if (item.dmg > state.weaponDmg) {
       equipHandWeapon('melee');
       toast((isShovel ? '🪏 ' : '⚔️ ') + item.name + ' equipada: hace ' + item.dmg + ' de daño' + (isShovel ? ' · ya puedes CAVAR (T)' : ''));
@@ -11866,7 +11948,7 @@ function attack(multiplier = 1) {
     const d = dist3D(p, e.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
-  if (best) { hitEnemy(best, dmg, p); if (state.laserGun) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
+  if (best) { hitEnemy(best, dmg, p); if (laserEquipped()) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
   else if (!tryMineIslandOre() && !tryHitGeode() && !tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // isla o recursos de Platus
 }
 // Rayo láser: línea roja del jugador al enemigo (breve destello)
@@ -13241,7 +13323,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, bowEquipped });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -13858,12 +13940,13 @@ function renderHUD() {
     bb.style.display = 'flex';
     const isPala = state.weaponName.toLowerCase().includes('pala');
     const isBow = bowEquipped();
+    const isGun = laserEquipped();
     const ICON = INV_ICON;
     const NAME = INV_LABEL;
     let html = '';
     for (const [cat, em] of BUILD_CAT_TABS)   // pestañas de categoría (18 slots no caben en pantalla)
       html += `<div class="slot ${buildCat === cat ? 'sel' : ''}" data-cat="${cat}" style="min-width:40px"><div class="ic">${em}</div><div class="nm">${cat}</div></div>`;
-    html += `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isBow ? '🏹' : isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
+    html += `<div class="slot ${!state.buildMode ? 'sel' : ''}" data-slot="1"><div class="kk">1</div><div class="ic">${isBow ? '🏹' : isGun ? '🔫' : isPala ? '🪏' : '🗡️'}</div><div class="nm">${state.weaponName.split(' ')[0]}</div></div>`;
     catKeys().forEach((k, i) => {   // solo las piezas de la categoría activa (máx 9: teclas 2..9 y 0)
       const n = i + 2;
       html += `<div class="slot ${state.buildMode && BUILD_KEYS[buildSel] === k ? 'sel' : ''}" data-slot="${n}"><div class="kk">${n === 10 ? 0 : n}</div><div class="ic">${ICON[k]}</div><div class="nm">${NAME[k]}</div><div class="ct">${state.inv[k]}</div></div>`;
@@ -13889,7 +13972,7 @@ function renderHUD() {
   const modeTxt = dad.userData.protecting ? '🛡️ Protegiéndote' : ({ follow: 'Te sigue', stay: 'Quieto', clean: 'Limpiando', rest: '😴 Descansando (invisible)' }[dad.userData.mode] || '');
   setHTMLIfChanged(ui('dadhud'), `<b>PAPÁ:</b> ${dad.visible ? modeTxt : 'en la fiesta'} ${dad.userData.armed ? '🔫' : ''}${state.dadArmor < 1 ? '🛡️' : ''}`);
   // equipo
-  let gear = [(bowEquipped() ? '🏹 ' : '⚔️ ') + state.weaponName + ' (' + state.weaponDmg + ')'];
+  let gear = [(bowEquipped() ? '🏹 ' : laserEquipped() ? '🔫 ' : '⚔️ ') + state.weaponName + ' (' + state.weaponDmg + ')'];
   if (currentBlueprint()) gear.unshift('📐 ' + currentBlueprint().name + ' · ' + currentBlueprint().parts.length + ' piezas');
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');

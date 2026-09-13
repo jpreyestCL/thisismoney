@@ -32,11 +32,21 @@ assert.doesNotMatch(html, /if \(e\.code === 'KeyE'\) \{ const alexaTarget=e\.shi
 assert.match(html, /function selectHandTool\(/);
 assert.match(html, /function equipHandWeapon\(/);
 assert.match(html, /function rememberMeleeWeapon\(/);
+assert.match(html, /function storedMeleeIsReal\(/);
+assert.match(html, /function sanitizeWeaponPockets\(/);
+assert.match(html, /function laserEquipped\(/);
+assert.match(html, /function laserShopItem\(/);
 assert.match(html, /slot1TapAt/);
-assert.match(html, /1 dos veces = arco/);
+assert.match(html, /slot1DupAt/);
+assert.match(html, /1 dos toques = arco/);
 assert.match(html, /selectSlot\(1, 'wheel'\)/);
 assert.match(html, /meleeName: state\.meleeName/);
-assert.match(html, /if \(bowEquipped\(\)\) \{/);
-assert.match(sw, /tim-v25/);
+assert.match(html, /lastNonBow: state\.lastNonBow/);
+assert.match(html, /k === 'bow' \|\| k === 'fist' \|\| k === 'gun'/);
+assert.match(html, /if \(state\.laserGun\) return equipHandWeapon\('gun'\)/);
+assert.match(html, /if \(item\.key === 'laserpistol'\)/);
+assert.match(html, /if \(bowEquipped\(\) \|\| laserEquipped\(\)\) \{/);
+assert.match(html, /sanitizeWeaponPockets\(\)/);
+assert.match(sw, /tim-v26/);
 
 console.log('bow and arrow: ok');

@@ -773,12 +773,21 @@
   </div>
 </div>
 <div id="arcadeGameBox" style="position:fixed;inset:0;display:none;z-index:30;background:rgba(2,6,23,.94);align-items:center;justify-content:center;pointer-events:all;">
-  <div style="width:min(94vw,520px);background:#050816;border:3px solid #a855f7;border-radius:16px;padding:18px;text-align:center;box-shadow:0 0 30px rgba(168,85,247,.35)">
+  <div style="width:min(96vw,560px);background:#050816;border:3px solid #a855f7;border-radius:16px;padding:14px;text-align:center;box-shadow:0 0 30px rgba(168,85,247,.35)">
     <h2 id="arcadeGameTitle" style="margin:0;color:#f0abfc">🎮 JUEGO</h2>
-    <p id="arcadeGameHelp" style="min-height:42px;margin:8px 0;color:#cbd5e1"></p>
-    <div id="arcadeGameBoard" style="min-height:94px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-size:26px;color:#facc15"></div>
+    <p id="arcadeGameHelp" style="min-height:28px;margin:6px 0;color:#cbd5e1;font-size:13px"></p>
+    <div id="arcadeGameMenu" style="display:none;flex-direction:column;gap:8px;margin:8px 0"></div>
+    <canvas id="miniGameCanvas" width="520" height="340" style="display:none;width:min(92vw,520px);height:auto;background:#020617;border-radius:10px;image-rendering:pixelated"></canvas>
+    <div id="arcadeGameBoard" style="min-height:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-size:26px;color:#facc15"></div>
     <div id="arcadeGameProgress" style="font-weight:800;margin:8px 0;color:#67e8f9"></div>
-    <button class="bankBtn" id="arcadeGameAction" style="width:100%;margin-bottom:8px">▶️ Jugar</button>
+    <div id="miniGamePad" style="display:none;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0">
+      <button class="bankBtn" data-mini="KeyA">◀</button>
+      <button class="bankBtn" data-mini="KeyW">▲</button>
+      <button class="bankBtn" data-mini="KeyS">▼</button>
+      <button class="bankBtn" data-mini="KeyD">▶</button>
+      <button class="bankBtn" data-mini="Space">●</button>
+    </div>
+    <button class="bankBtn" id="arcadeGameAction" style="display:none;width:100%;margin-bottom:8px">▶️ Jugar</button>
     <button class="bankBtn" id="arcadeGameClose" style="width:100%">Cerrar juego ✕</button>
   </div>
 </div>
@@ -890,7 +899,7 @@
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Primero contrátalo en el súper por $500. Su sueldo es $100 cada 7 días del juego.</span>
           <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
-          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Daño del arco: tensado bajo 9, medio 12 y máximo 18 (si tu arco es de 16). Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco.</span>
+          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Daño del arco: tensado bajo 9, medio 12 y máximo 18 (si tu arco es de 16). Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco. En casa, E en la Play abre juegos de consola (fútbol, Gran Prix y Héroes).</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
           <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La tecla 1: un toque = espada, pala o pistola láser (nunca los puños si ya las compraste); dos toques seguidos = arco. La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
@@ -1999,10 +2008,15 @@ const ARCADE_REWARDS_POS = new THREE.Vector3(ARCADE_POS.x, 0, ARCADE_POS.z + 8);
 const ARCADE_MACHINES = [];
 const ARCADE_GAMES = [
   { name: 'Pac-Man', price: 20, tickets: 50 },
-  { name: 'Carrera Turbo', price: 35, tickets: 65 },
-  { name: 'Invasores espaciales', price: 30, tickets: 55 },
-  { name: 'Baile con luces', price: 25, tickets: 48 },
-  { name: 'Pesca de premios', price: 45, tickets: 90 },
+  { name: 'Carrera Turbo', price: 35, tickets: 65, id: 'carrera' },
+  { name: 'Invasores espaciales', price: 30, tickets: 55, id: 'invasores' },
+  { name: 'Baile con luces', price: 25, tickets: 48, id: 'baile' },
+  { name: 'Pesca de premios', price: 45, tickets: 90, id: 'pesca' },
+];
+const PLAY_GAMES = [
+  { id: 'futbol', name: 'Fútbol Champions', icon: '⚽', tickets: 8, help: 'WASD mueves · Espacio patea · primero en 3 goles' },
+  { id: 'granprix', name: 'Gran Prix Play', icon: '🏎️', tickets: 10, help: 'W acelera · A/D curva · 3 vueltas del óvalo' },
+  { id: 'heroes', name: 'Héroes de Play', icon: '🦸', tickets: 9, help: 'AD caminas · Espacio salta · pisa enemigos y junta 3 gemas' },
 ];
 let gasStationGroup = null, arcadeZoneGroup = null;
 function buildGasStation() {
@@ -8579,7 +8593,7 @@ ui('pacClose').onclick = pacClose;
 ui('pacControls').querySelectorAll('[data-pac]').forEach(b => b.onclick = () => { const d={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}}; pacMove(d[b.dataset.pac]); });
 addEventListener('keydown', e => { if (ui('pacbox').style.display !== 'flex') return; const d={ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1],ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0]}; if (e.code==='Escape') pacClose(); else if (d[e.code]) pacMove({x:d[e.code][0],y:d[e.code][1]}); e.preventDefault(); e.stopImmediatePropagation(); });
 function aimedFurniture(maxD = 4.5) {
-  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer', 'computador_gamer', 'alexa']);
+  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer', 'computador_gamer', 'alexa', 'play_gamer']);
   const origin = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
   let best = null, bestScore = -Infinity;
   for (const o of placed) {
@@ -8592,26 +8606,38 @@ function aimedFurniture(maxD = 4.5) {
   return best;
 }
 function tryFocusedFurniture() {
-  if (sitOn) return standUp(false);   // levantarse siempre gana; ningún teclado/parlante puede robar E
+  if (sitOn) {
+    const seatedAim = aimedFurniture();
+    if (seatedAim && seatedAim.key === 'play_gamer') return openPlayStation();
+    return standUp(false);   // levantarse gana, salvo que estés mirando la Play
+  }
   const target = aimedFurniture(); if (!target) return false;
   if (target.key === 'teclado_gamer') return useGamerKeyboard(target);
   if (target.key === 'parlante_gamer') return useGamerSpeaker(target);
   if (target.key === 'alexa') return useAlexa(target);
   if (target.key === 'computador_gamer') return pacOpen();
+  if (target.key === 'play_gamer') return openPlayStation();
   return trySit(target);
 }
 function trySeatedGamerKeyboard() {
   if (!sitOn) return false;
   const target = aimedFurniture();
-  if (!target) return false;
+  if (!target) return trySeatedPlay();
   if (target.key === 'teclado_gamer') return useGamerKeyboard(target);
   if (target.key === 'computador_gamer') return pacOpen();
-  return false;
+  if (target.key === 'play_gamer') return openPlayStation();
+  return trySeatedPlay();
 }
 function trySeatedPacman() {
   if (!sitOn) return false;
   const target = aimedFurniture();
   return !!(target && target.key === 'computador_gamer' && pacOpen());
+}
+function trySeatedPlay() {
+  if (!sitOn) return false;
+  const aimed = aimedFurniture();
+  if ((aimed && aimed.key === 'play_gamer') || nearestPlay(3.8)) return openPlayStation();
+  return false;
 }
 function toggleSound() {
   soundOn = !soundOn;
@@ -8683,7 +8709,7 @@ addEventListener('keydown', e => {
   }
   if (e.code === 'KeyY') { openShopInput(); return; }   // abrir vendedor (comprar escribiendo)
   if (e.code === 'KeyU') { openMathBox(); return; }     // desafío de mates (gana plata resolviendo)
-  if (e.code === 'KeyI' && trySeatedPacman()) return;   // sentado y mirando el computador: jugar Pac-Man
+  if (e.code === 'KeyI' && (trySeatedPacman() || trySeatedPlay())) return;   // sentado: PC = Pac-Man · Play = juegos de consola
   if (e.code === 'KeyN') tryStartNight();
   if (e.code === 'KeyP' && !state.buildMode) { callOnlineFriends(); return; }
   if (e.code === 'AltLeft' || e.code === 'AltRight') { e.preventDefault(); dodge(); }
@@ -11257,47 +11283,326 @@ function tryRefuelCar() {
   toast('⛽ Compraste ' + missing + ' unidades de gasolina · tanque lleno · -$' + cost); saveGame(); return true;
 }
 let arcadeMini = null;
-function arcadeMiniClose() { if (arcadeMini?.fishTimer) clearInterval(arcadeMini.fishTimer); arcadeMini = null; ui('arcadeGameBox').style.display = 'none'; typing = false; }
-function arcadeMiniFinish(won) {
+let miniRaf = 0;
+const miniKeys = {};
+function miniCanvas() { return ui('miniGameCanvas'); }
+function miniCtx() { const c = miniCanvas(); return c && c.getContext('2d'); }
+function nearestPlay(maxD = 4) {
+  let best = null, bestD = maxD;
+  for (const o of placed) {
+    if (!o.mesh.visible || o.key !== 'play_gamer') continue;
+    const d = dist2D(player.position, o.mesh.position);
+    if (d < bestD) { best = o; bestD = d; }
+  }
+  return best;
+}
+function arcadeMiniClose() {
+  if (miniRaf) { cancelAnimationFrame(miniRaf); miniRaf = 0; }
+  for (const k of Object.keys(miniKeys)) delete miniKeys[k];
+  arcadeMini = null;
+  ui('arcadeGameBox').style.display = 'none';
+  ui('arcadeGameMenu').style.display = 'none';
+  ui('miniGameCanvas').style.display = 'none';
+  ui('miniGamePad').style.display = 'none';
+  ui('arcadeGameBoard').style.display = 'none';
+  ui('arcadeGameProgress').style.display = 'none';
+  ui('arcadeGameAction').style.display = 'none';
+  typing = false;
+}
+function arcadeMiniWin() {
   const s = arcadeMini; if (!s) return;
-  if (won) { state.arcadeTickets = (state.arcadeTickets || 0) + s.game.tickets; toast('🏆 ¡Completaste ' + s.game.name + '! +' + s.game.tickets + ' tickets'); saveGame(); }
-  else toast('🎮 Terminaste ' + s.game.name + '. Inténtalo otra vez para ganar tickets.');
+  if (s.kind === 'play') {
+    const pay = 220 + (s.game.tickets || 4) * 12;
+    state.money += pay;
+    toast('🎮 ¡Ganaste ' + s.game.name + '! +$' + pay);
+  } else {
+    state.arcadeTickets = (state.arcadeTickets || 0) + s.game.tickets;
+    toast('🏆 ¡Completaste ' + s.game.name + '! +' + s.game.tickets + ' tickets');
+  }
+  saveGame(); arcadeMiniClose();
+}
+function arcadeMiniLose(msg) {
+  toast(msg || '🎮 Inténtalo otra vez.');
   arcadeMiniClose();
 }
-function renderArcadeMini() {
-  const s = arcadeMini; if (!s) return;
-  const title = ui('arcadeGameTitle'), help = ui('arcadeGameHelp'), board = ui('arcadeGameBoard'), progress = ui('arcadeGameProgress'), action = ui('arcadeGameAction');
-  title.textContent = '🎮 ' + s.game.name;
-  action.textContent = '🎯 Acción · ' + (s.game.name === 'Baile con luces' ? 'seguir flecha' : 'jugar');
-  if (s.game.name === 'Carrera Turbo') { help.textContent = 'Pulsa ↑ o W para acelerar. Evita los obstáculos con ← y →.'; board.textContent = '🏎️ ' + '▰'.repeat(Math.min(12, s.step)) + '▱'.repeat(Math.max(0, 12 - s.step)); progress.textContent = s.step + '/12 tramos'; }
-  else if (s.game.name === 'Invasores espaciales') { help.textContent = 'Pulsa ESPACIO o el botón para disparar y destruir 10 invasores.'; board.textContent = '👾 '.repeat(Math.max(0, 10 - s.step)) + (s.step ? '💥'.repeat(s.step) : ''); progress.textContent = s.step + '/10 invasores'; }
-  else if (s.game.name === 'Baile con luces') { help.textContent = 'Pulsa la flecha que aparece para seguir la coreografía.'; board.textContent = s.sequence[s.step] || '✅'; progress.textContent = s.step + '/' + s.sequence.length + ' pasos'; }
-  else { help.textContent = 'Pulsa ESPACIO o el botón cuando aparezca 🎣 ¡AHORA!'; board.textContent = s.fishReady ? '🎣 ¡AHORA!' : '🌊 Espera el pique…'; progress.textContent = s.step + '/3 peces'; }
+function showMiniHud(title, help) {
+  ui('arcadeGameTitle').textContent = title;
+  ui('arcadeGameHelp').textContent = help;
+  ui('arcadeGameMenu').style.display = 'none';
+  ui('arcadeGameBoard').style.display = 'none';
+  ui('arcadeGameProgress').style.display = 'none';
+  ui('arcadeGameAction').style.display = 'none';
+  ui('miniGameCanvas').style.display = 'block';
+  ui('miniGamePad').style.display = 'grid';
+  ui('arcadeGameBox').style.display = 'flex';
 }
-function arcadeMiniAction(code) {
-  const s = arcadeMini; if (!s) return;
-  if (s.game.name === 'Baile con luces') { if (code && code !== s.sequence[s.step]) { toast('💃 ¡Paso equivocado!'); s.step = 0; } else s.step++; }
-  else if (s.game.name === 'Pesca de premios') { if (!s.fishReady) { toast('🎣 Todavía no pica'); return; } s.step++; s.fishReady = false; }
-  else s.step++;
-  if (s.step >= (s.game.name === 'Carrera Turbo' ? 12 : s.game.name === 'Invasores espaciales' ? 10 : s.game.name === 'Baile con luces' ? s.sequence.length : 3)) arcadeMiniFinish(true); else renderArcadeMini();
+function startMiniLoop() {
+  if (miniRaf) cancelAnimationFrame(miniRaf);
+  let last = performance.now();
+  const tick = now => {
+    miniRaf = requestAnimationFrame(tick);
+    if (!arcadeMini) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    miniStep(dt);
+    miniDraw();
+  };
+  miniRaf = requestAnimationFrame(tick);
+}
+function openPlayStation() {
+  const aimed = aimedFurniture();
+  if (!(aimed && aimed.key === 'play_gamer') && !nearestPlay(4.5)) { toast('🔌 Acércate a la consola Play'); return false; }
+  releaseLock(); typing = true; for (const k in keys) keys[k] = false;
+  arcadeMini = { kind: 'menu', source: 'play' };
+  ui('arcadeGameTitle').textContent = '🎮 Play Station';
+  ui('arcadeGameHelp').textContent = 'Juegos de consola: fútbol, Gran Prix y héroes. 1-3 o toca uno. Esc cierra.';
+  ui('arcadeGameBoard').style.display = 'none';
+  ui('arcadeGameProgress').style.display = 'none';
+  ui('arcadeGameAction').style.display = 'none';
+  ui('miniGameCanvas').style.display = 'none';
+  ui('miniGamePad').style.display = 'none';
+  const menu = ui('arcadeGameMenu');
+  menu.style.display = 'flex';
+  menu.innerHTML = PLAY_GAMES.map((g, i) => '<button type="button" class="bankBtn" data-play="' + i + '">' + (i + 1) + '. ' + g.icon + ' ' + g.name + '</button>').join('');
+  menu.querySelectorAll('[data-play]').forEach(btn => {
+    btn.onclick = () => startPlayGame(PLAY_GAMES[+btn.dataset.play]);
+  });
+  ui('arcadeGameBox').style.display = 'flex';
+  return true;
+}
+function startPlayGame(game) {
+  if (!game) return;
+  if (game.id === 'futbol') startFutbol(game);
+  else if (game.id === 'granprix') startGranPrix(game);
+  else startHeroes(game);
 }
 function openArcadeMini(game) {
   releaseLock(); typing = true; for (const k in keys) keys[k] = false;
-  arcadeMini = { game, step: 0, sequence: ['⬆️','➡️','⬇️','⬅️','⬆️','➡️','⬅️','⬇️'], fishReady: false };
-  ui('arcadeGameBox').style.display = 'flex'; renderArcadeMini();
-  if (game.name === 'Pesca de premios') arcadeMini.fishTimer = setInterval(() => { if (!arcadeMini) return; arcadeMini.fishReady = Math.random() < .45; renderArcadeMini(); }, 850);
+  if (game.id === 'carrera') startCarrera(game);
+  else if (game.id === 'invasores') startInvasores(game);
+  else if (game.id === 'baile') startBaile(game);
+  else startPesca(game);
+}
+function startCarrera(game) {
+  arcadeMini = { kind: 'arcade', game, id: 'carrera', lane: 1, dist: 0, speed: 180, obs: [], t: 0, hp: 3 };
+  showMiniHud('🏎️ Carrera Turbo', 'A/D cambia de carril. Aguanta 1200 m sin chocar 3 veces.');
+  startMiniLoop();
+}
+function startInvasores(game) {
+  const aliens = [];
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 8; c++) aliens.push({ x: 70 + c * 50, y: 40 + r * 32, alive: true });
+  arcadeMini = { kind: 'arcade', game, id: 'invasores', x: 260, bullets: [], aliens, dir: 1, t: 0 };
+  showMiniHud('👾 Invasores espaciales', 'A/D mueve la nave. ESPACIO dispara. ¡Limpia la oleada!');
+  startMiniLoop();
+}
+function startBaile(game) {
+  arcadeMini = { kind: 'arcade', game, id: 'baile', notes: [], score: 0, need: 12, t: 0, next: 0.7, miss: 0 };
+  showMiniHud('💃 Baile con luces', 'A D W S cuando la nota toca la línea amarilla.');
+  startMiniLoop();
+}
+function startPesca(game) {
+  arcadeMini = { kind: 'arcade', game, id: 'pesca', hook: false, hy: 40, fish: [], catch: 0, t: 0, time: 45 };
+  for (let i = 0; i < 6; i++) arcadeMini.fish.push({ x: 40 + Math.random() * 440, y: 90 + Math.random() * 200, vx: (Math.random() < .5 ? -1 : 1) * (40 + Math.random() * 50), kind: i % 3 });
+  showMiniHud('🎣 Pesca de premios', 'ESPACIO baja el anzuelo. Atrapa 4 peces en 45 s.');
+  startMiniLoop();
+}
+function startFutbol(game) {
+  arcadeMini = { kind: 'play', game, id: 'futbol', px: 140, py: 170, bx: 260, by: 170, bvx: 80, bvy: 40, you: 0, cpu: 0, cx: 380, cy: 170 };
+  showMiniHud('⚽ Fútbol Champions', 'WASD corre. ESPACIO patea. Primero en llegar a 3 goles.');
+  startMiniLoop();
+}
+function startGranPrix(game) {
+  arcadeMini = { kind: 'play', game, id: 'granprix', x: 260, y: 260, vx: 0, heading: -Math.PI / 2, lap: 0, check: 0, t: 0 };
+  showMiniHud('🏁 Gran Prix Play', 'W acelera, A/D gira. Completa 3 vueltas del óvalo.');
+  startMiniLoop();
+}
+function startHeroes(game) {
+  arcadeMini = { kind: 'play', game, id: 'heroes', x: 60, y: 250, vy: 0, on: true, foes: [{ x: 220, hp: 1 }, { x: 340, hp: 1 }, { x: 430, hp: 1 }], gems: 0 };
+  showMiniHud('🦸 Héroes de Play', 'A/D corre, W/ESPACIO salta. Pisa enemigos y junta 3 gemas.');
+  startMiniLoop();
+}
+function miniHeld(code) { return !!miniKeys[code]; }
+function miniStep(dt) {
+  const s = arcadeMini; if (!s) return;
+  if (s.id === 'carrera') {
+    s.t += dt;
+    if (miniHeld('KeyA') || miniHeld('ArrowLeft')) s.lane = Math.max(0, s.lane - dt * 4);
+    if (miniHeld('KeyD') || miniHeld('ArrowRight')) s.lane = Math.min(2, s.lane + dt * 4);
+    s.speed = Math.min(320, s.speed + dt * 18);
+    s.dist += s.speed * dt;
+    if (s.t > 0.55) { s.t = 0; s.obs.push({ lane: Math.floor(Math.random() * 3), y: -40 }); }
+    s.obs.forEach(o => o.y += s.speed * dt * 0.55);
+    s.obs = s.obs.filter(o => o.y < 380);
+    for (const o of s.obs) {
+      if (o.y > 230 && o.y < 300 && Math.abs(o.lane - s.lane) < 0.45) {
+        o.y = 400; s.hp--; if (s.hp <= 0) return arcadeMiniLose('💥 Choque. Carrera perdida.');
+      }
+    }
+    if (s.dist >= 1200) arcadeMiniWin();
+  } else if (s.id === 'invasores') {
+    if (miniHeld('KeyA') || miniHeld('ArrowLeft')) s.x = Math.max(20, s.x - 220 * dt);
+    if (miniHeld('KeyD') || miniHeld('ArrowRight')) s.x = Math.min(500, s.x + 220 * dt);
+    s.t += dt;
+    if (s.t > 0.28 && miniHeld('Space')) { s.t = 0; s.bullets.push({ x: s.x, y: 290 }); }
+    s.bullets.forEach(b => b.y -= 320 * dt);
+    s.bullets = s.bullets.filter(b => b.y > 0);
+    let edge = false;
+    s.aliens.forEach(a => { if (!a.alive) return; a.x += s.dir * 40 * dt; if (a.x < 30 || a.x > 490) edge = true; });
+    if (edge) { s.dir *= -1; s.aliens.forEach(a => { a.y += 12; }); }
+    for (const b of s.bullets) for (const a of s.aliens) {
+      if (a.alive && Math.abs(b.x - a.x) < 18 && Math.abs(b.y - a.y) < 16) { a.alive = false; b.y = -10; }
+    }
+    if (s.aliens.some(a => a.alive && a.y > 280)) return arcadeMiniLose('👾 Te invadieron.');
+    if (s.aliens.every(a => !a.alive)) arcadeMiniWin();
+  } else if (s.id === 'baile') {
+    s.t += dt; s.next -= dt;
+    const lanes = ['KeyA', 'KeyS', 'KeyD', 'KeyW'];
+    if (s.next <= 0) { s.next = 0.62; s.notes.push({ code: lanes[Math.floor(Math.random() * 4)], y: -20, hit: false }); }
+    s.notes.forEach(n => n.y += 170 * dt);
+    for (const n of s.notes) {
+      if (n.hit) continue;
+      if (n.y > 248 && n.y < 292 && miniHeld(n.code)) { n.hit = true; s.score++; }
+      else if (n.y > 310 && !n.hit) { n.hit = true; s.miss++; }
+    }
+    s.notes = s.notes.filter(n => n.y < 360);
+    if (s.miss >= 4) arcadeMiniLose('💃 Perdiste el ritmo.');
+    else if (s.score >= s.need) arcadeMiniWin();
+  } else if (s.id === 'pesca') {
+    s.time -= dt;
+    s.fish.forEach(f => { f.x += f.vx * dt; if (f.x < 20 || f.x > 500) f.vx *= -1; });
+    if (!s.hook && miniHeld('Space')) { s.hook = true; s.hy = 40; }
+    if (s.hook) {
+      s.hy += 220 * dt;
+      for (const f of s.fish) {
+        if (Math.abs(f.x - 260) < 22 && Math.abs(f.y - s.hy) < 18) {
+          s.catch++; f.x = 40 + Math.random() * 440; f.y = 90 + Math.random() * 200; s.hook = false; s.hy = 40;
+        }
+      }
+      if (s.hy > 330) { s.hook = false; s.hy = 40; }
+    }
+    if (s.catch >= 4) arcadeMiniWin();
+    else if (s.time <= 0) arcadeMiniLose('🎣 Se acabó el tiempo.');
+  } else if (s.id === 'futbol') {
+    let ax = 0, ay = 0;
+    if (miniHeld('KeyA') || miniHeld('ArrowLeft')) ax -= 1;
+    if (miniHeld('KeyD') || miniHeld('ArrowRight')) ax += 1;
+    if (miniHeld('KeyW') || miniHeld('ArrowUp')) ay -= 1;
+    if (miniHeld('KeyS') || miniHeld('ArrowDown')) ay += 1;
+    s.px = Math.max(30, Math.min(250, s.px + ax * 180 * dt));
+    s.py = Math.max(40, Math.min(300, s.py + ay * 180 * dt));
+    const tdx = s.bx - s.cx, tdy = s.by - s.cy, tl = Math.hypot(tdx, tdy) || 1;
+    s.cx += (tdx / tl) * 110 * dt; s.cy += (tdy / tl) * 90 * dt;
+    s.cx = Math.max(270, Math.min(500, s.cx)); s.cy = Math.max(40, Math.min(300, s.cy));
+    s.bx += s.bvx * dt; s.by += s.bvy * dt;
+    if (s.by < 30 || s.by > 310) s.bvy *= -1;
+    const kick = (x, y, power) => {
+      const dx = s.bx - x, dy = s.by - y;
+      if (Math.hypot(dx, dy) < 28) { const l = Math.hypot(dx, dy) || 1; s.bvx = (dx / l) * power; s.bvy = (dy / l) * power; }
+    };
+    kick(s.px, s.py, miniHeld('Space') ? 280 : 160);
+    kick(s.cx, s.cy, 200);
+    if (s.bx > 505 && s.by > 110 && s.by < 230) { s.you++; s.bx = 260; s.by = 170; s.bvx = -90; s.bvy = 20; }
+    if (s.bx < 15 && s.by > 110 && s.by < 230) { s.cpu++; s.bx = 260; s.by = 170; s.bvx = 90; s.bvy = -20; }
+    if (s.bx < 8 || s.bx > 512) { s.bvx *= -1; s.bx = Math.max(20, Math.min(500, s.bx)); }
+    if (s.you >= 3) arcadeMiniWin();
+    else if (s.cpu >= 3) arcadeMiniLose('⚽ El rival ganó 3- ' + s.you);
+  } else if (s.id === 'granprix') {
+    if (miniHeld('KeyW') || miniHeld('ArrowUp')) s.vx = Math.min(260, s.vx + 140 * dt);
+    else s.vx = Math.max(0, s.vx - 90 * dt);
+    if (miniHeld('KeyA') || miniHeld('ArrowLeft')) s.heading -= 2.2 * dt;
+    if (miniHeld('KeyD') || miniHeld('ArrowRight')) s.heading += 2.2 * dt;
+    s.x += Math.cos(s.heading) * s.vx * dt;
+    s.y += Math.sin(s.heading) * s.vx * dt;
+    s.x = Math.max(40, Math.min(480, s.x)); s.y = Math.max(40, Math.min(300, s.y));
+    const pts = [{ x: 260, y: 55 }, { x: 430, y: 170 }, { x: 260, y: 285 }, { x: 90, y: 170 }];
+    const c = pts[s.check];
+    if (Math.hypot(s.x - c.x, s.y - c.y) < 46) {
+      s.check++;
+      if (s.check >= 4) { s.check = 0; s.lap++; }
+    }
+    if (s.lap >= 3) arcadeMiniWin();
+  } else if (s.id === 'heroes') {
+    let mx = 0;
+    if (miniHeld('KeyA') || miniHeld('ArrowLeft')) mx -= 1;
+    if (miniHeld('KeyD') || miniHeld('ArrowRight')) mx += 1;
+    s.x = Math.max(20, Math.min(500, s.x + mx * 200 * dt));
+    if (s.on && (miniHeld('Space') || miniHeld('KeyW') || miniHeld('ArrowUp'))) { s.vy = -320; s.on = false; }
+    s.vy += 780 * dt; s.y += s.vy * dt;
+    if (s.y >= 250) { s.y = 250; s.vy = 0; s.on = true; }
+    s.foes.forEach(f => {
+      if (f.hp <= 0) return;
+      if (Math.abs(s.x - f.x) < 22 && s.y < 250 && s.vy > 0 && s.y > 210) { f.hp = 0; s.vy = -180; s.gems++; }
+      else if (Math.abs(s.x - f.x) < 18 && s.y > 230) { s.x = 60; s.y = 250; }
+    });
+    if (s.gems >= 3) arcadeMiniWin();
+  }
+}
+function miniDraw() {
+  const s = arcadeMini, ctx = miniCtx(); if (!s || !ctx) return;
+  const w = 520, h = 340;
+  ctx.font = '16px sans-serif';
+  ctx.fillStyle = '#081018'; ctx.fillRect(0, 0, w, h);
+  if (s.id === 'carrera') {
+    ctx.fillStyle = '#1a2a22'; ctx.fillRect(140, 0, 240, h);
+    for (let i = 0; i < 3; i++) { ctx.strokeStyle = i === Math.round(s.lane) ? '#6f6' : '#345'; ctx.strokeRect(150 + i * 76, 8, 70, h - 16); }
+    ctx.fillStyle = '#f44'; s.obs.forEach(o => ctx.fillRect(162 + o.lane * 76, o.y, 46, 28));
+    ctx.fillStyle = '#4af'; ctx.fillRect(162 + s.lane * 76, 250, 46, 36);
+    ctx.fillStyle = '#fff'; ctx.fillText('🏁 ' + Math.floor(s.dist) + ' m   ❤️' + s.hp, 16, 24);
+  } else if (s.id === 'invasores') {
+    ctx.fillStyle = '#8f8'; s.aliens.forEach(a => { if (a.alive) ctx.fillRect(a.x - 12, a.y - 10, 24, 18); });
+    ctx.fillStyle = '#ff6'; s.bullets.forEach(b => ctx.fillRect(b.x - 2, b.y, 4, 10));
+    ctx.fillStyle = '#6cf'; ctx.fillRect(s.x - 16, 300, 32, 14);
+  } else if (s.id === 'baile') {
+    const cols = { KeyA: 90, KeyS: 190, KeyD: 290, KeyW: 390 };
+    ctx.fillStyle = '#ffd24d'; ctx.fillRect(40, 260, 440, 8);
+    ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif';
+    ['A', 'S', 'D', 'W'].forEach((l, i) => ctx.fillText(l, 108 + i * 100, 300));
+    s.notes.forEach(n => { ctx.fillStyle = n.hit ? '#666' : '#f6f'; ctx.fillRect(cols[n.code], n.y, 50, 18); });
+    ctx.fillStyle = '#fff'; ctx.fillText('Combo ' + s.score + '/' + s.need + '   fallos ' + s.miss + '/4', 16, 24);
+  } else if (s.id === 'pesca') {
+    ctx.fillStyle = '#134'; ctx.fillRect(0, 70, w, 270);
+    ctx.fillStyle = '#fa6'; s.fish.forEach(f => { ctx.beginPath(); ctx.ellipse(f.x, f.y, 16, 8, 0, 0, 7); ctx.fill(); });
+    ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(260, 20); ctx.lineTo(260, s.hy); ctx.stroke();
+    ctx.fillStyle = '#ccc'; ctx.fillRect(254, s.hy, 12, 12);
+    ctx.fillStyle = '#fff'; ctx.fillText('🐟 ' + s.catch + '/4   ⏱ ' + Math.ceil(s.time) + 's', 16, 24);
+  } else if (s.id === 'futbol') {
+    ctx.fillStyle = '#163'; ctx.fillRect(20, 20, 480, 300);
+    ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 480, 300);
+    ctx.beginPath(); ctx.moveTo(260, 20); ctx.lineTo(260, 320); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillRect(8, 110, 16, 120); ctx.fillRect(496, 110, 16, 120);
+    ctx.fillStyle = '#6cf'; ctx.beginPath(); ctx.arc(s.px, s.py, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f66'; ctx.beginPath(); ctx.arc(s.cx, s.cy, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.bx, s.by, 8, 0, 7); ctx.fill();
+    ctx.fillText(s.you + ' - ' + s.cpu, 230, 24);
+  } else if (s.id === 'granprix') {
+    ctx.strokeStyle = '#666'; ctx.lineWidth = 48; ctx.beginPath(); ctx.ellipse(260, 170, 170, 110, 0, 0, 7); ctx.stroke();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(260, 170, 170, 110, 0, 0, 7); ctx.stroke();
+    ctx.fillStyle = '#4af'; ctx.beginPath(); ctx.arc(s.x, s.y, 10, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText('Vuelta ' + (s.lap + 1) + '/3', 16, 24);
+  } else if (s.id === 'heroes') {
+    ctx.fillStyle = '#3a2'; ctx.fillRect(0, 280, w, 60);
+    ctx.fillStyle = '#6cf'; ctx.fillRect(s.x - 10, s.y - 28, 20, 28);
+    s.foes.forEach(f => { if (f.hp > 0) { ctx.fillStyle = '#c44'; ctx.fillRect(f.x - 12, 252, 24, 28); } else { ctx.fillStyle = '#fd6'; ctx.fillRect(f.x - 8, 262, 16, 16); } });
+    ctx.fillStyle = '#fff'; ctx.fillText('Gemas ' + s.gems + '/3', 16, 24);
+  }
 }
 addEventListener('keydown', e => {
   if (!arcadeMini) return;
+  miniKeys[e.code] = true;
   if (e.code === 'Escape') arcadeMiniClose();
-  else if (arcadeMini.game.name === 'Carrera Turbo' && ['ArrowUp','KeyW'].includes(e.code)) arcadeMiniAction();
-  else if (arcadeMini.game.name === 'Invasores espaciales' && e.code === 'Space') arcadeMiniAction();
-  else if (arcadeMini.game.name === 'Baile con luces') { const map = { ArrowUp:'⬆️', KeyW:'⬆️', ArrowRight:'➡️', KeyD:'➡️', ArrowDown:'⬇️', KeyS:'⬇️', ArrowLeft:'⬅️', KeyA:'⬅️' }; if (map[e.code]) arcadeMiniAction(map[e.code]); }
-  else if (arcadeMini.game.name === 'Pesca de premios' && e.code === 'Space') arcadeMiniAction();
+  else if (arcadeMini.kind === 'menu' && arcadeMini.source === 'play') {
+    const n = e.code === 'Digit1' || e.code === 'Numpad1' ? 0 : e.code === 'Digit2' || e.code === 'Numpad2' ? 1 : e.code === 'Digit3' || e.code === 'Numpad3' ? 2 : -1;
+    if (n >= 0 && PLAY_GAMES[n]) startPlayGame(PLAY_GAMES[n]);
+  }
   e.preventDefault(); e.stopImmediatePropagation();
 }, true);
-ui('arcadeGameAction').onclick = () => arcadeMiniAction();
+addEventListener('keyup', e => { if (arcadeMini) miniKeys[e.code] = false; }, true);
+ui('miniGamePad').querySelectorAll('[data-mini]').forEach(b => {
+  b.onpointerdown = ev => { miniKeys[b.dataset.mini] = true; ev.preventDefault(); };
+  b.onpointerup = b.onpointerleave = () => { miniKeys[b.dataset.mini] = false; };
+});
 ui('arcadeGameClose').onclick = arcadeMiniClose;
+
 
 function tryArcadeZone() {
   if (state.planet !== 'tierra' || state.country) return false;
@@ -13556,7 +13861,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -14076,11 +14381,14 @@ function updateContextPrompt() {
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
       else if (sitOn && aimed && aimed.key === 'teclado_gamer') action = { key: 'CLIC · E', touch: '👊', text: 'Usar teclado gamer · E para pararte' };
       else if (sitOn && aimed && aimed.key === 'computador_gamer') action = { key: 'I · E', touch: '👊', text: 'I juega Pac-Man · E para pararte' };
+      else if (sitOn && aimed && aimed.key === 'play_gamer') action = { key: 'E · I', touch: '🎮', text: 'E / I juega en la Play · Esc cierra' };
+      else if (sitOn && nearestPlay(3.8)) action = { key: 'I · E', touch: '🎮', text: 'I juega en la Play · E para pararte' };
       else if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
       else if (furniture && furniture.key === 'teclado_gamer') action = { key: 'E', touch: '⌨️', text: 'Usar el teclado gamer' };
       else if (furniture && furniture.key === 'parlante_gamer') action = { key: 'E', touch: '🔊', text: activeGamerSpeaker === furniture ? 'Apagar la música gamer' : 'Encender la música gamer' };
       else if (furniture && furniture.key === 'alexa') action = { key: 'E / Shift+E', touch: '🔵', text: 'Hablar / escribir a Alexa' };
       else if (furniture && furniture.key === 'computador_gamer') action = { key: 'E', touch: '🕹️', text: 'Jugar Pac-Man' };
+      else if (furniture && furniture.key === 'play_gamer') action = { key: 'E', touch: '🎮', text: 'Jugar en la Play' };
       else if (asiento && !state.buildMode) action = { key: 'E', touch: '🪑', text: asiento.key === 'bano' ? 'Sentarte en el baño' : asiento.key === 'cama' ? 'Acostarte' : 'Sentarte' };
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };

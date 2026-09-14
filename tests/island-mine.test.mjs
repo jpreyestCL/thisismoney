@@ -70,7 +70,7 @@ for (let i = 0; i < ISLAND_MINE_SPOTS.length; i++) {
 }
 
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-assert.match(sw, /tim-v31/);
+assert.match(sw, /tim-v32/);
 
 const PLAYER_EYE = 1.7;
 const ISLAND_MINE_SHAFT = MINE_CELL * 1.48;

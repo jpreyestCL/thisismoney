@@ -6938,36 +6938,43 @@ function makeKnight() {   // comandante de los toros (armadura + espada)
   const helmet = new THREE.Mesh(new THREE.BoxGeometry(.55, .35, .55), mat(0x334155)); helmet.position.y = 2.35; g.add(helmet);
   return g;
 }
-function makeBull() {     // toro con cuerpo redondo, 4 patas y cuernos (no una caja)
+function makeBull(armored) {   // toro con 4 patas, pezuñas y cuernos grandes (no una caja)
   const g = new THREE.Group();
-  const hide = 0x3f2a14, coat = 0x5c3a1a, bone = 0xf8fafc, hoof = 0x1c1410, snoutC = 0x4a2f15;
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(.38, .5, 1.35, 8), mat(coat));
-  body.rotation.z = Math.PI / 2; body.position.set(0, .98, 0); body.castShadow = true; g.add(body);
-  const rump = new THREE.Mesh(new THREE.SphereGeometry(.46, 8, 8), mat(coat)); rump.position.set(0, .96, -.52); rump.castShadow = true; g.add(rump);
-  const chest = new THREE.Mesh(new THREE.SphereGeometry(.5, 8, 8), mat(coat)); chest.position.set(0, .98, .58); chest.castShadow = true; g.add(chest);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(.3, 8, 8), mat(hide)); head.position.set(0, 1.18, 1.08); head.castShadow = true; g.add(head);
-  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(.16, 8, 8), mat(snoutC)); muzzle.position.set(0, 1.02, 1.32); g.add(muzzle);
-  [-.16, .16].forEach(x => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(.045, 6, 6), mat(0x111827)); eye.position.set(x, 1.26, 1.28); g.add(eye);
-  });
+  const coat = 0xb45309, hide = 0x6b3a18, bone = 0xfff7ed, hoof = 0x1c1410;
+  const body = new THREE.Mesh(new THREE.SphereGeometry(.58, 10, 8), mat(coat));
+  body.scale.set(1.05, .82, 1.75); body.position.y = 1.18; body.castShadow = true; g.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.36, 8, 8), mat(coat)); head.position.set(0, 1.38, 1.18); head.castShadow = true; g.add(head);
+  const blaze = new THREE.Mesh(new THREE.SphereGeometry(.12, 6, 6), mat(0xfde68a)); blaze.position.set(0, 1.42, 1.46); g.add(blaze);
+  const snout = new THREE.Mesh(new THREE.SphereGeometry(.2, 8, 8), mat(0xd6a36a)); snout.position.set(0, 1.12, 1.46); g.add(snout);
   [-1, 1].forEach(s => {
-    const horn = new THREE.Mesh(new THREE.CylinderGeometry(.028, .08, .62, 6), mat(bone));
-    horn.position.set(s * .28, 1.48, 1.02); horn.rotation.z = s * -.85; horn.rotation.x = -.2; g.add(horn);
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(.035, .2, 6), mat(0xf1f5f9));
-    tip.position.set(s * .52, 1.72, .92); tip.rotation.z = s * -1.05; tip.rotation.x = -.15; g.add(tip);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(.11, 6, 6), mat(hide));
+    ear.scale.set(.65, 1, .35); ear.position.set(s * .34, 1.55, 1.08); g.add(ear);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.055, 6, 6), mat(0x111827)); eye.position.set(s * .16, 1.42, 1.42); g.add(eye);
+    const horn = new THREE.Mesh(new THREE.CylinderGeometry(.045, .11, .95, 6), mat(bone));
+    horn.position.set(s * .3, 1.82, 1.08); horn.rotation.z = s * -.95; horn.rotation.x = -.22; g.add(horn);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(.045, .32, 6), mat(0xfffbeb));
+    tip.position.set(s * .66, 2.18, .9); tip.rotation.z = s * -1.15; tip.rotation.x = -.12; g.add(tip);
   });
-  [[-.26, .42], [.26, .42], [-.26, -.42], [.26, -.42]].forEach(([x, z]) => {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(.08, .12, .78, 6), mat(hide));
-    leg.position.set(x, .4, z); leg.castShadow = true; g.add(leg);
-    const foot = new THREE.Mesh(new THREE.SphereGeometry(.11, 6, 6), mat(hoof)); foot.position.set(x, .08, z + .04); g.add(foot);
+  [[-.3, .52], [.3, .52], [-.3, -.52], [.3, -.52]].forEach(([x, z]) => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(.11, .15, 1.12, 6), mat(hide));
+    leg.position.set(x, .56, z); leg.castShadow = true; g.add(leg);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(.14, 6, 6), mat(hoof));
+    foot.scale.set(1, .65, 1.2); foot.position.set(x, .1, z + .05); g.add(foot);
   });
-  const tail = new THREE.Mesh(new THREE.CylinderGeometry(.03, .07, .7, 5), mat(hide));
-  tail.position.set(0, 1.05, -.95); tail.rotation.x = .75; g.add(tail);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(.035, .08, .85, 5), mat(hide));
+  tail.position.set(0, 1.15, -1.05); tail.rotation.x = .8; g.add(tail);
+  const tuft = new THREE.Mesh(new THREE.SphereGeometry(.1, 6, 6), mat(0x1c1410)); tuft.position.set(0, .78, -1.38); g.add(tuft);
+  if (armored) {
+    const plate = new THREE.Mesh(new THREE.SphereGeometry(.5, 8, 8), mat(0xca8a04));
+    plate.scale.set(1.15, .42, 1.35); plate.position.set(0, 1.42, .1); g.add(plate);
+  }
+  g.scale.setScalar(1.5);
   return g;
 }
+function makeBullArmored() { return makeBull(true); }
 const earthBulls = [];
-(function spawnEarthBullHerd() {   // cinco toros de la Tierra, separados en el pasto
-  const spots = [[46, 52], [56, 46], [64, 58], [50, 66], [58, 38]];
+(function spawnEarthBullHerd() {   // cinco toros de la Tierra, bien separados alrededor de la casa
+  const spots = [[30, 36], [12, 48], [-8, 34], [38, 8], [52, 28]];
   spots.forEach(([x, z], i) => {
     const b = makeBull();
     b.position.set(x, 0, z); b.rotation.y = i * 1.15;
@@ -6982,7 +6989,7 @@ function updateEarthBulls(dt) {
     const ud = b.userData; ud.wait -= dt;
     if (ud.wait <= 0) { ud.heading += (Math.random() * 1.6 - .8); ud.wait = 2 + Math.random() * 3.5; }
     const nx = b.position.x + Math.sin(ud.heading) * 1.15 * dt, nz = b.position.z + Math.cos(ud.heading) * 1.15 * dt;
-    if (Math.hypot(nx - ud.ox, nz - ud.oz) < 8) { b.position.x = nx; b.position.z = nz; } else ud.wait = 0;
+    if (Math.hypot(nx - ud.ox, nz - ud.oz) < 5) { b.position.x = nx; b.position.z = nz; } else ud.wait = 0;
     b.rotation.y = ud.heading;
     b.position.y = mountainHeightAt(b.position.x, b.position.z);
   }
@@ -7139,8 +7146,8 @@ const ENEMY_DEFS = {
   zombieArmored: { make: makeZombieArmored, hp: 30,  spd: s => 1.6 + s * 0.10, dmg: 10, barY: 3.8 },
   smart:         { make: makeSmart,         hp: 10,  spd: s => 1.9 + s * 0.12, dmg: 10, barY: 3.3, opensDoors: true },
   smartArmored:  { make: makeSmartArmored,  hp: 30,  spd: s => 1.7 + s * 0.10, dmg: 10, barY: 3.8, opensDoors: true },
-  toro:          { make: makeKnight,        hp: 50,  spd: () => 1.6,           dmg: 17, barY: 3.7, commander: true },
-  toroArmored:   { make: makeKnightArmored, hp: 80,  spd: () => 1.5,           dmg: 17, barY: 3.9, commander: true },
+  toro:          { make: makeBull,          hp: 50,  spd: () => 1.6,           dmg: 17, barY: 3.4, commander: true },
+  toroArmored:   { make: makeBullArmored,    hp: 80,  spd: () => 1.5,           dmg: 17, barY: 3.6, commander: true },
   mole:          { make: makeMole,          hp: 20,  spd: () => 2.8,           dmg: 20, barY: 1.9, mole: true },
   moleBoss:      { make: makeMoleBoss,      hp: 160, spd: () => 2.2,           dmg: 20, barY: 3.4, mole: true, boss: true },
   ant:           { make: makeAnt,           hp: 30,  spd: () => 2.6,           dmg: 17, barY: 2.2, poison: true },
@@ -7393,7 +7400,7 @@ function launchBull(k) {   // cinco toros en abanico, no apilados encima del com
   const t = pickTarget(k.position, k); const dx = t.x - k.position.x, dz = t.z - k.position.z, len = Math.hypot(dx, dz) || 1;
   const fx = dx / len, fz = dz / len, px = -fz, pz = fx;
   for (let i = 0; i < 5; i++) {
-    const side = (i - 2) * 2.6;
+    const side = (i - 2) * 3.8;
     const e = makeBull();
     e.position.set(k.position.x + px * side - fx * 2.2, 0, k.position.z + pz * side - fz * 2.2);
     e.rotation.y = Math.atan2(dx, dz);

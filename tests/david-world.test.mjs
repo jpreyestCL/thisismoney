@@ -19,6 +19,6 @@ assert.match(html, /miners: \[/);
 assert.match(html, /crop: 'apple', grow: 1, produce: 3/);
 assert.match(html, /Restauramos el mundo DAVID/);
 assert.match(html, /for \(let i = 0; i < 8; i\+\+\) for \(let j = 0; j < 6; j\+\+\)/);
-assert.match(sw, /tim-v30/);
+assert.match(sw, /tim-v31/);
 
 console.log('david restored world: ok');

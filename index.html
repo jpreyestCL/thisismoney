@@ -402,7 +402,7 @@
     font-size:18px; overflow:hidden;
   }
   .accChipName { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #accountbox, #saveKeyBox, #cloudLoginBox { position:fixed; inset:0; display:none; z-index:34; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all; }
+  #accountbox, #saveKeyBox, #cloudLoginBox, #davidLockBox { position:fixed; inset:0; display:none; z-index:34; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all; }
   #accountWallPreview { width:100%; height:92px; border-radius:10px; background:#0b1220 center/cover no-repeat; border:1px solid var(--line); }
   body.watch #startAccount { top:4px; right:4px; padding:3px 8px 3px 3px; font-size:10px; }
   body.watch .accChipAv { width:22px; height:22px; font-size:12px; }
@@ -996,6 +996,18 @@
     <div style="display:flex; gap:8px; margin-top:12px; justify-content:center;">
       <button class="btn" id="cloudLoginOk">Entrar</button>
       <button class="btn" id="cloudLoginCancel" style="background:linear-gradient(90deg,#64748b,#475569);">Volver</button>
+    </div>
+  </div>
+</div>
+<div id="davidLockBox">
+  <div style="width:min(90vw,360px); background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:22px; text-align:center; color:#e2e8f0;">
+    <h3 style="margin:0 0 8px; color:#7dd3fc;">🔒 Mundo David</h3>
+    <p style="font-size:13px; opacity:.8; margin:0 0 12px;">Esa cuenta está cerrada. Escribe la clave para entrar.</p>
+    <input id="davidLockPass" type="password" inputmode="numeric" maxlength="12" placeholder="Clave" autocomplete="off" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #38bdf8; background:#0b1220; color:#fff; text-align:center; outline:none;">
+    <p id="davidLockErr" style="min-height:18px; margin:8px 0 0; font-size:12px; color:#fca5a5;"></p>
+    <div style="display:flex; gap:8px; margin-top:12px; justify-content:center;">
+      <button class="btn" id="davidLockOk">Entrar</button>
+      <button class="btn" id="davidLockCancel" style="background:linear-gradient(90deg,#64748b,#475569);">Volver</button>
     </div>
   </div>
 </div>
@@ -8695,7 +8707,7 @@ const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
 let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
 // Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
-const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply', 'accountbox', 'saveKeyBox', 'cloudLoginBox'];
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox'];
 function algunRecuadroAbierto() {
   return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
 }
@@ -9222,6 +9234,7 @@ ui('nameOk').onclick = async () => {
   const name = desiredAccountName(ui('nameInput').value);
   if (!name || name.length < 2) { toast('Elige un nombre de 2 a 20 letras'); return; }
   if (accountNameKey(name) === 'jugador') { toast('Elige un nombre propio: "Jugador" lo usan todos'); return; }
+  if (isDavidAccount(name)) { toast('🔒 Esa cuenta está reservada'); return; }
   ui('nameOk').disabled = true;
   const check = await cloudNameStatus(name);
   ui('nameOk').disabled = false;
@@ -9238,11 +9251,59 @@ ui('nameOk').onclick = async () => {
   }
 };
 ui('nameInput').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') ui('nameOk').click(); });
+const DAVID_GATE_KEY = '5757';
+let davidGateOpen = false, davidLockAfter = null;
+function isDavidAccount(name) { return accountNameKey(name || '') === 'david'; }
+function davidKeyOk(raw) { return String(raw || '').replace(/\D/g, '') === DAVID_GATE_KEY; }
+function openDavidLockBox(after) {
+  davidLockAfter = after;
+  ui('davidLockErr').textContent = '';
+  ui('davidLockPass').value = '';
+  ui('davidLockBox').style.display = 'flex';
+  typing = true;
+  setTimeout(() => { try { ui('davidLockPass').focus(); } catch (e) {} }, 50);
+}
+function closeDavidLockBox() {
+  ui('davidLockBox').style.display = 'none';
+  ui('davidLockPass').value = '';
+  ui('davidLockErr').textContent = '';
+  typing = algunRecuadroAbierto();
+}
+function submitDavidLock() {
+  const err = ui('davidLockErr');
+  if (!davidKeyOk(ui('davidLockPass').value)) { err.textContent = 'Clave incorrecta'; toast('🔒 Clave incorrecta'); return false; }
+  davidGateOpen = true;
+  closeDavidLockBox();
+  const after = davidLockAfter; davidLockAfter = null;
+  if (typeof after === 'function') after();
+  return true;
+}
+function withDavidGate(name, after) {
+  if (!isDavidAccount(name) || davidGateOpen) { if (typeof after === 'function') after(); return true; }
+  openDavidLockBox(after);
+  return false;
+}
+function enterSavedProfile(name) {
+  withDavidGate(name, () => {
+    setProfile(name);
+    ui('profilebox').style.display = 'none';
+    continueGame();
+  });
+}
+function deleteSavedProfile(name) {
+  const wipe = () => {
+    try { localStorage.removeItem(profileKey(name)); localStorage.removeItem(accountKey(name)); saveProfiles(getProfiles().filter(x => x !== name)); } catch (e) {}
+    if (isDavidAccount(name)) davidGateOpen = false;
+    openProfilebox();
+  };
+  if (!confirm('¿Borrar la partida de ' + name + '?')) return;
+  withDavidGate(name, wipe);
+}
 // Continuar: si hay varias partidas, muestra QUIÉN JUEGA
 function openProfilebox() {
   const list = getProfiles().filter(n => { try { return !!localStorage.getItem(profileKey(n)); } catch (e) { return false; } });
   if (!list.length) { ui('profilebox').style.display = 'none'; toast('No hay partidas guardadas'); return; }
-  if (list.length === 1) { setProfile(list[0]); ui('profilebox').style.display = 'none'; continueGame(); return; }
+  if (list.length === 1) { enterSavedProfile(list[0]); return; }
   const box = ui('profileList'); box.innerHTML = '';
   list.forEach(n => {
     let info = '';
@@ -9253,18 +9314,21 @@ function openProfilebox() {
     const av = document.createElement('span'); av.className = 'profAv';
     const acc = loadAccount(n);
     if (acc.photo) av.style.backgroundImage = cssUrl(acc.photo);
-    else av.textContent = '👤';
+    else av.textContent = isDavidAccount(n) ? '🔒' : '👤';
     const txt = document.createElement('span'); txt.style.flex = '1';
-    txt.innerHTML = '<b>' + n + '</b><br><small style="opacity:.7">' + info + '</small>';
+    txt.innerHTML = '<b>' + (isDavidAccount(n) ? '🔒 ' : '') + n + '</b><br><small style="opacity:.7">' + (isDavidAccount(n) ? 'Cerrada con clave' : info) + '</small>';
     b.append(av, txt);
-    b.onclick = () => { setProfile(n); ui('profilebox').style.display = 'none'; continueGame(); };
+    b.onclick = () => enterSavedProfile(n);
     const del = document.createElement('button'); del.className = 'bankBtn'; del.textContent = '🗑️';
-    del.onclick = () => { if (confirm('¿Borrar la partida de ' + n + '?')) { try { localStorage.removeItem(profileKey(n)); localStorage.removeItem(accountKey(n)); saveProfiles(getProfiles().filter(x => x !== n)); } catch (e) {} openProfilebox(); } };
+    del.onclick = () => deleteSavedProfile(n);
     row.appendChild(b); row.appendChild(del); box.appendChild(row);
   });
   ui('profilebox').style.display = 'flex';
 }
 ui('profileCancel').onclick = () => { ui('profilebox').style.display = 'none'; };
+ui('davidLockOk').onclick = () => submitDavidLock();
+ui('davidLockCancel').onclick = () => { closeDavidLockBox(); davidLockAfter = null; };
+ui('davidLockPass').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') submitDavidLock(); if (e.code === 'Escape') { closeDavidLockBox(); davidLockAfter = null; } });
 // Código de partida: copia/pega tu save entre dispositivos (sin internet ni cuentas)
 ui('pauseCode').onclick = async () => {
   try {
@@ -9284,6 +9348,7 @@ ui('pauseLoad').onclick = () => {
     const binary = atob(code.trim()), bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
     const json = new TextDecoder().decode(bytes);
     JSON.parse(json);   // valida que sea un save real
+    if (isDavidAccount(activeProfile()) && !davidGateOpen) { toast('🔒 La cuenta David pide clave'); return; }
     localStorage.setItem(saveKey(), json);
     togglePause(false);
     continueGame();
@@ -9531,6 +9596,7 @@ function saveAndExit() {
 }
 
 function startGame() {
+  if (isDavidAccount(activeProfile()) && !davidGateOpen) { toast('🔒 La cuenta David está cerrada con clave'); return; }
   hideScreens();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
@@ -9663,6 +9729,7 @@ function renameProfile(raw) {
   const oldName = activeProfile();
   const next = desiredAccountName(raw);
   if (!next) { toast('Pon un nombre (letras y números)'); return false; }
+  if (isDavidAccount(oldName) || isDavidAccount(next)) { toast('🔒 La cuenta David no se puede cambiar de nombre'); return false; }
   if (next === oldName) { setProfile(next); syncAccountNames(next); return true; }
   if (getProfiles().includes(next)) { toast('Ese nombre ya existe'); return false; }
   try {
@@ -9827,9 +9894,7 @@ function ensureDavidWorld() {   // vuelve a crear el perfil David si se borró o
     if (!davidWorldNeedsRestore()) return false;   // si ya está tu David de Platus, no lo pisamos
     localStorage.setItem(profileKey('David'), JSON.stringify(davidRestoredSave()));
     const p = getProfiles(); if (!p.includes('David')) { p.push('David'); saveProfiles(p); }
-    setProfile('David');   // queda en tu cuenta David para CONTINUAR
     if (ui('continueBtn')) { ui('continueBtn').style.display = ''; ui('start').classList.add('has-save'); }
-    toast('🪐 Restauramos el mundo DAVID · $20.000 en Platus · CONTINUAR');
     return true;
   } catch (e) { return false; }
 }
@@ -10430,6 +10495,20 @@ async function submitCloudLogin() {
   const err = ui('cloudLoginErr');
   if (!name) { err.textContent = 'Escribe el nombre de usuario'; return; }
   if (pass.length < 4) { err.textContent = 'Escribe la clave'; return; }
+  if (isDavidAccount(name) && !davidKeyOk(pass)) { err.textContent = 'Clave incorrecta'; return; }
+  if (isDavidAccount(name) && davidKeyOk(pass)) {
+    davidGateOpen = true;
+    ensureDavidWorld();
+    setProfile('David');
+    syncAccountNames('David');
+    closeCloudLoginBox();
+    ui('namebox').style.display = 'none';
+    ui('profilebox').style.display = 'none';
+    continueGame();
+    toast('🔒 Mundo David abierto');
+    ui('cloudLoginOk').disabled = false;
+    return;
+  }
   ui('cloudLoginOk').disabled = true;
   err.textContent = 'Buscando tu partida…';
   try {
@@ -10443,6 +10522,7 @@ async function submitCloudLogin() {
     if (!r.ok) throw new Error(d.error || 'No se pudo cargar');
     if (!d.save || typeof d.save !== 'object') throw new Error('La partida llegó vacía');
     const usedName = desiredAccountName(d.name || name) || name;
+    if (isDavidAccount(usedName) && !davidGateOpen) throw new Error('Clave incorrecta');
     setProfile(usedName);
     syncAccountNames(usedName);
     localStorage.setItem(profileKey(usedName), JSON.stringify(d.save));
@@ -11044,6 +11124,7 @@ function checkDailyStreak() {
 }
 function clearSave() { try { localStorage.removeItem(saveKey()); } catch (e) {} }
 function loadGame() {
+  if (isDavidAccount(activeProfile()) && !davidGateOpen) { toast('🔒 La cuenta David pide clave'); return false; }
   let d; try { d = JSON.parse(localStorage.getItem(saveKey())); } catch (e) { return false; }
   if (!d) return false;
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
@@ -11146,6 +11227,10 @@ function loadGame() {
   return true;
 }
 function continueGame() {
+  if (isDavidAccount(activeProfile()) && !davidGateOpen) {
+    openDavidLockBox(() => continueGame());
+    return;
+  }
   hideScreens();
   state.running = true;
   if (!loadGame()) { startGame(); return; }
@@ -14066,7 +14151,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -14079,6 +14164,7 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     pendingMode = 'creative'; startGame(); state.creative = true; state.money = 999999999;
     const intro = ui('intro'); if (intro) intro.style.display = 'none';
   };
+  timDump.unlockDavid = (k) => { if (!davidKeyOk(k)) return false; davidGateOpen = true; return true; };
   timDump.setPos = (x, y, z) => { player.position.set(x, y, z); vy = 0; grounded = false; };
   timDump.exitIslandMine = () => {
     const h = holes.find(hh => hh.islandMine);

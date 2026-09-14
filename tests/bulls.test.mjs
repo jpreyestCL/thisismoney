@@ -16,6 +16,6 @@ assert.match(html, /function updateEarthBulls\(/);
 assert.match(html, /for \(let i = 0; i < 5; i\+\+\)/);
 assert.match(html, /side = \(i - 2\) \* 3\.8/);
 assert.match(html, /updateEarthBulls\(dt\)/);
-assert.match(sw, /tim-v34/);
+assert.match(sw, /tim-v35/);
 
 console.log('earth bulls: ok');

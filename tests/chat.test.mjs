@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { CHAT_BUBBLE_MS, CHAT_MAX_LEN, chatSendWait, chatTime, cleanChatName, cleanChatText } from '../src/chat.js';
+import { CHAT_BUBBLE_MS, CHAT_MAX_LEN, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText } from '../src/chat.js';
 
 // El globo del chat dura 7 segundos: es la promesa del juego, no un detalle suelto.
 assert.equal(CHAT_BUBBLE_MS, 7000);
@@ -35,6 +35,12 @@ assert.equal(cleanChatName('  Benja  '), 'Benja');
 assert.equal(cleanChatName(''), 'Jugador');
 assert.equal(cleanChatName('<script>x</script>'), 'scriptxscript');
 assert.ok(cleanChatName('N'.repeat(80)).length <= 20);
+
+assert.equal(cleanAccountName('  José  '), 'José');
+assert.equal(cleanAccountName(''), '');
+assert.equal(accountNameKey('José'), accountNameKey('jose'));
+assert.equal(accountNameKey('José'), 'jose');
+assert.equal(accountNameKey('Jugador'), 'jugador');
 
 // Anti spam: hay que esperar entre mensaje y mensaje.
 assert.equal(chatSendWait(0), 0, 'el primer mensaje sale al tiro');

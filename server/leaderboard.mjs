@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import pg from 'pg';
-import { CHAT_HISTORY, cleanChatName, cleanChatText } from '../src/chat.js';
+import { CHAT_HISTORY, accountNameKey, cleanAccountName, cleanChatName, cleanChatText } from '../src/chat.js';
 
 const { Pool } = pg;
 const PORT = Number(process.env.PORT || 8788);
@@ -13,6 +13,7 @@ const pool = new Pool({
 });
 const attempts = new Map();
 const chatAttempts = new Map();
+const saveAttempts = new Map();
 const CHAT_KEEP_HOURS = 48;      // el muro guarda dos días de conversación
 const PRESENCE_WINDOW = '75 seconds';
 let chatPrunedAt = 0;
@@ -44,9 +45,12 @@ function rateLimited(req) {
 function chatRateLimited(req) {
   return tooMany(chatAttempts, clientKey(req), 60_000, 12);
 }
-async function readBody(req) {
+function saveRateLimited(req) {
+  return tooMany(saveAttempts, clientKey(req), 60_000, 20);
+}
+async function readBody(req, maxBytes = 4096) {
   let raw = '';
-  for await (const chunk of req) { raw += chunk; if (raw.length > 4096) throw new Error('body_too_large'); }
+  for await (const chunk of req) { raw += chunk; if (raw.length > maxBytes) throw new Error('body_too_large'); }
   return JSON.parse(raw || '{}');
 }
 async function list(req, res, url) {
@@ -153,6 +157,92 @@ async function chatSend(req, res) {
   chatPrune().catch(e => console.error('limpieza del chat', e));
 }
 
+const SAVE_MAX_BYTES = 1_500_000;
+const RESERVED_USERNAMES = new Set(['jugador', 'player', 'admin', 'administrador']);
+function hashPassword(password, salt = crypto.randomBytes(16)) {
+  const hash = crypto.scryptSync(password, salt, 32, { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  return { salt: salt.toString('hex'), hash: hash.toString('hex') };
+}
+function verifyPassword(password, saltHex, hashHex) {
+  try {
+    const salt = Buffer.from(String(saltHex || ''), 'hex');
+    const expected = Buffer.from(String(hashHex || ''), 'hex');
+    const hash = crypto.scryptSync(password, salt, 32, { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+    return expected.length === hash.length && crypto.timingSafeEqual(hash, expected);
+  } catch (e) { return false; }
+}
+function validSavePassword(value) {
+  const password = String(value || '');
+  return password.length >= 4 && password.length <= 64 && password === password.trim();
+}
+function validCloudName(raw) {
+  const display = cleanAccountName(raw);
+  const key = accountNameKey(display);
+  if (display.length < 2 || key.length < 2) return null;
+  if (RESERVED_USERNAMES.has(key)) return null;
+  return { display, key };
+}
+function validSavePayload(save) {
+  if (!save || typeof save !== 'object' || Array.isArray(save)) return null;
+  const raw = JSON.stringify(save);
+  if (raw.length > SAVE_MAX_BYTES) return null;
+  return JSON.parse(raw);
+}
+
+async function saveAvailable(req, res, url) {
+  const parsed = validCloudName(url.searchParams.get('name'));
+  if (!parsed) return json(res, 200, { taken: false, available: false, error: 'Elige un nombre propio de 2 a 20 letras' });
+  const row = await pool.query('select display_name from cloud_saves where username_key = $1', [parsed.key]);
+  if (!row.rowCount) return json(res, 200, { taken: false, available: true });
+  return json(res, 200, { taken: true, available: false });
+}
+async function savePut(req, res, body) {
+  const parsed = validCloudName(body.name);
+  if (!parsed) return json(res, 400, { error: 'Elige un nombre propio de 2 a 20 letras (no uses Jugador)' });
+  if (!validSavePassword(body.password)) return json(res, 400, { error: 'La clave debe tener entre 4 y 64 caracteres' });
+  const save = validSavePayload(body.save);
+  if (!save) return json(res, 400, { error: 'La partida no se pudo guardar (está vacía o es muy grande)' });
+  const existing = await pool.query('select password_salt, password_hash from cloud_saves where username_key = $1', [parsed.key]);
+  if (!existing.rowCount) {
+    const { salt, hash } = hashPassword(body.password);
+    await pool.query(
+      'insert into cloud_saves (username_key, display_name, password_salt, password_hash, save) values ($1, $2, $3, $4, $5::jsonb)',
+      [parsed.key, parsed.display, salt, hash, JSON.stringify(save)],
+    );
+    return json(res, 200, { ok: true, created: true, name: parsed.display });
+  }
+  const row = existing.rows[0];
+  if (!verifyPassword(body.password, row.password_salt, row.password_hash)) {
+    return json(res, 409, { error: 'Ese nombre ya está ocupado. Elige otro o entra con la clave.' });
+  }
+  await pool.query(
+    'update cloud_saves set display_name = $2, save = $3::jsonb, updated_at = now() where username_key = $1',
+    [parsed.key, parsed.display, JSON.stringify(save)],
+  );
+  return json(res, 200, { ok: true, created: false, name: parsed.display });
+}
+async function saveLoad(req, res, body) {
+  const parsed = validCloudName(body.name);
+  if (!parsed) return json(res, 400, { error: 'Escribe el nombre de usuario' });
+  if (!validSavePassword(body.password)) return json(res, 400, { error: 'Escribe la clave' });
+  const existing = await pool.query('select display_name, password_salt, password_hash, save from cloud_saves where username_key = $1', [parsed.key]);
+  if (!existing.rowCount) return json(res, 404, { error: 'No hay una partida con ese nombre' });
+  const row = existing.rows[0];
+  if (!verifyPassword(body.password, row.password_salt, row.password_hash)) {
+    return json(res, 401, { error: 'La clave no coincide' });
+  }
+  return json(res, 200, { ok: true, name: row.display_name, save: row.save });
+}
+async function handleSaves(req, res, url) {
+  if (req.method === 'GET') return await saveAvailable(req, res, url);
+  if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });
+  if (saveRateLimited(req)) return json(res, 429, { error: 'Demasiados intentos. Espera un momento.' });
+  const body = await readBody(req, SAVE_MAX_BYTES + 2048);
+  const action = body.action === 'load' ? 'load' : 'save';
+  if (action === 'load') return await saveLoad(req, res, body);
+  return await savePut(req, res, body);
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
@@ -163,6 +253,7 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'POST') return await chatSend(req, res);
       return json(res, 405, { error: 'Método no permitido' });
     }
+    if (url.pathname === '/saves') return await handleSaves(req, res, url);
     if (url.pathname !== '/leaderboard') return json(res, 404, { error: 'No encontrado' });
     if (req.method === 'GET') return await list(req, res, url);
     if (req.method === 'POST') return await submit(req, res);

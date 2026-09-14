@@ -59,3 +59,8 @@ jobs:
             'https://tim.strivexlatam.com/api/chat?since=-1')
           echo "chat mundial -> HTTP $chat_code"
           test "$chat_code" = "200"
+          save_code=$(curl -s -o /dev/null -w '%{http_code}' \
+            --resolve tim.strivexlatam.com:443:127.0.0.1 \
+            'https://tim.strivexlatam.com/api/saves?name=Prueba')
+          echo "partidas en la nube -> HTTP $save_code"
+          test "$save_code" = "200"

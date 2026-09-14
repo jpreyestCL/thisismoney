@@ -58,6 +58,15 @@ export function cleanChatName(value) {
   return String(value || '').normalize('NFKC').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, CHAT_NAME_MAX) || 'Jugador';
 }
 
+// Nombre de cuenta para guardar en la nube: puede quedar vacío (así el cliente pide uno).
+export function cleanAccountName(value) {
+  return String(value || '').normalize('NFKC').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, CHAT_NAME_MAX);
+}
+// Clave única: sin tildes ni mayúsculas, para que "José" y "jose" sean el mismo usuario.
+export function accountNameKey(value) {
+  return cleanAccountName(value).normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase();
+}
+
 // Milisegundos que faltan para poder mandar otro mensaje (0 = puede escribir ya).
 export function chatSendWait(lastSentAt, now = Date.now()) {
   if (!lastSentAt) return 0;

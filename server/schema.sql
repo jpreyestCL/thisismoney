@@ -57,3 +57,19 @@ revoke all on chat_presence from public;
 grant select, insert, delete on chat_messages to timleaderboard;
 grant usage, select on sequence chat_messages_id_seq to timleaderboard;
 grant select, insert, update, delete on chat_presence to timleaderboard;
+
+-- PARTIDAS EN LA NUBE: un nombre de usuario único + clave. Sirve para continuar en otro dispositivo.
+create table if not exists cloud_saves (
+  username_key text primary key,
+  display_name text not null,
+  password_salt text not null,
+  password_hash text not null,
+  save jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (char_length(username_key) between 2 and 20),
+  check (char_length(display_name) between 2 and 20)
+);
+
+revoke all on cloud_saves from public;
+grant select, insert, update on cloud_saves to timleaderboard;

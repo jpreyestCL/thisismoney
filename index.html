@@ -402,7 +402,7 @@
     font-size:18px; overflow:hidden;
   }
   .accChipName { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #accountbox { position:fixed; inset:0; display:none; z-index:34; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all; }
+  #accountbox, #saveKeyBox, #cloudLoginBox { position:fixed; inset:0; display:none; z-index:34; background:rgba(2,6,23,.86); align-items:center; justify-content:center; pointer-events:all; }
   #accountWallPreview { width:100%; height:92px; border-radius:10px; background:#0b1220 center/cover no-repeat; border:1px solid var(--line); }
   body.watch #startAccount { top:4px; right:4px; padding:3px 8px 3px 3px; font-size:10px; }
   body.watch .accChipAv { width:22px; height:22px; font-size:12px; }
@@ -571,6 +571,7 @@
         <button class="bankBtn" id="pauseHelp">📖 Ayuda</button>
         <button class="bankBtn" id="pauseCode">💾 Copiar código</button>
         <button class="bankBtn" id="pauseLoad">📥 Cargar código</button>
+        <button class="bankBtn" id="pauseCloud" style="grid-column:1 / span 2;">☁️ Guardar en la nube</button>
         <button class="bankBtn" id="pauseAccount" style="grid-column:1 / span 2;">👤 Mi cuenta</button>
         <button class="bankBtn" id="pauseWatch" style="grid-column:1 / span 2;">⌚ Modo reloj</button>
       </div>
@@ -705,6 +706,7 @@
       </div>
       <div class="start-actions">
         <button class="btn" id="continueBtn" style="display:none;">CONTINUAR</button>
+        <button class="btn secondary" id="cloudLoginBtn">🌐 CONTINUAR CON CLAVE</button>
         <button class="btn" id="startBtn">NUEVA PARTIDA</button>
         <button class="btn secondary" id="creativeBtn">MODO CREATIVO</button>
         <button class="btn secondary" id="startGuideBtn">VER GUÍA</button>
@@ -912,6 +914,7 @@
           <kbd>N / R</kbd><span>Empezar la noche. En construcción, R cambia la variante; fuera de ella lanza el cohete.</span>
           <kbd>F5</kbd><span>Cambiar entre primera persona, tercera trasera y tercera frontal.</span>
           <kbd>F6</kbd><span>Abrir la pista de autos voladores: ocho vueltas contra bots u online.</span>
+          <kbd>Esc</kbd><span>Pausa. Pulsa Guardar: te pide una clave, la confirmas, y con tu nombre y esa clave puedes seguir en otro celular.</span>
         </div>
       </section>
       <section class="guide-panel" data-guide-panel="progress">
@@ -954,7 +957,7 @@
 <div id="namebox" style="position:fixed; inset:0; display:none; z-index:26; background:rgba(2,6,23,.85); align-items:center; justify-content:center; pointer-events:all;">
   <div style="width:min(90vw,340px); background:rgba(6,10,20,.97); border:2px solid #4ade80; border-radius:16px; padding:22px; text-align:center;">
     <h3 style="margin:0 0 10px; color:#4ade80;">👤 ¿Cómo te llamas?</h3>
-    <p style="font-size:12px; opacity:.65; margin:0 0 10px;">Tu partida se guarda con tu nombre: cada uno tiene la suya.</p>
+    <p style="font-size:12px; opacity:.65; margin:0 0 10px;">Elige un nombre único. Nadie más puede usarlo. Con ese nombre y tu clave podrás seguir la partida en otro celular.</p>
     <input id="nameInput" maxlength="20" placeholder="Tu nombre…" autocomplete="off" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #4ade80; background:#0b1220; color:#fff; text-align:center; outline:none;">
     <div style="display:flex; gap:8px; margin-top:14px; justify-content:center;">
       <button class="btn" id="nameOk">¡JUGAR!</button>
@@ -967,6 +970,33 @@
     <h3 style="margin:0 0 12px; color:#38bdf8;">👥 ¿Quién juega?</h3>
     <div id="profileList" style="display:flex; flex-direction:column; gap:8px;"></div>
     <button class="btn" id="profileCancel" style="margin-top:12px; background:linear-gradient(90deg,#64748b,#475569);">Volver</button>
+  </div>
+</div>
+<div id="saveKeyBox">
+  <div style="width:min(90vw,360px); background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:22px; text-align:center; color:#e2e8f0;">
+    <h3 style="margin:0 0 8px; color:#7dd3fc;">☁️ Guardar partida</h3>
+    <p id="saveKeyHelp" style="font-size:13px; opacity:.8; margin:0 0 12px;">Elige una clave y confírmala. Con tu nombre y esta clave podrás continuar en otro dispositivo.</p>
+    <div id="saveKeyName" style="font-weight:800; margin-bottom:10px; color:#4ade80;"></div>
+    <input id="saveKeyPass" type="password" maxlength="64" placeholder="Clave (mínimo 4)" autocomplete="new-password" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #38bdf8; background:#0b1220; color:#fff; text-align:center; outline:none; margin-bottom:8px;">
+    <input id="saveKeyConfirm" type="password" maxlength="64" placeholder="Confirma la clave" autocomplete="new-password" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #38bdf8; background:#0b1220; color:#fff; text-align:center; outline:none;">
+    <p id="saveKeyErr" style="min-height:18px; margin:8px 0 0; font-size:12px; color:#fca5a5;"></p>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+      <button class="btn" id="saveKeyOk">☁️ Guardar con esta clave</button>
+      <button class="btn" id="saveKeySkip" style="background:linear-gradient(90deg,#64748b,#475569);">Solo en este aparato</button>
+    </div>
+  </div>
+</div>
+<div id="cloudLoginBox">
+  <div style="width:min(90vw,360px); background:rgba(6,10,20,.97); border:2px solid #38bdf8; border-radius:16px; padding:22px; text-align:center; color:#e2e8f0;">
+    <h3 style="margin:0 0 8px; color:#7dd3fc;">🌐 Continuar con clave</h3>
+    <p style="font-size:13px; opacity:.8; margin:0 0 12px;">Escribe el mismo nombre y la clave que usaste al guardar. Así recuperas la partida en este dispositivo.</p>
+    <input id="cloudLoginName" type="text" maxlength="20" placeholder="Nombre de usuario" autocomplete="username" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #38bdf8; background:#0b1220; color:#fff; text-align:center; outline:none; margin-bottom:8px;">
+    <input id="cloudLoginPass" type="password" maxlength="64" placeholder="Clave" autocomplete="current-password" style="width:100%; padding:10px; font-size:16px; border-radius:9px; border:1px solid #38bdf8; background:#0b1220; color:#fff; text-align:center; outline:none;">
+    <p id="cloudLoginErr" style="min-height:18px; margin:8px 0 0; font-size:12px; color:#fca5a5;"></p>
+    <div style="display:flex; gap:8px; margin-top:12px; justify-content:center;">
+      <button class="btn" id="cloudLoginOk">Entrar</button>
+      <button class="btn" id="cloudLoginCancel" style="background:linear-gradient(90deg,#64748b,#475569);">Volver</button>
+    </div>
   </div>
 </div>
 <div id="accountbox">
@@ -1022,7 +1052,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=8';
-import { CHAT_BUBBLE_MS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, chatSendWait, chatTime, cleanChatName, cleanChatText } from './src/chat.js?v=1';
+import { CHAT_BUBBLE_MS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText } from './src/chat.js?v=2';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -8665,7 +8695,7 @@ const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
 let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
 // Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
-const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply', 'accountbox'];
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply', 'accountbox', 'saveKeyBox', 'cloudLoginBox'];
 function algunRecuadroAbierto() {
   return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
 }
@@ -9188,15 +9218,22 @@ ui('startBtn').onclick = () => openNamebox('normal');
 ui('creativeBtn').onclick = () => openNamebox('creative');
 ui('startRankingBtn').onclick = () => openLeaderboard();
 ui('nameCancel').onclick = () => { ui('namebox').style.display = 'none'; };
-ui('nameOk').onclick = () => {
-  const name = desiredAccountName(ui('nameInput').value) || 'Jugador';
+ui('nameOk').onclick = async () => {
+  const name = desiredAccountName(ui('nameInput').value);
+  if (!name || name.length < 2) { toast('Elige un nombre de 2 a 20 letras'); return; }
+  if (accountNameKey(name) === 'jugador') { toast('Elige un nombre propio: "Jugador" lo usan todos'); return; }
+  ui('nameOk').disabled = true;
+  const check = await cloudNameStatus(name);
+  ui('nameOk').disabled = false;
+  if (check.taken) { toast('Ese nombre ya está ocupado. Entra con CONTINUAR CON CLAVE o elige otro.'); return; }
+  if (check.offline) toast('Sin internet: la partida queda en este aparato hasta que la guardes con clave.');
   setProfile(name);
   syncAccountNames(name);
   ui('namebox').style.display = 'none';
   startGame();
   if (pendingMode === 'creative') {
     state.creative = true; state.money = 999999999;
-    state.momUnlocked = true; state.momEventPending = false; dadReturnsWithMom();   // creativo: la mamá ya está (sin esperar a los $20.000), así puedes crear hijos con H
+    state.momUnlocked = true; state.momEventPending = false; dadReturnsWithMom();
     toast('🎨 MODO CREATIVO: plata infinita y todo desbloqueado. ¡Compra y construye lo que quieras!');
   }
 };
@@ -9555,7 +9592,7 @@ function saveProfiles(list) { try { localStorage.setItem('tim_profiles', JSON.st
 function accountKey(name) { return 'tim_account_' + name; }
 function activeProfile() { return currentProfile || (() => { try { return localStorage.getItem('tim_profile'); } catch (e) { return null; } })() || 'Jugador'; }
 function desiredAccountName(raw) {
-  return String(raw || '').normalize('NFKC').replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, CHAT_NAME_MAX);
+  return cleanAccountName(raw);
 }
 function cssUrl(src) { return 'url("' + String(src).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '")'; }
 function loadAccount(name) {
@@ -10293,6 +10330,144 @@ function saveGame() {
   } catch (e) {}
 }
 function hasSave() { return getProfiles().some(n => { try { return !!localStorage.getItem(profileKey(n)); } catch (e) { return false; } }); }
+const SAVES_API = location.protocol === 'file:' ? 'https://tim.strivexlatam.com/api/saves' : '/api/saves';
+let cloudPass = '';
+let saveKeyAfter = null;
+async function cloudNameStatus(name) {
+  try {
+    const r = await fetch(SAVES_API + '?name=' + encodeURIComponent(name), { signal: AbortSignal.timeout(5000) });
+    const d = await r.json();
+    return { taken: !!d.taken, available: !!d.available, offline: false, error: d.error || '' };
+  } catch (e) { return { taken: false, available: true, offline: true }; }
+}
+function closeSaveKeyBox() {
+  ui('saveKeyBox').style.display = 'none';
+  ui('saveKeyPass').value = '';
+  ui('saveKeyConfirm').value = '';
+  ui('saveKeyErr').textContent = '';
+  typing = algunRecuadroAbierto();
+}
+function openSaveKeyBox(opts) {
+  saveGame();
+  saveKeyAfter = opts && opts.after;
+  const name = desiredAccountName(activeProfile());
+  if (!name || name.length < 2 || accountNameKey(name) === 'jugador') {
+    toast('Pon un nombre propio en Mi cuenta antes de guardar en la nube');
+    if (typeof saveKeyAfter === 'function') saveKeyAfter();
+    return;
+  }
+  ui('saveKeyName').textContent = 'Usuario: ' + name;
+  ui('saveKeyHelp').textContent = 'Elige una clave y confírmala. Con «' + name + '» y esta clave podrás continuar en otro dispositivo.';
+  ui('saveKeyErr').textContent = '';
+  ui('saveKeyPass').value = cloudPass || '';
+  ui('saveKeyConfirm').value = cloudPass || '';
+  ui('saveKeyBox').style.display = 'flex';
+  typing = true;
+  releaseLock();
+  setTimeout(() => { try { ui('saveKeyPass').focus(); } catch (e) {} }, 50);
+}
+async function uploadCloudSave(showToast) {
+  const name = desiredAccountName(activeProfile());
+  let save = null;
+  try { save = JSON.parse(localStorage.getItem(saveKey()) || 'null'); } catch (e) {}
+  if (!save) { if (showToast) toast('💾 Primero juega un poco para tener partida'); return false; }
+    const r = await fetch(SAVES_API, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'save', name, password: cloudPass, save }),
+    signal: AbortSignal.timeout(20000),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo guardar en la nube');
+  try { localStorage.setItem('tim_cloud_ok_' + name, '1'); } catch (e) {}
+  if (showToast) toast('☁️ Partida en la nube. En otro celular: CONTINUAR CON CLAVE.');
+  return true;
+}
+async function submitSaveKey() {
+  const pass = String(ui('saveKeyPass').value || '');
+  const confirm = String(ui('saveKeyConfirm').value || '');
+  const err = ui('saveKeyErr');
+  if (pass.length < 4) { err.textContent = 'La clave debe tener al menos 4 caracteres'; return; }
+  if (pass !== confirm) { err.textContent = 'Las claves no coinciden. Confírmala otra vez.'; return; }
+  cloudPass = pass;
+  ui('saveKeyOk').disabled = true;
+  err.textContent = 'Guardando…';
+  try {
+    saveGame();
+    await uploadCloudSave(true);
+    closeSaveKeyBox();
+    const after = saveKeyAfter; saveKeyAfter = null;
+    if (typeof after === 'function') after();
+  } catch (e) {
+    cloudPass = '';
+    err.textContent = e.message || 'No se pudo guardar. Revisa internet y que el nombre no esté ocupado.';
+  }
+  ui('saveKeyOk').disabled = false;
+}
+function skipSaveKey() {
+  closeSaveKeyBox();
+  const after = saveKeyAfter; saveKeyAfter = null;
+  toast('💾 Quedó en este aparato. Sin clave no podrás abrirla en otro.');
+  if (typeof after === 'function') after();
+}
+function openCloudLoginBox() {
+  ui('cloudLoginErr').textContent = '';
+  ui('cloudLoginName').value = desiredAccountName(ui('nameInput').value || activeProfile() || '');
+  ui('cloudLoginPass').value = '';
+  ui('cloudLoginBox').style.display = 'flex';
+  typing = true;
+  setTimeout(() => { try { ui('cloudLoginName').focus(); } catch (e) {} }, 50);
+}
+function closeCloudLoginBox() {
+  ui('cloudLoginBox').style.display = 'none';
+  ui('cloudLoginPass').value = '';
+  ui('cloudLoginErr').textContent = '';
+  typing = algunRecuadroAbierto();
+}
+async function submitCloudLogin() {
+  const name = desiredAccountName(ui('cloudLoginName').value);
+  const pass = String(ui('cloudLoginPass').value || '');
+  const err = ui('cloudLoginErr');
+  if (!name) { err.textContent = 'Escribe el nombre de usuario'; return; }
+  if (pass.length < 4) { err.textContent = 'Escribe la clave'; return; }
+  ui('cloudLoginOk').disabled = true;
+  err.textContent = 'Buscando tu partida…';
+  try {
+    const r = await fetch(SAVES_API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'load', name, password: pass }),
+      signal: AbortSignal.timeout(20000),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo cargar');
+    if (!d.save || typeof d.save !== 'object') throw new Error('La partida llegó vacía');
+    const usedName = desiredAccountName(d.name || name) || name;
+    setProfile(usedName);
+    syncAccountNames(usedName);
+    localStorage.setItem(profileKey(usedName), JSON.stringify(d.save));
+    cloudPass = pass;
+    try { localStorage.setItem('tim_cloud_ok_' + usedName, '1'); } catch (e) {}
+    closeCloudLoginBox();
+    ui('namebox').style.display = 'none';
+    ui('profilebox').style.display = 'none';
+    continueGame();
+    toast('☁️ Partida cargada con tu usuario y clave');
+  } catch (e) {
+    err.textContent = e.message || 'Nombre o clave incorrectos';
+  }
+  ui('cloudLoginOk').disabled = false;
+}
+ui('saveKeyOk').onclick = () => submitSaveKey();
+ui('saveKeySkip').onclick = skipSaveKey;
+ui('saveKeyPass').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') ui('saveKeyConfirm').focus(); if (e.code === 'Escape') skipSaveKey(); });
+ui('saveKeyConfirm').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') submitSaveKey(); if (e.code === 'Escape') skipSaveKey(); });
+ui('cloudLoginBtn').onclick = () => openCloudLoginBox();
+ui('cloudLoginOk').onclick = () => submitCloudLogin();
+ui('cloudLoginCancel').onclick = closeCloudLoginBox;
+ui('cloudLoginName').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') ui('cloudLoginPass').focus(); if (e.code === 'Escape') closeCloudLoginBox(); });
+ui('cloudLoginPass').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') submitCloudLogin(); if (e.code === 'Escape') closeCloudLoginBox(); });
+
 // ===================================================================
 //  PAUSA (Esc / botón ⏸️) con ajustes: sensibilidad, botones, rendimiento
 // ===================================================================
@@ -10370,7 +10545,8 @@ ui('pauseSound').onclick = () => { toggleSound(); ui('pauseSound').textContent =
 ui('pausePerf').onclick = () => { perfMode = !perfMode; perfExtra = false; autoPerfLock = true; applyPerfMode(); try { localStorage.setItem('tim_perf', perfMode ? '1' : '0'); } catch (e) {} ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF'; };   // si lo tocas a mano, el detector automático deja de meterse
 ui('pauseFoto').onclick = () => { togglePause(false); setTimeout(takePhoto, 100); };
 ui('pauseHelp').onclick = () => { togglePause(false); toggleHelp(true); };
-ui('pauseExit').onclick = () => { togglePause(false); saveAndExit(); };
+ui('pauseExit').onclick = () => openSaveKeyBox({ after: () => { togglePause(false); saveAndExit(); } });
+ui('pauseCloud').onclick = () => openSaveKeyBox({ after: null });
 ui('pauseAccount').onclick = openAccountBox;
 
 // ===================================================================

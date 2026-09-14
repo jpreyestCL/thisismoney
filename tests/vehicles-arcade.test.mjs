@@ -40,7 +40,7 @@ assert.match(html, /if \(target\.key === 'play_gamer'\) return openPlayStation\(
 assert.doesNotMatch(html, /arcadeMiniAction/);
 assert.match(html, /function trySeatedPlay\(\)/);
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-assert.match(sw, /tim-v32/);
+assert.match(sw, /tim-v33/);
 assert.match(html, /ARCADE_REWARDS_POS/);
 assert.match(html, /CANJE DE PREMIOS/);
 assert.match(html, /function tryArcadeRewards\(\)/);

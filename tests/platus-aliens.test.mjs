@@ -4,7 +4,7 @@ const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const world = html.slice(html.indexOf('const floatIslands'), html.indexOf('function geyserBoost'));
 assert.match(world, /alien\.userData\.maxHp = 100; alien\.userData\.hp = 100/);
 assert.match(world, /if \(!alien\.visible \|\| alien\.userData\.hp <= 0\) continue/);
-assert.match(world, /best\.userData\.hp = Math\.max\(0, best\.userData\.hp - hit\)/);
+assert.match(world, /alien\.userData\.hp = Math\.max\(0, alien\.userData\.hp - hit\)/);
 assert.match(world, /floatingCitizens\.splice\(i, 1\)/);
 assert.match(world, /addMoney\(80 \+ Math\.floor\(Math\.random\(\) \* 121\)\)/);
 assert.match(html, /tryHitFloatingCitizen\(state\.weaponDmg\)/);

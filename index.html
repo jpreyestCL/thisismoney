@@ -1282,16 +1282,35 @@ function makeVoxelGun(color = 0xef4444, scale = 1) {
   g.scale.setScalar(scale); g.userData.toolKind = 'gun'; g.userData.toolColor = color; return g;
 }
 // Flecha visible: astil de madera, punta de metal y plumas. El eje +Z es la punta (hacia donde vuela).
-function makeArrowMesh(scale = 1) {
+// flying=true: más grande, brilla y deja estela para verla de lejos de noche.
+function makeArrowMesh(scale = 1, flying = false) {
   const g = new THREE.Group();
-  const wood = mat(0xc4a574), steel = new THREE.MeshStandardMaterial({ color: 0xc5cdd6, metalness: .72, roughness: .28, flatShading: true });
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.016, .02, .78, 7), wood); shaft.rotation.x = Math.PI / 2; shaft.castShadow = true; g.add(shaft);
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(.042, .16, 6), steel); tip.rotation.x = Math.PI / 2; tip.position.z = .46; tip.castShadow = true; g.add(tip);
-  const nock = new THREE.Mesh(new THREE.BoxGeometry(.028, .03, .05), mat(0x5b3a1a)); nock.position.z = -.4; g.add(nock);
-  for (const [x, y, col] of [[.038, 0, 0xb91c1c], [-.038, 0, 0xf8fafc], [0, .04, 0xb91c1c]]) {
-    const f = new THREE.Mesh(new THREE.BoxGeometry(.07, .012, .13), mat(col)); f.position.set(x, y, -.32); g.add(f);
+  const wood = flying
+    ? new THREE.MeshStandardMaterial({ color: 0xf6c453, emissive: 0xf59e0b, emissiveIntensity: 1.35, roughness: .4, metalness: .08, flatShading: true })
+    : mat(0xc4a574);
+  const steel = new THREE.MeshStandardMaterial({
+    color: flying ? 0xffe7a3 : 0xc5cdd6, metalness: flying ? .4 : .72, roughness: flying ? .22 : .28,
+    emissive: flying ? 0xff7a18 : 0x000000, emissiveIntensity: flying ? 1.6 : 0, flatShading: true
+  });
+  const rs = flying ? .042 : .016, re = flying ? .052 : .02, shaftLen = flying ? 1.05 : .78;
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(rs, re, shaftLen, 7), wood); shaft.rotation.x = Math.PI / 2; shaft.castShadow = !flying; g.add(shaft);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(flying ? .09 : .042, flying ? .28 : .16, 6), steel); tip.rotation.x = Math.PI / 2; tip.position.z = flying ? .62 : .46; tip.castShadow = !flying; g.add(tip);
+  const nock = new THREE.Mesh(new THREE.BoxGeometry(flying ? .05 : .028, flying ? .055 : .03, flying ? .08 : .05), mat(0x5b3a1a)); nock.position.z = flying ? -.54 : -.4; g.add(nock);
+  for (const [x, y, col] of [[flying ? .07 : .038, 0, 0xb91c1c], [flying ? -.07 : -.038, 0, 0xf8fafc], [0, flying ? .075 : .04, 0xb91c1c]]) {
+    const f = new THREE.Mesh(new THREE.BoxGeometry(flying ? .12 : .07, flying ? .02 : .012, flying ? .2 : .13), flying ? new THREE.MeshBasicMaterial({ color: col }) : mat(col));
+    f.position.set(x, y, flying ? -.42 : -.32); g.add(f);
   }
-  g.scale.setScalar(scale); return g;
+  if (flying) {
+    const trail = new THREE.Mesh(new THREE.CylinderGeometry(.004, .075, 1.5, 6), new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: .62, depthWrite: false }));
+    trail.name = 'flyTrail'; trail.rotation.x = Math.PI / 2; trail.position.z = -.98; g.add(trail);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfff7cc, transparent: true, opacity: .55, depthWrite: false }));
+    glow.name = 'flyGlow'; glow.position.z = .62; g.add(glow);
+    if (typeof perfMode === 'undefined' || !perfMode) {
+      const light = new THREE.PointLight(0xff9a1f, 1.35, 8); light.name = 'flyLight'; light.position.z = .5; g.add(light);
+    }
+    g.userData.flyingArrow = true;
+  }
+  g.scale.setScalar(scale * (flying ? 1.25 : 1)); return g;
 }
 function placeBowRod(mesh, ax, ay, az, bx, by, bz) {
   const dx = bx - ax, dy = by - ay, dz = bz - az, len = Math.hypot(dx, dy, dz) || .001;
@@ -5321,6 +5340,7 @@ function updateCastle(dt) {
   for (const fr of castleFriends) { if (fr.gave) continue; if (dist2D(player.position, fr.mesh.position) < 2.4) { fr.gave = true; fr.mesh.visible = false; giveCastleGift(fr.mesh.position); } }
   for (const f of castleFoes) {
     if (!f.alive) continue;
+    if (tickHitStagger(f, f.mesh, dt)) { swingLimbs(f.mesh, dt); continue; }
     f.mesh.position.y = 0.5 + Math.sin(performance.now() * 0.004 + f.mesh.position.x) * 0.15;
     const d = dist2D(f.mesh.position, player.position);
     if (playerAirborne() || !inMeleeReach(f.mesh.position, player.position)) { moveToward(f.mesh, player.position, 2.6 * dt); f.mesh.rotation.y = Math.atan2(player.position.x - f.mesh.position.x, player.position.z - f.mesh.position.z); }
@@ -5458,6 +5478,10 @@ function hitTitan(dmg) {
 }
 function updateTitan(dt) {
   const t = titan; t.stepT += dt;
+  if (tickHitStagger(t, t.mesh, dt)) {
+    t.bar.g.position.set(t.mesh.position.x, 13, t.mesh.position.z); t.bar.g.quaternion.copy(camera.quaternion);
+    const f = Math.max(0, t.hp / t.maxhp); t.bar.fg.scale.x = f || 0.001; return;
+  }
   const d = dist2D(t.mesh.position, player.position);
   if (playerAirborne() || d > 4.5) {
     moveToward(t.mesh, player.position, 2.3 * dt); t.mesh.rotation.y = Math.atan2(player.position.x - t.mesh.position.x, player.position.z - t.mesh.position.z);
@@ -5534,6 +5558,7 @@ function updateArena(dt) {
   if (!state.inArena) return;
   if (arenaFoes.length) {
     for (const f of arenaFoes) {
+      if (tickHitStagger(f, f.mesh, dt)) { swingLimbs(f.mesh, dt); continue; }
       const fly = !!(f.spd && ENEMY_DEFS[f.type] && ENEMY_DEFS[f.type].fly);
       if (fly) { f.mesh.userData.fly = true; f.mesh.position.y = flyerChaseY(f.mesh); }
       const d = dist2D(f.mesh.position, player.position);
@@ -5616,6 +5641,7 @@ function updateFloatingWorld(dt) {
   floatingAlienVolleyCd = Math.max(0, floatingAlienVolleyCd - dt);
   for (const alien of floatingCitizens) {
     if (!alien.visible || alien.userData.hp <= 0) continue;
+    if (tickHitStagger(alien.userData, alien, dt)) { swingLimbs(alien, dt); continue; }
     if (floatingCitizenAggro > 0) {
       alien.getWorldPosition(floatingAlienWorld);
       floatingAlienTarget.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
@@ -5662,8 +5688,20 @@ function alienShootPlayer(alien) {
   shot.position.copy(from).addScaledVector(dir, .5); shot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); scene.add(shot);
   setTimeout(() => killMesh(shot), 110); damagePlayer(5, from, true); tone(520, .055, .035, 'square'); alien.userData.attackAnim = .22;
 }
-function applyFloatingCitizenHit(alien, dmg) {
-  floatingCitizenAggro = 35; alien.getWorldPosition(floatingAlienWorld); flashEnemy(alien, true); setTimeout(() => flashEnemy(alien, false), 130);
+function applyFloatingCitizenHit(alien, dmg, fromPos, arrowHit) {
+  floatingCitizenAggro = 35; alien.getWorldPosition(floatingAlienWorld);
+  if (arrowHit) {
+    toast('🏹 Le pegaste');
+    flashEnemy(alien, true); alien.userData.flash = 0.55;
+    if (fromPos) {
+      const dx = floatingAlienWorld.x - fromPos.x, dz = floatingAlienWorld.z - fromPos.z, len = Math.hypot(dx, dz) || 1;
+      floatingAlienWorld.x += dx / len * 2.8; floatingAlienWorld.z += dz / len * 2.8;
+      if (alien.parent) { alien.parent.worldToLocal(floatingAlienWorld); alien.position.copy(floatingAlienWorld); }
+      alien.userData.knockVX = dx / len * 10; alien.userData.knockVZ = dz / len * 10; alien.userData.knockT = 0.38;
+    }
+  } else {
+    flashEnemy(alien, true); setTimeout(() => flashEnemy(alien, false), 130);
+  }
   const hit = Math.max(1, dmg || state.weaponDmg || 1);
   alien.userData.hp = Math.max(0, alien.userData.hp - hit);
   voxelImpact(floatingAlienWorld.clone().setY(floatingAlienWorld.y + 1), 0xef4444, 6); zombieHitSound(); floatText(floatingAlienWorld, '−' + hit + ' ❤️ ' + Math.ceil(alien.userData.hp), '#f87171', 15);
@@ -5672,7 +5710,7 @@ function applyFloatingCitizenHit(alien, dmg) {
     alien.visible = false; if (alien.parent) alien.parent.remove(alien);
     addMoney(80 + Math.floor(Math.random() * 121));
     toast('👽 Alien derrotado · recibiste una recompensa');
-  } else toast('🚨 ¡Golpeaste a un alien! Vida: ' + Math.ceil(alien.userData.hp) + '/100 · ¡todos te persiguen!');
+  } else if (!arrowHit) toast('🚨 ¡Golpeaste a un alien! Vida: ' + Math.ceil(alien.userData.hp) + '/100 · ¡todos te persiguen!');
   if (laserEquipped()) shootBeam(floatingAlienWorld); return true;
 }
 function tryHitFloatingCitizen(dmg) {
@@ -5698,7 +5736,7 @@ function hitFloatingCitizenAt(pos, dmg) {
     if (d < bestD) { best = alien; bestD = d; }
   }
   if (!best) return false;
-  return applyFloatingCitizenHit(best, dmg);
+  return applyFloatingCitizenHit(best, dmg, pos, true);
 }
 function geyserBoost() {   // devuelve true si el jugador está sobre un géiser (para lanzarlo)
   if (state.planet !== 'platus') return false;
@@ -7349,25 +7387,80 @@ function addHealthBar(e) {
 function flashEnemy(e, on) {
   e.traverse(o => {
     if (!o.isMesh || !o.material) return;
-    if (o.material.emissive) o.material.emissive.setHex(on ? 0x991b1b : 0x000000);   // modelos
-    else if (o.material.map) o.material.color.setHex(on ? 0xff6666 : 0xffffff);       // sprites
+    const m = o.material;
+    if (m.emissive) {
+      if (on) {
+        if (o.userData._flashEm == null) o.userData._flashEm = m.emissive.getHex();
+        if (o.userData._flashEi == null) o.userData._flashEi = m.emissiveIntensity;
+        m.emissive.setHex(0xff1414); m.emissiveIntensity = 2.6;
+      } else {
+        m.emissive.setHex(o.userData._flashEm != null ? o.userData._flashEm : 0x000000);
+        if (o.userData._flashEi != null) m.emissiveIntensity = o.userData._flashEi;
+        o.userData._flashEm = o.userData._flashEi = undefined;
+      }
+    }
+    if (m.map) {
+      if (on) {
+        if (o.userData._flashCol == null) o.userData._flashCol = m.color.getHex();
+        m.color.setHex(0xff1a1a);
+      } else {
+        m.color.setHex(o.userData._flashCol != null ? o.userData._flashCol : 0xffffff);
+        o.userData._flashCol = undefined;
+      }
+    } else if (!m.emissive && m.color) {
+      if (on) {
+        if (o.userData._flashCol == null) o.userData._flashCol = m.color.getHex();
+        m.color.setHex(0xff1a1a);
+      } else if (o.userData._flashCol != null) {
+        m.color.setHex(o.userData._flashCol); o.userData._flashCol = undefined;
+      }
+    }
   });
+}
+function tickHitStagger(store, mesh, dt) {
+  if (!store) return false;
+  if (store.flash > 0) { store.flash -= dt; if (mesh) flashEnemy(mesh, store.flash > 0); }
+  if (store.knockT > 0) {
+    store.knockT -= dt;
+    if (mesh) { mesh.position.x += (store.knockVX || 0) * dt; mesh.position.z += (store.knockVZ || 0) * dt; }
+    if (store.knockT <= 0) { store.knockVX = 0; store.knockVZ = 0; }
+    return true;
+  }
+  return false;
+}
+function applyMonsterKnock(mesh, fromPos, store) {
+  if (!mesh || !fromPos) return;
+  const ud = store || mesh.userData || (mesh.userData = {});
+  const dx = mesh.position.x - fromPos.x, dz = mesh.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1;
+  mesh.position.x += dx / len * 2.8; mesh.position.z += dz / len * 2.8;
+  ud.knockVX = dx / len * 10; ud.knockVZ = dz / len * 10; ud.knockT = 0.38;
+}
+function arrowHitFeedback(mesh, fromPos, store) {
+  toast('🏹 Le pegaste');
+  const ud = store || (mesh && mesh.userData) || {};
+  ud.flash = 0.55; ud.hitPulse = 0.34;
+  if (mesh) { flashEnemy(mesh, true); applyMonsterKnock(mesh, fromPos, ud); }
 }
 function startEnemyAttack(e) {
   if (!e || !e.userData) return;
   e.userData.attackAnim = .34; e.userData.attackStartY = e.position.y;
 }
 // Golpear a un enemigo: baja vida, lo pone rojo, lo empuja; devuelve true si murió
-function hitEnemy(e, dmg, fromPos) {
+function hitEnemy(e, dmg, fromPos, arrowHit) {
   if (e.userData.remote) {   // el monstruo es del anfitrión: él decide si muere
     netSend({ t: 'hit', id: net.myId, eid: e.userData.netId, dmg });
-    e.userData.flash = 0.15; e.userData.hitPulse = .2;
+    if (arrowHit) arrowHitFeedback(e, fromPos, e.userData);
+    else { e.userData.flash = 0.15; e.userData.hitPulse = .2; }
     zombieHitSound(); hitConfirm(dmg, false);
     floatText(e.position, '-' + Math.round(dmg), '#fbbf24', 13);
     return false;
   }
-  e.userData.hp -= dmg; e.userData.flash = 0.15; e.userData.hitPulse = .2;
-  if (fromPos) { const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1; e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6; }
+  e.userData.hp -= dmg;
+  if (arrowHit) arrowHitFeedback(e, fromPos, e.userData);
+  else {
+    e.userData.flash = 0.15; e.userData.hitPulse = .2;
+    if (fromPos) { const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1; e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6; }
+  }
   zombieHitSound();
   hitConfirm(dmg, e.userData.hp <= 0);
   voxelImpact(e.position.clone().setY(Math.max(.6, (e.userData.barY || 3) * .48)), e.userData.hp <= 0 ? 0xfde047 : 0xef4444, e.userData.hp <= 0 ? 12 : 6);
@@ -7446,6 +7539,11 @@ function updateEnemyFX(dt) {
   for (const e of enemies) {
     const ud = e.userData;
     if (ud.tauntDad > 0) ud.tauntDad = Math.max(0, ud.tauntDad - dt);
+    if (ud.knockT > 0) {
+      ud.knockT -= dt;
+      e.position.x += (ud.knockVX || 0) * dt; e.position.z += (ud.knockVZ || 0) * dt;
+      if (ud.knockT <= 0) { ud.knockVX = 0; ud.knockVZ = 0; }
+    }
     if (ud.flash > 0) { ud.flash -= dt; flashEnemy(e, ud.flash > 0); }
     if (ud.levelHalo) ud.levelHalo.rotation.z += dt * (.8 + (ud.level || 1) * .12);
     if (ud.hitPulse > 0) { ud.hitPulse = Math.max(0, ud.hitPulse - dt); const pulse = 1 + Math.sin((ud.hitPulse / .2) * Math.PI) * .11; if (ud.baseScale) e.scale.copy(ud.baseScale).multiplyScalar(pulse); }
@@ -7636,7 +7734,7 @@ function shootBowArrow(power) {
   if (cameraMode === 0 && nocked && nocked.visible) nocked.getWorldPosition(origin);
   else origin.copy(player.position).addScaledVector(bowAimDir, .85).setY(player.position.y - .12);
   applyBowDrawVisual(0);
-  const arrow = makeArrowMesh(1);
+  const arrow = makeArrowMesh(1, true);
   arrow.position.copy(origin);
   arrow.quaternion.setFromUnitVectors(bowFwd.set(0, 0, 1), bowAimDir);
   arrow.userData.vel = bowAimDir.clone().multiplyScalar(speed);
@@ -7649,19 +7747,21 @@ function shootBowArrow(power) {
 }
 function hitWithArrow(pos, dmg) {
   if (titan && arrowHitsBody(pos, titan.mesh.position, 5, 14)) {
-    titan.hp -= dmg; floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15);
+    titan.hp -= dmg; arrowHitFeedback(titan.mesh, pos, titan);
+    floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15);
     if (titan.hp <= 0) defeatTitan(); return true;
   }
   for (let j = enemies.length - 1; j >= 0; j--) {
     const e = enemies[j];
-    if (arrowHitsBody(pos, e.position, 1.45, (e.userData.barY || 2.6) + .35)) { hitEnemy(e, dmg, pos); return true; }
+    if (arrowHitsBody(pos, e.position, 1.45, (e.userData.barY || 2.6) + .35)) { hitEnemy(e, dmg, pos, true); return true; }
   }
   if (hitFloatingCitizenAt(pos, dmg)) return true;
   if (state.inCastle) {
     for (const f of castleFoes) {
       if (!f.alive) continue;
       if (arrowHitsBody(pos, f.mesh.position, 1.35, 2.6)) {
-        f.hp -= dmg; floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
+        f.hp -= dmg; arrowHitFeedback(f.mesh, pos, f);
+        floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
         if (f.hp <= 0) { f.alive = false; f.mesh.visible = false; const m = 60 + 20 * state.stage; addMoney(m); coinBurst(f.mesh.position, 8); }
         return true;
       }
@@ -7670,7 +7770,8 @@ function hitWithArrow(pos, dmg) {
   if (state.inArena) {
     for (const f of arenaFoes) {
       if (arrowHitsBody(pos, f.mesh.position, 1.35, 2.6)) {
-        f.hp -= dmg; floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
+        f.hp -= dmg; arrowHitFeedback(f.mesh, pos, f);
+        floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
         if (f.hp <= 0) { const m = 30 + 10 * state.stage; addMoney(m); coinBurst(f.mesh.position, 5); scene.remove(f.mesh); arenaFoes.splice(arenaFoes.indexOf(f), 1); missionProgress('kills'); }
         return true;
       }
@@ -7698,11 +7799,15 @@ function updatePlayerArrows(dt) {
       a.position.addScaledVector(ud.vel, dt);
       const sp = ud.vel.length();
       if (sp > .05) a.quaternion.setFromUnitVectors(bowFwd.set(0, 0, 1), ud.vel.clone().multiplyScalar(1 / sp));
+      const trail = a.getObjectByName('flyTrail');
+      if (trail && trail.material) trail.material.opacity = .42 + Math.abs(Math.sin(ud.life * 16)) * .38;
       arrowMid.lerpVectors(arrowPrev, a.position, .5);
       if (hitWithArrow(a.position, ud.dmg) || hitWithArrow(arrowMid, ud.dmg) || hitWithArrow(arrowPrev, ud.dmg)) { voxelImpact(a.position.clone(), 0xfde047, 8); scene.remove(a); playerArrows.splice(i, 1); continue; }
       const floor = arrowFloorY(a.position.x, a.position.z);
       if (a.position.y <= floor + .06) {
         a.position.y = floor + .04; ud.stuck = true; ud.vel.set(0, 0, 0); ud.life = Math.min(ud.life, 1.8);
+        const trailOff = a.getObjectByName('flyTrail'), glowOff = a.getObjectByName('flyGlow'), lightOff = a.getObjectByName('flyLight');
+        if (trailOff) trailOff.visible = false; if (glowOff) glowOff.visible = false; if (lightOff) lightOff.intensity = 0;
         voxelImpact(a.position.clone().setY(floor + .08), 0xc4a574, 4);
       }
     }
@@ -13147,6 +13252,7 @@ function updateMoles(dt) {
     }
     const tgt = inSameMine ? player.position : pickTarget(e.position, e);
     if (!tgt) continue;
+    if ((ud.knockT || 0) > 0) continue;   // flechazo: se echa para atrás y no camina ese rato
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
     if (!inMeleeReach(e.position, tgt) || (isPlayer && playerAirborne())) { moveToward(e, tgt, ud.speed * dt); if(inSameMine)e.position.y=state.groundY; e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z); }
@@ -13181,7 +13287,8 @@ function updateNight(dt) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
     if (ud.type === 'bull') {
-      e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; ud.life -= dt;
+      if ((ud.knockT || 0) <= 0) { e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; }
+      ud.life -= dt;
       e.position.y = mountainHeightAt(e.position.x, e.position.z);
       if (!playerAirborne() && inMeleeReach(e.position, player.position)) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
       if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8, e.position); removeEnemy(i); continue; }
@@ -13189,8 +13296,9 @@ function updateNight(dt) {
       if (companion) { damageCompanion(companion, ud.dmg || 17); removeEnemy(i); continue; }
       if (ud.life <= 0) removeEnemy(i); continue;
     }
-    if (ud.ufo) { updateUfoBoss(e, dt); continue; }   // OVNI jefe: flota alto y suelta aliens (no camina)
+    if (ud.ufo) { if ((ud.knockT || 0) <= 0) updateUfoBoss(e, dt); continue; }   // OVNI jefe: flota alto y suelta aliens (no camina)
     if (ud.mole) continue;   // topos / topo jefe: los maneja updateMoles (día y noche)
+    if ((ud.knockT || 0) > 0) { if (ud.fly) e.position.y = flyerChaseY(e); continue; }   // flechazo: se echa pa'trás, no persigue
     ud.attackCd -= dt;
     const tgt = pickTarget(e.position, e);
     const isPlayer = tgt === player.position;

@@ -793,11 +793,12 @@
     <canvas id="miniGameCanvas" width="520" height="340" style="display:none;width:min(92vw,520px);height:auto;background:#020617;border-radius:10px;image-rendering:pixelated"></canvas>
     <div id="arcadeGameBoard" style="min-height:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-size:26px;color:#facc15"></div>
     <div id="arcadeGameProgress" style="font-weight:800;margin:8px 0;color:#67e8f9"></div>
-    <div id="miniGamePad" style="display:none;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0">
+    <div id="miniGamePad" style="display:none;grid-template-columns:repeat(6,1fr);gap:6px;margin:8px 0">
       <button class="bankBtn" data-mini="KeyA">◀</button>
       <button class="bankBtn" data-mini="KeyW">▲</button>
       <button class="bankBtn" data-mini="KeyS">▼</button>
       <button class="bankBtn" data-mini="KeyD">▶</button>
+      <button class="bankBtn" data-mini="ShiftLeft">💨</button>
       <button class="bankBtn" data-mini="Space">●</button>
     </div>
     <button class="bankBtn" id="arcadeGameAction" style="display:none;width:100%;margin-bottom:8px">▶️ Jugar</button>
@@ -2086,7 +2087,7 @@ const ARCADE_GAMES = [
   { name: 'Pesca de premios', price: 45, tickets: 90, id: 'pesca' },
 ];
 const PLAY_GAMES = [
-  { id: 'futbol', name: 'Fútbol Champions', icon: '⚽', tickets: 8, help: 'WASD mueves · Espacio patea · primero en 3 goles' },
+  { id: 'futbol', name: 'Fútbol Champions', icon: '⚽', tickets: 8, help: 'WASD · SHIFT sprint · ESPACIO carga disparo · 3v3 · primero en 5 goles' },
   { id: 'granprix', name: 'Gran Prix Play', icon: '🏎️', tickets: 10, help: 'W acelera · S frena · A/D gira · Espacio turbo · 3 vueltas en el óvalo, sin cortar césped' },
   { id: 'heroes', name: 'Héroes de Play', icon: '🦸', tickets: 9, help: 'AD corre · Espacio/W salta · pisa bichos, junta monedas y llega a la bandera' },
 ];
@@ -11804,6 +11805,7 @@ function arcadeMiniWin() {
     state.money += pay;
     if (s.id === 'granprix') toast('🏁 ¡Gran Prix! 3 vueltas · puesto ' + (s.place || 1) + '° · +$' + pay);
     else if (s.id === 'heroes') toast('🦸 ¡Llegaste a la bandera! · +$' + pay);
+    else if (s.id === 'futbol') toast('⚽ ¡Campeones de la Play! ' + s.pg + '-' + s.eg + ' · +$' + pay);
     else toast('🎮 ¡Ganaste ' + s.game.name + '! +$' + pay);
   } else {
     state.arcadeTickets = (state.arcadeTickets || 0) + s.game.tickets;
@@ -11905,9 +11907,80 @@ function startPesca(game) {
   showMiniHud('🎣 Pesca de premios', 'ESPACIO baja el anzuelo. Atrapa 4 peces en 45 s.');
   startMiniLoop();
 }
+const FC = { x: 64, y: 40, w: 872, h: 460, gh: 152, worldW: 1000, worldH: 540 };
+function fcMidY() { return FC.y + FC.h / 2; }
+function fcInGoalY(y) { const m = fcMidY(); return y > m - FC.gh / 2 && y < m + FC.gh / 2; }
+function fcClamp(p, x0, y0, x1, y1) { p.x = Math.max(x0, Math.min(x1, p.x)); p.y = Math.max(y0, Math.min(y1, p.y)); }
+function fcSep(a, b, min) {
+  const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy);
+  if (d < min && d > 0.01) { const p = (min - d) / 2; a.x += dx / d * p; a.y += dy / d * p; b.x -= dx / d * p; b.y -= dy / d * p; }
+}
+function fcKick(p, s, power, mx, my) {
+  const dx = s.bx - p.x, dy = s.by - p.y, d = Math.hypot(dx, dy) || 1;
+  let kx = dx, ky = dy;
+  if (mx || my) { kx = dx * 0.4 + mx * 50; ky = dy * 0.4 + my * 50; }
+  const l = Math.hypot(kx, ky) || 1;
+  s.bvx = kx / l * power; s.bvy = (ky / l) * power;
+  s.bspin = (my || 0) * 110;
+  s.bx = p.x + dx / d * 18; s.by = p.y + dy / d * 18;
+}
+function fcChase(p, tx, ty, spd, dt) {
+  if ((p.stun || 0) > 0) return;
+  const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
+  p.x += dx / d * spd * dt; p.y += dy / d * spd * dt;
+  if (dx) p.face = dx > 0 ? 1 : -1;
+}
+function fcNearBall(p, s, r) { return Math.hypot(s.bx - p.x, s.by - p.y) < r; }
+function fcBanner(s, txt, t) { s.banner = txt; s.bannerT = t || 1.1; }
+function fcKickoff(s, scored) {
+  const m = fcMidY();
+  s.bx = FC.x + FC.w / 2; s.by = m; s.bvx = 0; s.bvy = 0; s.bspin = 0;
+  s.me.x = FC.x + 300; s.me.y = m; s.me.st = 1; s.me.charge = 0;
+  s.mate.x = FC.x + 240; s.mate.y = m - 78;
+  s.gk.x = FC.x + 42; s.gk.y = m;
+  s.e1.x = FC.x + 560; s.e1.y = m - 58;
+  s.e2.x = FC.x + 560; s.e2.y = m + 58;
+  s.egk.x = FC.x + FC.w - 42; s.egk.y = m;
+  s.kickT = 0.9;
+  fcBanner(s, scored === 'me' ? '⚽ ¡GOOOOL!' : scored === 'cpu' ? '😱 Gol rival' : '🔵 Saque al centro', 1.15);
+}
+function fcDrawKit(ctx, p, t) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath(); ctx.ellipse(p.x, p.y + 13, 10, 4, 0, 0, 7); ctx.fill();
+  if ((p.stun || 0) > 0) ctx.globalAlpha = 0.55;
+  ctx.fillStyle = p.gk ? '#f8fafc' : '#e2e8f0';
+  ctx.fillRect(p.x - 7, p.y + 4, 5, 9); ctx.fillRect(p.x + 2, p.y + 4, 5, 9);
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(p.x - 7, p.y + 11, 5, 3); ctx.fillRect(p.x + 2, p.y + 11, 5, 3);
+  ctx.fillStyle = p.col;
+  ctx.fillRect(p.x - 9, p.y - 10, 18, 16);
+  if (p.gk) { ctx.fillStyle = '#fde047'; ctx.fillRect(p.x - 9, p.y - 2, 18, 4); }
+  ctx.fillStyle = '#fbbf24';
+  ctx.beginPath(); ctx.arc(p.x, p.y - 16, 6.2, 0, 7); ctx.fill();
+  ctx.fillStyle = '#1c1917'; ctx.fillRect(p.x - 6, p.y - 22, 12, 4);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 8px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(String(p.num), p.x, p.y + 1);
+  if ((p.charge || 0) > 0.08) {
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.x, p.y - 4, 16 + p.charge * 6, 0, Math.PI * 2 * Math.min(1, p.charge)); ctx.stroke();
+  }
+  ctx.restore();
+}
 function startFutbol(game) {
-  arcadeMini = { kind: 'play', game, id: 'futbol', px: 140, py: 170, bx: 260, by: 170, bvx: 80, bvy: 40, you: 0, cpu: 0, cx: 380, cy: 170 };
-  showMiniHud('⚽ Fútbol Champions', 'WASD corre. ESPACIO patea. Primero en llegar a 3 goles.');
+  const m = fcMidY();
+  arcadeMini = {
+    kind: 'play', game, id: 'futbol', t: 0, camX: 240, camY: 90, shake: 0,
+    me: { x: FC.x + 300, y: m, num: 10, col: '#38bdf8', st: 1, charge: 0, face: 1, stun: 0 },
+    mate: { x: FC.x + 240, y: m - 78, num: 8, col: '#0ea5e9', face: 1, stun: 0 },
+    gk: { x: FC.x + 42, y: m, num: 1, col: '#1d4ed8', gk: true, face: 1, stun: 0 },
+    e1: { x: FC.x + 560, y: m - 58, num: 9, col: '#f87171', face: -1, stun: 0 },
+    e2: { x: FC.x + 560, y: m + 58, num: 11, col: '#ef4444', face: -1, stun: 0 },
+    egk: { x: FC.x + FC.w - 42, y: m, num: 1, col: '#991b1b', gk: true, face: -1, stun: 0 },
+    bx: FC.x + FC.w / 2, by: m, bvx: 0, bvy: 0, bspin: 0,
+    pg: 0, eg: 0, kickT: 0.7, flash: 0, banner: '🏟️ Estadio Play', bannerT: 1.3,
+    pup: null, pupT: 6.5, iceT: 0, spdT: 0, rocket: 0, confetti: []
+  };
+  showMiniHud('⚽ Fútbol Champions', 'WASD corre · SHIFT sprint · ESPACIO carga el disparo · 3 contra 3 · Primero en 5 goles');
   startMiniLoop();
 }
 function gpOvalPoint(t) { return { x: 260 + 170 * Math.cos(t), y: 170 + 110 * Math.sin(t) }; }
@@ -12023,29 +12096,116 @@ function miniStep(dt) {
     if (s.catch >= 4) arcadeMiniWin();
     else if (s.time <= 0) arcadeMiniLose('🎣 Se acabó el tiempo.');
   } else if (s.id === 'futbol') {
+    s.t += dt;
+    if (s.kickT > 0) s.kickT -= dt;
+    if (s.bannerT > 0) s.bannerT -= dt;
+    if (s.flash > 0) s.flash -= dt;
+    if (s.shake > 0) s.shake -= dt;
+    if (s.iceT > 0) s.iceT -= dt;
+    if (s.spdT > 0) s.spdT -= dt;
+    s.confetti = (s.confetti || []).filter(c => (c.life -= dt) > 0);
+    s.confetti.forEach(c => { c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 180 * dt; });
+    const team = [s.me, s.mate, s.gk], rivals = [s.e1, s.e2, s.egk], all = team.concat(rivals);
+    all.forEach(p => { if (p.stun > 0) p.stun -= dt; if (p.kickCd > 0) p.kickCd -= dt; });
     let ax = 0, ay = 0;
     if (miniHeld('KeyA') || miniHeld('ArrowLeft')) ax -= 1;
     if (miniHeld('KeyD') || miniHeld('ArrowRight')) ax += 1;
     if (miniHeld('KeyW') || miniHeld('ArrowUp')) ay -= 1;
     if (miniHeld('KeyS') || miniHeld('ArrowDown')) ay += 1;
-    s.px = Math.max(30, Math.min(250, s.px + ax * 180 * dt));
-    s.py = Math.max(40, Math.min(300, s.py + ay * 180 * dt));
-    const tdx = s.bx - s.cx, tdy = s.by - s.cy, tl = Math.hypot(tdx, tdy) || 1;
-    s.cx += (tdx / tl) * 110 * dt; s.cy += (tdy / tl) * 90 * dt;
-    s.cx = Math.max(270, Math.min(500, s.cx)); s.cy = Math.max(40, Math.min(300, s.cy));
-    s.bx += s.bvx * dt; s.by += s.bvy * dt;
-    if (s.by < 30 || s.by > 310) s.bvy *= -1;
-    const kick = (x, y, power) => {
-      const dx = s.bx - x, dy = s.by - y;
-      if (Math.hypot(dx, dy) < 28) { const l = Math.hypot(dx, dy) || 1; s.bvx = (dx / l) * power; s.bvy = (dy / l) * power; }
-    };
-    kick(s.px, s.py, miniHeld('Space') ? 280 : 160);
-    kick(s.cx, s.cy, 200);
-    if (s.bx > 505 && s.by > 110 && s.by < 230) { s.you++; s.bx = 260; s.by = 170; s.bvx = -90; s.bvy = 20; }
-    if (s.bx < 15 && s.by > 110 && s.by < 230) { s.cpu++; s.bx = 260; s.by = 170; s.bvx = 90; s.bvy = -20; }
-    if (s.bx < 8 || s.bx > 512) { s.bvx *= -1; s.bx = Math.max(20, Math.min(500, s.bx)); }
-    if (s.you >= 3) arcadeMiniWin();
-    else if (s.cpu >= 3) arcadeMiniLose('⚽ El rival ganó 3- ' + s.you);
+    const len = Math.hypot(ax, ay) || 1;
+    if (ax || ay) { ax /= len; ay /= len; s.me.face = ax >= 0 ? 1 : -1; }
+    const wantSprint = miniHeld('ShiftLeft') || miniHeld('ShiftRight');
+    const sprint = wantSprint && s.me.st > 0.05 && (ax || ay);
+    if (sprint) s.me.st = Math.max(0, s.me.st - 0.38 * dt);
+    else s.me.st = Math.min(1, s.me.st + 0.22 * dt);
+    const spd = ((sprint || s.spdT > 0) ? 278 : 188) * (s.me.stun > 0 ? 0.25 : 1);
+    if (s.kickT <= 0) {
+      s.me.x += ax * spd * dt; s.me.y += ay * spd * dt;
+      fcClamp(s.me, FC.x + 16, FC.y + 16, FC.x + FC.w - 16, FC.y + FC.h - 16);
+    }
+    const ice = s.iceT > 0 ? 0.32 : 1;
+    if (s.kickT <= 0) {
+      const m = fcMidY();
+      const mateCloser = Math.hypot(s.mate.x - s.bx, s.mate.y - s.by) + 18 < Math.hypot(s.me.x - s.bx, s.me.y - s.by);
+      if (mateCloser) fcChase(s.mate, s.bx, s.by, 168, dt);
+      else fcChase(s.mate, s.bx - 70, s.by + (s.bx > FC.x + 400 ? -40 : 50), 150, dt);
+      fcChase(s.gk, FC.x + 48 + Math.max(0, Math.min(70, s.bx - FC.x - 40) * 0.18), m + (s.by - m) * 0.45, 148, dt);
+      fcChase(s.e1, s.bx, s.by, 164 * ice, dt);
+      fcChase(s.e2, (s.bx + FC.x + FC.w - 30) / 2, (s.by + m) / 2, 142 * ice, dt);
+      fcChase(s.egk, FC.x + FC.w - 48 - Math.max(0, Math.min(70, FC.x + FC.w - s.bx - 40) * 0.18), m + (s.by - m) * 0.45, 148 * ice, dt);
+      fcClamp(s.mate, FC.x + 16, FC.y + 16, FC.x + FC.w - 16, FC.y + FC.h - 16);
+      fcClamp(s.gk, FC.x + 18, m - 86, FC.x + 118, m + 86);
+      fcClamp(s.e1, FC.x + 16, FC.y + 16, FC.x + FC.w - 16, FC.y + FC.h - 16);
+      fcClamp(s.e2, FC.x + 16, FC.y + 16, FC.x + FC.w - 16, FC.y + FC.h - 16);
+      fcClamp(s.egk, FC.x + FC.w - 118, m - 86, FC.x + FC.w - 18, m + 86);
+      for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) fcSep(all[i], all[j], 22);
+      if (sprint) {
+        for (const r of rivals) {
+          if (Math.hypot(s.me.x - r.x, s.me.y - r.y) < 22 && r.stun <= 0) { r.stun = 0.7; s.me.st = Math.max(0, s.me.st - 0.18); beep(220, .05, .03); }
+        }
+      }
+      const space = miniHeld('Space');
+      if (space && fcNearBall(s.me, s, 26)) s.me.charge = Math.min(1.15, (s.me.charge || 0) + dt * 1.4);
+      else if (!space && (s.me.charge || 0) > 0.1 && fcNearBall(s.me, s, 32)) {
+        const boom = s.rocket ? 1 : 0; s.rocket = 0;
+        fcKick(s.me, s, (boom ? 420 : 205) + s.me.charge * 255, ax, ay);
+        if (s.me.charge > 0.85) fcBanner(s, boom ? '🚀 ¡Cañonazo!' : '💥 ¡Remate!', 0.7);
+        s.me.charge = 0; beep(520 + boom * 80, .06, .04);
+      } else {
+        if (!space) s.me.charge = 0;
+        if (fcNearBall(s.me, s, 20)) fcKick(s.me, s, sprint ? 175 : 128, ax, ay);
+      }
+      const cpuKick = (p, power, tx, ty) => {
+        if ((p.stun || 0) > 0 || (p.kickCd || 0) > 0 || !fcNearBall(p, s, 22)) return;
+        const dx = tx - p.x, dy = ty - p.y;
+        fcKick(p, s, power, dx / 80, dy / 80);
+        p.kickCd = 0.42;
+      };
+      cpuKick(s.mate, 210, FC.x + FC.w + 40, fcMidY() + (Math.random() - 0.5) * 40);
+      cpuKick(s.e1, 200 * ice, FC.x - 40, fcMidY() + (Math.random() - 0.5) * 50);
+      cpuKick(s.e2, 185 * ice, FC.x - 40, fcMidY());
+      if ((s.gk.kickCd || 0) <= 0 && fcNearBall(s.gk, s, 24)) { fcKick(s.gk, s, 260, 1, (Math.random() - 0.5)); s.gk.kickCd = 0.5; fcBanner(s, '🧤 ¡Atajada TIM!', 0.7); }
+      if ((s.egk.kickCd || 0) <= 0 && fcNearBall(s.egk, s, 24)) { fcKick(s.egk, s, 260, -1, (Math.random() - 0.5)); s.egk.kickCd = 0.5; fcBanner(s, '🧤 ¡Atajadón rival!', 0.7); }
+      s.bx += s.bvx * dt; s.by += s.bvy * dt;
+      s.bvx += s.bspin * dt; s.bspin *= Math.max(0, 1 - 2.4 * dt);
+      s.bvx *= Math.max(0, 1 - 0.55 * dt); s.bvy *= Math.max(0, 1 - 0.55 * dt);
+      const top = FC.y + 8, bot = FC.y + FC.h - 8, left = FC.x + 8, right = FC.x + FC.w - 8;
+      const postL = FC.y + (FC.h - FC.gh) / 2, postR = postL + FC.gh;
+      if (s.by < top) { s.by = top; s.bvy *= -0.82; }
+      if (s.by > bot) { s.by = bot; s.bvy *= -0.82; }
+      const hitPost = (px, py) => Math.hypot(s.bx - px, s.by - py) < 11;
+      if (hitPost(FC.x, postL) || hitPost(FC.x, postR) || hitPost(FC.x + FC.w, postL) || hitPost(FC.x + FC.w, postR)) {
+        s.bvx *= -0.7; s.bvy += (s.by < fcMidY() ? -40 : 40); fcBanner(s, '🪵 ¡Al palo!', 0.8); beep(180, .07, .04);
+      }
+      if (s.bx > right && fcInGoalY(s.by)) {
+        s.pg++; s.flash = 0.8; s.shake = 0.45;
+        for (let i = 0; i < 18; i++) s.confetti.push({ x: s.bx, y: s.by, vx: -40 + Math.random() * 80, vy: -120 - Math.random() * 80, life: 0.8 + Math.random() * 0.4, col: ['#38bdf8', '#facc15', '#f8fafc'][i % 3] });
+        beep(880, .1, .05); fcKickoff(s, 'me');
+      } else if (s.bx < left && fcInGoalY(s.by)) {
+        s.eg++; s.flash = 0.5; s.shake = 0.3; beep(140, .1, .05); fcKickoff(s, 'cpu');
+      } else {
+        if (s.bx < left) { s.bx = left; s.bvx *= -0.75; }
+        if (s.bx > right) { s.bx = right; s.bvx *= -0.75; }
+      }
+      s.pupT -= dt;
+      if (!s.pup && s.pupT <= 0) {
+        s.pup = { x: FC.x + 90 + Math.random() * (FC.w - 180), y: FC.y + 50 + Math.random() * (FC.h - 100), kind: ['turbo', 'rocket', 'ice'][Math.floor(Math.random() * 3)] };
+        s.pupT = 11 + Math.random() * 5;
+      }
+      if (s.pup && Math.hypot(s.me.x - s.pup.x, s.me.y - s.pup.y) < 20) {
+        if (s.pup.kind === 'turbo') { s.me.st = 1; s.spdT = 4; fcBanner(s, '⚡ Turbo 4s', 0.9); }
+        else if (s.pup.kind === 'rocket') { s.rocket = 1; fcBanner(s, '🌟 Próximo disparo: cohete', 1); }
+        else { s.iceT = 3.2; fcBanner(s, '🧊 Rivales congelados', 1); }
+        s.pup = null; beep(760, .06, .04);
+      }
+    }
+    const lookX = s.me.x * 0.62 + s.bx * 0.38, lookY = s.me.y * 0.55 + s.by * 0.45;
+    s.camX += (lookX - 260 - s.camX) * Math.min(1, dt * 5.2);
+    s.camY += (lookY - 170 - s.camY) * Math.min(1, dt * 5.2);
+    s.camX = Math.max(0, Math.min(FC.worldW - 520, s.camX));
+    s.camY = Math.max(0, Math.min(FC.worldH - 340, s.camY));
+    if (s.pg >= 5) arcadeMiniWin();
+    else if (s.eg >= 5) arcadeMiniLose('⚽ El rival ganó ' + s.eg + '-' + s.pg);
   } else if (s.id === 'granprix') {
     s.t += dt;
     if (miniHeld('KeyW') || miniHeld('ArrowUp')) s.vx = Math.min(s.boost > 0 ? 340 : 248, s.vx + (s.boost > 0 ? 230 : 155) * dt);
@@ -12153,14 +12313,95 @@ function miniDraw() {
     ctx.fillStyle = '#ccc'; ctx.fillRect(254, s.hy, 12, 12);
     ctx.fillStyle = '#fff'; ctx.fillText('🐟 ' + s.catch + '/4   ⏱ ' + Math.ceil(s.time) + 's', 16, 24);
   } else if (s.id === 'futbol') {
-    ctx.fillStyle = '#163'; ctx.fillRect(20, 20, 480, 300);
-    ctx.strokeStyle = '#fff'; ctx.strokeRect(20, 20, 480, 300);
-    ctx.beginPath(); ctx.moveTo(260, 20); ctx.lineTo(260, 320); ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.fillRect(8, 110, 16, 120); ctx.fillRect(496, 110, 16, 120);
-    ctx.fillStyle = '#6cf'; ctx.beginPath(); ctx.arc(s.px, s.py, 12, 0, 7); ctx.fill();
-    ctx.fillStyle = '#f66'; ctx.beginPath(); ctx.arc(s.cx, s.cy, 12, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.bx, s.by, 8, 0, 7); ctx.fill();
-    ctx.fillText(s.you + ' - ' + s.cpu, 230, 24);
+    const camX = s.camX + (s.shake > 0 ? (Math.random() - 0.5) * 10 : 0);
+    const camY = s.camY + (s.shake > 0 ? (Math.random() - 0.5) * 8 : 0);
+    ctx.fillStyle = '#07111f'; ctx.fillRect(0, 0, w, h);
+    ctx.save(); ctx.translate(-camX, -camY);
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, FC.worldW, FC.worldH);
+    for (let i = 0; i < 90; i++) {
+      const cx = 18 + (i * 97) % 980, cy = 10 + (i * 53) % 520;
+      const inPitch = cx > FC.x - 8 && cx < FC.x + FC.w + 8 && cy > FC.y - 8 && cy < FC.y + FC.h + 8;
+      if (inPitch) continue;
+      ctx.fillStyle = ['#ef4444', '#38bdf8', '#facc15', '#a78bfa', '#fb7185'][i % 5];
+      ctx.globalAlpha = 0.55 + 0.35 * Math.sin(s.t * 3 + i);
+      ctx.fillRect(cx, cy + Math.sin(s.t * 2 + i) * 2, 6, 8);
+    }
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < 12; i++) {
+      ctx.fillStyle = i % 2 ? '#15803d' : '#166534';
+      ctx.fillRect(FC.x, FC.y + i * (FC.h / 12), FC.w, FC.h / 12 + 1);
+    }
+    ctx.strokeStyle = 'rgba(248,250,252,.85)'; ctx.lineWidth = 2;
+    ctx.strokeRect(FC.x, FC.y, FC.w, FC.h);
+    ctx.beginPath(); ctx.moveTo(FC.x + FC.w / 2, FC.y); ctx.lineTo(FC.x + FC.w / 2, FC.y + FC.h); ctx.stroke();
+    ctx.beginPath(); ctx.arc(FC.x + FC.w / 2, fcMidY(), 58, 0, 7); ctx.stroke();
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(FC.x + FC.w / 2, fcMidY(), 4, 0, 7); ctx.fill();
+    const boxH = 210, boxW = 128, by0 = fcMidY() - boxH / 2;
+    ctx.strokeRect(FC.x, by0, boxW, boxH); ctx.strokeRect(FC.x + FC.w - boxW, by0, boxW, boxH);
+    ctx.strokeRect(FC.x, fcMidY() - 78, 52, 156); ctx.strokeRect(FC.x + FC.w - 52, fcMidY() - 78, 52, 156);
+    ctx.beginPath(); ctx.arc(FC.x + 88, fcMidY(), 3, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(FC.x + FC.w - 88, fcMidY(), 3, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(FC.x + 88, fcMidY(), 46, -0.9, 0.9); ctx.stroke();
+    ctx.beginPath(); ctx.arc(FC.x + FC.w - 88, fcMidY(), 46, Math.PI - 0.9, Math.PI + 0.9); ctx.stroke();
+    ctx.beginPath(); ctx.arc(FC.x, FC.y, 14, 0, 1.6); ctx.stroke();
+    ctx.beginPath(); ctx.arc(FC.x + FC.w, FC.y, 14, 1.55, 3.2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(FC.x, FC.y + FC.h, 14, -1.6, 0); ctx.stroke();
+    ctx.beginPath(); ctx.arc(FC.x + FC.w, FC.y + FC.h, 14, 3.14, 4.8); ctx.stroke();
+    const net = (gx, dir) => {
+      ctx.strokeStyle = 'rgba(226,232,240,.55)'; ctx.lineWidth = 1;
+      const gy0 = fcMidY() - FC.gh / 2, gh = FC.gh;
+      ctx.strokeRect(gx - (dir < 0 ? 18 : 0), gy0, 18, gh);
+      for (let i = 1; i < 5; i++) { ctx.beginPath(); ctx.moveTo(gx + dir * i * 4, gy0); ctx.lineTo(gx + dir * i * 4, gy0 + gh); ctx.stroke(); }
+    };
+    net(FC.x, -1); net(FC.x + FC.w, 1);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(FC.x - 4, fcMidY() - FC.gh / 2 - 3, 8, 7);
+    ctx.fillRect(FC.x - 4, fcMidY() + FC.gh / 2 - 4, 8, 7);
+    ctx.fillRect(FC.x + FC.w - 4, fcMidY() - FC.gh / 2 - 3, 8, 7);
+    ctx.fillRect(FC.x + FC.w - 4, fcMidY() + FC.gh / 2 - 4, 8, 7);
+    ctx.fillStyle = 'rgba(253,224,71,.18)';
+    [[FC.x + 20, FC.y - 6], [FC.x + FC.w - 20, FC.y - 6], [FC.x + 20, FC.y + FC.h + 6], [FC.x + FC.w - 20, FC.y + FC.h + 6]].forEach(p => {
+      ctx.beginPath(); ctx.arc(p[0], p[1], 26, 0, 7); ctx.fill();
+    });
+    if (s.pup) {
+      const glow = 0.55 + 0.45 * Math.sin(s.t * 8);
+      ctx.globalAlpha = glow;
+      ctx.fillStyle = s.pup.kind === 'turbo' ? '#facc15' : s.pup.kind === 'rocket' ? '#f0abfc' : '#7dd3fc';
+      ctx.beginPath(); ctx.arc(s.pup.x, s.pup.y, 9, 0, 7); ctx.fill();
+      ctx.globalAlpha = 1; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(s.pup.kind === 'turbo' ? '⚡' : s.pup.kind === 'rocket' ? '🌟' : '🧊', s.pup.x, s.pup.y + 5);
+    }
+    fcDrawKit(ctx, s.gk, s.t); fcDrawKit(ctx, s.mate, s.t); fcDrawKit(ctx, s.me, s.t);
+    fcDrawKit(ctx, s.egk, s.t); fcDrawKit(ctx, s.e1, s.t); fcDrawKit(ctx, s.e2, s.t);
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(s.bx, s.by + 8, 7, 3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(s.bx, s.by, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(s.bx - 2, s.by - 1.5, 2.4, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(s.bx + 3, s.by + 2, 1.8, 0, 7); ctx.fill();
+    s.confetti.forEach(c => { ctx.fillStyle = c.col; ctx.fillRect(c.x, c.y, 4, 6); });
+    ctx.restore();
+    if (s.flash > 0) { ctx.fillStyle = 'rgba(250,250,250,' + (s.flash * 0.35) + ')'; ctx.fillRect(0, 0, w, h); }
+    ctx.fillStyle = 'rgba(15,23,42,.82)'; ctx.fillRect(8, 8, 504, 46);
+    ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('TIM  ' + s.pg, 20, 30);
+    ctx.fillStyle = '#f8fafc'; ctx.textAlign = 'center'; ctx.font = 'bold 16px sans-serif';
+    ctx.fillText(s.pg + '  -  ' + s.eg, 260, 30);
+    ctx.fillStyle = '#f87171'; ctx.textAlign = 'right'; ctx.font = 'bold 18px sans-serif';
+    ctx.fillText(s.eg + '  RIVALES', 500, 30);
+    ctx.fillStyle = '#64748b'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('primero en 5  ·  3v3  ·  Estadio Play', 20, 48);
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(16, 58, 90, 8);
+    ctx.fillStyle = s.me.st > 0.3 ? '#38bdf8' : '#f97316';
+    ctx.fillRect(16, 58, 90 * s.me.st, 8);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '10px sans-serif'; ctx.fillText('sprint', 16, 78);
+    if (s.rocket) { ctx.fillStyle = '#f0abfc'; ctx.fillText('🌟 cohete', 70, 78); }
+    if (s.iceT > 0) { ctx.fillStyle = '#7dd3fc'; ctx.fillText('🧊 ' + s.iceT.toFixed(1) + 's', 140, 78); }
+    if (s.spdT > 0) { ctx.fillStyle = '#facc15'; ctx.fillText('⚡ turbo', 220, 78); }
+    if (s.bannerT > 0) {
+      ctx.fillStyle = 'rgba(15,23,42,.75)'; ctx.fillRect(90, 140, 340, 40);
+      ctx.fillStyle = '#fde047'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(s.banner, 260, 167);
+    }
+    ctx.textAlign = 'left';
   } else if (s.id === 'granprix') {
     ctx.fillStyle = '#166534'; ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#15803d';

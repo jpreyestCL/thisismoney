@@ -23,6 +23,6 @@ assert.match(html, /rankingIdKey\(oldName\)/);
 assert.match(html, /limit=200/);
 assert.match(html, /tú/);
 assert.match(server, /Math\.min\(250,/);
-assert.match(sw, /tim-v39/);
+assert.match(sw, /tim-v40/);
 
 console.log('leaderboard current money: ok');

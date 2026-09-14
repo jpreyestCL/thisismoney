@@ -5772,7 +5772,7 @@ function updateBaseDefense(dt) {
   for (const t of baseGroup.userData.turrets) {
     t.cd -= dt; t.group.getWorldPosition(wp);
     let near = null, nd = 26;
-    for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(e.position, wp); if (d < nd) { nd = d; near = e; } }
+    for (const e of enemies) {  const d = dist2D(e.position, wp); if (d < nd) { nd = d; near = e; } }
     if (near) {
       t.group.rotation.y = Math.atan2(near.position.x - wp.x, near.position.z - wp.z);
       if (t.cd <= 0) {
@@ -5872,7 +5872,6 @@ function updateEggPets(dt) {
     p.position.y = 0.3 + Math.sin(performance.now() * 0.004 + p.position.x) * 0.12;
     let near = null, nd = 18;
     if (state.phase === 'NIGHT') for (const e of enemies) {
-      if (e.userData.type === 'bull') continue;
       if (state.petPoint && dist2D(anchor, e.position) > 16) continue;   // de guardia: solo pelean cerca de la banderita
       const d = dist2D(p.position, e.position); if (d < nd) { nd = d; near = e; }
     }
@@ -7094,7 +7093,11 @@ function updateEarthBulls(dt) {
     const ud = b.userData; ud.wait -= dt;
     if (ud.wait <= 0) { ud.heading += (Math.random() * 1.6 - .8); ud.wait = 2 + Math.random() * 3.5; }
     const nx = b.position.x + Math.sin(ud.heading) * 1.15 * dt, nz = b.position.z + Math.cos(ud.heading) * 1.15 * dt;
-    if (Math.hypot(nx - ud.ox, nz - ud.oz) < 5) { b.position.x = nx; b.position.z = nz; } else ud.wait = 0;
+    if (Math.hypot(nx - ud.ox, nz - ud.oz) < 5) {
+      const px = b.position.x, pz = b.position.z;
+      b.position.x = nx; b.position.z = nz;
+      if (resolveLivingWall(b.position, px, pz, 0.8) === 'stop') ud.wait = 0;
+    } else ud.wait = 0;
     b.rotation.y = ud.heading;
     b.position.y = mountainHeightAt(b.position.x, b.position.z);
   }
@@ -7251,8 +7254,8 @@ const ENEMY_DEFS = {
   zombieArmored: { make: makeZombieArmored, hp: 30,  spd: s => 1.6 + s * 0.10, dmg: 10, barY: 3.8 },
   smart:         { make: makeSmart,         hp: 10,  spd: s => 1.9 + s * 0.12, dmg: 10, barY: 3.3, opensDoors: true },
   smartArmored:  { make: makeSmartArmored,  hp: 30,  spd: s => 1.7 + s * 0.10, dmg: 10, barY: 3.8, opensDoors: true },
-  toro:          { make: makeBull,          hp: 50,  spd: () => 1.6,           dmg: 17, barY: 3.4, commander: true },
-  toroArmored:   { make: makeBullArmored,    hp: 80,  spd: () => 1.5,           dmg: 17, barY: 3.6, commander: true },
+  toro:          { make: makeKnight,         hp: 40,  spd: () => 1.15,          dmg: 12, barY: 3.3, commander: true },
+  toroArmored:   { make: makeKnightArmored,  hp: 62,  spd: () => 1.05,          dmg: 12, barY: 3.6, commander: true },
   mole:          { make: makeMole,          hp: 20,  spd: () => 2.8,           dmg: 20, barY: 1.9, mole: true },
   moleBoss:      { make: makeMoleBoss,      hp: 160, spd: () => 2.2,           dmg: 20, barY: 3.4, mole: true, boss: true },
   ant:           { make: makeAnt,           hp: 30,  spd: () => 2.6,           dmg: 17, barY: 2.2, poison: true },
@@ -7335,7 +7338,7 @@ function spawnEnemy(type, atPos) {
   const level = ENEMY_LEVELS[type] || 1;
   const data = { type, level, hp: def.hp, maxhp: def.hp, speed: def.spd(state.stage), attackCd: 0, dmg: def.dmg, barY: def.barY, attackAnim:0, hitPulse:0 };
   if (def.opensDoors) data.opensDoors = true;
-  if (def.commander) { data.commander = true; data.shootCd = 2; data.bullCd = 4; }
+  if (def.commander) { data.commander = true; data.shootCd = 5.5; data.bullCd = 12; }
   if (def.mole) data.mole = true;
   if (def.boss) { data.boss = true; data.summonCd = 4; }
   if (def.poison) data.poison = true;
@@ -7460,7 +7463,12 @@ function hitEnemy(e, dmg, fromPos, arrowHit) {
   if (arrowHit) arrowHitFeedback(e, fromPos, e.userData);
   else {
     e.userData.flash = 0.15; e.userData.hitPulse = .2;
-    if (fromPos) { const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1; e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6; }
+    if (fromPos) {
+      const px = e.position.x, pz = e.position.z;
+      const dx = e.position.x - fromPos.x, dz = e.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1;
+      e.position.x += dx / len * 0.6; e.position.z += dz / len * 0.6;
+      if (!bodyIgnoresWalls(e)) resolveLivingWall(e.position, px, pz, livingRadius(e));
+    }
   }
   zombieHitSound();
   hitConfirm(dmg, e.userData.hp <= 0);
@@ -7542,7 +7550,9 @@ function updateEnemyFX(dt) {
     if (ud.tauntDad > 0) ud.tauntDad = Math.max(0, ud.tauntDad - dt);
     if (ud.knockT > 0) {
       ud.knockT -= dt;
+      const kx = e.position.x, kz = e.position.z;
       e.position.x += (ud.knockVX || 0) * dt; e.position.z += (ud.knockVZ || 0) * dt;
+      if (!bodyIgnoresWalls(e)) resolveLivingWall(e.position, kx, kz, livingRadius(e));
       if (ud.knockT <= 0) { ud.knockVX = 0; ud.knockVZ = 0; }
     }
     if (ud.flash > 0) { ud.flash -= dt; flashEnemy(e, ud.flash > 0); }
@@ -7560,17 +7570,18 @@ function updateEnemyFX(dt) {
 function shootSword(k) {
   const t = pickTarget(k.position, k); const dx = t.x - k.position.x, dz = t.z - k.position.z; const len = Math.hypot(dx, dz) || 1;
   const s = new THREE.Mesh(new THREE.BoxGeometry(.15, .15, 1.2), mat(0xcbd5e1)); s.position.copy(k.position); s.position.y = 1.2; s.rotation.y = Math.atan2(dx, dz);
-  s.userData = { vel: new THREE.Vector3(dx / len * 16, 0, dz / len * 16), dmg: 8, life: 4 }; scene.add(s); projectiles.push(s);
+  s.userData = { vel: new THREE.Vector3(dx / len * 9, 0, dz / len * 9), dmg: 6, life: 4 }; scene.add(s); projectiles.push(s);
 }
-function launchBull(k) {   // cinco toros en abanico, no apilados encima del comandante
+function launchBull(k) {   // tres toros en abanico, más lentos y se pueden matar en la carrera
   const t = pickTarget(k.position, k); const dx = t.x - k.position.x, dz = t.z - k.position.z, len = Math.hypot(dx, dz) || 1;
   const fx = dx / len, fz = dz / len, px = -fz, pz = fx;
-  for (let i = 0; i < 5; i++) {
-    const side = (i - 2) * 3.8;
+  for (let i = 0; i < 3; i++) {
+    const side = (i - 1) * 3.8;
     const e = makeBull();
     e.position.set(k.position.x + px * side - fx * 2.2, 0, k.position.z + pz * side - fz * 2.2);
     e.rotation.y = Math.atan2(dx, dz);
-    e.userData = { type: 'bull', hp: 9999, speed: 16, life: 3.6, dmg: (k.userData.dmg || 17), vel: new THREE.Vector3(fx, 0, fz) };
+    e.userData = { type: 'bull', hp: 18, maxhp: 18, speed: 7.2, life: 5.4, dmg: 9, vel: new THREE.Vector3(fx, 0, fz), barY: 3.2 };
+    addHealthBar(e);
     scene.add(e); enemies.push(e);
   }
 }
@@ -7617,13 +7628,51 @@ function pickTarget(from, attacker) {
   for (const h of livingCompanions()) { const d = dist2D(from, h.position); if (d < bd) { bd = d; best = h.position; } }
   return best || houseAnchor;   // nada que atacar (todos escondidos): van hacia la casa
 }
+function livingRadius(e) { return (e && e.userData && e.userData.type === 'bull') ? 0.8 : 0.5; }
+function bodyIgnoresWalls(e) { return !!(e && e.userData && (e.userData.fly || e.userData.ufo || e.userData.mineHole)); }
+function obstacleAt(x, z, feetY, r) {
+  for (const o of obstacles) {
+    if (o.country !== undefined && (o.country || null) !== (state.country || null)) continue;
+    if (o.bottom != null && (feetY || 0) + 1.8 < o.bottom) continue;
+    if (o.top != null && (feetY || 0) >= o.top) continue;
+    if (x > o.minX - r && x < o.maxX + r && z > o.minZ - r && z < o.maxZ + r) return o;
+  }
+  return null;
+}
+function resolveLivingWall(pos, prevX, prevZ, r) {
+  const fy = pos.y || 0;
+  if (!obstacleAt(pos.x, pos.z, fy, r)) return null;
+  const canX = !obstacleAt(pos.x, prevZ, fy, r);
+  const canZ = !obstacleAt(prevX, pos.z, fy, r);
+  if (canX && !canZ) { pos.z = prevZ; return 'slide'; }
+  if (canZ && !canX) { pos.x = prevX; return 'slide'; }
+  pos.x = prevX; pos.z = prevZ;
+  return 'stop';
+}
+function placedBarrierNear(e) {
+  let best = null, bd = 2.5;
+  for (const o of placed) {
+    const isBarrier = !o.baseY && (o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'wallMetal' || (o.key === 'door' && !(e.userData && e.userData.opensDoors)));
+    if (!isBarrier || o.hp <= 0) continue;
+    const d = dist2D(e.position, o.mesh.position);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
 function moveToward(e, target, step) {
   const dx = target.x - e.position.x, dz = target.z - e.position.z; const len = Math.hypot(dx, dz) || 1;
-  e.position.x += (dx / len) * step; e.position.z += (dz / len) * step;
+  const flies = bodyIgnoresWalls(e);
+  const parts = flies ? 1 : Math.max(1, Math.ceil(Math.abs(step) / 0.32));
+  const sub = step / parts;
+  for (let i = 0; i < parts; i++) {
+    const px = e.position.x, pz = e.position.z;
+    e.position.x += (dx / len) * sub; e.position.z += (dz / len) * sub;
+    if (!flies && resolveLivingWall(e.position, px, pz, livingRadius(e)) === 'stop') break;
+  }
   const ground = mountainHeightAt(e.position.x, e.position.z);
   const isHoverPet = e === petAlien || eggPets.includes(e);
-  const flies = e.userData && (e.userData.fly || e.userData.ufo);
-  if (flies) e.position.y = flyerChaseY(e);
+  const flyHigh = e.userData && (e.userData.fly || e.userData.ufo);
+  if (flyHigh) e.position.y = flyerChaseY(e);
   else {
     const hover = isHoverPet ? 0.3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.12 : 0;
     e.position.y = ground + hover;
@@ -7643,7 +7692,7 @@ function updateProjectiles(dt) {
     p.position.x += ud.vel.x * dt; p.position.z += ud.vel.z * dt; ud.life -= dt;
     let hit = false;
     if (ud.friendly) {                                  // dardo de ballesta/torreta: pega a los monstruos
-      for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (e.userData.type === 'bull') continue; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
+      for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
     } else {                                            // proyectil enemigo: te pega a ti o al papá
       if (!playerAirborne() && dist3D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
       else if (dad.visible && !dad.userData.resting && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg, p.position); hit = true; }
@@ -7838,7 +7887,7 @@ function updateDefenses(dt) {
     o.shotCd -= dt;
     if (o.reloading) { o.reloadT -= dt; if (o.reloadT <= 0) { o.reloading = false; o.ammo = laser ? 12 : 5; } continue; }
     let near = null, nd = laser ? 30 : 26;
-    for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(o.mesh.position, e.position); if (d < nd) { nd = d; near = e; } }
+    for (const e of enemies) {  const d = dist2D(o.mesh.position, e.position); if (d < nd) { nd = d; near = e; } }
     if (!near) continue;               // sin objetivo, no dispara
     o.mesh.rotation.y = Math.atan2(near.position.x - o.mesh.position.x, near.position.z - o.mesh.position.z);
     if (o.shotCd <= 0 && o.ammo > 0) {
@@ -7889,7 +7938,7 @@ function updateHelpers(dt) {
   for (let hi = 0; hi < helpers.length; hi++) {
     const h = helpers[hi];
     let near = null, nd = 14;
-    if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(h.position, e.position); if (d < nd) { nd = d; near = e; } }
+    if (state.phase === 'NIGHT') for (const e of enemies) {  const d = dist2D(h.position, e.position); if (d < nd) { nd = d; near = e; } }
     if (near) {
       // Cada hijo ocupa un punto distinto alrededor del enemigo para que no se apilen al atacar.
       const ring = Math.floor(hi / 8), angle = (hi % 8) / 8 * Math.PI * 2;
@@ -7939,7 +7988,7 @@ function removePet() { if (pet) { scene.remove(pet); pet = null; } }
 function updatePet(dt) {
   if (!pet || state.inFlight) return;
   let near = null, nd = 18;
-  if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(pet.position, e.position); if (d < nd) { nd = d; near = e; } }
+  if (state.phase === 'NIGHT') for (const e of enemies) {  const d = dist2D(pet.position, e.position); if (d < nd) { nd = d; near = e; } }
   if (near) {   // ataca al monstruo más cercano (muerde fuerte)
     if (nd > 1.3) { moveToward(pet, near.position, 4.4 * dt); pet.rotation.y = Math.atan2(near.position.x - pet.position.x, near.position.z - pet.position.z) - Math.PI / 2; }
     else { pet.userData.atkCd -= dt; if (pet.userData.atkCd <= 0) { pet.userData.atkCd = 0.5; hitEnemy(near, 30, pet.position); beep(500, 0.06, 0.04); } }
@@ -7971,7 +8020,7 @@ function updatePetAlien(dt) {
   if (!petAlien || state.inFlight) return;
   petAlien.position.y = 0.3 + Math.sin(performance.now() * 0.004) * 0.12;   // flota
   let near = null, nd = 20;
-  if (state.phase === 'NIGHT') for (const e of enemies) { if (e.userData.type === 'bull') continue; const d = dist2D(petAlien.position, e.position); if (d < nd) { nd = d; near = e; } }
+  if (state.phase === 'NIGHT') for (const e of enemies) {  const d = dist2D(petAlien.position, e.position); if (d < nd) { nd = d; near = e; } }
   if (near) {
     if (nd > 1.4) { moveToward(petAlien, near.position, 5.2 * dt); petAlien.rotation.y = Math.atan2(near.position.x - petAlien.position.x, near.position.z - petAlien.position.z); }
     else { petAlien.userData.atkCd -= dt; if (petAlien.userData.atkCd <= 0) { petAlien.userData.atkCd = 0.45; hitEnemy(near, 45, petAlien.position); beep(640, 0.06, 0.045); } }
@@ -8240,7 +8289,6 @@ function updateDad(dt) {
     let near = null, nd = Infinity, playerThreat = Infinity, bestScore = Infinity;
     const protectRange = state.dadArmor < 1 ? (state.hp <= 45 ? 15 : 11) : 7;
     for (const e of enemies) {
-      if (e.userData.type === 'bull') continue;
       const dDad = dist2D(dad.position, e.position), dPlayer = dist2D(player.position, e.position);
       if (dDad > protectRange && dPlayer > protectRange) continue;
       const score = dDad - (dPlayer < 5 ? 6 : (dPlayer < 9 ? 2.5 : 0)) - (state.hp <= 45 ? 2 : 0);
@@ -11623,7 +11671,7 @@ function updateDriving(dt) {
   for (const w of car.wheels) w.rotation.x += move * 2.2;
   // atropellar monstruos si vas con algo de velocidad
   if (Math.abs(move) > 0.06 && (!car.helicopter || car.group.position.y < 2.5)) {
-    for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.userData.type === 'bull') continue; if (dist2D(e.position, car.group.position) < 2.3 && hitEnemy(e, 40, car.group.position)) missionProgress('runover'); }
+    for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i];  if (dist2D(e.position, car.group.position) < 2.3 && hitEnemy(e, 40, car.group.position)) missionProgress('runover'); }
     // atropellar a un PEATÓN te vuelve buscado (empújalo)
     for (const n of npcs) {
       if (dist2D(n.position, car.group.position) < 2.3) {
@@ -12309,7 +12357,7 @@ function updateCar(dt) {
     v.bar.g.visible = v.hp < v.maxHp || (state.driving && v === car);
     v.dmgCd -= dt;
     let near = false;
-    for (const e of enemies) { if (e.userData.type === 'bull') continue; if ((!v.helicopter || v.group.position.y < 3.5) && dist2D(e.position, v.group.position) < 3) { near = true; break; } }
+    for (const e of enemies) {  if ((!v.helicopter || v.group.position.y < 3.5) && dist2D(e.position, v.group.position) < 3) { near = true; break; } }
     if (near && v.dmgCd <= 0) { v.hp -= 8; v.dmgCd = 0.8; v.bar.g.visible = true; }
     if (v.hp <= 0) destroyCar(v);
   }
@@ -12368,7 +12416,7 @@ function updateRiding(dt) {
   const R = 1.6; for (const o of obstacles) { if (mount.position.x > o.minX - R && mount.position.x < o.maxX + R && mount.position.z > o.minZ - R && mount.position.z < o.maxZ + R) { mount.position.x = prevX; mount.position.z = prevZ; break; } }
   mount.rotation.y = mount.userData.heading;
   mount.position.y = Math.abs(Math.sin(performance.now() * 0.008)) * 0.15;   // galope
-  if (Math.abs(move) > 0.06) for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i]; if (e.userData.type === 'bull') continue; if (dist2D(e.position, mount.position) < 2.8 && hitEnemy(e, 60, mount.position)) missionProgress('kills'); }
+  if (Math.abs(move) > 0.06) for (let i = enemies.length - 1; i >= 0; i--) { const e = enemies[i];  if (dist2D(e.position, mount.position) < 2.8 && hitEnemy(e, 60, mount.position)) missionProgress('kills'); }
   player.position.set(mount.position.x, PLAYER_EYE + 2.2, mount.position.z);
   yaw = mount.userData.heading; camera.rotation.set(pitch, yaw, 0);
 }
@@ -13046,7 +13094,6 @@ function attack(multiplier = 1) {
   if (range <= 0) return;
   let best = null, bestD = range;
   for (const e of enemies) {
-    if (e.userData.type === 'bull') continue;
     const d = dist3D(p, e.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
   }
@@ -13446,14 +13493,21 @@ function updateNight(dt) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
     if (ud.type === 'bull') {
-      if ((ud.knockT || 0) <= 0) { e.position.x += ud.vel.x * ud.speed * dt; e.position.z += ud.vel.z * ud.speed * dt; }
+      if ((ud.knockT || 0) <= 0) {
+        const dist = ud.speed * dt, parts = Math.max(1, Math.ceil(dist / 0.32)), sub = dist / parts;
+        for (let k = 0; k < parts; k++) {
+          const px = e.position.x, pz = e.position.z;
+          e.position.x += ud.vel.x * sub; e.position.z += ud.vel.z * sub;
+          if (resolveLivingWall(e.position, px, pz, livingRadius(e)) === 'stop') { ud.speed = Math.max(0, ud.speed * 0.35); break; }
+        }
+      }
       ud.life -= dt;
       e.position.y = mountainHeightAt(e.position.x, e.position.z);
-      if (!playerAirborne() && inMeleeReach(e.position, player.position)) { damagePlayer(ud.dmg || 17, e.position); removeEnemy(i); continue; }
-      if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 17) * 0.8, e.position); removeEnemy(i); continue; }
+      if (!playerAirborne() && inMeleeReach(e.position, player.position)) { damagePlayer(ud.dmg || 9, e.position); removeEnemy(i); continue; }
+      if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 9) * 0.8, e.position); removeEnemy(i); continue; }
       const companion = livingCompanions().find(c => dist2D(e.position, c.position) < 1.6);
-      if (companion) { damageCompanion(companion, ud.dmg || 17); removeEnemy(i); continue; }
-      if (ud.life <= 0) removeEnemy(i); continue;
+      if (companion) { damageCompanion(companion, ud.dmg || 9); removeEnemy(i); continue; }
+      if (ud.life <= 0 || ud.hp <= 0) removeEnemy(i); continue;
     }
     if (ud.ufo) { if ((ud.knockT || 0) <= 0) updateUfoBoss(e, dt); continue; }   // OVNI jefe: flota alto y suelta aliens (no camina)
     if (ud.mole) continue;   // topos / topo jefe: los maneja updateMoles (día y noche)
@@ -13463,22 +13517,23 @@ function updateNight(dt) {
     const isPlayer = tgt === player.position;
     const d = dist2D(e.position, tgt);
     if(ud.bomber){const ideal=12;if(d>ideal+2)moveToward(e,tgt,ud.speed*dt);else if(d<ideal-3)moveToward(e,tgt,-ud.speed*dt);e.rotation.y=Math.atan2(tgt.x-e.position.x,tgt.z-e.position.z);ud.bombCd-=dt;if(ud.bombCd<=0&&d<24){startEnemyAttack(e);throwZombieBomb(e,tgt);ud.bombCd=4.5+Math.random()*1.5;}continue;}
-    if (ud.commander) {   // toro / toro con armadura: comandante que manda embestidas
-      const ideal = 12;
+    if (ud.commander) {   // caballero: manda embestidas, se queda lejos y tarda en atacar
+      const ideal = 16;
       if (d > ideal + 3) moveToward(e, tgt, ud.speed * dt); else if (d < ideal - 3) moveToward(e, tgt, -ud.speed * dt);
       e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
+      const wall = placedBarrierNear(e);
+      if (wall && ud.attackCd <= 0) {
+        startEnemyAttack(e); voxelImpact(wall.mesh.position.clone().setY(1.4), 0xf59e0b, 5);
+        const fortify = 1 - Math.min(.5, houseStats().protection / 200); wall.hp -= (ud.dmg || 12) * fortify; ud.attackCd = 1.4; state.nightDamage = true; if (wall.hp <= 0) removePlaced(wall);
+      }
       ud.shootCd -= dt; ud.bullCd -= dt;
-      if (ud.shootCd <= 0) { shootSword(e); ud.shootCd = 2.2; }
-      if (ud.bullCd <= 0) { launchBull(e); ud.bullCd = 8; }
+      if (ud.shootCd <= 0) { shootSword(e); ud.shootCd = 4.8; }
+      if (ud.bullCd <= 0) { launchBull(e); ud.bullCd = 16; }
       continue;
     }
     // zombi / zombi con armadura / inteligente / hormiga / volador / (legado)
     const flies = ud.fly;
-    let blocked = null;
-    if (!flies) { for (const o of placed) {
-      const isBarrier = !o.baseY && (o.key === 'wallWood' || o.key === 'wallRock' || o.key === 'wallMetal' || (o.key === 'door' && !ud.opensDoors)); // los inteligentes abren puertas · las paredes del 2º piso no frenan a los de abajo
-      if (isBarrier && o.hp > 0 && dist2D(e.position, o.mesh.position) < 2.2) blocked = o;
-    } }
+    let blocked = flies ? null : placedBarrierNear(e);
     if (flies) e.position.y = flyerChaseY(e);   // si estás volando, el flyer sube a por ti
     // monstruo volador: destruye las construcciones aéreas (techos) que encuentra
     if (ud.breaksAir && ud.attackCd <= 0) {
@@ -14045,17 +14100,22 @@ function updateCreativeFlight(dt) {
   const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }
   const speed = keys['ShiftLeft'] || keys['ShiftRight'] ? 42 : 24;
   const fromX = player.position.x, fromZ = player.position.z, fromY = player.position.y;
-  player.position.addScaledVector(forward, az * speed * dt);
-  player.position.addScaledVector(rightV, ax * speed * dt);
-  const vertical = (keys['Space'] ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] ? 1 : 0);
-  let minFlyY = PLAYER_EYE;
-  if (state.planet === 'tierra' && inTreasureIsland(player.position.x, player.position.z)) minFlyY = TREASURE_ISLAND.surface + PLAYER_EYE;
-  const flyWater = waterZoneAt(player.position.x, player.position.z);
-  if (flyWater) minFlyY = Math.max(minFlyY, flyWater.surface + PLAYER_EYE);
-  player.position.y = Math.max(minFlyY, player.position.y + vertical * speed * dt);
-  player.position.x = THREE.MathUtils.clamp(player.position.x, worldWestLimit(), 800);
-  player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 820);
-  resolveMountainSolid(player.position, fromX, fromZ, fromY, PLAYER_EYE);
+  const parts = Math.max(1, Math.ceil(speed * dt / 0.32));
+  for (let i = 0; i < parts; i++) {
+    const px = player.position.x, pz = player.position.z, py = player.position.y;
+    player.position.addScaledVector(forward, az * speed * dt / parts);
+    player.position.addScaledVector(rightV, ax * speed * dt / parts);
+    const vertical = (keys['Space'] ? 1 : 0) - (keys['ControlLeft'] || keys['ControlRight'] ? 1 : 0);
+    let minFlyY = PLAYER_EYE;
+    if (state.planet === 'tierra' && inTreasureIsland(player.position.x, player.position.z)) minFlyY = TREASURE_ISLAND.surface + PLAYER_EYE;
+    const flyWater = waterZoneAt(player.position.x, player.position.z);
+    if (flyWater) minFlyY = Math.max(minFlyY, flyWater.surface + PLAYER_EYE);
+    player.position.y = Math.max(minFlyY, player.position.y + vertical * speed * dt / parts);
+    player.position.x = THREE.MathUtils.clamp(player.position.x, worldWestLimit(), 800);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, -600, 820);
+    resolveMountainSolid(player.position, px, pz, py, PLAYER_EYE);
+    resolveCollisions();
+  }
   if (inTreasureIsland(player.position.x, player.position.z)) noteIslandArrival('🏝️ Llegaste volando a la ISLA DEL TESORO');
   grounded = false; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
 }

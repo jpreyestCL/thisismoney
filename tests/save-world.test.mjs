@@ -21,6 +21,6 @@ assert.match(html, /startEclipse\(\+d\.eclipse, \{ silent: true \}\)/);
 assert.match(html, /sigue de noche/);
 assert.doesNotMatch(html, /el clima no se guarda/);
 assert.match(html, /el clima no viaja contigo/);
-assert.match(sw, /tim-v35/);
+assert.match(sw, /tim-v36/);
 
 console.log('save world clock: ok');

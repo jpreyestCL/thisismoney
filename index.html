@@ -1303,7 +1303,7 @@ function makeArrowMesh(scale = 1, flying = false) {
   if (flying) {
     const trail = new THREE.Mesh(new THREE.CylinderGeometry(.004, .075, 1.5, 6), new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: .62, depthWrite: false }));
     trail.name = 'flyTrail'; trail.rotation.x = Math.PI / 2; trail.position.z = -.98; g.add(trail);
-    const glow = new THREE.Mesh(new THREE.SphereGeometry(.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfff7cc, transparent: true, opacity: .55, depthWrite: false }));
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(.28, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfff3c4, transparent: true, opacity: .72, depthWrite: false }));
     glow.name = 'flyGlow'; glow.position.z = .62; g.add(glow);
     if (typeof perfMode === 'undefined' || !perfMode) {
       const light = new THREE.PointLight(0xff9a1f, 1.35, 8); light.name = 'flyLight'; light.position.z = .5; g.add(light);
@@ -7429,14 +7429,15 @@ function tickHitStagger(store, mesh, dt) {
   return false;
 }
 function applyMonsterKnock(mesh, fromPos, store) {
-  if (!mesh || !fromPos) return;
+  if (!mesh) return;
   const ud = store || mesh.userData || (mesh.userData = {});
-  const dx = mesh.position.x - fromPos.x, dz = mesh.position.z - fromPos.z, len = Math.hypot(dx, dz) || 1;
+  let dx = fromPos ? mesh.position.x - fromPos.x : 0, dz = fromPos ? mesh.position.z - fromPos.z : 0, len = Math.hypot(dx, dz);
+  if (len < .4) { dx = mesh.position.x - player.position.x; dz = mesh.position.z - player.position.z; len = Math.hypot(dx, dz); }
+  len = len || 1;
   mesh.position.x += dx / len * 2.8; mesh.position.z += dz / len * 2.8;
   ud.knockVX = dx / len * 10; ud.knockVZ = dz / len * 10; ud.knockT = 0.38;
 }
 function arrowHitFeedback(mesh, fromPos, store) {
-  toast('🏹 Le pegaste');
   const ud = store || (mesh && mesh.userData) || {};
   ud.flash = 0.55; ud.hitPulse = 0.34;
   if (mesh) { flashEnemy(mesh, true); applyMonsterKnock(mesh, fromPos, ud); }
@@ -7747,20 +7748,20 @@ function shootBowArrow(power) {
 }
 function hitWithArrow(pos, dmg) {
   if (titan && arrowHitsBody(pos, titan.mesh.position, 5, 14)) {
-    titan.hp -= dmg; arrowHitFeedback(titan.mesh, pos, titan);
+    titan.hp -= dmg; arrowHitFeedback(titan.mesh, pos, titan); toast('🏹 Le pegaste');
     floatText(titan.mesh.position.clone().setY(8), '-' + Math.round(dmg), '#fbbf24', 15);
     if (titan.hp <= 0) defeatTitan(); return true;
   }
   for (let j = enemies.length - 1; j >= 0; j--) {
     const e = enemies[j];
-    if (arrowHitsBody(pos, e.position, 1.45, (e.userData.barY || 2.6) + .35)) { hitEnemy(e, dmg, pos, true); return true; }
+    if (arrowHitsBody(pos, e.position, 1.45, (e.userData.barY || 2.6) + .35)) { hitEnemy(e, dmg, pos, true); toast('🏹 Le pegaste'); return true; }
   }
   if (hitFloatingCitizenAt(pos, dmg)) return true;
   if (state.inCastle) {
     for (const f of castleFoes) {
       if (!f.alive) continue;
       if (arrowHitsBody(pos, f.mesh.position, 1.35, 2.6)) {
-        f.hp -= dmg; arrowHitFeedback(f.mesh, pos, f);
+        f.hp -= dmg; arrowHitFeedback(f.mesh, pos, f); toast('🏹 Le pegaste');
         floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
         if (f.hp <= 0) { f.alive = false; f.mesh.visible = false; const m = 60 + 20 * state.stage; addMoney(m); coinBurst(f.mesh.position, 8); }
         return true;
@@ -7770,7 +7771,7 @@ function hitWithArrow(pos, dmg) {
   if (state.inArena) {
     for (const f of arenaFoes) {
       if (arrowHitsBody(pos, f.mesh.position, 1.35, 2.6)) {
-        f.hp -= dmg; arrowHitFeedback(f.mesh, pos, f);
+        f.hp -= dmg; arrowHitFeedback(f.mesh, pos, f); toast('🏹 Le pegaste');
         floatText(f.mesh.position, '-' + Math.round(dmg), '#fbbf24', 13);
         if (f.hp <= 0) { const m = 30 + 10 * state.stage; addMoney(m); coinBurst(f.mesh.position, 5); scene.remove(f.mesh); arenaFoes.splice(arenaFoes.indexOf(f), 1); missionProgress('kills'); }
         return true;
@@ -14270,7 +14271,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,

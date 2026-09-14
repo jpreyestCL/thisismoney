@@ -2087,8 +2087,8 @@ const ARCADE_GAMES = [
 ];
 const PLAY_GAMES = [
   { id: 'futbol', name: 'Fútbol Champions', icon: '⚽', tickets: 8, help: 'WASD mueves · Espacio patea · primero en 3 goles' },
-  { id: 'granprix', name: 'Gran Prix Play', icon: '🏎️', tickets: 10, help: 'W acelera · A/D curva · 3 vueltas del óvalo' },
-  { id: 'heroes', name: 'Héroes de Play', icon: '🦸', tickets: 9, help: 'AD caminas · Espacio salta · pisa enemigos y junta 3 gemas' },
+  { id: 'granprix', name: 'Gran Prix Play', icon: '🏎️', tickets: 10, help: 'W acelera · S frena · A/D gira · Espacio turbo · 3 vueltas en el óvalo, sin cortar césped' },
+  { id: 'heroes', name: 'Héroes de Play', icon: '🦸', tickets: 9, help: 'AD corre · Espacio/W salta · pisa bichos, junta monedas y llega a la bandera' },
 ];
 let gasStationGroup = null, arcadeZoneGroup = null;
 function buildGasStation() {
@@ -11712,7 +11712,9 @@ function arcadeMiniWin() {
   if (s.kind === 'play') {
     const pay = 220 + (s.game.tickets || 4) * 12;
     state.money += pay;
-    toast('🎮 ¡Ganaste ' + s.game.name + '! +$' + pay);
+    if (s.id === 'granprix') toast('🏁 ¡Gran Prix! 3 vueltas · puesto ' + (s.place || 1) + '° · +$' + pay);
+    else if (s.id === 'heroes') toast('🦸 ¡Llegaste a la bandera! · +$' + pay);
+    else toast('🎮 ¡Ganaste ' + s.game.name + '! +$' + pay);
   } else {
     state.arcadeTickets = (state.arcadeTickets || 0) + s.game.tickets;
     toast('🏆 ¡Completaste ' + s.game.name + '! +' + s.game.tickets + ' tickets');
@@ -11818,14 +11820,54 @@ function startFutbol(game) {
   showMiniHud('⚽ Fútbol Champions', 'WASD corre. ESPACIO patea. Primero en llegar a 3 goles.');
   startMiniLoop();
 }
+function gpOvalPoint(t) { return { x: 260 + 170 * Math.cos(t), y: 170 + 110 * Math.sin(t) }; }
+function gpHeading(t) { return Math.atan2(-110 * Math.cos(t), 170 * Math.sin(t)); }
+function gpOnAsphalt(x, y) {
+  return Math.hypot((x - 260) / 194, (y - 170) / 134) <= 1 && Math.hypot((x - 260) / 146, (y - 170) / 86) >= 1;
+}
+function gpLapFrac(t) {
+  let a = (Math.PI / 2 - t) / (Math.PI * 2);
+  return a - Math.floor(a);
+}
+function drawMiniCar(ctx, x, y, heading, col, num) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(heading);
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(-10, -11, 8, 5); ctx.fillRect(4, -11, 8, 5); ctx.fillRect(-10, 6, 8, 5); ctx.fillRect(4, 6, 8, 5);
+  ctx.fillStyle = col; ctx.fillRect(-13, -8, 26, 16);
+  ctx.fillStyle = '#e2e8f0'; ctx.fillRect(4, -6, 8, 12);
+  ctx.fillStyle = '#fde047'; ctx.fillRect(12, -6, 3, 4); ctx.fillRect(12, 2, 3, 4);
+  if (num) { ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.fillText(String(num), -6, 3); }
+  ctx.restore();
+}
 function startGranPrix(game) {
-  arcadeMini = { kind: 'play', game, id: 'granprix', x: 260, y: 260, vx: 0, heading: -Math.PI / 2, lap: 0, check: 0, t: 0 };
-  showMiniHud('🏁 Gran Prix Play', 'W acelera, A/D gira. Completa 3 vueltas del óvalo.');
+  const bots = [
+    { t: Math.PI / 2 - 0.55, spd: 168, col: '#ef4444', x: 0, y: 0, heading: 0, race: 90 },
+    { t: Math.PI / 2 - 1.05, spd: 150, col: '#22c55e', x: 0, y: 0, heading: 0, race: 170 },
+  ];
+  bots.forEach(b => { const p = gpOvalPoint(b.t); b.x = p.x; b.y = p.y; b.heading = gpHeading(b.t); });
+  arcadeMini = { kind: 'play', game, id: 'granprix', x: 260, y: 280, vx: 0, heading: 0, lap: 0, check: 0, t: 0, boost: 0, boostCd: 0, place: 3, race: 0, bots };
+  showMiniHud('🏁 Gran Prix Play', 'W acelera, S frena, A/D gira, ESPACIO turbo. 3 vueltas en el asfalto: si cortas por el césped vas lento.');
   startMiniLoop();
 }
 function startHeroes(game) {
-  arcadeMini = { kind: 'play', game, id: 'heroes', x: 60, y: 250, vy: 0, on: true, foes: [{ x: 220, hp: 1 }, { x: 340, hp: 1 }, { x: 430, hp: 1 }], gems: 0 };
-  showMiniHud('🦸 Héroes de Play', 'A/D corre, W/ESPACIO salta. Pisa enemigos y junta 3 gemas.');
+  arcadeMini = {
+    kind: 'play', game, id: 'heroes', x: 72, y: 268, vx: 0, vy: 0, on: true, face: 1, lives: 3, inv: 0, coins: 0, cam: 0, t: 0, spawnX: 72, world: 1680, flag: 1560,
+    plats: [
+      { x: 0, y: 292, w: 470, h: 50 }, { x: 620, y: 292, w: 430, h: 50 }, { x: 1220, y: 292, w: 480, h: 50 },
+      { x: 210, y: 226, w: 96, h: 16 }, { x: 370, y: 168, w: 86, h: 16 }, { x: 730, y: 214, w: 120, h: 16 },
+      { x: 980, y: 154, w: 92, h: 16 }, { x: 1360, y: 206, w: 130, h: 16 },
+    ],
+    foes: [
+      { x: 300, y: 270, vx: 46, min: 220, max: 430, hp: 1, fly: false },
+      { x: 780, y: 270, vx: -40, min: 640, max: 980, hp: 1, fly: false },
+      { x: 1080, y: 270, vx: 50, min: 1020, max: 1280, hp: 1, fly: false },
+      { x: 1420, y: 168, vx: 55, min: 1320, max: 1520, hp: 1, fly: true },
+    ],
+    loot: [
+      { x: 240, y: 196, got: false }, { x: 400, y: 138, got: false }, { x: 780, y: 184, got: false },
+      { x: 1020, y: 124, got: false }, { x: 1288, y: 250, got: false }, { x: 1420, y: 176, got: false },
+    ],
+  };
+  showMiniHud('🦸 Héroes de Play', 'A/D corre, W/ESPACIO salta. Pisa enemigos, junta 4 monedas y llega a la bandera. 3 vidas.');
   startMiniLoop();
 }
 function miniHeld(code) { return !!miniKeys[code]; }
@@ -11914,34 +11956,78 @@ function miniStep(dt) {
     if (s.you >= 3) arcadeMiniWin();
     else if (s.cpu >= 3) arcadeMiniLose('⚽ El rival ganó 3- ' + s.you);
   } else if (s.id === 'granprix') {
-    if (miniHeld('KeyW') || miniHeld('ArrowUp')) s.vx = Math.min(260, s.vx + 140 * dt);
-    else s.vx = Math.max(0, s.vx - 90 * dt);
-    if (miniHeld('KeyA') || miniHeld('ArrowLeft')) s.heading -= 2.2 * dt;
-    if (miniHeld('KeyD') || miniHeld('ArrowRight')) s.heading += 2.2 * dt;
-    s.x += Math.cos(s.heading) * s.vx * dt;
-    s.y += Math.sin(s.heading) * s.vx * dt;
-    s.x = Math.max(40, Math.min(480, s.x)); s.y = Math.max(40, Math.min(300, s.y));
-    const pts = [{ x: 260, y: 55 }, { x: 430, y: 170 }, { x: 260, y: 285 }, { x: 90, y: 170 }];
+    s.t += dt;
+    if (miniHeld('KeyW') || miniHeld('ArrowUp')) s.vx = Math.min(s.boost > 0 ? 340 : 248, s.vx + (s.boost > 0 ? 230 : 155) * dt);
+    else if (miniHeld('KeyS') || miniHeld('ArrowDown')) s.vx = Math.max(0, s.vx - 250 * dt);
+    else s.vx = Math.max(0, s.vx - 72 * dt);
+    const turn = 1.35 + s.vx / 240;
+    if (miniHeld('KeyA') || miniHeld('ArrowLeft')) s.heading -= turn * dt;
+    if (miniHeld('KeyD') || miniHeld('ArrowRight')) s.heading += turn * dt;
+    if (s.boost > 0) s.boost -= dt;
+    if (s.boostCd > 0) s.boostCd -= dt;
+    if (miniHeld('Space') && s.boostCd <= 0) { s.boost = 1.15; s.boostCd = 3.4; tone(540, .07, .045, 'sawtooth'); }
+    const on = gpOnAsphalt(s.x, s.y);
+    const grip = on ? 1 : 0.34;
+    s.x += Math.cos(s.heading) * s.vx * grip * dt;
+    s.y += Math.sin(s.heading) * s.vx * grip * dt;
+    if (!on) s.vx = Math.max(0, s.vx - 170 * dt);
+    else s.race += s.vx * dt;
+    s.x = Math.max(18, Math.min(502, s.x)); s.y = Math.max(18, Math.min(322, s.y));
+    const pts = [gpOvalPoint(0), gpOvalPoint(-Math.PI / 2), gpOvalPoint(Math.PI), gpOvalPoint(Math.PI / 2)];
     const c = pts[s.check];
-    if (Math.hypot(s.x - c.x, s.y - c.y) < 46) {
+    if (on && Math.hypot(s.x - c.x, s.y - c.y) < 32) {
       s.check++;
-      if (s.check >= 4) { s.check = 0; s.lap++; }
+      if (s.check >= 4) { s.check = 0; s.lap++; beep(700, .07, .045); }
     }
+    for (const b of s.bots) {
+      b.t -= (b.spd / 168) * dt;
+      const p = gpOvalPoint(b.t); b.x = p.x; b.y = p.y; b.heading = gpHeading(b.t); b.race += b.spd * dt;
+      if (Math.hypot(s.x - b.x, s.y - b.y) < 18) {
+        s.vx *= 0.48;
+        const ang = Math.atan2(s.y - b.y, s.x - b.x) || 1;
+        s.x += Math.cos(ang) * 10; s.y += Math.sin(ang) * 10;
+      }
+    }
+    s.place = 1 + s.bots.filter(b => b.race > s.race).length;
     if (s.lap >= 3) arcadeMiniWin();
   } else if (s.id === 'heroes') {
+    s.t += dt; if (s.inv > 0) s.inv -= dt;
     let mx = 0;
     if (miniHeld('KeyA') || miniHeld('ArrowLeft')) mx -= 1;
     if (miniHeld('KeyD') || miniHeld('ArrowRight')) mx += 1;
-    s.x = Math.max(20, Math.min(500, s.x + mx * 200 * dt));
-    if (s.on && (miniHeld('Space') || miniHeld('KeyW') || miniHeld('ArrowUp'))) { s.vy = -320; s.on = false; }
-    s.vy += 780 * dt; s.y += s.vy * dt;
-    if (s.y >= 250) { s.y = 250; s.vy = 0; s.on = true; }
-    s.foes.forEach(f => {
-      if (f.hp <= 0) return;
-      if (Math.abs(s.x - f.x) < 22 && s.y < 250 && s.vy > 0 && s.y > 210) { f.hp = 0; s.vy = -180; s.gems++; }
-      else if (Math.abs(s.x - f.x) < 18 && s.y > 230) { s.x = 60; s.y = 250; }
-    });
-    if (s.gems >= 3) arcadeMiniWin();
+    if (mx) s.face = mx;
+    s.x = Math.max(16, Math.min(s.world - 16, s.x + mx * 175 * dt));
+    if (s.on && (miniHeld('Space') || miniHeld('KeyW') || miniHeld('ArrowUp'))) { s.vy = -355; s.on = false; beep(420, .04, .03); }
+    const prevY = s.y;
+    s.vy += 920 * dt; s.y += s.vy * dt;
+    s.on = false;
+    for (const p of s.plats) {
+      if (s.x + 9 > p.x && s.x - 9 < p.x + p.w && s.vy >= 0 && prevY <= p.y + 1 && s.y >= p.y) {
+        s.y = p.y; s.vy = 0; s.on = true; s.spawnX = s.x;
+      }
+    }
+    for (const f of s.foes) {
+      if (f.hp <= 0) continue;
+      f.x += f.vx * dt;
+      if (f.x < f.min || f.x > f.max) f.vx *= -1;
+      if (f.fly) f.y = 168 + Math.sin(s.t * 3 + f.x * 0.01) * 18;
+      const hitX = Math.abs(s.x - f.x) < 18, above = s.y <= f.y - 6 && s.y > f.y - 36;
+      if (hitX && above && s.vy > 40) { f.hp = 0; s.vy = -230; beep(880, .06, .04); }
+      else if (hitX && s.y > f.y - 26 && s.inv <= 0) {
+        s.lives--; s.inv = 1.4; s.vx = 0; s.vy = -160; s.x += s.face * -28;
+        if (s.lives <= 0) return arcadeMiniLose('🦸 Te quedaste sin vidas.');
+      }
+    }
+    for (const c of s.loot) {
+      if (!c.got && Math.abs(s.x - c.x) < 18 && c.y < s.y + 6 && c.y > s.y - 48) { c.got = true; s.coins++; beep(980, .05, .035); }
+    }
+    if (s.y > 338) {
+      s.lives--; s.inv = 1.2; s.x = s.spawnX; s.y = 240; s.vy = 0;
+      if (s.lives <= 0) return arcadeMiniLose('🦸 Caíste al vacío.');
+    }
+    s.cam += (s.x - 150 - s.cam) * Math.min(1, dt * 5.5);
+    s.cam = Math.max(0, Math.min(s.world - 520, s.cam));
+    if (s.x > s.flag - 18 && s.y <= 292 && s.coins >= 4) arcadeMiniWin();
   }
 }
 function miniDraw() {
@@ -11982,15 +12068,60 @@ function miniDraw() {
     ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.bx, s.by, 8, 0, 7); ctx.fill();
     ctx.fillText(s.you + ' - ' + s.cpu, 230, 24);
   } else if (s.id === 'granprix') {
-    ctx.strokeStyle = '#666'; ctx.lineWidth = 48; ctx.beginPath(); ctx.ellipse(260, 170, 170, 110, 0, 0, 7); ctx.stroke();
-    ctx.strokeStyle = '#333'; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(260, 170, 170, 110, 0, 0, 7); ctx.stroke();
-    ctx.fillStyle = '#4af'; ctx.beginPath(); ctx.arc(s.x, s.y, 10, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillText('Vuelta ' + (s.lap + 1) + '/3', 16, 24);
+    ctx.fillStyle = '#166534'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#15803d';
+    for (let i = 0; i < 8; i++) { ctx.beginPath(); ctx.arc(40 + (i * 67) % 500, 30 + (i * 41) % 280, 18, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = '#64748b'; ctx.lineWidth = 54; ctx.beginPath(); ctx.ellipse(260, 170, 170, 110, 0, 0, 7); ctx.stroke();
+    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 5; ctx.setLineDash([14, 10]); ctx.beginPath(); ctx.ellipse(260, 170, 196, 134, 0, 0, 7); ctx.stroke();
+    ctx.strokeStyle = '#f8fafc'; ctx.beginPath(); ctx.ellipse(260, 170, 144, 86, 0, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.setLineDash([8, 10]); ctx.beginPath(); ctx.ellipse(260, 170, 170, 110, 0, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#f8fafc';
+    for (let i = 0; i < 8; i++) ctx.fillRect(228 + i * 8, 268, 7, 8);
+    ctx.fillStyle = '#0f172a';
+    for (let i = 0; i < 8; i++) if (i % 2) ctx.fillRect(228 + i * 8, 268, 7, 8);
+    s.bots.forEach((b, i) => drawMiniCar(ctx, b.x, b.y, b.heading, b.col, i + 2));
+    drawMiniCar(ctx, s.x, s.y, s.heading, s.boost > 0 ? '#facc15' : '#38bdf8', 1);
+    if (s.boost > 0) { ctx.fillStyle = 'rgba(56,189,248,.35)'; ctx.beginPath(); ctx.arc(s.x, s.y, 16, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(8, 8, 240, 46); ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('Vuelta ' + Math.min(3, s.lap + 1) + '/3   Puesto ' + s.place + '°   ' + Math.round(s.vx / 2.2) + ' km/h', 16, 28);
+    ctx.fillStyle = s.boostCd <= 0 ? '#38bdf8' : '#64748b'; ctx.fillText(s.boostCd <= 0 ? 'TURBO listo' : 'turbo ' + s.boostCd.toFixed(1) + 's', 16, 46);
+    if (!gpOnAsphalt(s.x, s.y)) { ctx.fillStyle = '#facc15'; ctx.fillText('¡CÉSPED! vuelve a la pista', 300, 28); }
   } else if (s.id === 'heroes') {
-    ctx.fillStyle = '#3a2'; ctx.fillRect(0, 280, w, 60);
-    ctx.fillStyle = '#6cf'; ctx.fillRect(s.x - 10, s.y - 28, 20, 28);
-    s.foes.forEach(f => { if (f.hp > 0) { ctx.fillStyle = '#c44'; ctx.fillRect(f.x - 12, 252, 24, 28); } else { ctx.fillStyle = '#fd6'; ctx.fillRect(f.x - 8, 262, 16, 16); } });
-    ctx.fillStyle = '#fff'; ctx.fillText('Gemas ' + s.gems + '/3', 16, 24);
+    const cam = s.cam;
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#7dd3fc';
+    for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(80 + i * 110 - (cam * .2) % 120, 46 + (i % 2) * 16, 22, 0, 7); ctx.fill(); }
+    ctx.fillStyle = '#4d7c0f'; ctx.fillRect(0, 300, w, 40);
+    ctx.save(); ctx.translate(-cam, 0);
+    ctx.fillStyle = '#365314';
+    s.plats.forEach(p => {
+      ctx.fillStyle = p.h > 20 ? '#365314' : '#92400e';
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      if (p.h <= 20) { ctx.fillStyle = '#22c55e'; ctx.fillRect(p.x, p.y - 5, p.w, 6); }
+    });
+    ctx.fillStyle = '#f8fafc'; ctx.fillRect(s.flag, 120, 6, 172);
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(s.flag + 6, 120); ctx.lineTo(s.flag + 54, 138); ctx.lineTo(s.flag + 6, 156); ctx.fill();
+    s.loot.forEach(c => {
+      if (c.got) return;
+      ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.ellipse(c.x, c.y, 7 + Math.sin(s.t * 8) * 2, 9, 0, 0, 7); ctx.fill();
+    });
+    s.foes.forEach(f => {
+      if (f.hp <= 0) return;
+      ctx.fillStyle = f.fly ? '#a855f7' : '#b45309';
+      ctx.fillRect(f.x - 12, f.y - 22, 24, 22);
+      ctx.fillStyle = '#fff'; ctx.fillRect(f.x - 6, f.y - 16, 5, 5); ctx.fillRect(f.x + 2, f.y - 16, 5, 5);
+    });
+    if (s.inv <= 0 || Math.floor(s.t * 12) % 2) {
+      ctx.fillStyle = '#1d4ed8'; ctx.fillRect(s.x - 10, s.y - 30, 20, 18);
+      ctx.fillStyle = '#fbbf24'; ctx.fillRect(s.x - 8, s.y - 42, 16, 14);
+      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(s.x - 10 * s.face, s.y - 28); ctx.lineTo(s.x - 22 * s.face, s.y - 10); ctx.lineTo(s.x - 6 * s.face, s.y - 16); ctx.fill();
+      ctx.fillStyle = '#1e3a8a'; ctx.fillRect(s.x - 8, s.y - 12, 16, 12);
+    }
+    ctx.restore();
+    ctx.fillStyle = 'rgba(15,23,42,.72)'; ctx.fillRect(8, 8, 250, 40);
+    ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('❤️'.repeat(s.lives) + '   🪙 ' + s.coins + '/4   bandera →', 16, 34);
+    if (s.x > s.flag - 90 && s.coins < 4) { ctx.fillStyle = '#facc15'; ctx.fillText('Junta 4 monedas para izar la bandera', 16, 58); }
   }
 }
 addEventListener('keydown', e => {

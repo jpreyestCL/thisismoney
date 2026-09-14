@@ -901,7 +901,7 @@
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Primero contrátalo en el súper por $500. Su sueldo es $100 cada 7 días del juego.</span>
           <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
-          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Daño del arco: tensado bajo 9, medio 12 y máximo 18 (si tu arco es de 16). Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco. En casa, E en la Play abre juegos de consola (fútbol, Gran Prix y Héroes).</span>
+          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros y edificios. Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Daño del arco: tensado bajo 9, medio 12 y máximo 18 (si tu arco es de 16). Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco. En casa, E en la Play abre juegos de consola (fútbol, Gran Prix y Héroes), pero la mesa tiene que tener una tele.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
           <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La tecla 1: un toque = espada, pala o pistola láser (nunca los puños si ya las compraste); dos toques seguidos = arco. La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
@@ -8623,7 +8623,7 @@ ui('pacClose').onclick = pacClose;
 ui('pacControls').querySelectorAll('[data-pac]').forEach(b => b.onclick = () => { const d={up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}}; pacMove(d[b.dataset.pac]); });
 addEventListener('keydown', e => { if (ui('pacbox').style.display !== 'flex') return; const d={ArrowUp:[0,-1],KeyW:[0,-1],ArrowDown:[0,1],KeyS:[0,1],ArrowLeft:[-1,0],KeyA:[-1,0],ArrowRight:[1,0],KeyD:[1,0]}; if (e.code==='Escape') pacClose(); else if (d[e.code]) pacMove({x:d[e.code][0],y:d[e.code][1]}); e.preventDefault(); e.stopImmediatePropagation(); });
 function aimedFurniture(maxD = 4.5) {
-  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer', 'computador_gamer', 'alexa', 'play_gamer']);
+  const allowed = new Set([...SEAT_KEYS, 'teclado_gamer', 'parlante_gamer', 'computador_gamer', 'alexa', 'play_gamer', 'tele']);
   const origin = player.position, dir = new THREE.Vector3(); getAimDirection(dir);
   let best = null, bestScore = -Infinity;
   for (const o of placed) {
@@ -8638,15 +8638,15 @@ function aimedFurniture(maxD = 4.5) {
 function tryFocusedFurniture() {
   if (sitOn) {
     const seatedAim = aimedFurniture();
-    if (seatedAim && seatedAim.key === 'play_gamer') return openPlayStation();
-    return standUp(false);   // levantarse gana, salvo que estés mirando la Play
+    if (seatedAim && (seatedAim.key === 'play_gamer' || seatedAim.key === 'tele')) return openPlayStation();
+    return standUp(false);   // levantarse gana, salvo que estés mirando la Play o la tele
   }
   const target = aimedFurniture(); if (!target) return false;
   if (target.key === 'teclado_gamer') return useGamerKeyboard(target);
   if (target.key === 'parlante_gamer') return useGamerSpeaker(target);
   if (target.key === 'alexa') return useAlexa(target);
   if (target.key === 'computador_gamer') return pacOpen();
-  if (target.key === 'play_gamer') return openPlayStation();
+  if (target.key === 'play_gamer' || target.key === 'tele') return openPlayStation();
   return trySit(target);
 }
 function trySeatedGamerKeyboard() {
@@ -8655,7 +8655,7 @@ function trySeatedGamerKeyboard() {
   if (!target) return trySeatedPlay();
   if (target.key === 'teclado_gamer') return useGamerKeyboard(target);
   if (target.key === 'computador_gamer') return pacOpen();
-  if (target.key === 'play_gamer') return openPlayStation();
+  if (target.key === 'play_gamer' || target.key === 'tele') return openPlayStation();
   return trySeatedPlay();
 }
 function trySeatedPacman() {
@@ -8666,7 +8666,7 @@ function trySeatedPacman() {
 function trySeatedPlay() {
   if (!sitOn) return false;
   const aimed = aimedFurniture();
-  if ((aimed && aimed.key === 'play_gamer') || nearestPlay(3.8)) return openPlayStation();
+  if ((aimed && (aimed.key === 'play_gamer' || aimed.key === 'tele')) || nearestPlay(3.8)) return openPlayStation();
   return false;
 }
 function toggleSound() {
@@ -11472,6 +11472,26 @@ function nearestPlay(maxD = 4) {
   }
   return best;
 }
+function nearestPlayNear(obj, maxD = 1.8) {
+  if (!obj || !obj.mesh) return null;
+  let best = null, bestD = maxD;
+  for (const o of placed) {
+    if (!o.mesh.visible || o.key !== 'play_gamer') continue;
+    if (Math.abs((o.baseY || 0) - (obj.baseY || 0)) > .4) continue;
+    const d = dist2D(o.mesh.position, obj.mesh.position);
+    if (d < bestD) { best = o; bestD = d; }
+  }
+  return best;
+}
+function playHasTv(play, maxD = 1.8) {
+  if (!play || !play.mesh) return false;
+  for (const o of placed) {
+    if (!o.mesh.visible || o.key !== 'tele') continue;
+    if (Math.abs((o.baseY || 0) - (play.baseY || 0)) > .4) continue;
+    if (dist2D(o.mesh.position, play.mesh.position) < maxD) return true;
+  }
+  return false;
+}
 function arcadeMiniClose() {
   if (miniRaf) { cancelAnimationFrame(miniRaf); miniRaf = 0; }
   for (const k of Object.keys(miniKeys)) delete miniKeys[k];
@@ -11527,7 +11547,16 @@ function startMiniLoop() {
 }
 function openPlayStation() {
   const aimed = aimedFurniture();
-  if (!(aimed && aimed.key === 'play_gamer') && !nearestPlay(4.5)) { toast('🔌 Acércate a la consola Play'); return false; }
+  let play = null;
+  if (aimed && aimed.key === 'play_gamer') play = aimed;
+  else if (aimed && aimed.key === 'tele') {
+    play = nearestPlayNear(aimed, 1.8);
+    if (!play) { toast('🎮 Pon una Play en la mesa para jugar'); return false; }
+  } else {
+    play = nearestPlay(4.5);
+  }
+  if (!play) { toast('🔌 Acércate a la consola Play'); return false; }
+  if (!playHasTv(play)) { toast('📺 Pon una tele en la mesa para jugar a la Play'); return false; }
   releaseLock(); typing = true; for (const k in keys) keys[k] = false;
   arcadeMini = { kind: 'menu', source: 'play' };
   ui('arcadeGameTitle').textContent = '🎮 Play Station';
@@ -14037,7 +14066,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -14557,14 +14586,26 @@ function updateContextPrompt() {
       else if (enAvionVuelta) action = { key: 'E', touch: '✈️', text: 'Volver a casa en avión' };
       else if (sitOn && aimed && aimed.key === 'teclado_gamer') action = { key: 'CLIC · E', touch: '👊', text: 'Usar teclado gamer · E para pararte' };
       else if (sitOn && aimed && aimed.key === 'computador_gamer') action = { key: 'I · E', touch: '👊', text: 'I juega Pac-Man · E para pararte' };
-      else if (sitOn && aimed && aimed.key === 'play_gamer') action = { key: 'E · I', touch: '🎮', text: 'E / I juega en la Play · Esc cierra' };
-      else if (sitOn && nearestPlay(3.8)) action = { key: 'I · E', touch: '🎮', text: 'I juega en la Play · E para pararte' };
+      else if (sitOn && aimed && aimed.key === 'play_gamer') action = playHasTv(aimed)
+        ? { key: 'E · I', touch: '🎮', text: 'E / I juega en la Play · Esc cierra' }
+        : { key: 'E', touch: '📺', text: 'Pon una tele en la mesa para jugar' };
+      else if (sitOn && aimed && aimed.key === 'tele') action = nearestPlayNear(aimed, 1.8)
+        ? { key: 'E · I', touch: '🎮', text: 'E / I juega en la Play · Esc cierra' }
+        : { key: 'E', touch: '🎮', text: 'Pon una Play en la mesa para jugar' };
+      else if (sitOn && nearestPlay(3.8)) action = playHasTv(nearestPlay(3.8))
+        ? { key: 'I · E', touch: '🎮', text: 'I juega en la Play · E para pararte' }
+        : { key: 'E', touch: '📺', text: 'Pon una tele en la mesa para jugar' };
       else if (sitOn) action = { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : 'Pararte' };
       else if (furniture && furniture.key === 'teclado_gamer') action = { key: 'E', touch: '⌨️', text: 'Usar el teclado gamer' };
       else if (furniture && furniture.key === 'parlante_gamer') action = { key: 'E', touch: '🔊', text: activeGamerSpeaker === furniture ? 'Apagar la música gamer' : 'Encender la música gamer' };
       else if (furniture && furniture.key === 'alexa') action = { key: 'E / Shift+E', touch: '🔵', text: 'Hablar / escribir a Alexa' };
       else if (furniture && furniture.key === 'computador_gamer') action = { key: 'E', touch: '🕹️', text: 'Jugar Pac-Man' };
-      else if (furniture && furniture.key === 'play_gamer') action = { key: 'E', touch: '🎮', text: 'Jugar en la Play' };
+      else if (furniture && furniture.key === 'play_gamer') action = playHasTv(furniture)
+        ? { key: 'E', touch: '🎮', text: 'Jugar en la Play' }
+        : { key: 'E', touch: '📺', text: 'Pon una tele para jugar' };
+      else if (furniture && furniture.key === 'tele') action = nearestPlayNear(furniture, 1.8)
+        ? { key: 'E', touch: '🎮', text: 'Jugar en la Play' }
+        : { key: 'E', touch: '🎮', text: 'Pon una Play en la mesa para jugar' };
       else if (asiento && !state.buildMode) action = { key: 'E', touch: '🪑', text: asiento.key === 'bano' ? 'Sentarte en el baño' : asiento.key === 'cama' ? 'Acostarte' : 'Sentarte' };
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };

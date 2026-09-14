@@ -12129,15 +12129,17 @@ function miniStep(dt) {
       const mateCloser = Math.hypot(s.mate.x - s.bx, s.mate.y - s.by) + 18 < Math.hypot(s.me.x - s.bx, s.me.y - s.by);
       if (mateCloser) fcChase(s.mate, s.bx, s.by, 168, dt);
       else fcChase(s.mate, s.bx - 70, s.by + (s.bx > FC.x + 400 ? -40 : 50), 150, dt);
-      fcChase(s.gk, FC.x + 48 + Math.max(0, Math.min(70, s.bx - FC.x - 40) * 0.18), m + (s.by - m) * 0.45, 148, dt);
-      fcChase(s.e1, s.bx, s.by, 164 * ice, dt);
-      fcChase(s.e2, (s.bx + FC.x + FC.w - 30) / 2, (s.by + m) / 2, 142 * ice, dt);
-      fcChase(s.egk, FC.x + FC.w - 48 - Math.max(0, Math.min(70, FC.x + FC.w - s.bx - 40) * 0.18), m + (s.by - m) * 0.45, 148 * ice, dt);
+      if (s.bx < FC.x + 170) fcChase(s.gk, s.bx, s.by, 188, dt);
+      else fcChase(s.gk, FC.x + 48 + Math.max(0, Math.min(70, s.bx - FC.x - 40) * 0.18), m + (s.by - m) * 0.45, 148, dt);
+      fcChase(s.e1, s.bx, s.by, 148 * ice, dt);
+      fcChase(s.e2, Math.max(s.bx, FC.x + FC.w * 0.55), (s.by + m) / 2, 128 * ice, dt);
+      if (s.bx > FC.x + FC.w - 170) fcChase(s.egk, s.bx, s.by, 188 * ice, dt);
+      else fcChase(s.egk, FC.x + FC.w - 48 - Math.max(0, Math.min(70, FC.x + FC.w - s.bx - 40) * 0.18), m + (s.by - m) * 0.45, 148 * ice, dt);
       fcClamp(s.mate, FC.x + 16, FC.y + 16, FC.x + FC.w - 16, FC.y + FC.h - 16);
-      fcClamp(s.gk, FC.x + 18, m - 86, FC.x + 118, m + 86);
+      fcClamp(s.gk, FC.x + 18, m - 90, FC.x + 200, m + 90);
       fcClamp(s.e1, FC.x + 16, FC.y + 16, FC.x + FC.w - 16, FC.y + FC.h - 16);
       fcClamp(s.e2, FC.x + 16, FC.y + 16, FC.x + FC.w - 16, FC.y + FC.h - 16);
-      fcClamp(s.egk, FC.x + FC.w - 118, m - 86, FC.x + FC.w - 18, m + 86);
+      fcClamp(s.egk, FC.x + FC.w - 200, m - 90, FC.x + FC.w - 18, m + 90);
       for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) fcSep(all[i], all[j], 22);
       if (sprint) {
         for (const r of rivals) {
@@ -12162,10 +12164,10 @@ function miniStep(dt) {
         p.kickCd = 0.42;
       };
       cpuKick(s.mate, 210, FC.x + FC.w + 40, fcMidY() + (Math.random() - 0.5) * 40);
-      cpuKick(s.e1, 200 * ice, FC.x - 40, fcMidY() + (Math.random() - 0.5) * 50);
-      cpuKick(s.e2, 185 * ice, FC.x - 40, fcMidY());
-      if ((s.gk.kickCd || 0) <= 0 && fcNearBall(s.gk, s, 24)) { fcKick(s.gk, s, 260, 1, (Math.random() - 0.5)); s.gk.kickCd = 0.5; fcBanner(s, '🧤 ¡Atajada TIM!', 0.7); }
-      if ((s.egk.kickCd || 0) <= 0 && fcNearBall(s.egk, s, 24)) { fcKick(s.egk, s, 260, -1, (Math.random() - 0.5)); s.egk.kickCd = 0.5; fcBanner(s, '🧤 ¡Atajadón rival!', 0.7); }
+      if (s.e1.x < FC.x + 360) cpuKick(s.e1, 168 * ice, FC.x - 40, fcMidY() + (Math.random() - 0.5) * 70);
+      if (s.e2.x < FC.x + 300) cpuKick(s.e2, 155 * ice, FC.x - 40, fcMidY());
+      if ((s.gk.kickCd || 0) <= 0 && fcNearBall(s.gk, s, 28)) { fcKick(s.gk, s, 280, 1.4, (Math.random() - 0.5)); s.gk.kickCd = 0.55; fcBanner(s, '🧤 ¡Atajada TIM!', 0.7); }
+      if ((s.egk.kickCd || 0) <= 0 && fcNearBall(s.egk, s, 26)) { fcKick(s.egk, s, 250, -1, (Math.random() - 0.5)); s.egk.kickCd = 0.5; fcBanner(s, '🧤 ¡Atajadón rival!', 0.7); }
       s.bx += s.bvx * dt; s.by += s.bvy * dt;
       s.bvx += s.bspin * dt; s.bspin *= Math.max(0, 1 - 2.4 * dt);
       s.bvx *= Math.max(0, 1 - 0.55 * dt); s.bvy *= Math.max(0, 1 - 0.55 * dt);

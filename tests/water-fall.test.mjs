@@ -16,4 +16,6 @@ assert.match(html, /Espacio sube · Ctrl se hunde · mira el vaso de la piscina/
 assert.match(html, /timDump\.tick = \(n, dt\)/);
 assert.match(html, /timDump\.beginCreative = \(\) => \{/);
 assert.doesNotMatch(html, /obj\.poolZone=\{surface:by\+\.55,bottom:by\}/);
+assert.match(html, /function applyLivingY\(/);
+assert.match(html, /function updateLivingWater\(/);
 console.log('water fall and pool dive: ok');

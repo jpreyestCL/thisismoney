@@ -2343,7 +2343,7 @@ function updateNPCs(dt) {
         else { b.thinkIn = 0; nx = n.position.x; nz = n.position.z; }
       }
       moved = nx !== n.position.x || nz !== n.position.z;
-      n.position.set(nx, mountainHeightAt(nx, nz), nz); n.rotation.y = Math.atan2(dx, dz);
+      n.position.x = nx; n.position.z = nz; n.rotation.y = Math.atan2(dx, dz);
     } else {
       b.wait -= dt;
       if (b.wait <= 0 && distance <= .7) b.thinkIn = 0;
@@ -5869,7 +5869,6 @@ function updateEggPets(dt) {
   const anchor = state.petPoint || player.position;   // con banderita 🚩 se quedan cuidando ese punto
   for (let i = 0; i < n; i++) {
     const p = eggPets[i];
-    p.position.y = 0.3 + Math.sin(performance.now() * 0.004 + p.position.x) * 0.12;
     let near = null, nd = 18;
     if (state.phase === 'NIGHT') for (const e of enemies) {
       if (state.petPoint && dist2D(anchor, e.position) > 16) continue;   // de guardia: solo pelean cerca de la banderita
@@ -7099,7 +7098,7 @@ function updateEarthBulls(dt) {
       if (resolveLivingWall(b.position, px, pz, 0.8) === 'stop') ud.wait = 0;
     } else ud.wait = 0;
     b.rotation.y = ud.heading;
-    b.position.y = mountainHeightAt(b.position.x, b.position.z);
+    applyLivingY(b, dt);
   }
 }
 function makeMole() {     // topo de bloques
@@ -7561,7 +7560,7 @@ function updateEnemyFX(dt) {
     else if (ud.baseScale) e.scale.copy(ud.baseScale);
     if (ud.attackAnim > 0) ud.attackAnim = Math.max(0, ud.attackAnim - dt);
     if (ud.bar) {
-      ud.bar.g.position.set(e.position.x, ud.barY || 2.6, e.position.z); ud.bar.g.quaternion.copy(camera.quaternion);
+      ud.bar.g.position.set(e.position.x, e.position.y + (ud.barY || 2.6), e.position.z); ud.bar.g.quaternion.copy(camera.quaternion);
       const f = Math.max(0, Math.min(1, ud.hp / ud.maxhp)); ud.bar.fg.scale.x = f || 0.001;
       ud.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : (f > 0.25 ? 0xf59e0b : 0xef4444));
     }
@@ -7659,6 +7658,50 @@ function placedBarrierNear(e) {
   }
   return best;
 }
+function livingIgnoresWater(e) {
+  if (!e) return true;
+  const ud = e.userData || {};
+  return !!(ud.fly || ud.ufo || ud.mineHole || ud.resting || ud.car);
+}
+function applyLivingY(e, dt) {
+  if (!e) return;
+  const ud = e.userData || (e.userData = {});
+  if (ud.fly || ud.ufo) { e.position.y = flyerChaseY(e); return; }
+  if (ud.mineHole || ud.resting) return;
+  if (state.inFlight && (e === dad || e === pet || e === petAlien || helpers.includes(e))) return;
+  const isHoverPet = e === petAlien || eggPets.includes(e);
+  const hover = isHoverPet ? 0.3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.12 : 0;
+  if (state.planet === 'tierra' && inTreasureIsland(e.position.x, e.position.z)) {
+    e.position.y = TREASURE_ISLAND.surface + hover; ud.inWater = false; return;
+  }
+  const ground = mountainHeightAt(e.position.x, e.position.z);
+  const zone = (state.planet === 'tierra' && !livingIgnoresWater(e)) ? waterZoneAt(e.position.x, e.position.z) : null;
+  if (zone) {
+    const minY = zone.bottom + .12;
+    const sink = Math.max(0.008, dt || 0.016) * 3.8;   // se hunden como el jugador (sin nadar hacia arriba)
+    if (e.position.y > zone.surface + .25) e.position.y = Math.min(e.position.y, Math.max(ground, zone.surface));
+    e.position.y = Math.max(minY, e.position.y - sink);
+    ud.inWater = true;
+    return;
+  }
+  ud.inWater = false;
+  e.position.y = ground + hover;
+}
+function updateLivingWater(dt) {
+  const add = body => { if (eVisible(body)) applyLivingY(body, dt); };
+  add(dad); add(mom); add(butler); add(pet); add(petAlien);
+  for (const h of helpers) add(h);
+  for (const p of eggPets) add(p);
+  for (const e of enemies) add(e);
+  for (const n of npcs) add(n);
+  for (const n of countryNPCs) add(n);
+  for (const p of police) add(p);
+  for (const b of earthBulls) add(b);
+  for (const p of soccer.players) add(p);
+  for (const p of basketball.players) add(p);
+  for (const p of tennis.players) add(p);
+}
+function eVisible(e) { return !!(e && e.visible !== false); }
 function moveToward(e, target, step) {
   const dx = target.x - e.position.x, dz = target.z - e.position.z; const len = Math.hypot(dx, dz) || 1;
   const flies = bodyIgnoresWalls(e);
@@ -7669,11 +7712,11 @@ function moveToward(e, target, step) {
     e.position.x += (dx / len) * sub; e.position.z += (dz / len) * sub;
     if (!flies && resolveLivingWall(e.position, px, pz, livingRadius(e)) === 'stop') break;
   }
-  const ground = mountainHeightAt(e.position.x, e.position.z);
-  const isHoverPet = e === petAlien || eggPets.includes(e);
   const flyHigh = e.userData && (e.userData.fly || e.userData.ufo);
   if (flyHigh) e.position.y = flyerChaseY(e);
-  else {
+  else if (!waterZoneAt(e.position.x, e.position.z) || livingIgnoresWater(e)) {
+    const ground = mountainHeightAt(e.position.x, e.position.z);
+    const isHoverPet = e === petAlien || eggPets.includes(e);
     const hover = isHoverPet ? 0.3 + Math.sin(performance.now() * 0.004 + e.position.x) * 0.12 : 0;
     e.position.y = ground + hover;
   }
@@ -8018,7 +8061,6 @@ function spawnAlienPet(hp = 160) {
 function removeAlienPet() { if (petAlien) { scene.remove(petAlien); petAlien = null; } }
 function updatePetAlien(dt) {
   if (!petAlien || state.inFlight) return;
-  petAlien.position.y = 0.3 + Math.sin(performance.now() * 0.004) * 0.12;   // flota
   let near = null, nd = 20;
   if (state.phase === 'NIGHT') for (const e of enemies) {  const d = dist2D(petAlien.position, e.position); if (d < nd) { nd = d; near = e; } }
   if (near) {
@@ -13502,7 +13544,6 @@ function updateNight(dt) {
         }
       }
       ud.life -= dt;
-      e.position.y = mountainHeightAt(e.position.x, e.position.z);
       if (!playerAirborne() && inMeleeReach(e.position, player.position)) { damagePlayer(ud.dmg || 9, e.position); removeEnemy(i); continue; }
       if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 9) * 0.8, e.position); removeEnemy(i); continue; }
       const companion = livingCompanions().find(c => dist2D(e.position, c.position) < 1.6);
@@ -13549,7 +13590,6 @@ function updateNight(dt) {
         const dx = tgt.x - e.position.x, dz = tgt.z - e.position.z, len = Math.hypot(dx, dz) || 1, step = ud.speed * dt;
         e.position.x += (dx / len * .72 - dz / len * .69 * ud.flankSign) * step;
         e.position.z += (dz / len * .72 + dx / len * .69 * ud.flankSign) * step;
-        e.position.y = mountainHeightAt(e.position.x, e.position.z);
       } else moveToward(e, tgt, ud.speed * dt);
       if (flies) e.position.y = flyerChaseY(e);
       e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
@@ -13835,6 +13875,7 @@ function loop() {
     if (onEarth) updateOceanExpedition(dt);
     if (state.phase === 'NIGHT') updateNight(dt);
     updateEnemyFX(dt);
+    updateLivingWater(dt);                // monstruos y seres vivos se hunden en piscinas y mar
     if (state.creative) { state.hp = 100; state.dadHp = 100; if (state.hunger < 20) state.hunger = 20; }   // creativo: no se puede morir (ni tú ni el papá)
     hurtFeedback();
     if (!state.creative && state.hp <= 0) goToJail();         // monstruos te matan -> cárcel (día o noche)
@@ -14489,7 +14530,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -14524,7 +14565,7 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   };
   timDump.tick = (n, dt) => {
     const step = dt == null ? .05 : dt;
-    for (let i = 0; i < (n || 40); i++) { updateMovement(step); updateWater(step); }
+    for (let i = 0; i < (n || 40); i++) { updateMovement(step); updateWater(step); updateLivingWater(step); }
     updateContextPrompt();
     renderer.render(scene, camera);
   };
@@ -14581,7 +14622,7 @@ function netMobsLerp(dt) {
     if (e.userData.netRot != null) e.rotation.y = e.userData.netRot;
     const ud = e.userData;
     if (ud.bar) {   // barra de vida del monstruo del amigo
-      ud.bar.g.position.set(e.position.x, ud.barY || 2.6, e.position.z); ud.bar.g.quaternion.copy(camera.quaternion);
+      ud.bar.g.position.set(e.position.x, e.position.y + (ud.barY || 2.6), e.position.z); ud.bar.g.quaternion.copy(camera.quaternion);
       const f = Math.max(0, Math.min(1, ud.hp / ud.maxhp)); ud.bar.fg.scale.x = f || 0.001;
       ud.bar.fg.material.color.setHex(f > 0.5 ? 0x22c55e : (f > 0.25 ? 0xf59e0b : 0xef4444));
     }

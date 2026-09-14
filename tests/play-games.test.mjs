@@ -23,10 +23,12 @@ assert.match(html, /function startHeroes\(game\)/);
 assert.match(html, /lives: 3/);
 assert.match(html, /s\.flag/);
 assert.match(html, /s\.coins >= 4/);
+assert.match(html, /s\.coyote/);
 assert.match(html, /Junta 4 monedas para izar la bandera/);
 assert.match(html, /Te quedaste sin vidas/);
 assert.match(html, /Caíste al vacío/);
+assert.match(html, /Pisa enemigos desde arriba/);
 assert.doesNotMatch(html, /Gemas ' \+ s\.gems \+ '\/3'/);
 
-assert.match(sw, /tim-v38/);
+assert.match(sw, /tim-v39/);
 console.log('play games granprix and heroes: ok');

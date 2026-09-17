@@ -1324,7 +1324,7 @@ function playerAirborne() {   // vuelo creativo, jetpack, heli o más de 3 bloqu
   if (state.driving && car && car.helicopter && car.group.position.y > MELEE_REACH) return true;
   return player.position.y > playerStandEyeY() + MELEE_REACH;
 }
-function playerHitRange() { return laserEquipped() ? 30 : MELEE_REACH; }   // el láser llega lejos solo si lo tienes EN LA MANO
+function playerHitRange() { const g = currentGunSpec(); return g ? g.range : laserEquipped() ? 30 : MELEE_REACH; }   // el láser y las armas de fuego llegan lejos solo si las tienes EN LA MANO
 function flyerChaseY(e) {
   const ground = mountainHeightAt(e.position.x, e.position.z);
   if (playerAirborne()) return Math.max(ground + 2, player.position.y - PLAYER_EYE + 1.05);
@@ -1361,6 +1361,62 @@ function makeVoxelShovel(color = 0x9ca3af, scale = 1) {
   const scoop = new THREE.Mesh(new THREE.BoxGeometry(.58, .58, .13), mat(color)); scoop.position.y = 1.24; scoop.scale.x = .82; scoop.castShadow = true; g.add(scoop);
   const edge = new THREE.Mesh(new THREE.BoxGeometry(.62, .12, .16), mat(0xe2e8f0)); edge.position.y = 1.54; g.add(edge);
   g.scale.setScalar(scale); g.userData.toolKind = 'shovel'; g.userData.toolColor = color; return g;
+}
+// Arma de fuego para la MANO: pistola de verdad (corredera, cachas, guardamonte,
+// alza y punto de mira) y, si el arma lo trae, una MIRA telescópica arriba.
+function makeHandGun(kind = 'pistol', color = 0x4b5563, scale = 1, scope = false) {
+  const g = new THREE.Group();
+  const steel = new THREE.MeshStandardMaterial({ color, roughness: .36, metalness: .74, flatShading: true });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: .5, metalness: .5, flatShading: true });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: .88, metalness: .06, flatShading: true });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0e7490, emissiveIntensity: .8, roughness: .2 });
+  // Se arma con el cañón hacia +X y al final se gira: la mano espera el arma apuntando hacia +Y.
+  const inner = new THREE.Group(); g.add(inner);
+  const add = (geo, m, x, y, z, rz) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); if (rz) o.rotation.z = rz; o.castShadow = true; inner.add(o); return o; };
+  if (kind === 'shotgun' || kind === 'rifle') {
+    const largo = kind === 'rifle' ? .95 : .72;
+    add(new THREE.BoxGeometry(kind === 'rifle' ? .46 : .38, .15, .11), wood, -.48, 0, 0);            // culata
+    add(new THREE.BoxGeometry(.58, .16, .13), dark, .02, .05, 0);                                     // cajón
+    const cañon = add(new THREE.CylinderGeometry(kind === 'rifle' ? .032 : .048, kind === 'rifle' ? .036 : .052, largo, 10), steel, .5 + largo * .2, .08, 0);
+    cañon.rotation.z = Math.PI / 2;
+    add(new THREE.BoxGeometry(.2, .1, .12), wood, .3, -.02, 0);                                       // guardamano
+    add(new THREE.BoxGeometry(.09, .2, .08), dark, -.12, -.12, 0, .25);                               // empuñadura
+  } else {
+    add(new THREE.BoxGeometry(.5, .15, .12), steel, .08, .1, 0);                                      // corredera
+    add(new THREE.BoxGeometry(.46, .07, .1), dark, .06, -.01, 0);                                     // armazón
+    const cañon = add(new THREE.CylinderGeometry(.028, .028, .16, 8), dark, .38, .1, 0); cañon.rotation.z = Math.PI / 2;
+    const grip = add(new THREE.BoxGeometry(.13, .3, .11), dark, -.13, -.15, 0, .38);                  // cacha inclinada
+    add(new THREE.BoxGeometry(.11, .26, .085), wood, -.135, -.15, 0, .38).scale.set(.92, .92, 1.06);  // cachas de madera
+    add(new THREE.BoxGeometry(.03, .09, .04), dark, -.02, -.1, 0);                                    // gatillo
+    const guarda = new THREE.Mesh(new THREE.TorusGeometry(.085, .018, 6, 12, Math.PI), dark);         // guardamonte
+    guarda.position.set(-.02, -.09, 0); guarda.rotation.set(Math.PI / 2, 0, Math.PI); inner.add(guarda);
+    add(new THREE.BoxGeometry(.03, .05, .05), dark, .3, .2, 0);                                       // punto de mira
+    add(new THREE.BoxGeometry(.04, .05, .07), dark, -.1, .2, 0);                                      // alza
+    grip.userData.gripPart = true;
+  }
+  if (scope) {   // mira telescópica: tubo, lente y monturas
+    const tubo = new THREE.Mesh(new THREE.CylinderGeometry(.055, .055, .42, 10), dark);
+    tubo.rotation.z = Math.PI / 2; tubo.position.set(kind === 'pistol' ? .1 : .12, kind === 'pistol' ? .27 : .26, 0); inner.add(tubo);
+    const lente = new THREE.Mesh(new THREE.CylinderGeometry(.052, .052, .04, 10), glass);
+    lente.rotation.z = Math.PI / 2; lente.position.set(tubo.position.x + .22, tubo.position.y, 0); inner.add(lente);
+    for (const dx of [-.12, .12]) { const m = new THREE.Mesh(new THREE.BoxGeometry(.04, .1, .05), dark); m.position.set(tubo.position.x + dx, tubo.position.y - .1, 0); inner.add(m); }
+  }
+  const flash = new THREE.Mesh(new THREE.ConeGeometry(.12, .3, 7), new THREE.MeshBasicMaterial({ color: 0xffd166 }));
+  flash.rotation.z = -Math.PI / 2; flash.position.set(kind === 'pistol' ? .58 : 1.05, kind === 'pistol' ? .1 : .08, 0);
+  flash.visible = false; inner.add(flash); g.userData.muzzleFlash = flash;
+  inner.rotation.y = Math.PI / 2; inner.position.y = .18;   // el cañón queda apuntando al frente (como se sostiene un arma)
+  g.userData.muzzle = flash.position.clone();
+  g.scale.setScalar(scale); g.userData.toolKind = 'gun'; g.userData.toolColor = color;
+  return g;
+}
+// Bomba de mano (humo / confeti) para llevarla en la mano
+function makeHandBomb(color = 0x64748b, scale = 1) {
+  const g = new THREE.Group();
+  const cuerpo = new THREE.Mesh(new THREE.SphereGeometry(.2, 10, 8), mat(color)); cuerpo.castShadow = true; g.add(cuerpo);
+  const tapa = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, .1, 8), mat(0x374151)); tapa.position.y = .22; g.add(tapa);
+  const anilla = new THREE.Mesh(new THREE.TorusGeometry(.07, .018, 6, 12), mat(0xfacc15)); anilla.position.set(.1, .26, 0); anilla.rotation.y = Math.PI / 2; g.add(anilla);
+  g.scale.setScalar(scale); g.userData.toolKind = 'gadget'; g.userData.toolColor = color;
+  return g;
 }
 function makeVoxelGun(color = 0xef4444, scale = 1) {
   const g = new THREE.Group();
@@ -1436,8 +1492,24 @@ function makeVoxelBow(color = 0x8b5a2b, scale = 1) {
   g.userData.setDraw(0);
   g.scale.setScalar(scale); g.userData.toolKind = 'bow'; g.userData.toolColor = color; return g;
 }
-function weaponKindFromName(name) { const n = String(name || '').toLowerCase(); return n.includes('pala') ? 'shovel' : n.includes('arco') ? 'bow' : n.includes('pistola') || n.includes('láser') ? 'gun' : n.includes('puño') ? 'fist' : 'sword'; }
-function createVoxelTool(kind, color, scale) { return kind === 'shovel' ? makeVoxelShovel(color, scale) : kind === 'gun' ? makeVoxelGun(color, scale) : kind === 'bow' ? makeVoxelBow(color, scale) : makeVoxelSword(color, scale); }
+function weaponKindFromName(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('bomba') || n.includes('granada')) return 'gadget';   // bomba de humo / confeti: se llevan en la mano
+  return n.includes('pala') ? 'shovel' : n.includes('arco') ? 'bow'
+    : (n.includes('pistola') || n.includes('láser') || n.includes('rifle') || n.includes('escopeta')) ? 'gun'
+    : n.includes('puño') ? 'fist' : 'sword';
+}
+function firearmEquipped() { return !!(state.gun && GUN_SPECS[state.gun] && weaponKindFromName(state.weaponName) === 'gun'); }
+function currentGunSpec() { return firearmEquipped() ? GUN_SPECS[state.gun] : null; }
+function createVoxelTool(kind, color, scale) {
+  if (kind === 'gadget') return makeHandBomb(color, scale * 1.1);
+  if (kind === 'gun') {
+    const g = currentGunSpec();
+    if (g) return makeHandGun(g.kind, g.color, scale * 1.15, g.scope);   // pistola / escopeta / rifle de verdad
+    return makeVoxelGun(color, scale);                                    // pistola láser alien
+  }
+  return kind === 'shovel' ? makeVoxelShovel(color, scale) : kind === 'bow' ? makeVoxelBow(color, scale) : makeVoxelSword(color, scale);
+}
 
 // Brazo y herramienta en primera persona.
 function makeViewmodel() {
@@ -1555,7 +1627,9 @@ function applyPlayerArmor() {
 }
 
 function replaceToolInMount(mount, kind, color, scale, flip) {
-  if (mount.userData.toolKind === kind && mount.userData.toolColor === color) return;
+  const variant = kind === 'gun' ? (state.gun || 'laser') : kind === 'gadget' ? (state.handGadget || '') : '';
+  if (mount.userData.toolKind === kind && mount.userData.toolColor === color && mount.userData.toolVariant === variant) return;
+  mount.userData.toolVariant = variant;
   while (mount.children.length) mount.remove(mount.children[0]);
   mount.userData.toolKind = kind; mount.userData.toolColor = color;
   if (kind === 'fist') return;
@@ -2306,7 +2380,9 @@ const ALLEY = { unlock: 20000, x0: 8, x1: -20, z: 0, half: 2.08, doorX: -20, sho
 const BLACK_MARKET = [
   { key: 'bm_pistola', name: 'Pistola del callejón', price: 900, color: 0x4b5563, dmg: 11, icon: '🔫', gun: 'pistol', blurb: 'Corta y pesada. Se ve de metal, no un punto naranja.' },
   { key: 'bm_escopeta', name: 'Escopeta recortada', price: 1400, color: 0x57534e, dmg: 16, icon: '💥', gun: 'shotgun', blurb: 'Cañón corto de verdad, sobre la mesa.' },
-  { key: 'bm_rifle', name: 'Rifle viejo', price: 1750, color: 0x44403c, dmg: 18, icon: '🎯', gun: 'rifle', blurb: 'Madera y cañón largo. Pega de lejos.' },
+  { key: 'bm_mira', name: 'Pistola con mira', price: 1400, color: 0x334155, dmg: 13, icon: '🔭', gun: 'pistol', blurb: 'Con visor arriba: en la cabeza hace muchísimo daño.' },
+  { key: 'bm_rifle', name: 'Rifle viejo', price: 1750, color: 0x44403c, dmg: 18, icon: '🎯', gun: 'rifle', blurb: 'Madera, cañón largo y mira. Pega de lejos.' },
+  { key: 'bm_balas', name: 'Caja de 50 balas', price: 600, ammo: 50, icon: '🧰', blurb: 'Munición para todas tus armas de fuego. El cargador es de 20.' },
   { key: 'bm_espada', name: 'Espada sucia', price: 380, color: 0x6b7280, dmg: 9, icon: '⚔️', blurb: 'Filo mellado. Pega más que una de madera.' },
   { key: 'bm_humo', name: 'Bomba de humo', price: 220, color: 0x64748b, gadget: 'humo', icon: '💨', blurb: 'Nube gris: la policía te pierde de vista.' },
   { key: 'bm_capa', name: 'Capa de sombras', price: 850, color: 0x111827, gadget: 'capa', icon: '🧥', blurb: 'De noche los monstruos te ven menos.' },
@@ -2315,6 +2391,15 @@ const BLACK_MARKET = [
   { key: 'bm_confeti', name: 'Granada de confeti', price: 240, color: 0xec4899, gadget: 'confeti', icon: '🎉', blurb: 'Una nube de papelitos. Aturde a los monstruos cerca.' },
   { key: 'bm_radio', name: 'Radio chatarra', price: 380, color: 0x334155, gadget: 'radio', icon: '📻', blurb: 'Pitido cuando se acerca un patrullero.' },
 ];
+// Armas de fuego de verdad (las del mercado negro). Cargador de 20 balas, 5 s de recarga.
+const GUN_CLIP = 20, GUN_RELOAD = 5;
+const GUN_SPECS = {
+  bm_pistola:  { key:'bm_pistola', name:'Pistola del callejón', kind:'pistol',  dmg:11, range:34, head:2.2, rate:.30, scope:false, color:0x4b5563, icon:'🔫' },
+  bm_mira:     { key:'bm_mira',    name:'Pistola con mira',     kind:'pistol',  dmg:13, range:50, head:3.2, rate:.36, scope:true,  color:0x334155, icon:'🔭' },
+  bm_escopeta: { key:'bm_escopeta',name:'Escopeta recortada',   kind:'shotgun', dmg:16, range:18, head:1.8, rate:.72, scope:false, color:0x57534e, icon:'💥' },
+  bm_rifle:    { key:'bm_rifle',   name:'Rifle viejo',          kind:'rifle',   dmg:18, range:64, head:3.0, rate:.52, scope:true,  color:0x44403c, icon:'🎯' },
+};
+function gunSpecByName(name) { const n = String(name || '').toLowerCase(); for (const k in GUN_SPECS) if (GUN_SPECS[k].name.toLowerCase() === n) return GUN_SPECS[k]; return null; }
 const STORY_QUESTS = [
   { id: 'alley', icon: '🕶️', title: 'El callejón de Tito', need: 5, reward: 450,
     hint: 'Se desbloquea a los $20.000 ganados. Tito te lleva a otro rincón: ahí solo hay un callejón con techo.',
@@ -2681,8 +2766,8 @@ function renderBlackMarket() {
   const list = ui('blackList'), money = ui('blackMoney'); if (!list) return;
   if (money) money.textContent = state.creative ? '$∞' : '$' + state.money;
   list.innerHTML = BLACK_MARKET.map(it => {
-    const have = (it.gadget && state.gadgets && state.gadgets[it.gadget]) || (it.dmg && state.weaponName === it.name);
-    return '<button type="button" data-bm="' + it.key + '" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(127,29,29,.2); border:1px solid #7f1d1d; color:#fecaca; border-radius:9px; padding:8px 10px;"><b style="color:#fecaca">' + it.icon + ' ' + it.name + '</b> · $' + it.price + (have ? ' · ya lo tienes' : '') + '<br><span style="opacity:.75; font-size:11px">' + it.blurb + '</span></button>';
+    const have = (it.gadget && !GADGET_HAND[it.gadget] && state.gadgets && state.gadgets[it.gadget]) || (GUN_SPECS[it.key] && state.guns && state.guns[it.key]) || (!GUN_SPECS[it.key] && it.dmg && state.weaponName === it.name);
+    return '<button type="button" data-bm="' + it.key + '" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(127,29,29,.2); border:1px solid #7f1d1d; color:#fecaca; border-radius:9px; padding:8px 10px;"><b style="color:#fecaca">' + it.icon + ' ' + it.name + '</b> · $' + it.price + (have ? (GUN_SPECS[it.key] ? ' · ya la tienes (toca para llevarla en la mano)' : ' · ya lo tienes') : '') + (it.ammo ? ' · llevas ' + (state.ammo || 0) + ' balas' : '') + (GADGET_HAND[it.gadget] ? ' · tienes ' + ((state.gadgetCharges || {})[it.gadget] || 0) : '') + '<br><span style="opacity:.75; font-size:11px">' + it.blurb + '</span></button>';
   }).join('');
 }
 function applyBlackMarketGadget(item) {
@@ -8366,7 +8451,7 @@ const playerArrows = [];
 const bowFwd = new THREE.Vector3(), bowAimDir = new THREE.Vector3();
 let bowDrawing = false, bowDrawT = 0, bowDrawSrc = null, bowFullTone = false;
 function bowEquipped() { return weaponKindFromName(state.weaponName) === 'bow'; }
-function laserEquipped() { return weaponKindFromName(state.weaponName) === 'gun'; }
+function laserEquipped() { return weaponKindFromName(state.weaponName) === 'gun' && !firearmEquipped(); }   // láser alien (las de pólvora son otra cosa)
 function bowContextBlocksDraw() {
   if (state.skiing || state.skiLiftRide || state.driving || state.sailing || state.sportGame || state.buildMode) return true;
   const box = ui('contextPrompt');
@@ -9243,6 +9328,7 @@ const state = {
   underground: false, groundY: 0, shelterHole: null,   // refugio subterráneo (cavar hondo con la pala)
   hasJetpack: false, jetOn: false,                     // tecnología alien de Platus: jetpack (volar)
   laserGun: false, hasShield: false, shieldHp: 0, shieldMax: 60, shieldCd: 0,   // pistola láser + escudo de energía
+  guns: {}, gun: null, ammo: 0, clip: 0, reloadT: 0, gadgetCharges: {}, handGadget: null,   // armas de fuego: cargador de 20, balas de reserva y bombas de mano
   planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1, planetCreature: 'yeti', inRuins: false, ruinsCleared: false,   // rasgos del planeta actual + ruinas
   contract: null,   // contrato activo del vendedor alien
   incubTime: 0, eggQueue: 0, petPoint: null,   // huevos alien: incubación + cola + banderita de reunión 🚩
@@ -9872,7 +9958,7 @@ function storedMeleeIsReal() {
 }
 function rememberMeleeWeapon(name, dmg, color) {
   const k = weaponKindFromName(name);
-  if (!name || k === 'bow' || k === 'fist' || k === 'gun') return;   // el láser y el arco van en otro bolsillo; los puños no pisan una espada
+  if (!name || k === 'bow' || k === 'fist' || k === 'gun' || k === 'gadget') return;   // el láser, las pistolas, el arco y las bombas van en otro bolsillo; los puños no pisan una espada
   state.meleeName = name;
   state.meleeDmg = dmg != null ? dmg : 2;
   state.meleeColor = color != null ? color : weaponVisualColor;
@@ -9942,33 +10028,77 @@ function equipHandWeapon(kind) {
   state.weaponName = 'Puños'; state.weaponDmg = 2; setWeaponColor(0x94a3b8);
   return true;
 }
+const GADGET_HAND = { humo: { name: 'Bomba de humo', icon: '💨', color: 0x64748b }, confeti: { name: 'Granada de confeti', icon: '🎉', color: 0xec4899 } };
+// Todo lo que puedes llevar en la mano, en orden: golpe → armas de fuego → láser → arco → bombas
+function handItems() {
+  const list = [];
+  list.push({ t: 'melee', name: storedMeleeIsReal() ? state.meleeName : 'Puños', icon: storedMeleeIsReal() ? '⚔️' : '👊' });
+  for (const k in GUN_SPECS) if (state.guns && state.guns[k]) list.push({ t: 'gun', key: k, name: GUN_SPECS[k].name, icon: GUN_SPECS[k].icon });
+  if (state.laserGun) list.push({ t: 'laser', name: 'Pistola láser', icon: '🔫' });
+  if (state.hasBow) list.push({ t: 'bow', name: 'Arco y flechas', icon: '🏹' });
+  for (const g of ['humo', 'confeti']) if (((state.gadgetCharges || {})[g] || 0) > 0) list.push({ t: 'gadget', key: g, name: GADGET_HAND[g].name, icon: GADGET_HAND[g].icon });
+  return list;
+}
+function handItemId(it) { return it.t + (it.key ? ':' + it.key : ''); }
+function currentHandId() {
+  if (state.handGadget) return 'gadget:' + state.handGadget;
+  if (firearmEquipped()) return 'gun:' + state.gun;
+  const k = weaponKindFromName(state.weaponName);
+  if (k === 'bow') return 'bow';
+  if (k === 'gun') return 'laser';
+  return 'melee';
+}
+function equipHandItem(it) {
+  state.handGadget = null;
+  if (it.t === 'gun') {
+    const g = GUN_SPECS[it.key];
+    const held = weaponKindFromName(state.weaponName);
+    if (held === 'sword' || held === 'shovel') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    cancelBowDraw();
+    state.gun = it.key; state.weaponName = g.name; state.weaponDmg = g.dmg; setWeaponColor(g.color);
+    return true;
+  }
+  state.gun = null;
+  if (it.t === 'gadget') {
+    const held = weaponKindFromName(state.weaponName);
+    if (held === 'sword' || held === 'shovel') rememberMeleeWeapon(state.weaponName, state.weaponDmg, weaponVisualColor);
+    cancelBowDraw();
+    state.handGadget = it.key; state.weaponName = GADGET_HAND[it.key].name; state.weaponDmg = 2; setWeaponColor(GADGET_HAND[it.key].color);
+    return true;
+  }
+  if (it.t === 'melee') {   // mano vacía o tu espada/pala guardada (sin saltar al láser)
+    cancelBowDraw();
+    if (storedMeleeIsReal()) return equipHandWeapon('melee');
+    state.weaponName = 'Puños'; state.weaponDmg = 2; setWeaponColor(0x94a3b8); state.lastNonBow = 'melee';
+    return true;
+  }
+  return equipHandWeapon(it.t === 'laser' ? 'gun' : it.t);
+}
+function throwHandGadget() {   // clic con una bomba en la mano: la usas y gastas una
+  const key = state.handGadget; if (!key) return false;
+  const left = ((state.gadgetCharges || {})[key] || 0);
+  if (left <= 0) { toast('No te quedan ' + GADGET_HAND[key].name.toLowerCase() + 's'); return true; }
+  state.gadgetCharges[key] = left - 1;
+  applyBlackMarketGadget({ gadget: key, name: GADGET_HAND[key].name });
+  vmSwing = 1; beep(300, .1, .05);
+  if (state.gadgetCharges[key] <= 0) { toast('Se te acabaron · pulsa 1 para cambiar de arma'); equipHandItem(handItems()[0]); }
+  return true;
+}
 let slot1TapAt = 0, slot1DupAt = 0;
-function selectHandTool() {   // 1 un toque = espada/láser · 1 dos toques = arco · nunca puños si ya compraste arma
+function selectHandTool() {   // 1 = ir pasando por TODAS tus armas (golpe, pistolas, láser, arco, bombas)
   state.buildMode = false;
   const now = performance.now();
-  if (now - slot1DupAt < 35) return;   // un toque en celular a veces llega dos veces (click + tap), pero un doble toque real suele ser más lento
+  if (now - slot1DupAt < 35) return;   // en celular un toque a veces llega dos veces
   slot1DupAt = now;
   sanitizeWeaponPockets();
-  const held = weaponKindFromName(state.weaponName);
-  if (!state.hasBow) {
-    if (state.laserGun && storedMeleeIsReal()) equipHandWeapon(held === 'gun' ? 'melee' : 'gun');
-    else if (held === 'bow') equipHandWeapon(bestNonBowKind());
-    return;
-  }
-  if (now - slot1TapAt < 420) {
-    slot1TapAt = 0;
-    equipHandWeapon('bow');
-    toast(handWeaponToast('bow'));
-    return;
-  }
-  slot1TapAt = now;
-  let which;
-  if (held === 'bow') which = bestNonBowKind();
-  else if (held === 'gun' && storedMeleeIsReal()) which = 'melee';
-  else if ((held === 'sword' || held === 'shovel') && state.laserGun) which = 'gun';
-  else which = bestNonBowKind();
-  equipHandWeapon(which);
-  toast(handWeaponToast(which));
+  const list = handItems();
+  if (!list.length) return;
+  const cur = currentHandId();
+  let i = list.findIndex(x => handItemId(x) === cur);
+  const next = list[(i + 1) % list.length];
+  equipHandItem(next);
+  const extra = next.t === 'gun' ? ' · ' + gunAmmoText() : '';
+  toast(next.icon + ' ' + next.name + extra + ' · pulsa 1 para la siguiente');
 }
 function selectSlot(n, via) {
   activeBlueprintId = null; blueprintGhost.visible = false;
@@ -10699,7 +10829,8 @@ function startGame() {
   tennis.points = [0, 0]; tennis.games = [0, 0]; tennis.server = 0; tennis.serveIn = 1; drawTennisScore();
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
   removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true);
-  state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;   // tecnología alien: se compra de nuevo
+  state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
+  state.guns = {}; state.gun = null; state.ammo = 0; state.clip = 0; state.reloadT = 0; state.gadgetCharges = {}; state.handGadget = null;   // tecnología alien: se compra de nuevo
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
   houseTier = 0;
   newMissions();
@@ -11643,6 +11774,7 @@ function saveGame() {
       arcadeTickets: state.arcadeTickets || 0, arcadePrizes: state.arcadePrizes || {},
       pet: !!pet, petHp: pet?.userData.hp, hasFloor2: !!state.hasFloor2, floor2Rot: state.floor2Rot || 0, floors2: state.floors2 || [], unlocked: state.unlocked || {},   // desbloqueos del medio juego (floors2: TODOS los segundos pisos)
       petAlien: !!petAlien, petAlienHp: petAlien?.userData.hp, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
+      guns: state.guns || {}, gun: state.gun || null, ammo: state.ammo || 0, clip: state.clip || 0, gadgetCharges: state.gadgetCharges || {}, handGadget: state.handGadget || null,   // armas de fuego y bombas de mano
       creative: !!state.creative,
       hasPhone: !!state.hasPhone, skiPass: !!state.skiPass, skiGear: state.skiGear || null, skiGearWorn: !!state.skiGearWorn,
       cameraMode: cameraMode,
@@ -12493,6 +12625,7 @@ function loadGame() {
   removePet(); if (d.pet && d.petHp !== 0) spawnPet(d.petHp);
   removeAlienPet(); if (d.petAlien && d.petAlienHp !== 0) spawnAlienPet(d.petAlienHp);
   state.hasJetpack = !!d.hasJetpack; state.laserGun = !!d.laserGun;
+  state.guns = d.guns || {}; state.gun = (d.gun && GUN_SPECS[d.gun] && state.guns[d.gun]) ? d.gun : null; state.ammo = d.ammo || 0; state.clip = d.clip || 0; state.reloadT = 0; state.gadgetCharges = d.gadgetCharges || {}; state.handGadget = d.handGadget || null;
   state.hasShield = !!d.hasShield; state.shieldHp = state.hasShield ? state.shieldMax : 0; state.shieldCd = 0;
   sanitizeWeaponPockets();   // partidas viejas: no dejar Puños si tenías espada en la mano o pistola láser comprada
   leaveParkRide(true); standUp(true);
@@ -12585,6 +12718,7 @@ function resetAll() {
   placed.slice().forEach(removePlaced); removeCar();
   clearWaves(); clearDirt(); clearJobs(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
+  state.guns = {}; state.gun = null; state.ammo = 0; state.clip = 0; state.reloadT = 0; state.gadgetCharges = {}; state.handGadget = null;
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint(); endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
@@ -13843,12 +13977,38 @@ function paintHouse(color, label) {
 }
 function buyItem(item) {
   const fromAlley = !!(item && (item.gadget || (item.key && String(item.key).indexOf('bm_') === 0)));
+  if (item.ammo) {   // caja de balas del mercado negro
+    if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
+    if (!state.creative) state.money -= item.price;
+    state.ammo = (state.ammo || 0) + item.ammo;
+    toast('🧰 +' + item.ammo + ' balas · llevas ' + state.ammo + ' de reserva (cargador de ' + GUN_CLIP + ')');
+    beep(560, .08, .05); storyProgress('alley', 5); saveGame(); return;
+  }
   if (item.gadget) {
     if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
     const once = { capa:1, gafas:1, gancho:1, radio:1 };
     if (once[item.gadget] && state.gadgets && state.gadgets[item.gadget]) { toast('Ya tienes ' + item.name); return; }
     if (!state.creative) state.money -= item.price;
+    if (GADGET_HAND[item.gadget]) {   // bomba de humo / confeti: se guardan y se llevan en la mano con 1
+      if (!state.gadgetCharges) state.gadgetCharges = {};
+      state.gadgetCharges[item.gadget] = (state.gadgetCharges[item.gadget] || 0) + 1;
+      toast(GADGET_HAND[item.gadget].icon + ' ' + item.name + ' guardada (' + state.gadgetCharges[item.gadget] + ') · pulsa 1 para llevarla en la mano');
+      storyProgress('alley', 5); saveGame(); return;
+    }
     applyBlackMarketGadget(item); saveGame(); return;
+  }
+  if (GUN_SPECS[item.key]) {   // ARMA DE FUEGO: se guarda en tu colección y se equipa con 1
+    const g = GUN_SPECS[item.key];
+    if (state.guns && state.guns[item.key]) { equipHandItem({ t: 'gun', key: item.key }); toast(g.icon + ' ' + g.name + ' en la mano · ' + gunAmmoText()); return; }
+    if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
+    if (!state.creative) state.money -= item.price;
+    if (!state.guns) state.guns = {};
+    const primera = !Object.keys(state.guns).length;
+    state.guns[item.key] = true;
+    if (primera) { state.clip = GUN_CLIP; state.ammo = (state.ammo || 0) + 0; }   // viene con el cargador puesto
+    equipHandItem({ t: 'gun', key: item.key });
+    toast(g.icon + ' ' + g.name + ' · ' + g.dmg + ' de daño' + (g.scope ? ' · con MIRA: en la cabeza x' + g.head : ' · en la cabeza x' + g.head) + ' · ' + gunAmmoText());
+    storyProgress('alley', 5); saveGame(); return;
   }
   if (fromAlley && item.dmg) {
     if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
@@ -13857,7 +14017,7 @@ function buyItem(item) {
       state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color || 0x4b5563);
       rememberMeleeWeapon(item.name, item.dmg, item.color);
       equipHandWeapon('melee');
-      toast('🔫 ' + item.name + ' en la mano: hace ' + item.dmg + ' de daño');
+      toast('⚔️ ' + item.name + ' en la mano: hace ' + item.dmg + ' de daño');
     } else toast('Ya tienes un arma más fuerte (' + state.weaponName + ')');
     storyProgress('alley', 5); saveGame(); return;
   }
@@ -14511,11 +14671,14 @@ function updateUfoBoss(e, dt) {
 }
 function attack(multiplier = 1) {
   if (state.buildMode) return;
+  if (state.handGadget) { throwHandGadget(); return; }   // llevas una bomba: el clic la usa
   vmSwing = 1; beep(320, 0.05, 0.03);
   if (state.inCastle) { attackCastleFoe(); return; }   // en el castillo, el golpe pega a los aliens malos
   if (state.inArena) { hitArenaFoe(); return; }        // en el coliseo, el golpe pega a los enemigos de la oleada
   if (titan && hitTitan(state.weaponDmg)) return;      // golpear al TITÁN
   if (tryHitFloatingCitizen(Math.round(state.weaponDmg * multiplier))) return;
+  const gunSpec = currentGunSpec();
+  if (gunSpec) { fireGun(gunSpec); return; }            // arma de fuego: bala, retroceso y cabeza
   const p = player.position; const dir = new THREE.Vector3(); getAimDirection(dir);
   const range = playerHitRange(), dmg = Math.round(state.weaponDmg * multiplier);
   if (range <= 0) return;
@@ -14526,6 +14689,119 @@ function attack(multiplier = 1) {
   }
   if (best) { hitEnemy(best, dmg, p); if (laserEquipped()) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
   else if (!tryMineIslandOre() && !tryHitGeode() && !tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // isla o recursos de Platus
+}
+// ===================================================================
+//  ARMAS DE FUEGO — balas que se ven, disparo a la cabeza y recarga
+//  Cargador de 20 balas (GUN_CLIP). Al vaciarlo tarda 5 s en recargar:
+//  caen los casquillos al suelo, el arma se pone de lado y entran balas nuevas.
+// ===================================================================
+const bullets = [], shells = [];   // trazadoras que vuelan · casquillos que caen
+let gunCd = 0, gunFlash = 0, reloadAnim = 0, gunIdle = 0;
+function gunAmmoText() {
+  const g = currentGunSpec(); if (!g) return '';
+  if (state.reloadT > 0) return '🔄 recargando ' + state.reloadT.toFixed(1) + 's';
+  return g.icon + ' ' + (state.clip || 0) + '/' + GUN_CLIP + ' · 🧰 ' + (state.ammo || 0);
+}
+function spawnShell(i) {   // casquillo dorado que cae y rebota en el suelo
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, .11, 6), new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: .8, roughness: .3 }));
+  const dir = new THREE.Vector3(); getAimDirection(dir);
+  m.position.copy(player.position).addScaledVector(dir, .55); m.position.y -= .35;
+  m.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+  scene.add(m);
+  shells.push({ m, vy: 1.4 + Math.random() * .8, vx: (Math.random() - .5) * 1.6 + dir.x * .5, vz: (Math.random() - .5) * 1.6 + dir.z * .5, life: 3.2 + i * .05 });
+}
+function spawnTracer(from, to) {   // la bala que se ve volar
+  const dirv = new THREE.Vector3().subVectors(to, from); const len = dirv.length() || 1;
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, .34, 6), new THREE.MeshBasicMaterial({ color: 0xfff3b0 }));
+  b.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirv.clone().normalize());
+  b.position.copy(from);
+  scene.add(b);
+  bullets.push({ m: b, dir: dirv.clone().normalize(), left: len, speed: 95, to: to.clone() });
+}
+function updateBullets(dt) {
+  gunCd = Math.max(0, gunCd - dt);
+  if (currentGunSpec() && state.reloadT <= 0) {   // si dejas de disparar, el cargador se completa solo
+    gunIdle += dt;
+    if (gunIdle > 3.5 && (state.clip || 0) < GUN_CLIP && (state.ammo || 0) > 0) startReload(true);
+  }
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i], step = b.speed * dt;
+    b.m.position.addScaledVector(b.dir, step); b.left -= step;
+    if (b.left <= 0) { voxelImpact(b.to.clone(), 0xfde047, 4); scene.remove(b.m); bullets.splice(i, 1); }
+  }
+  for (let i = shells.length - 1; i >= 0; i--) {
+    const c = shells[i]; c.vy -= 9 * dt;
+    c.m.position.x += c.vx * dt; c.m.position.z += c.vz * dt; c.m.position.y += c.vy * dt;
+    c.m.rotation.x += dt * 6; c.m.rotation.z += dt * 4;
+    const suelo = mountainHeightAt(c.m.position.x, c.m.position.z) + .04;
+    if (c.m.position.y <= suelo) { c.m.position.y = suelo; c.vy = Math.abs(c.vy) * .32; c.vx *= .5; c.vz *= .5; if (c.vy < .4) c.vy = 0; }
+    c.life -= dt;
+    if (c.life <= 0) { scene.remove(c.m); shells.splice(i, 1); }
+  }
+  if (gunFlash > 0) gunFlash = Math.max(0, gunFlash - dt);
+  const flash = viewmodel.userData.toolMount && viewmodel.userData.toolMount.children[0] && viewmodel.userData.toolMount.children[0].userData.muzzleFlash;
+  if (flash) flash.visible = gunFlash > 0;
+  if (state.reloadT > 0) {
+    state.reloadT = Math.max(0, state.reloadT - dt);
+    reloadAnim = state.reloadT;
+    if (state.reloadT === 0) {
+      const falta = GUN_CLIP - (state.clip || 0), toma = Math.min(falta, state.ammo || 0);
+      state.clip = (state.clip || 0) + toma; state.ammo = Math.max(0, (state.ammo || 0) - toma);
+      beep(520, .07, .05); setTimeout(() => beep(720, .06, .05), 90);
+      toast(toma > 0 ? '🔫 Cargador listo: ' + state.clip + '/' + GUN_CLIP + ' balas' : '🧰 Te quedaste sin balas · cómprale una caja de 50 a Tito ($600)');
+    }
+  }
+}
+function startReload(auto) {
+  if (state.reloadT > 0) return false;
+  if ((state.clip || 0) >= GUN_CLIP) return false;
+  if ((state.ammo || 0) <= 0) { if (!auto) toast('🧰 No te quedan balas · compra una caja de 50 en el mercado negro ($600)'); beep(120, .12, .05); return false; }
+  state.reloadT = GUN_RELOAD; reloadAnim = GUN_RELOAD;
+  for (let i = 0; i < 6; i++) spawnShell(i);   // caen los casquillos al suelo
+  beep(180, .12, .05); toast('🔄 Recargando… ' + GUN_RELOAD + ' segundos');
+  return true;
+}
+// ¿la bala pasa por la cabeza? Devuelve {e, dmg, head, point} del blanco más cercano
+function gunRaycastEnemy(from, dir, range) {
+  let best = null, bestT = range, bestHead = false, bestPoint = null;
+  const rel = new THREE.Vector3();
+  for (const e of enemies) {
+    if (e.userData.type === 'bull') continue;
+    rel.copy(e.position).sub(from);
+    const t = rel.dot(dir);
+    if (t < 0 || t > bestT) continue;
+    const px = from.x + dir.x * t, py = from.y + dir.y * t, pz = from.z + dir.z * t;
+    const alto = (e.userData.barY || 2.8) - .45;                 // alto aproximado del bicho
+    const dxz = Math.hypot(px - e.position.x, pz - e.position.z);
+    if (dxz > 1.15) continue;                                     // la bala pasa al lado
+    if (py < e.position.y - .2 || py > e.position.y + alto + .5) continue;
+    const cabeza = py >= e.position.y + alto - .55;               // el tercio de arriba = cabeza
+    best = e; bestT = t; bestHead = cabeza; bestPoint = new THREE.Vector3(px, py, pz);
+  }
+  return best ? { e: best, head: bestHead, point: bestPoint, dist: bestT } : null;
+}
+function fireGun(spec) {
+  if (state.reloadT > 0) return true;                   // recargando: el gatillo no responde
+  if (gunCd > 0) return true;
+  if ((state.clip || 0) <= 0) { startReload(true) || beep(110, .1, .05); return true; }
+  gunCd = spec.rate; state.clip--; gunIdle = 0;
+  vmSwing = .6; gunFlash = .06; cameraShake = Math.max(cameraShake, spec.kind === 'shotgun' ? .3 : .16);
+  beep(spec.kind === 'shotgun' ? 130 : 240, .09, .06); vibr(25);
+  const dir = new THREE.Vector3(); getAimDirection(dir);
+  const from = player.position.clone().addScaledVector(dir, .7); from.y -= .18;
+  const hit = gunRaycastEnemy(from, dir, spec.range);
+  const to = hit ? hit.point.clone() : from.clone().addScaledVector(dir, spec.range);
+  spawnTracer(from, to);
+  if (hit) {
+    const dmg = Math.round(spec.dmg * (hit.head ? spec.head : 1));
+    hitEnemy(hit.e, dmg, player.position);
+    if (hit.head) {
+      floatText(hit.e.position.clone().setY(hit.e.position.y + (hit.e.userData.barY || 2.8)), '¡EN LA CABEZA!', '#f87171', 17);
+      beep(900, .09, .05); vibr(70);
+    }
+  }
+  if ((state.clip || 0) <= 0) startReload(true);
+  return true;
 }
 // Rayo láser: línea roja del jugador al enemigo (breve destello)
 function shootBeam(target) {
@@ -14542,6 +14818,9 @@ function shootBeam(target) {
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
 function attackNPC() {
   if (state.buildMode) return;
+  if (state.handGadget) { throwHandGadget(); return; }
+  const gunNPC = currentGunSpec();
+  if (gunNPC) { fireGun(gunNPC); return; }   // de día el arma de fuego también dispara (a los monstruos de suciedad)
   if (state.inCastle) { vmSwing = 1; beep(320, 0.05, 0.03); attackCastleFoe(); return; }   // en el castillo (de día también) el golpe pega a los aliens malos
   if (state.inArena) { vmSwing = 1; beep(320, 0.05, 0.03); hitArenaFoe(); return; }   // en el coliseo (de día también)
   if (titan && hitTitan(state.weaponDmg)) { vmSwing = 1; return; }   // golpear al TITÁN (de día también)
@@ -15253,6 +15532,7 @@ function loop() {
     updateHunger(dt);
     if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); updateDirtZombies(dt); }
     updateJobs(dt);                        // recados: se pausan solos de noche (el marcador se esconde)
+    updateBullets(dt);                     // balas que vuelan, casquillos, gatillo y recarga
     updateMoles(dt);                       // topos: activos de día y de noche
     updatePoison(dt);                      // veneno de la hormiga (día y noche)
     updateTrafficLights(dt);               // semáforos del cruce central
@@ -15947,7 +16227,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -16275,9 +16555,15 @@ function updateViewmodel(dt) {
   if (kind === 'bow' && bowDrawing) {
     viewmodel.position.set(.2 - bowDrawT * .05, -.4, -.76);
     viewmodel.rotation.set(-.14, .28, -.52 - bowDrawT * .12);
+  } else if (kind === 'gun' && state.reloadT > 0) {
+    const t = 1 - state.reloadT / GUN_RELOAD;                       // 0 → 1 durante los 5 s
+    const meter = Math.sin(Math.min(1, Math.max(0, (t - .25) / .7)) * Math.PI * 5) * .06;   // van entrando las balas
+    viewmodel.position.set(0.5, -0.78 + bob + meter, -0.82);
+    viewmodel.rotation.set(0.35, 0.5, -1.25);                        // el arma se pone DE LADO para cargarla
   } else {
-    viewmodel.position.set(0.45, -0.55 + bob, -0.9);
-    viewmodel.rotation.set(-sw * (kind === 'shovel' ? 2.25 : kind === 'bow' ? 1.1 : 1.8), 0, sw * (kind === 'sword' ? -.42 : kind === 'bow' ? -.28 : -.16));
+    const kick = kind === 'gun' ? sw * .55 : 0;                      // retroceso corto del disparo
+    viewmodel.position.set(0.45, -0.55 + bob, -0.9 + kick * .12);
+    viewmodel.rotation.set(-sw * (kind === 'shovel' ? 2.25 : kind === 'bow' ? 1.1 : kind === 'gun' ? .45 : 1.8), 0, sw * (kind === 'sword' ? -.42 : kind === 'bow' ? -.28 : -.16));
   }
 }
 function resolveCollisions() {
@@ -16689,6 +16975,7 @@ function renderHUD() {
   if (state.skiPass) gear.push('🎫 tarjeta esquí' + (state.skiGear ? ' · ' + (state.skiGear === 'skis' ? '⛷️ esquís' : '🏂 snowboard') : ''));
   if (state.hasJetpack) gear.push('🚀 jetpack' + (state.jetOn ? ' 🔥' : ''));
   if (state.laserGun) gear.push('🔫 láser');
+  if (currentGunSpec()) gear.push(gunAmmoText());   // balas del cargador y de reserva
   if (petAlien) gear.push('👽 mascota');
   setHTMLIfChanged(ui('gearhud'), gear.join(' · '));
 

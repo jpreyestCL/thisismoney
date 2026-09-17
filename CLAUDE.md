@@ -240,6 +240,28 @@ Implementados para mantener al jugador enganchado. Todo persiste en el save dond
    - **Policía desde la cárcel**: `spawnPolice` los coloca en la puerta de `JAIL_POS` (55,-8), no
      en un ángulo aleatorio alrededor del jugador.
 
+## Armas de fuego (mercado negro)
+
+Sección **"ARMAS DE FUEGO"** de `index.html`. Las armas del callejón dejaron de ser "espadas
+con nombre de pistola" y ahora son armas de verdad.
+
+- `GUN_SPECS` (pistola, pistola con mira, escopeta, rifle): daño, alcance, cadencia, multiplicador
+  de cabeza (`head`) y si trae `scope`. `GUN_CLIP = 20`, `GUN_RELOAD = 5`.
+- Estado: `state.guns` (las que compraste), `state.gun` (la que llevas), `state.clip` (cargador),
+  `state.ammo` (reserva), `state.reloadT`, `state.gadgetCharges`, `state.handGadget`. Todo se guarda.
+- `makeHandGun(kind,color,scale,scope)` dibuja corredera, cachas, guardamonte, alza/punto de mira y
+  la mira telescópica; se arma apuntando a +X y se gira para que el cañón mire al frente.
+- `fireGun()` gasta una bala, saca fogonazo (`muzzleFlash`), trazadora visible (`spawnTracer`),
+  retroceso y hace `gunRaycastEnemy` (cilindro por bicho; el tercio de arriba = CABEZA → daño ×`head`).
+- Recarga: al vaciar el cargador (o tras 3,5 s sin disparar) arranca `startReload`: 5 s, caen 6
+  casquillos al suelo (`spawnShell`) y el arma se pone de lado (pose en `updateViewmodel`).
+- `1` ahora **recorre todas tus armas** (`handItems()` / `equipHandItem()`): puños o espada →
+  pistolas → láser → arco → bombas de mano. Las bombas (humo/confeti) se guardan como cargas y se
+  usan con el clic (`throwHandGadget`).
+- Mercado negro: `bm_mira` ($1400, con mira), `bm_balas` (caja de 50 balas, $600).
+- Debug: `__tim.fireGun(spec)`, `__tim.currentGunSpec()`, `__tim.handItems()`, `__tim.gunAmmoText()`,
+  `__tim.bulletsCount()`, `__tim.shellsCount()`.
+
 ## Recados de la ciudad (misiones largas)
 
 Tres misiones nuevas al estilo del callejón, en la sección **"RECADOS DE LA CIUDAD"** de

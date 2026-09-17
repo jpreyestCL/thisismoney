@@ -14,6 +14,6 @@ assert.match(html, /e\.position\.y \+ \(ud\.barY \|\| 2\.6\)/);
 assert.match(html, /updateLivingWater\(step\)/);
 assert.doesNotMatch(html, /e\.position\.y = mountainHeightAt\(e\.position\.x, e\.position\.z\);/);
 assert.doesNotMatch(html, /n\.position\.set\(nx, mountainHeightAt\(nx, nz\), nz\)/);
-assert.match(sw, /tim-v44/);
+assert.match(sw, /tim-v45/);
 
 console.log('living water sink: ok');

@@ -1,21 +1,29 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
 
 assert.match(html, /id="questBtn"/);
 assert.match(html, /📋 Misiones/);
+assert.match(html, /id="questCount"/);
 assert.match(html, /id="questbox"/);
+assert.match(html, /id="questCats"/);
+assert.match(html, /id="questSearch"/);
 assert.match(html, /id="keypadbox"/);
 assert.match(html, /id="blackbox"/);
+assert.match(html, /id="blackVendors"/);
 assert.match(html, /id="alleyfx"/);
 assert.match(html, /data-act="missions"/);
 
 assert.match(html, /const ALLEY = /);
 assert.match(html, /code: '4815'/);
 assert.match(html, /const BLACK_MARKET = /);
+assert.match(html, /const BM_VENDORS = /);
 assert.match(html, /const STORY_QUESTS = /);
+assert.match(html, /function buildSideQuests\(/);
+assert.match(html, /function allQuests\(/);
 assert.match(html, /id: 'alley'/);
 assert.match(html, /El callejón oscuro/);
 assert.match(html, /function buildDarkAlley\(/);
@@ -35,12 +43,32 @@ assert.match(html, /Gancho trepador/);
 assert.match(html, /Granada de confeti/);
 assert.match(html, /Dardos de dormir/);
 assert.match(html, /Silenciador de globos/);
+assert.match(html, /Bate de caño/);
+assert.match(html, /Botas de trapo/);
 assert.match(html, /Tito/);
 assert.match(html, /cuatro ocho uno cinco/);
+assert.match(html, /Cuidá los charcos/);
 assert.match(html, /MERCADO DEL CALLEJÓN/);
+assert.match(html, /Doña Gris/);
+assert.match(html, /El Reloj/);
+assert.match(html, /const TITO_WALK/);
 assert.match(html, /questbox.*keypadbox.*blackbox/);
+assert.match(html, /for \(let i = 0; i < 8; i\+\+\)/);
 
 assert.doesNotMatch(html, /coca[ií]na|hero[ií]na|metanfet|pistola 9mm|sicario/i);
 
-assert.match(sw, /tim-v44/);
-console.log('missions alley black market: ok');
+const start = html.indexOf('const BLACK_MARKET = [');
+const end = html.indexOf('const alley =');
+assert.ok(start > 0 && end > start, 'catalog block missing');
+const catalog = html.slice(start, end);
+const sandbox = { THREE: {}, console };
+vm.createContext(sandbox);
+vm.runInContext(catalog + '\nthis.__quests = allQuests(); this.__vendors = BM_VENDORS; this.__market = BLACK_MARKET;', sandbox);
+assert.ok(sandbox.__quests.length >= 80, 'expected a huge mission board, got ' + sandbox.__quests.length);
+assert.ok(sandbox.__quests.some(q => q.id === 'alley' && q.feat), 'featured alley quest missing');
+assert.equal(sandbox.__vendors.length, 4);
+assert.ok(sandbox.__market.length >= 18);
+assert.ok(sandbox.__vendors.every(v => v.keys.every(k => sandbox.__market.some(it => it.key === k))));
+
+assert.match(sw, /tim-v45/);
+console.log('missions alley black market: ok · ' + sandbox.__quests.length + ' quests');

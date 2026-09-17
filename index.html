@@ -8166,7 +8166,7 @@ function launchBull(k) {   // tres toros en abanico, más lentos y se pueden mat
     const e = makeBull();
     e.position.set(k.position.x + px * side - fx * 2.2, 0, k.position.z + pz * side - fz * 2.2);
     e.rotation.y = Math.atan2(dx, dz);
-    e.userData = { type: 'bull', hp: 18, maxhp: 18, speed: 4.3, life: 5.4, dmg: 9, vel: new THREE.Vector3(fx, 0, fz), barY: 3.2 };
+    e.userData = { type: 'bull', hp: 18, maxhp: 18, speed: 4.3, baseSpeed: 4.3, dmg: 9, vel: new THREE.Vector3(fx, 0, fz), barY: 3.2 };
     addHealthBar(e);
     scene.add(e); enemies.push(e);
   }
@@ -14733,20 +14733,44 @@ function updateNight(dt) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i], ud = e.userData;
     if (ud.type === 'bull') {
+      // La embestida NO se desvanece sola: persigue hasta chocar contigo, con el papá,
+      // con un ayudante o con una pared de TU casa (o hasta que la maten).
+      let wallHit = false;
       if ((ud.knockT || 0) <= 0) {
+        const fromX = e.position.x, fromZ = e.position.z;
         const dist = ud.speed * dt, parts = Math.max(1, Math.ceil(dist / 0.32)), sub = dist / parts;
         for (let k = 0; k < parts; k++) {
           const px = e.position.x, pz = e.position.z;
           e.position.x += ud.vel.x * sub; e.position.z += ud.vel.z * sub;
-          if (resolveLivingWall(e.position, px, pz, livingRadius(e)) === 'stop') { ud.speed = Math.max(0, ud.speed * 0.35); break; }
+          if (resolveLivingWall(e.position, px, pz, livingRadius(e)) === 'stop') { wallHit = true; break; }
         }
+        // si casi no avanzó es que está trancada contra algo (edificio, súper…)
+        ud.stuckT = dist2D(e.position, { x: fromX, z: fromZ }) < dist * 0.2 ? (ud.stuckT || 0) + dt : 0;
+        if (ud.stuckT > 8) { voxelImpact(e.position.clone().setY(1.2), 0x9ca3b8, 10); beep(80, .2, .05); removeEnemy(i); continue; }   // válvula: trancada contra un edificio, se deshace (no queda pegada para siempre)
+        // vira despacio hacia su objetivo (se puede esquivar, pero vuelve a buscarte)
+        const bt = pickTarget(e.position, e);
+        const bdx = bt.x - e.position.x, bdz = bt.z - e.position.z, blen = Math.hypot(bdx, bdz) || 1;
+        const turn = wallHit ? 1 : Math.min(1, dt * 0.9);   // si chocó con algo, se reorienta de una
+        ud.vel.x += (bdx / blen - ud.vel.x) * turn; ud.vel.z += (bdz / blen - ud.vel.z) * turn;
+        const vlen = Math.hypot(ud.vel.x, ud.vel.z) || 1; ud.vel.x /= vlen; ud.vel.z /= vlen;
+        e.rotation.y = Math.atan2(ud.vel.x, ud.vel.z);
+        ud.speed = ud.baseSpeed || ud.speed;   // no se queda frenada contra un muro
       }
-      ud.life -= dt;
       if (!playerAirborne() && inMeleeReach(e.position, player.position)) { damagePlayer(ud.dmg || 9, e.position); removeEnemy(i); continue; }
       if (dad.visible && !dad.userData.resting && dist2D(e.position, dad.position) < 1.6) { damageDad((ud.dmg || 9) * 0.8, e.position); removeEnemy(i); continue; }
       const companion = livingCompanions().find(c => dist2D(e.position, c.position) < 1.6);
       if (companion) { damageCompanion(companion, ud.dmg || 9); removeEnemy(i); continue; }
-      if (ud.life <= 0 || ud.hp <= 0) removeEnemy(i); continue;
+      {   // chocó contra una pared de TU casa: la revienta y ahí sí desaparece
+        const wall = placedBarrierNear(e);
+        if (wall && (dist2D(e.position, wall.mesh.position) < 1.9 || (ud.stuckT || 0) > 0.4)) {   // trancada contra tu muro = lo embiste
+          voxelImpact(wall.mesh.position.clone().setY(1.4), 0xf59e0b, 8);
+          wall.hp -= (ud.dmg || 9) * 2 * (1 - Math.min(.5, houseStats().protection / 200));
+          state.nightDamage = true; cameraShake = Math.max(cameraShake, .25); beep(90, .18, .06);
+          if (wall.hp <= 0) removePlaced(wall);
+          removeEnemy(i); continue;
+        }
+      }
+      if (ud.hp <= 0) removeEnemy(i); continue;
     }
     if (ud.ufo) { if ((ud.knockT || 0) <= 0) updateUfoBoss(e, dt); continue; }   // OVNI jefe: flota alto y suelta aliens (no camina)
     if (ud.mole) continue;   // topos / topo jefe: los maneja updateMoles (día y noche)
@@ -15767,6 +15791,11 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     state.skiPass = true; state.skiGear = 'skis'; state.skiGearWorn = true; state.skiing = false;
     state.skiLiftRide = { kind: kind || 'andarivel', t: 1 };
     updateSkiLiftRide(.1);
+  };
+  timDump.tickNight = (n, dt) => {   // correr la noche a mano (sirve para probar sin requestAnimationFrame)
+    const step = dt == null ? .05 : dt;
+    for (let i = 0; i < (n || 1); i++) { updateNight(step); updateLivingWater(step); }
+    return { nightTime: +state.nightTime.toFixed(2), enemies: enemies.length };
   };
   timDump.tick = (n, dt) => {
     const step = dt == null ? .05 : dt;

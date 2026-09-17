@@ -228,7 +228,7 @@
   body.touch #soundBtn { top: 46px; left: 44px; width: 34px; height: 34px; font-size: 15px; }
   body.touch #exitBtn  { top: 46px; left: 82px; height: 34px; font-size: 10px; padding: 0 8px; }
   body.touch #minimap  { top: 46px !important; right: 6px !important; width: 100px !important; height: 100px !important; }
-  body.touch #questBtn { top: 152px; right: 6px; height: 34px; font-size: 12px; padding: 0 10px; }
+  body.touch #questBtn { top: 188px; right: 6px; height: 34px; font-size: 12px; padding: 0 10px; }
   body.touch #questbox, body.touch #keypadbox, body.touch #blackbox { width: min(96vw, 440px); }
   #minimap.expanded { width:min(72vw,360px) !important; height:min(72vw,360px) !important; background:rgba(2,6,23,.88) !important; border:2px solid #facc15; z-index:15; }
   body.touch #toast, body.touch #toastStack, body.touch #phase, body.touch #combo, body.touch #fuelWarning, body.touch #escape { right: 8px; max-width: min(240px, 44vw); }
@@ -450,14 +450,21 @@
   #questBtn { position:fixed; top:254px; right:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(8,6,4,.78); color:#fde68a; border:2px solid rgba(245,158,11,.55); border-radius:10px; font-size:13px; font-weight:800; height:40px; padding:0 12px; display:none; letter-spacing:.3px; }
   #questBtn .qdot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#ef4444; margin-right:6px; box-shadow:0 0 8px #ef4444; }
   #questBtn.done .qdot { background:#22c55e; box-shadow:0 0 8px #22c55e; }
+  #questBtn .qcount { display:inline-block; min-width:18px; margin-left:6px; padding:0 5px; border-radius:999px; background:#b45309; color:#fff7ed; font-size:11px; line-height:18px; }
   #questbox, #keypadbox, #blackbox { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; flex-direction:column; }
-  #questbox { background:rgba(8,7,6,.97); border:2px solid #f59e0b; padding:14px 14px 12px; border-radius:14px; width:min(94vw,460px); max-height:82vh; }
+  #questbox { background:rgba(8,7,6,.97); border:2px solid #f59e0b; padding:14px 14px 12px; border-radius:14px; width:min(96vw,540px); max-height:86vh; }
   #keypadbox { background:rgba(10,8,7,.97); border:2px solid #f97316; padding:14px; border-radius:14px; width:min(92vw,280px); text-align:center; }
-  #blackbox { background:rgba(12,6,6,.97); border:2px solid #ef4444; padding:14px 14px 12px; border-radius:14px; width:min(94vw,460px); max-height:84vh; }
+  #blackbox { background:rgba(12,6,6,.97); border:2px solid #ef4444; padding:14px 14px 12px; border-radius:14px; width:min(96vw,520px); max-height:86vh; }
+  #questCats, #blackVendors { display:flex; flex-wrap:wrap; gap:5px; margin:6px 0 8px; }
+  #questCats button, #blackVendors button { pointer-events:all; cursor:pointer; border:1px solid rgba(245,158,11,.35); background:rgba(255,255,255,.05); color:#fde68a; border-radius:999px; padding:4px 9px; font-size:11px; font-weight:800; }
+  #questCats button.on, #blackVendors button.on { background:#b45309; border-color:#fbbf24; color:#fff7ed; }
+  #questSearch { pointer-events:all; width:100%; box-sizing:border-box; margin:0 0 8px; padding:8px 10px; border-radius:8px; border:1px solid #78350f; background:#120e0b; color:#fed7aa; font-size:13px; }
   .quest-row { display:flex; gap:8px; align-items:flex-start; padding:8px 9px; border-radius:10px; background:rgba(255,255,255,.04); border:1px solid rgba(245,158,11,.18); margin-bottom:6px; font-size:12px; line-height:1.45; }
   .quest-row b { display:block; font-size:13px; color:#fde68a; }
   .quest-row.done { opacity:.62; border-color:rgba(34,197,94,.35); }
   .quest-row.active { border-color:#f59e0b; background:rgba(245,158,11,.1); }
+  .quest-row.feat { border-color:#fb7185; background:rgba(127,29,29,.22); }
+  .quest-head { font-size:11px; font-weight:800; color:#fde68a; margin:8px 0 4px; letter-spacing:.04em; }
   .keypad-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin:10px 0; }
   .keypad-grid button { pointer-events:all; cursor:pointer; height:44px; font-size:20px; font-weight:900; border-radius:8px; border:1px solid #78350f; background:#1c1410; color:#fed7aa; }
   #alleyfx { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .35s; background:radial-gradient(ellipse at center, rgba(8,6,4,.02) 12%, rgba(6,4,3,.42) 100%); box-shadow:inset 0 0 120px 30px rgba(0,0,0,.28); }
@@ -651,8 +658,10 @@
   </div>
   <div id="questbox">
     <div style="font-size:15px; font-weight:800; color:#fbbf24">📋 MISIONES</div>
-    <div style="font-size:11px; opacity:.7; margin:2px 0 8px">Del juego y del día. Tito espera al oeste, detrás de las casas, en un callejón que nadie mira.</div>
-    <div id="questList" style="overflow-y:auto; max-height:58vh; -webkit-overflow-scrolling:touch;"></div>
+    <div id="questMeta" style="font-size:11px; opacity:.7; margin:2px 0 4px">Hay un tablero enorme. Tito espera al oeste, detrás de las casas, en un callejón que nadie mira.</div>
+    <div id="questCats"></div>
+    <input id="questSearch" type="search" placeholder="Buscar entre todas las misiones…" autocomplete="off" enterkeyhint="search">
+    <div id="questList" style="overflow-y:auto; max-height:54vh; -webkit-overflow-scrolling:touch;"></div>
     <button id="questCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px; margin-top:8px;">Cerrar ✕</button>
   </div>
   <div id="keypadbox">
@@ -667,8 +676,10 @@
   </div>
   <div id="blackbox">
     <div style="font-size:15px; font-weight:800; color:#f87171">🕯️ MERCADO DEL CALLEJÓN</div>
-    <div style="font-size:11px; opacity:.7; margin:2px 0 6px">Cosas que el súper y la armería no venden. Nada de la vida real: todo es del juego. Dinero: <b id="blackMoney" style="color:#4ade80">$0</b></div>
-    <div id="blackList" style="overflow-y:auto; display:flex; flex-direction:column; gap:5px; max-height:56vh; -webkit-overflow-scrolling:touch; text-align:left;"></div>
+    <div id="blackTalk" style="font-size:12px; color:#fecaca; margin:2px 0 6px; line-height:1.45"></div>
+    <div style="font-size:11px; opacity:.7; margin:0 0 6px">Cosas que el súper y la armería no venden. Nada de la vida real: todo es del juego. Dinero: <b id="blackMoney" style="color:#4ade80">$0</b></div>
+    <div id="blackVendors"></div>
+    <div id="blackList" style="overflow-y:auto; display:flex; flex-direction:column; gap:5px; max-height:48vh; -webkit-overflow-scrolling:touch; text-align:left;"></div>
     <button id="blackCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px; margin-top:8px;">Cerrar ✕</button>
   </div>
   <div id="rocketbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #f97316; padding:14px 16px 12px; border-radius:14px; text-align:center; width:min(96vw,480px); flex-direction:column; gap:8px;">
@@ -971,7 +982,7 @@
   <div id="parkDetail" style="line-height:1.7;margin-top:12px"></div>
 </dialog>
 <button id="fotoBtn" aria-label="Guardar captura" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
-<button id="questBtn" aria-label="Abrir misiones" type="button"><span class="qdot"></span>📋 Misiones</button>
+<button id="questBtn" aria-label="Abrir misiones" type="button"><span class="qdot"></span>📋 Misiones<span class="qcount" id="questCount">0</span></button>
 <div id="help">
   <div class="guide-shell" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
     <nav class="guide-nav" aria-label="Secciones de la guía">
@@ -988,7 +999,7 @@
         <div class="guide-grid">
           <div class="guide-item"><b>1 · Llega al súper</b><span>Sigue la flecha, compra cuatro paredes y un techo manteniendo E.</span></div>
           <div class="guide-item"><b>2 · Construye una base</b><span>Pulsa B, elige una pieza con la rueda y colócala con F.</span></div>
-          <div class="guide-item"><b>Misiones</b><span>El botón 📋 Misiones (esquina, bajo el mapa) lista varias. Una te lleva con Tito por un callejón oscuro hasta una puerta con clave.</span></div>
+          <div class="guide-item"><b>Misiones</b><span>El botón 📋 Misiones (esquina, bajo el mapa) abre un tablero enorme. Una te lleva con Tito por un callejón oscuro, él pone la clave y entras a un mercado negro con cuatro vendedores.</span></div>
           <div class="guide-item"><b>3 · Prepárate</b><span>Compra comida y un arma. Usa U para ganar dinero con desafíos de mates.</span></div>
           <div class="guide-item"><b>4 · Sobrevive</b><span>Pulsa N cuando estés listo. Cada noche mejora tu economía y desbloquea contenido.</span></div>
         </div>
@@ -1024,7 +1035,7 @@
           <div class="guide-item"><b>Casa simple · $300</b><span>Cuatro paredes y techo. Es tu primera fuente estable de ingresos.</span></div>
           <div class="guide-item"><b>Casa completa · $1.000</b><span>Añade puerta, lámpara y horno para subir el pago nocturno.</span></div>
           <div class="guide-item"><b>Banco</b><span>Los ahorros ganan 5% por noche. Las deudas crecen 10%.</span></div>
-          <div class="guide-item"><b>Misiones y mates</b><span>Tres misiones diarias y cinco desafíos de mates financian tus mejoras.</span></div>
+          <div class="guide-item"><b>Misiones y mates</b><span>Ocho misiones diarias, un tablero enorme y cinco desafíos de mates financian tus mejoras.</span></div>
           <div class="guide-item"><b>Huerto diverso</b><span>Combina dos o más cultivos cercanos para que crezcan 25% más rápido. Cosecha con E.</span></div>
           <div class="guide-item"><b>Variantes y planos</b><span>Madera, roca, techos y ventanas tienen acabados con R. Pulsa G al construir para levantar estructuras completas de una vez.</span></div>
           <div class="guide-item"><b>Ciudad viva</b><span>Los habitantes deciden si pasean, conversan, compran, buscan refugio o vuelven a casa. En los estadios se disputan partidos completos.</span></div>
@@ -2305,6 +2316,9 @@ const ALLEY = { x0: -110, x1: -134, z: 8, half: 2.42, doorX: -134, code: '4815' 
 const BLACK_MARKET = [
   { key: 'bm_espada', name: 'Espada sucia', price: 380, color: 0x6b7280, dmg: 9, icon: '⚔️', blurb: 'Filo mellado. Pega más que una de madera.' },
   { key: 'bm_honda', name: 'Honda de goma', price: 260, color: 0x92400e, dmg: 6, icon: '🪃', blurb: 'Tira piedras. No es de la armería.' },
+  { key: 'bm_bate', name: 'Bate de caño', price: 420, color: 0x64748b, dmg: 10, icon: '🏏', blurb: 'Un tubo pesado. Suena hueco cuando pega.' },
+  { key: 'bm_canicas', name: 'Tirachinas de canicas', price: 290, color: 0x92400e, dmg: 7, icon: '🔮', blurb: 'Canicas de feria. Pegan lejos y hacen ruido.' },
+  { key: 'bm_cadenas', name: 'Cadena de bicicleta', price: 340, color: 0x3f3f46, dmg: 8, icon: '⛓️', blurb: 'Oxidada. Lila dice que “es de un primo”.' },
   { key: 'bm_humo', name: 'Bomba de humo', price: 220, color: 0x64748b, gadget: 'humo', icon: '💨', blurb: 'Nube gris: la policía te pierde de vista.' },
   { key: 'bm_capa', name: 'Capa de sombras', price: 850, color: 0x111827, gadget: 'capa', icon: '🧥', blurb: 'De noche los monstruos te ven de más lejos, peor.' },
   { key: 'bm_gafas', name: 'Gafas de noche', price: 620, color: 0x22c55e, gadget: 'gafas', icon: '🥽', blurb: 'El callejón y la noche se ven más lejos.' },
@@ -2315,17 +2329,155 @@ const BLACK_MARKET = [
   { key: 'bm_dardos', name: 'Dardos de dormir', price: 360, color: 0x7c3aed, gadget: 'dardos', icon: '🎯', blurb: 'Los bichos cerca se mueven como en cámara lenta.' },
   { key: 'bm_iman', name: 'Súper imán', price: 480, color: 0x94a3b8, gadget: 'iman', icon: '🧲', blurb: 'Al comprar, las monedas del suelo saltan hacia vos.' },
   { key: 'bm_silencio', name: 'Silenciador de globos', price: 180, color: 0xf8fafc, gadget: 'silencio', icon: '🎈', blurb: 'Un globo pinchado que no suena. Tito se ríe.' },
+  { key: 'bm_botas', name: 'Botas de trapo', price: 510, color: 0x1c1917, gadget: 'botas', icon: '🥾', blurb: 'Caminas más rápido y la policía te olvida antes.' },
+  { key: 'bm_sombrero', name: 'Sombrero de ladrón', price: 210, color: 0x111827, gadget: 'sombrero', icon: '🎩', blurb: 'Un disfraz de teatro. Te buscan un poco menos.' },
+  { key: 'bm_linterna', name: 'Linterna ciega', price: 300, color: 0xfacc15, gadget: 'linterna', icon: '🔦', blurb: 'Ciega un segundo a los monstruos cerca.' },
+  { key: 'bm_dados', name: 'Dados de feria', price: 140, color: 0xf97316, gadget: 'dados', icon: '🎲', blurb: 'A veces pagan. A veces Tito se ríe de vos.' },
+  { key: 'bm_silbato', name: 'Silbato de alarma', price: 190, color: 0x38bdf8, gadget: 'silbato', icon: '📣', blurb: 'Un pitido: los monstruos cerca se asustan.' },
+  { key: 'bm_fuegos', name: 'Fuegos de mentira', price: 230, color: 0xfb7185, gadget: 'fuegos', icon: '🎇', blurb: 'Chispas de fiesta. Aturde y hace luz.' },
+];
+const BM_VENDORS = [
+  { id: 'lila', name: 'Lila', icon: '🗡️', shirt: 0x7f1d1d, skin: 0xc4a574,
+    line: 'El filo no pregunta de dónde viene. Si te corta, es que funciona.',
+    blurb: 'Armas que la armería no quiere ver.',
+    keys: ['bm_espada', 'bm_honda', 'bm_bate', 'bm_canicas', 'bm_cadenas'] },
+  { id: 'mono', name: 'Mono', icon: '🎩', shirt: 0x1e293b, skin: 0xd6b48a,
+    line: 'Si te ven, yo no te conozco. Si no te ven, mejor.',
+    blurb: 'Humo, capas y caras prestadas.',
+    keys: ['bm_humo', 'bm_capa', 'bm_mascara', 'bm_botas', 'bm_sombrero'] },
+  { id: 'gris', name: 'Doña Gris', icon: '📦', shirt: 0x57534e, skin: 0xe8c4a2,
+    line: 'Todo usado. Todo sirve. Garantía: ninguna.',
+    blurb: 'Chatarra útil: gafas, radio, imán, gancho.',
+    keys: ['bm_gafas', 'bm_gancho', 'bm_radio', 'bm_iman', 'bm_linterna'] },
+  { id: 'reloj', name: 'El Reloj', icon: '🎲', shirt: 0x3b0764, skin: 0xc9a227,
+    line: 'Si brilla, es de mentira. Si no brilla, también.',
+    blurb: 'Trucos de feria, globos y rarezas.',
+    keys: ['bm_confeti', 'bm_dardos', 'bm_silencio', 'bm_dados', 'bm_silbato', 'bm_fuegos'] },
+];
+const QUEST_CATS = [
+  { id: 'todas', name: 'Todas' }, { id: 'historia', name: 'Historia' }, { id: 'hoy', name: 'Hoy' },
+  { id: 'casa', name: 'Casa' }, { id: 'ciudad', name: 'Ciudad' }, { id: 'combate', name: 'Pelea' },
+  { id: 'plata', name: 'Plata' }, { id: 'familia', name: 'Familia' }, { id: 'viaje', name: 'Viaje' },
 ];
 const STORY_QUESTS = [
-  { id: 'alley', icon: '🕶️', title: 'El callejón oscuro', need: 5, reward: 450,
+  { id: 'alley', cat: 'historia', feat: true, icon: '🕶️', title: 'El callejón oscuro', need: 5, reward: 450,
     hint: 'Al oeste de la ciudad, detrás de las casas. Un tipo de hoodie te espera donde nadie mira.',
     steps: ['Habla con Tito en la boca del callejón', 'Síguelo entre los basureros', 'Pon la clave en la puerta', 'Entra al mercado', 'Compra algo que el súper no vende'] },
-  { id: 'night', icon: '🌙', title: 'Aguanta la noche', need: 1, reward: 200, hint: 'Construye un techo y pulsa N cuando estés listo.', steps: ['Sobrevive una noche completa'] },
-  { id: 'harvest', icon: '🌾', title: 'Cosecha del patio', need: 1, reward: 150, hint: 'Planta con K y cosecha con E cuando esté listo.', steps: ['Cosecha algo del huerto'] },
-  { id: 'bank', icon: '🏦', title: 'La plata trabaja', need: 1, reward: 180, hint: 'El banco está al este del súper. Entra con E.', steps: ['Entra al banco'] },
-  { id: 'sport', icon: '🏅', title: 'Partido corto', need: 1, reward: 160, hint: 'Acércate a un estadio y juega un partido corto.', steps: ['Completa un partido'] },
+  { id: 'night', cat: 'casa', track: 'night', icon: '🌙', title: 'Aguanta la noche', need: 1, reward: 200, hint: 'Construye un techo y pulsa N cuando estés listo.', steps: ['Sobrevive una noche completa'] },
+  { id: 'harvest', cat: 'casa', track: 'harvest', icon: '🌾', title: 'Cosecha del patio', need: 1, reward: 150, hint: 'Planta con K y cosecha con E cuando esté listo.', steps: ['Cosecha algo del huerto'] },
+  { id: 'bank', cat: 'plata', icon: '🏦', title: 'La plata trabaja', need: 1, reward: 180, hint: 'El banco está al este del súper. Entra con E.', steps: ['Entra al banco'] },
+  { id: 'sport', cat: 'ciudad', track: 'sport', icon: '🏅', title: 'Partido corto', need: 1, reward: 160, hint: 'Acércate a un estadio y juega un partido corto.', steps: ['Completa un partido'] },
+  { id: 'shop', cat: 'ciudad', icon: '🛒', title: 'Primera compra', need: 1, reward: 120, hint: 'Entra al súper y pulsa Y cerca del vendedor.', steps: ['Abre el catálogo del súper'] },
+  { id: 'eat', cat: 'casa', track: 'eat', icon: '🍖', title: 'Almuerzo en casa', need: 1, reward: 90, hint: 'Compra comida y pulsa Q.', steps: ['Come una vez'] },
+  { id: 'plant', cat: 'casa', track: 'plant', icon: '🌱', title: 'Sembrar el patio', need: 1, reward: 110, hint: 'Compra semillas y pulsa K.', steps: ['Planta una semilla'] },
+  { id: 'dig', cat: 'casa', track: 'dig', icon: '🪏', title: 'Hoyos del tesoro', need: 1, reward: 110, hint: 'Compra una pala y pulsa T.', steps: ['Cava un hoyo'] },
+  { id: 'math', cat: 'plata', track: 'math', icon: '🧮', title: 'Cerebro de oro', need: 1, reward: 130, hint: 'Pulsa U y resuelve un desafío de mates.', steps: ['Resuelve un desafío'] },
+  { id: 'help', cat: 'ciudad', track: 'help', icon: '🤝', title: 'Buen vecino', need: 1, reward: 160, hint: 'Ayuda a alguien de la ciudad que te pida un favor.', steps: ['Ayuda a una persona'] },
+  { id: 'rob', cat: 'ciudad', track: 'rob', icon: '👜', title: 'El golpe rápido', need: 1, reward: 200, hint: 'De día, cerca de la gente del estadio, pulsa E. Si no te ven, cuenta.', steps: ['Roba sin que te vean'] },
+  { id: 'car', cat: 'ciudad', icon: '🚗', title: 'Primer volante', need: 1, reward: 220, hint: 'Cómprale un auto al vendedor escribiendo “auto”.', steps: ['Compra un auto'] },
+  { id: 'drive', cat: 'ciudad', track: 'drive', icon: '🏎️', title: 'Dar una vuelta', need: 1, reward: 140, hint: 'Acércate a tu auto y pulsa E para conducir.', steps: ['Conduce un vehículo'] },
+  { id: 'paint', cat: 'casa', icon: '🎨', title: 'Casa de colores', need: 1, reward: 180, hint: 'Compra un tarro de pintura cuando ya tengas paredes.', steps: ['Pinta la casa'] },
+  { id: 'photo', cat: 'ciudad', track: 'photo', icon: '📷', title: 'Foto para el álbum', need: 1, reward: 80, hint: 'Pulsa el botón 📷 o saca una foto desde la pausa.', steps: ['Saca una foto'] },
+  { id: 'dadrest', cat: 'familia', icon: '😴', title: 'Siesta del papá', need: 1, reward: 130, hint: 'Coloca un sofá o una cama y pulsa Z.', steps: ['Deja descansar al papá'] },
+  { id: 'helper', cat: 'familia', icon: '👧', title: 'Llamar un hijo', need: 1, reward: 200, hint: 'Cuando conozcas a la mamá, pulsa H ($300).', steps: ['Invoca un ayudante'] },
+  { id: 'gold', cat: 'plata', track: 'gold', icon: '🪙', title: 'Casa dorada', need: 1, reward: 250, hint: 'Busca la casa secreta dorada y pulsa E.', steps: ['Cobra el oro secreto'] },
+  { id: 'build', cat: 'casa', track: 'build', icon: '🧱', title: 'Primera pared', need: 1, reward: 120, hint: 'Pulsa B, elige una pieza y colócala con F.', steps: ['Coloca una construcción'] },
+  { id: 'deposit', cat: 'plata', icon: '💵', title: 'Ahorrar en el banco', need: 1, reward: 160, hint: 'Entra al banco y deposita algo de plata.', steps: ['Deposita en el banco'] },
+  { id: 'arcade', cat: 'ciudad', track: 'arcade', icon: '🎮', title: 'Fichas del arcade', need: 1, reward: 150, hint: 'Entra al arcade de la ciudad y juega una máquina.', steps: ['Juega en el arcade'] },
+  { id: 'sell', cat: 'plata', icon: '🤝', title: 'Vender la casa', need: 1, reward: 300, hint: 'Casa completa + cerca de un aldeano + E.', steps: ['Vende tu casa'] },
+  { id: 'coal', cat: 'viaje', track: 'coal', icon: '⚫', title: 'Carbón de otro planeta', need: 1, reward: 220, hint: 'Viaja y pica las rocas negras a golpes.', steps: ['Pica un carbón'] },
+  { id: 'fire', cat: 'viaje', icon: '🔥', title: 'Fogata en el frío', need: 1, reward: 200, hint: 'En Platus gasta 3 carbón para una fogata.', steps: ['Enciende una fogata'] },
+  { id: 'rocket', cat: 'viaje', icon: '🚀', title: 'Rumbo al cielo', need: 1, reward: 800, hint: 'Carga el cohete y despega con papá y los trajes.', steps: ['Lanza el cohete'] },
 ];
-const alley = { root: null, contact: null, door: null, doorObs: null, lights: [], steam: [], following: false, wp: 0, open: false, flicker: 0, codeBuf: '', radioCd: 0 };
+function buildSideQuests() {
+  const packs = [
+    { track: 'kills', cat: 'combate', icon: '⚔️', hint: 'De noche, defiende la casa.',
+      titles: [[6, 'Primera cacería', 90], [14, 'Ronda de zombies', 150], [24, 'Patio en guerra', 220], [40, 'Cazador de la cuadra', 320], [65, 'Nadie pasa la reja', 420], [90, 'El barrio respira', 520], [130, 'Leyenda del patio', 700]] },
+    { track: 'night', cat: 'casa', icon: '🌙', hint: 'Pulsa N cuando la casa tenga techo.',
+      titles: [[2, 'Segunda noche', 180], [4, 'Semana a oscuras', 280], [7, 'Noches de costumbre', 380], [12, 'Guardia vieja', 520], [18, 'El barrio no duerme', 700]] },
+    { track: 'harvest', cat: 'casa', icon: '🍎', hint: 'Cosecha con E cuando el huerto esté listo.',
+      titles: [[4, 'Canasta chica', 120], [10, 'Mercado del patio', 200], [20, 'Cosecha gorda', 300], [40, 'Granja de esquina', 420], [70, 'Rey del huerto', 580]] },
+    { track: 'plant', cat: 'casa', icon: '🌱', hint: 'K planta. Shift+K cambia el cultivo.',
+      titles: [[3, 'Tres semillitas', 110], [8, 'Huerto mixto', 190], [16, 'Filas verdes', 280], [28, 'Sembrador serial', 380]] },
+    { track: 'dig', cat: 'casa', icon: '🕳️', hint: 'Con pala, pulsa T. A veces sale plata.',
+      titles: [[4, 'Cuatro hoyos', 120], [10, 'Minero de barrio', 210], [20, 'Túneles del patio', 320], [35, 'Boca de la tierra', 450]] },
+    { track: 'eat', cat: 'casa', icon: '🍲', hint: 'Q come. El hambre no perdona.',
+      titles: [[3, 'Tres almuerzos', 90], [8, 'Semana de olla', 160], [16, 'Siempre hay pan', 240], [30, 'Cocina abierta', 340]] },
+    { track: 'math', cat: 'plata', icon: '🧮', hint: 'U abre mates. 5 al día.',
+      titles: [[3, 'Tres aciertos', 140], [8, 'Cuaderno lleno', 240], [15, 'Cerebro de acero', 360], [25, 'Profe del barrio', 500]] },
+    { track: 'help', cat: 'ciudad', icon: '🫶', hint: 'La gente de la ciudad pide favores.',
+      titles: [[3, 'Tres favores', 200], [7, 'El que ayuda', 320], [12, 'Ángel de la cuadra', 460]] },
+    { track: 'rob', cat: 'ciudad', icon: '🕶️', hint: 'E cerca de la gente. Si no te ven, cuenta.',
+      titles: [[2, 'Segundo golpe', 220], [5, 'Sombras del estadio', 360], [9, 'Manos rápidas', 520]] },
+    { track: 'runover', cat: 'combate', icon: '🚗', hint: 'De noche, atropella monstruos con el auto.',
+      titles: [[3, 'Tres en el capó', 150], [8, 'Ruta sucia', 260], [16, 'Trompo de monstruos', 400], [28, 'La avenida tiembla', 560]] },
+    { track: 'build', cat: 'casa', icon: '🧱', hint: 'B para construir, F para colocar.',
+      titles: [[4, 'Cuatro piezas', 130], [10, 'Casita en forma', 220], [20, 'Manos de albañil', 340], [40, 'Barrio propio', 520]] },
+    { track: 'drive', cat: 'ciudad', icon: '🛞', hint: 'E cerca del auto. W y A/D para manejar.',
+      titles: [[3, 'Tres viajes', 140], [8, 'Chofer del barrio', 240], [15, 'Rueda caliente', 360]] },
+    { track: 'sport', cat: 'ciudad', icon: '⚽', hint: 'Estadio de día, E para jugar.',
+      titles: [[2, 'Revancha', 170], [4, 'Torneo corto', 280], [8, 'Campeón de esquina', 420]] },
+    { track: 'gold', cat: 'plata', icon: '🪙', hint: 'La casa dorada paga una vez por día.',
+      titles: [[2, 'Segundo tesoro', 280], [4, 'Ruta del oro', 420], [7, 'Mapa secreto', 600]] },
+    { track: 'photo', cat: 'ciudad', icon: '📸', hint: 'El botón 📷 guarda un PNG.',
+      titles: [[3, 'Tres fotos', 100], [8, 'Álbum de viaje', 180], [16, 'Reportero del pueblo', 280]] },
+    { track: 'coal', cat: 'viaje', icon: '🪨', hint: 'En planetas extraños, pica rocas negras.',
+      titles: [[4, 'Cuatro carbones', 180], [10, 'Saco de mina', 300], [20, 'Fogatero', 440]] },
+    { track: 'arcade', cat: 'ciudad', icon: '🕹️', hint: 'El arcade cobra entrada y da tickets.',
+      titles: [[2, 'Otra ficha', 160], [5, 'Manos de gabinete', 280], [10, 'Rey del salón', 420]] },
+    { track: 'shopbuy', cat: 'ciudad', icon: '🛍️', hint: 'Cómprale algo al vendedor del súper o del callejón.',
+      titles: [[3, 'Tres bolsas', 140], [8, 'Cliente frecuente', 240], [16, 'El súper te conoce', 380]] },
+  ];
+  const extra = [
+    ['combate', '🛡️', 'Escudo humano', 'Deja que papá pelee a tu lado una noche.', 'Aguanta con papá cerca', 'dad_night'],
+    ['combate', '👻', 'Cazafantasmas', 'Los tipos raros salen en etapas altas.', 'Derrota enemigos de noche', 'ghost_hunt'],
+    ['casa', '🚪', 'Puerta que cierra', 'Coloca una puerta en tu casa.', 'Pon una puerta', 'build_door'],
+    ['casa', '💡', 'Luz en el living', 'Una lámpara paga más cada noche.', 'Coloca una lámpara', 'build_lamp'],
+    ['casa', '🍞', 'Horno caliente', 'El horno cocina y suma renta.', 'Coloca un horno', 'build_oven'],
+    ['casa', '🛋️', 'Living de verdad', 'Compra un sofá y colócalo.', 'Pon un sofá', 'build_sofa'],
+    ['casa', '🛏️', 'Dormitorio', 'Una cama para que papá descanse.', 'Pon una cama', 'build_cama'],
+    ['casa', '📺', 'Noche de tele', 'Mesa para tele + televisor.', 'Arma el rincón de tele', 'build_tele'],
+    ['ciudad', '⛽', 'Tanque lleno', 'Carga nafta en la gasolinera.', 'Carga combustible', 'fuel_up'],
+    ['ciudad', '⛷️', 'Nieve prestada', 'Andá al centro de esquí.', 'Entra al predio de nieve', 'ski_go'],
+    ['ciudad', '🎡', 'Dueño del parque', 'Compra el parque de diversiones.', 'Sé dueño del parque', 'park_own'],
+    ['ciudad', '🏦', 'Interés feliz', 'Dejá plata en el banco una noche.', 'Cobra interés', 'bank_interest'],
+    ['plata', '💸', 'Primera plata grande', 'Juntá $5.000 en total.', 'Llega a $5.000 ganados', 'cash_5k'],
+    ['plata', '💰', 'Bolsillo pesado', 'Juntá $20.000 en total.', 'Llega a $20.000 ganados', 'cash_20k'],
+    ['plata', '💎', 'Casi millonario', 'Juntá $100.000 en total.', 'Llega a $100.000 ganados', 'cash_100k'],
+    ['familia', '👨', 'Papá armado', 'Cómprale un arma al papá y pulsa G.', 'Arma al papá', 'dad_gun'],
+    ['familia', '🛡️', 'Chaleco del viejo', 'Cómprale armadura al papá.', 'Ponle armadura', 'dad_armor'],
+    ['familia', '👩', 'Mamá en casa', 'Llega a $20.000 y ella vuelve.', 'Desbloquea a la mamá', 'mom_home'],
+    ['familia', '🐕', 'Perro de guardia', 'El perro se desbloquea al ganar mucho.', 'Consigue el perro', 'pet_dog'],
+    ['viaje', '🧑‍🚀', 'Trajes puestos', 'Cómpralos en el súper antes de despegar.', 'Tené trajes espaciales', 'has_suits'],
+    ['viaje', '🪐', 'Pisar Platus', 'El primer viaje deja otro cielo.', 'Llegá a otro planeta', 'on_platus'],
+    ['viaje', '🏕️', 'Base allá arriba', 'En Platus podés armar una base.', 'Construí la base espacial', 'space_base'],
+    ['historia', '🗝️', 'La clave de Tito', 'Él dice cuatro ocho uno cinco. Escuchalo.', 'Aprendé la clave', 'tito_clave'],
+    ['historia', '🕯️', 'Cliente del callejón', 'Comprá en cualquiera de los cuatro puestos.', 'Comprá en el mercado negro', 'tito_compra'],
+    ['historia', '🗣️', 'Chisme de Tito', 'Dejá que te hable todo el callejón.', 'Escuchá a Tito hasta la puerta', 'tito_chisme'],
+  ];
+  const out = [];
+  for (const p of packs) {
+    for (const [need, title, reward] of p.titles) {
+      out.push({ id: p.track + '_' + need, track: p.track, cat: p.cat, icon: p.icon, title, need, reward, hint: p.hint, steps: [title] });
+    }
+  }
+  extra.forEach((e, i) => {
+    out.push({ id: e[5] || ('side_' + i), cat: e[0], icon: e[1], title: e[2], need: 1, reward: 140 + (i % 7) * 25, hint: e[3], steps: [e[4]] });
+  });
+  return out;
+}
+const SIDE_QUESTS = buildSideQuests();
+function allQuests() { return STORY_QUESTS.concat(SIDE_QUESTS); }
+function findQuest(id) { return allQuests().find(q => q.id === id); }
+const alley = { root: null, contact: null, door: null, doorObs: null, lights: [], steam: [], vendors: [], following: false, wp: 0, open: false, flicker: 0, codeBuf: '', radioCd: 0, shopVendor: null, saidWp: -1, unlockAt: 0 };
+let questFilterCat = 'todas', questSearchTxt = '';
+const TITO_WALK = [
+  'Che, seguime. Por acá nadie pasa. Si te pierdo, la clave de la puerta es cuatro ocho uno cinco.',
+  'Cuidá los charcos. Anoche alguien tiró una bolsa y el gato se enojó.',
+  '¿Viste los basureros? No abras el de la izquierda. Huele a misterio.',
+  'El farol parpadea a propósito. Así no nos ven la cara.',
+  'Acá. La chapa es 4-8-1-5. Yo la pongo. Si te trabás, es la misma.',
+];
 function alleyRng(i) { const x = Math.sin(i * 127.13 + 19.7) * 43758.5453; return x - Math.floor(x); }
 function inAlleyStreet(x, z) { return x <= ALLEY.x0 + 1.2 && x >= ALLEY.x1 - 0.4 && Math.abs(z - ALLEY.z) < ALLEY.half + 0.55; }
 function inBlackMarket(x, z) { return x < ALLEY.x1 + 0.4 && x > ALLEY.x1 - 15.5 && Math.abs(z - ALLEY.z) < 6.2; }
@@ -2415,9 +2567,30 @@ function buildDarkAlley() {
   root.add(makeDumpster(-117.6, ALLEY.z + 1.52, 3.2, 2));
   root.add(makeDumpster(-123.4, ALLEY.z - 1.48, -0.12, 3));
   root.add(makeDumpster(-128.8, ALLEY.z + 1.5, 3.05, 4));
+  root.add(makeDumpster(-120.2, ALLEY.z - 1.62, 0.2, 5));
+  root.add(makeDumpster(-131.4, ALLEY.z + 1.42, 3.1, 6));
   for (let i = 0; i < 8; i++) {
     const box = new THREE.Mesh(new THREE.BoxGeometry(0.42 + alleyRng(i) * 0.2, 0.28, 0.36), mat(0x8b5a2b));
     box.position.set(ALLEY.x0 - 2.5 - i * 2.6, 0.18, ALLEY.z + (i % 2 ? 1.7 : -1.7)); box.rotation.y = alleyRng(i + 5); root.add(box);
+  }
+  // basura en el suelo: bolsas, botellas, papeles, restos
+  for (let i = 0; i < 22; i++) {
+    const kind = i % 4;
+    let junk;
+    if (kind === 0) {
+      junk = new THREE.Mesh(new THREE.SphereGeometry(0.14 + alleyRng(i) * 0.08, 6, 5), new THREE.MeshStandardMaterial({ color: [0x1a1f16, 0x292524, 0x111827][i % 3], roughness: .96 }));
+      junk.scale.set(1, 0.62, 1);
+    } else if (kind === 1) {
+      junk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.22, 6), mat([0x14532d, 0x1e3a5f, 0x7f1d1d][i % 3]));
+      junk.rotation.z = 1.2 + alleyRng(i + 2);
+    } else if (kind === 2) {
+      junk = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.02, 0.2), mat([0xe7e5e4, 0xa8a29e, 0xfef3c7][i % 3]));
+      junk.rotation.y = alleyRng(i + 4) * 6;
+    } else {
+      junk = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.12), mat(0x44403c));
+    }
+    junk.position.set(ALLEY.x0 - 1.2 - alleyRng(i + 7) * 22, 0.07, ALLEY.z + (alleyRng(i + 11) - 0.5) * 2.1);
+    root.add(junk);
   }
   const grate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.7), mat(0x1f2937));
   grate.position.set(-121, 0.08, ALLEY.z); root.add(grate);
@@ -2473,7 +2646,8 @@ function buildDarkAlley() {
   }
   const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.4, 11.2), mat(0x2a1d18));
   lintel.position.set(ALLEY.x1, 3.5, ALLEY.z); root.add(lintel);
-  // puestos
+  // puestos + vendedores (cada uno vende su cosa)
+  alley.vendors = [];
   for (let i = 0; i < 4; i++) {
     const stall = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.05, 1.1), mat(0x3f2a1d));
     const side = i < 2 ? 1 : -1;
@@ -2485,6 +2659,12 @@ function buildDarkAlley() {
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
     lamp.position.set(stall.position.x, 2.55, stall.position.z); root.add(lamp);
     if (i < 2) { const sl = new THREE.PointLight(0xff7a3a, 0.42, 6, 2); sl.position.copy(lamp.position); root.add(sl); }
+    const def = BM_VENDORS[i];
+    const who = makePerson(def.shirt, def.skin);
+    who.position.set(stall.position.x, 0, stall.position.z - side * 1.15);
+    who.rotation.y = side > 0 ? Math.PI : 0;
+    root.add(who);
+    alley.vendors.push({ def, mesh: who });
   }
   const sign = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.45, 0.08), new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x7f1d1d, emissiveIntensity: .55 }));
   sign.position.set(mx + 1.5, 3.3, ALLEY.z); root.add(sign);
@@ -2500,59 +2680,164 @@ function buildDarkAlley() {
 buildDarkAlley();
 
 function alleyQuestStep() { return (state.story && state.story.alley) || 0; }
-function questDone(id) {
-  const q = STORY_QUESTS.find(x => x.id === id); if (!q) return false;
-  const v = state.story && state.story[id];
-  if (id === 'alley') return (v || 0) >= q.need;
-  return v === true || v >= 99 || v >= (q.need || 1);
-}
-function storyProgress(id, step) {
+function ensureStory() {
   if (!state.story) state.story = {};
   if (!state.storyRewarded) state.storyRewarded = {};
-  const q = STORY_QUESTS.find(x => x.id === id); if (!q) return;
+  if (!state.storyCounts) state.storyCounts = {};
+}
+function questGot(q) {
+  if (!q) return 0;
+  if (q.id === 'alley') return alleyQuestStep();
+  if (q.track) return (state.storyCounts && state.storyCounts[q.track]) || 0;
+  const v = state.story && state.story[q.id];
+  if (v === true || v >= 99) return q.need || 1;
+  return v || 0;
+}
+function questDone(id) {
+  const q = findQuest(id); if (!q) return false;
+  return questGot(q) >= (q.need || 1);
+}
+function payQuest(q) {
+  if (!q || (state.storyRewarded && state.storyRewarded[q.id])) return;
+  state.storyRewarded[q.id] = true;
+  addMoney(q.reward);
+  toast('🎯 Misión cumplida: ' + q.title + ' · +$' + q.reward);
+  tone(880, .09, .05, 'triangle'); setTimeout(() => tone(1320, .12, .05, 'triangle'), 90);
+  vibr(90);
+}
+function storyBump(track, n) {
+  ensureStory();
+  state.storyCounts[track] = (state.storyCounts[track] || 0) + (n || 1);
+  for (const q of allQuests()) {
+    if (q.track === track && questDone(q.id)) payQuest(q);
+  }
+  renderQuestBtn(); renderQuestPanel();
+}
+function storyProgress(id, step) {
+  ensureStory();
+  const q = findQuest(id);
   if (id === 'alley') {
     const n = Math.max(state.story.alley || 0, step || 0);
     if (n === (state.story.alley || 0) && step != null) { renderQuestBtn(); renderQuestPanel(); return; }
     state.story.alley = n;
-  } else {
-    if (questDone(id)) { renderQuestBtn(); renderQuestPanel(); return; }
-    state.story[id] = step == null ? 99 : Math.max(state.story[id] || 0, step);
+    if (n >= 2) { state.story.tito_chisme = 1; payQuest(findQuest('tito_chisme')); }
+    if (n >= 3) { state.story.tito_clave = 1; payQuest(findQuest('tito_clave')); }
+    if (n >= 5) { state.story.tito_compra = 1; payQuest(findQuest('tito_compra')); }
+    if (questDone('alley')) payQuest(q);
+    renderQuestBtn(); renderQuestPanel();
+    return;
   }
-  if (questDone(id) && !state.storyRewarded[id]) {
-    state.storyRewarded[id] = true;
-    addMoney(q.reward);
-    toast('🎯 Misión cumplida: ' + q.title + ' · +$' + q.reward);
-    tone(880, .09, .05, 'triangle'); setTimeout(() => tone(1320, .12, .05, 'triangle'), 90);
-    vibr(90);
+  if (q && q.track) { storyBump(q.track, 1); return; }
+  if (q) {
+    if (questDone(id)) { renderQuestBtn(); renderQuestPanel(); return; }
+    state.story[id] = q.need || 1;
+    payQuest(q);
   }
   renderQuestBtn(); renderQuestPanel();
 }
+let syncingStory = false;
+function markQuest(id) { if (findQuest(id) && !questDone(id)) storyProgress(id); }
+function markQuestSilent(id) {
+  const q = findQuest(id); if (!q || questDone(id)) return;
+  ensureStory();
+  if (q.track) state.storyCounts[q.track] = Math.max(state.storyCounts[q.track] || 0, q.need || 1);
+  else state.story[id] = q.need || 1;
+  state.storyRewarded[id] = true;
+}
+function syncStoryMilestones(opts) {
+  if (syncingStory) return;
+  syncingStory = true;
+  const mark = (opts && opts.silent) ? markQuestSilent : markQuest;
+  try {
+    const earned = state.totalEarned || 0;
+    if (earned >= 5000) mark('cash_5k');
+    if (earned >= 20000) mark('cash_20k');
+    if (earned >= 100000) mark('cash_100k');
+    if (state.momUnlocked) mark('mom_home');
+    if (state.hasSuits) mark('has_suits');
+    if (state.planet === 'platus' || (state.trips || 0) > 0) mark('on_platus');
+    if (state.baseLevel) mark('space_base');
+    if (typeof pet !== 'undefined' && pet) mark('pet_dog');
+    if (state.dadGun) mark('dad_gun');
+    if (state.dadArmor < 1) mark('dad_armor');
+    if (state.parkBusiness) mark('park_own');
+    if (state.stage >= 12) mark('ghost_hunt');
+    const alleyStep = alleyQuestStep();
+    if (alleyStep >= 2) mark('tito_chisme');
+    if (alleyStep >= 3) mark('tito_clave');
+    if (alleyStep >= 5) mark('tito_compra');
+    if (typeof placed !== 'undefined') {
+      const has = k => placed.some(o => o.key === k && o.mesh && o.mesh.visible);
+      if (has('door')) mark('build_door');
+      if (has('lamp')) mark('build_lamp');
+      if (has('oven')) mark('build_oven');
+      if (has('sofa')) mark('build_sofa');
+      if (has('cama')) mark('build_cama');
+      if (has('tele')) mark('build_tele');
+    }
+  } finally { syncingStory = false; }
+}
+function pendingQuestCount() {
+  let n = 0;
+  for (const q of allQuests()) if (!questDone(q.id)) n++;
+  if (state.missions) for (const m of state.missions) if (!m.done) n++;
+  return n;
+}
 function renderQuestBtn() {
   const b = ui('questBtn'); if (!b) return;
-  const pending = STORY_QUESTS.some(q => !questDone(q.id)) || (state.missions && state.missions.some(m => !m.done));
-  b.classList.toggle('done', !pending);
+  const pending = pendingQuestCount();
+  b.classList.toggle('done', pending <= 0);
+  const c = ui('questCount'); if (c) c.textContent = pending > 99 ? '99+' : String(pending);
 }
 function renderQuestPanel() {
   const el = ui('questList'); if (!el) return;
-  const rows = [];
-  for (const q of STORY_QUESTS) {
-    const done = questDone(q.id);
-    const step = id => { if (id === 'alley') return alleyQuestStep(); return done ? 1 : 0; };
-    const s = step(q.id);
-    const line = q.steps[Math.min(q.steps.length - 1, Math.max(0, (q.id === 'alley' ? s : done ? 1 : 0)))] || q.hint;
-    rows.push('<div class="quest-row' + (done ? ' done' : (q.id === 'alley' && s > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + q.hint + '<br><span style="opacity:.8">' + (done ? 'Listo.' : line) + (q.id === 'alley' ? ' · ' + Math.min(s, q.need) + '/' + q.need : '') + '</span></div></div>');
+  const cat = questFilterCat || 'todas';
+  const qSearch = (questSearchTxt || '').trim().toLowerCase();
+  const cats = ui('questCats');
+  if (cats && !cats.dataset.ready) {
+    cats.dataset.ready = '1';
+    QUEST_CATS.forEach(c => {
+      const b = document.createElement('button'); b.type = 'button'; b.dataset.qcat = c.id; b.textContent = c.name;
+      b.onclick = () => { questFilterCat = c.id; renderQuestPanel(); };
+      cats.appendChild(b);
+    });
   }
-  if (state.missions && state.missions.length) {
-    rows.push('<div style="font-size:11px; font-weight:800; color:#fde68a; margin:8px 0 4px">HOY</div>');
+  if (cats) cats.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.qcat === cat));
+  const rows = [];
+  const list = allQuests().filter(q => {
+    if (cat !== 'todas' && cat !== 'hoy' && q.cat !== cat) return false;
+    if (qSearch && !(q.title + ' ' + q.hint + ' ' + (q.steps || []).join(' ')).toLowerCase().includes(qSearch)) return false;
+    return true;
+  });
+  list.sort((a, b) => {
+    const af = a.feat ? 0 : questDone(a.id) ? 2 : 1;
+    const bf = b.feat ? 0 : questDone(b.id) ? 2 : 1;
+    return af - bf;
+  });
+  const doneN = allQuests().filter(q => questDone(q.id)).length;
+  const meta = ui('questMeta');
+  if (meta) meta.textContent = doneN + '/' + allQuests().length + ' del tablero · ' + (state.missions ? state.missions.filter(m => m.done).length : 0) + '/' + ((state.missions && state.missions.length) || 0) + ' de hoy · Tito espera al oeste, en un callejón que nadie mira.';
+  if (cat !== 'hoy') {
+    if (cat === 'todas') rows.push('<div class="quest-head">HISTORIA Y TABLERO · ' + list.length + ' misiones</div>');
+    for (const q of list) {
+      const done = questDone(q.id);
+      const got = questGot(q);
+      const line = q.id === 'alley' ? (q.steps[Math.min(q.steps.length - 1, Math.max(0, got))] || q.hint) : (done ? 'Listo.' : (q.steps && q.steps[0]) || q.hint);
+      rows.push('<div class="quest-row' + (q.feat ? ' feat' : '') + (done ? ' done' : (got > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + q.hint + '<br><span style="opacity:.8">' + line + ' · ' + Math.min(got, q.need) + '/' + q.need + (done ? ' · +$' + q.reward : '') + '</span></div></div>');
+    }
+  }
+  if ((cat === 'todas' || cat === 'hoy') && state.missions && state.missions.length) {
+    rows.push('<div class="quest-head">HOY</div>');
     for (const m of state.missions) {
+      if (qSearch && !String(m.txt).toLowerCase().includes(qSearch)) continue;
       rows.push('<div class="quest-row' + (m.done ? ' done' : '') + '"><div>' + m.icon + '</div><div><b>' + m.txt + '</b>' + Math.min(m.got, m.need) + '/' + m.need + (m.done ? ' · +$' + m.reward : '') + '</div></div>');
     }
   }
-  el.innerHTML = rows.join('');
+  el.innerHTML = rows.join('') || '<div style="opacity:.65; padding:10px">No hay misiones en este filtro.</div>';
 }
 function openQuestPanel() {
   if (!state.running) return;
-  closeShopInput(); closeMathBox(); closeRocket(); closeChatReply(); closeKeypad(); closeBlackMarket(); releaseLock();
+  closeShopInput(); closeMathBox(); closeRocket(); closeChatReply(); closeKeypad(); closeBlackMarket(); if (typeof closeBank === 'function') closeBank(); releaseLock();
   typing = true; for (const k in keys) keys[k] = false;
   renderQuestPanel(); ui('questbox').style.display = 'flex';
 }
@@ -2611,10 +2896,19 @@ function tryAlleyCode(code) {
   tone(660, .08, .04, 'triangle'); setTimeout(() => tone(880, .1, .04, 'triangle'), 80);
   saveGame(); return true;
 }
-function openBlackMarket() {
+function nearestBlackVendor() {
+  let best = null, bd = 3.4;
+  for (const v of alley.vendors || []) {
+    const d = dist2D(player.position, v.mesh.position);
+    if (d < bd) { bd = d; best = v.def; }
+  }
+  return best;
+}
+function openBlackMarket(vendor) {
   if (!alley.open) { toast('🔒 La puerta sigue cerrada'); return; }
   closeQuestPanel(); closeKeypad(); closeShopInput(); closeMathBox(); closeChatReply(); releaseLock();
   typing = true; for (const k in keys) keys[k] = false;
+  alley.shopVendor = vendor || nearestBlackVendor() || BM_VENDORS[0];
   renderBlackMarket(); ui('blackbox').style.display = 'flex';
   storyProgress('alley', 4);
 }
@@ -2622,7 +2916,15 @@ function closeBlackMarket() { const el = ui('blackbox'); if (el) el.style.displa
 function renderBlackMarket() {
   const list = ui('blackList'), money = ui('blackMoney'); if (!list) return;
   if (money) money.textContent = state.creative ? '$∞' : '$' + state.money;
-  list.innerHTML = BLACK_MARKET.map(it => {
+  if (!alley.shopVendor) alley.shopVendor = BM_VENDORS[0];
+  const tabs = ui('blackVendors');
+  if (tabs) {
+    tabs.innerHTML = BM_VENDORS.map(v => '<button type="button" data-bv="' + v.id + '" class="' + (alley.shopVendor && alley.shopVendor.id === v.id ? 'on' : '') + '">' + v.icon + ' ' + v.name + '</button>').join('');
+  }
+  const talk = ui('blackTalk');
+  if (talk && alley.shopVendor) talk.textContent = alley.shopVendor.icon + ' ' + alley.shopVendor.name + ': «' + alley.shopVendor.line + '»';
+  const items = BLACK_MARKET.filter(it => alley.shopVendor && alley.shopVendor.keys.includes(it.key));
+  list.innerHTML = items.map(it => {
     const have = (it.gadget && state.gadgets && state.gadgets[it.gadget]) || (it.dmg && state.weaponName === it.name);
     return '<button type="button" data-bm="' + it.key + '" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(127,29,29,.2); border:1px solid #7f1d1d; color:#fecaca; border-radius:9px; padding:8px 10px;"><b style="color:#fecaca">' + it.icon + ' ' + it.name + '</b> · $' + it.price + (have ? ' · ya lo tienes' : '') + '<br><span style="opacity:.75; font-size:11px">' + it.blurb + '</span></button>';
   }).join('');
@@ -2646,6 +2948,22 @@ function applyBlackMarketGadget(item) {
     toast('🎯 Dardos de dormir: ' + n + ' se mueven lento');
   } else if (g === 'iman') { addMoney(80); if (typeof coinBurst === 'function') coinBurst(player.position, 8); toast('🧲 El imán juntó monedas perdidas · +$80'); }
   else if (g === 'silencio') { toast('🎈 Tito: «sirve para las fiestas, no preguntes»'); addMoney(20); }
+  else if (g === 'botas') { state.gadgets.botas = true; toast('🥾 Botas de trapo: caminas más rápido y te olvidan antes'); }
+  else if (g === 'sombrero') { state.wanted = Math.max(0, (state.wanted || 0) - 22); state.wantedLevel = Math.max(0, (state.wantedLevel || 0) - 1); toast('🎩 Sombrero de ladrón · te buscan menos'); }
+  else if (g === 'linterna') {
+    let n = 0; if (typeof enemies !== 'undefined') for (const e of enemies) if (dist2D(e.position, player.position) < 9) { e.userData.slow = 5; n++; }
+    toast('🔦 Linterna ciega: ' + n + ' se taparon los ojos');
+  } else if (g === 'dados') {
+    const win = Math.random() < 0.55; const m = win ? 80 + Math.floor(Math.random() * 140) : 10;
+    addMoney(m); toast(win ? '🎲 Los dados pagaron · +$' + m : '🎲 Tito se ríe: +$' + m);
+  } else if (g === 'silbato') {
+    let n = 0; if (typeof enemies !== 'undefined') for (const e of enemies) if (dist2D(e.position, player.position) < 11) { e.userData.slow = 4; n++; if (e.userData.stun != null) e.userData.stun = 1.2; }
+    toast('📣 Silbato: ' + n + ' monstruo(s) se asustaron');
+  } else if (g === 'fuegos') {
+    let n = 0; if (typeof enemies !== 'undefined') for (const e of enemies) if (dist2D(e.position, player.position) < 8) { e.userData.slow = 6; n++; if (typeof hitEnemy === 'function') hitEnemy(e, 6, player.position); }
+    if (typeof coinBurst === 'function') coinBurst(player.position, 10);
+    toast('🎇 Fuegos de mentira: ' + n + ' aturdido(s)');
+  }
   storyProgress('alley', 5);
 }
 function tryAlleyInteract() {
@@ -2665,11 +2983,11 @@ function tryAlleyInteract() {
       tryAlleyCode(ALLEY.code); return true;
     }
     if (alley.open && inBlackMarket(px, pz)) { openBlackMarket(); return true; }
-    say('🕶️ Tito', alley.open ? 'Pasá, el puesto ya está armado.' : 'La clave es cuatro ocho uno cinco. No se la digas a nadie.');
+    say('🕶️ Tito', alley.open ? 'Pasá. Lila, Mono, Doña Gris y El Reloj ya abrieron.' : 'La clave es cuatro ocho uno cinco. No se la digas a nadie.');
     return true;
   }
   if (!alley.open && Math.abs(px - ALLEY.doorX) < 2.4 && Math.abs(pz - ALLEY.z) < 2.4) { openKeypad(); return true; }
-  if (alley.open && inBlackMarket(px, pz)) { openBlackMarket(); return true; }
+  if (alley.open && inBlackMarket(px, pz)) { openBlackMarket(nearestBlackVendor()); return true; }
   return false;
 }
 function updateAlley(dt) {
@@ -2693,9 +3011,21 @@ function updateAlley(dt) {
     alley.radioCd = (alley.radioCd || 0) - dt;
     if (alley.radioCd <= 0) { alley.radioCd = 8; const p = police[0]; if (p && dist2D(p.position, player.position) < 40) toast('📻 Radio: patrulla a ' + Math.round(dist2D(p.position, player.position)) + ' metros'); }
   }
-  if (!state.running || state.paused || !alley.following || !alley.contact) return;
-  const wps = [{ x: -116, z: ALLEY.z }, { x: -124, z: ALLEY.z }, { x: ALLEY.doorX + 1.6, z: ALLEY.z }];
+  if (!state.running || state.paused || !alley.following || !alley.contact) {
+    if (alley.unlockAt && performance.now() >= alley.unlockAt && !alley.open) {
+      alley.unlockAt = 0;
+      say('🕶️ Tito', 'Cuatro... ocho... uno... cinco.');
+      tryAlleyCode(ALLEY.code);
+    }
+    return;
+  }
+  const wps = [{ x: -116, z: ALLEY.z }, { x: -121, z: ALLEY.z }, { x: -127, z: ALLEY.z }, { x: ALLEY.doorX + 1.6, z: ALLEY.z }];
   const tito = alley.contact, goal = wps[Math.min(alley.wp, wps.length - 1)];
+  if (alley.saidWp !== alley.wp && dist2D(player.position, tito.position) < 8) {
+    const line = TITO_WALK[Math.min(alley.wp, TITO_WALK.length - 1)];
+    if (line) say('🕶️ Tito', line);
+    alley.saidWp = alley.wp;
+  }
   const d = dist2D(tito.position, goal);
   if (d > 0.35) {
     const step = 1.7 * dt, len = d || 1;
@@ -2709,7 +3039,8 @@ function updateAlley(dt) {
       alley.following = false;
       tito.rotation.y = Math.PI / 2;
       storyProgress('alley', 2);
-      say('🕶️ Tito', 'Acá. La chapa es 4-8-1-5. Si te trabás, yo la pongo.');
+      say('🕶️ Tito', TITO_WALK[TITO_WALK.length - 1]);
+      alley.unlockAt = performance.now() + 1600;
     }
   }
 }
@@ -3352,7 +3683,7 @@ function becomeWanted(sec, stars) {
 function updatePolice(dt) {
   if (state.planet === 'platus') { if (police.length) clearPolice(); state.wanted = 0; state.wantedLevel = 0; return; }   // en Platus NO hay policía
   if (state.wanted > 0) {
-    state.wanted -= dt * (state.gadgets && state.gadgets.capa ? 1.8 : 1);
+    state.wanted -= dt * ((state.gadgets && state.gadgets.capa ? 1.8 : 1) * (state.gadgets && state.gadgets.botas ? 1.25 : 1));
     if (state.policeDelay > 0) { state.policeDelay -= dt; return; }   // aún no llegan: aprovecha para huir
     const driving = state.driving;              // si conduces, la policía te persigue EN AUTO
     const lvl = Math.max(1, state.wantedLevel || 1);
@@ -6451,6 +6782,7 @@ function tryMineCoal() {   // picar carbón: 1 golpe cerca de una roca negra = 1
       state.inv.carbon = (state.inv.carbon || 0) + 1; contractProgress('coal');
       floatText(r.position, '⚫ +1 carbón', '#cbd5e1', 15);
       r.rotation.y += 0.5; beep(220, 0.08, 0.05);
+      if (typeof storyBump === 'function') storyBump('coal');
       return true;
     }
   }
@@ -6628,6 +6960,7 @@ function makeCampfire() {   // botón 🔥 (o F en Platus sin construir): 3 de c
   netSend({ t: 'fire', id: net.myId, x: +p.x.toFixed(2), z: +p.z.toFixed(2) });
   toast('🔥 ¡Fogata lista! De noche quédate cerca para no congelarte');
   beep(500, 0.12, 0.05);
+  if (typeof storyProgress === 'function') storyProgress('fire');
 }
 // ===================================================================
 //  MINEROS AUTOMÁTICOS: máquinas que sacan carbón y plata SOLAS,
@@ -7396,6 +7729,7 @@ function placeObject() {
   addMoney(val);
   toast('🔨 Construiste ' + SHOP.find(s => s.key === key).name + (variant ? ' · ' + variant.name : '') + ' +$' + val);
   checkConstructionBonus();
+  if (typeof storyBump === 'function') storyBump('build');
 }
 
 function placeBlueprint() {
@@ -7754,17 +8088,19 @@ function makeLavaWorm() {   // HELIOS (lava): gusano segmentado incandescente
 // spd(s) recibe la etapa actual. Flags: opensDoors (abre puertas), commander (manda toros),
 // mole (topo, lo maneja updateMoles), boss (topo jefe), poison (envenena), fly (vuela),
 // breaksAir (destruye construcciones aéreas / techos).
+// Los zombis (y el bombardero) van ARRASTRÁNDOSE de noche: ~la mitad que antes,
+// para que no corran detrás del jugador. El umbral scout (speed > 2.4) ya no los alcanza.
 const ENEMY_DEFS = {
-  zombie:        { make: makeZombie,        hp: 10,  spd: s => 1.8 + s * 0.15, dmg: 10, barY: 3.3 },
-  zombieArmored: { make: makeZombieArmored, hp: 30,  spd: s => 1.6 + s * 0.10, dmg: 10, barY: 3.8 },
-  smart:         { make: makeSmart,         hp: 10,  spd: s => 1.9 + s * 0.12, dmg: 10, barY: 3.3, opensDoors: true },
-  smartArmored:  { make: makeSmartArmored,  hp: 30,  spd: s => 1.7 + s * 0.10, dmg: 10, barY: 3.8, opensDoors: true },
+  zombie:        { make: makeZombie,        hp: 10,  spd: s => 0.78 + s * 0.05, dmg: 10, barY: 3.3 },
+  zombieArmored: { make: makeZombieArmored, hp: 30,  spd: s => 0.68 + s * 0.04, dmg: 10, barY: 3.8 },
+  smart:         { make: makeSmart,         hp: 10,  spd: s => 0.82 + s * 0.045, dmg: 10, barY: 3.3, opensDoors: true },
+  smartArmored:  { make: makeSmartArmored,  hp: 30,  spd: s => 0.72 + s * 0.04, dmg: 10, barY: 3.8, opensDoors: true },
   toro:          { make: makeKnight,         hp: 40,  spd: () => 1.15,          dmg: 12, barY: 3.3, commander: true },
   toroArmored:   { make: makeKnightArmored,  hp: 62,  spd: () => 1.05,          dmg: 12, barY: 3.6, commander: true },
   mole:          { make: makeMole,          hp: 20,  spd: () => 2.8,           dmg: 20, barY: 1.9, mole: true },
   moleBoss:      { make: makeMoleBoss,      hp: 160, spd: () => 2.2,           dmg: 20, barY: 3.4, mole: true, boss: true },
   ant:           { make: makeAnt,           hp: 30,  spd: () => 2.6,           dmg: 17, barY: 2.2, poison: true },
-  bomber:        { make: makeBomberZombie,  hp: 85,  spd: () => 1.7,           dmg: 24, barY: 3.8, bomber: true },
+  bomber:        { make: makeBomberZombie,  hp: 85,  spd: () => 0.95,          dmg: 24, barY: 3.8, bomber: true },
   flyer:         { make: makeFlyer,         hp: 60,  spd: () => 3.2,           dmg: 20, barY: 4.6, fly: true, breaksAir: true },
   alien:         { make: makeAlien,         hp: 90,  spd: () => 2.4,           dmg: 18, barY: 3.2 },
   alienBig:      { make: makeAlienBig,      hp: 140, spd: () => 2.2,           dmg: 24, barY: 4.0 },
@@ -8483,6 +8819,7 @@ function spawnHelper() {   // puedes tener TODOS los hijos que quieras ($300 c/u
   const slot = helpers.length, angle = (slot % 8) / 8 * Math.PI * 2, radius = 3 + Math.floor(slot / 8) * 1.2;
   makeHelperAt(houseAnchor.x + Math.sin(angle) * radius, houseAnchor.z + 6 + Math.cos(angle) * radius);
   toast('👧 ¡Nuevo hijo! Tienes ' + helpers.length + ' (cada uno cuesta $300)');
+  if (typeof storyProgress === 'function') storyProgress('helper');
 }
 function updateHelpers(dt) {
   if (state.inFlight) return;
@@ -8734,9 +9071,15 @@ function updateDirt(dt) {
       const z = spawnEnemy('zombie', new THREE.Vector3(d.pos.x, 0, d.pos.z));
       z.userData.dirtZombie = true;
       z.userData.attackCd = 0;
-      z.userData.speed *= 1.55;
+      z.userData.speed = 0.86;
       z.rotation.y = Math.atan2(player.position.x - z.position.x, player.position.z - z.position.z);
-      removeDirt(d);       toast('🧟 ¡Un zombi salió de la suciedad y te ataca! Pégale ya (clic / 👊)');
+      removeDirt(d);
+      toast('🧟 ¡Un zombi salió de la suciedad y te ataca! Pégale ya (clic / 👊)');
+      if (dist2D(z.position, player.position) < 2.4) {
+        startEnemyAttack(z);
+        damageEnemyTarget(player.position, z.userData.dmg || 10, z.position);
+        z.userData.attackCd = 0.55;
+      }
     }
   }
 }
@@ -8754,7 +9097,7 @@ function hostileInStrikeRange() {
   return false;
 }
 function tryCombatStrike(power) {
-  if (hostileInStrikeRange()) attack(power || 1);
+  if (combatIsActive()) attack(power || 1);
   else attackNPC();
 }
 function updateDirtZombies(dt) {
@@ -8804,6 +9147,7 @@ function toggleDadRest() {
   dad.position.set(spot.mesh.position.x, spot.key === 'cama' ? 0.55 : 0.4, spot.mesh.position.z);
   dad.rotation.y = spot.mesh.rotation.y;
   dad.rotation.x = spot.key === 'cama' ? -Math.PI / 2 : 0;   // en la cama se acuesta
+  if (typeof storyProgress === 'function') storyProgress('dadrest');
   beep(400, 0.12, 0.04);
   toast(spot.key === 'cama' ? '😴 El papá se acostó en la cama: los monstruos NO lo detectan' : '🛋️ El papá se sentó en el sofá: los monstruos NO lo detectan');
 }
@@ -8981,7 +9325,7 @@ const state = {
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
   foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   hasPhone: false, skiPass: false, skiGear: null, skiGearWorn: false, skiing: false, skiLiftRide: null,
-  story: {}, storyRewarded: {}, gadgets: {},
+  story: {}, storyRewarded: {}, gadgets: {}, storyCounts: {},
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -9049,6 +9393,7 @@ function updateParkBusiness(dt) {
 function checkProgress() {
   const newStage = 1 + Math.floor(state.totalEarned / 2500);
   if (newStage > state.stage) { state.stage = newStage; toast('⭐ ¡ETAPA ' + state.stage + '! El juego se pone más difícil'); phaseText('ETAPA ' + state.stage); }
+  if (typeof syncStoryMilestones === 'function') syncStoryMilestones();
   if (!state.momUnlocked && state.totalEarned >= MOM_AT) { state.momUnlocked = true; state.momEventPending = true; toast('💃 A las $20.000: ¡esta noche el papá irá a una fiesta!'); }
   if (!state.meteorTriggered && state.planet === 'tierra' && state.totalEarned >= (state.meteorAt || METEOR_AT)) triggerMeteor();
   if (state.totalEarned >= 5000 && !(state.blueprints && state.blueprints.agriculture)) {
@@ -9717,6 +10062,7 @@ function eatFood() {
   if (state.hunger >= 100) { toast('No tienes hambre todavía'); return; }
   state.inv.food--; state.hunger = Math.min(100, state.hunger + 45); state.hp = Math.min(100, state.hp + 8);
   toast('🍖 Comiste (+45 hambre)'); beep(440, 0.08, 0.04);
+  if (typeof storyBump === 'function') storyBump('eat');
 }
 // OJO: soltar una tecla SIEMPRE la limpia, aunque en ese momento haya un menú abierto
 // (antes, si abrías el vendedor caminando con W, el keyup se ignoraba y el personaje
@@ -9750,6 +10096,7 @@ function openShopInput() {
   box.style.display = 'flex'; inp.value = '';
   shopSellMode = false; ui('shopSellBtn').textContent = '🔁 Vender';
   if (Math.random() < 0.35) say('🛒 Vendedor', VENDOR_LINES[Math.floor(Math.random() * VENDOR_LINES.length)]);
+  if (typeof storyProgress === 'function') storyProgress('shop');
   renderShopList('');
   if (!document.body.classList.contains('touch')) inp.focus();   // en PC enfoca; en celular NO (para no abrir el teclado y tapar la lista)
 }
@@ -10162,9 +10509,18 @@ ui('exitBtn').onclick = () => saveAndExit();
 ui('fotoBtn').onclick = () => takePhoto();
 if (ui('questBtn')) ui('questBtn').onclick = () => { if (ui('questbox').style.display === 'flex') closeQuestPanel(); else openQuestPanel(); };
 if (ui('questCloseBtn')) ui('questCloseBtn').onclick = closeQuestPanel;
+if (ui('questSearch')) {
+  ui('questSearch').addEventListener('input', () => { questSearchTxt = ui('questSearch').value; renderQuestPanel(); });
+  ui('questSearch').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Escape') closeQuestPanel(); });
+}
 if (ui('keypadClear')) ui('keypadClear').onclick = () => { alley.codeBuf = ''; keypadScreen(); };
 if (ui('keypadClose')) ui('keypadClose').onclick = closeKeypad;
 if (ui('blackCloseBtn')) ui('blackCloseBtn').onclick = closeBlackMarket;
+if (ui('blackVendors')) ui('blackVendors').onclick = e => {
+  const id = e.target.closest('[data-bv]')?.dataset.bv; if (!id) return;
+  alley.shopVendor = BM_VENDORS.find(v => v.id === id) || alley.shopVendor;
+  renderBlackMarket();
+};
 if (ui('blackList')) ui('blackList').onclick = e => {
   const key = e.target.closest('[data-bm]')?.dataset.bm; if (!key) return;
   const item = BLACK_MARKET.find(x => x.key === key); if (!item) return;
@@ -10271,7 +10627,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (trySeatedGamerKeyboard()) return;
       if (state.running && state.inCastle) attackCastleFoe();    // en el castillo, toque rápido = pegar al alien malo
       else if (state.running && bowEquipped()) shootBowArrow(.42);
-      else if (state.running && (state.phase === 'NIGHT' || hostileInStrikeRange())) attack();   // toque rápido: golpear monstruo (noche o zombi de suciedad)
+      else if (state.running && combatIsActive()) attack();   // toque rápido: golpear monstruo (noche o zombi de suciedad)
     }
   });
   look.addEventListener('touchcancel', () => { lookId = null; });
@@ -10360,7 +10716,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
   bindButtons(ui('moveBtns'));
 }
 
-function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; if (ui('questBtn')) ui('questBtn').style.display = 'block'; ui('parkBusinessBtn').style.display = 'block'; startMusic(); }
+function hideScreens() { ['start', 'jail', 'over', 'win'].forEach(s => ui(s).classList.add('hidden')); ui('hud').style.display = 'block'; ui('helpBtn').style.display = 'block'; ui('soundBtn').style.display = 'block'; ui('exitBtn').style.display = 'block'; ui('fotoBtn').style.display = 'block'; if (ui('questBtn')) ui('questBtn').style.display = 'block'; if (typeof renderQuestBtn === 'function') renderQuestBtn(); ui('parkBusinessBtn').style.display = 'block'; startMusic(); }
 // Guardar y salir al menú (botón 💾 Salir)
 function saveAndExit() {
   leaveParkRide(true); if (state.inFlight) endFlight(); standUp(true);   // si estabas en una atracción o en el avión, te bajas antes de guardar
@@ -10418,8 +10774,8 @@ function startGame() {
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
   houseTier = 0;
   newMissions();
-  state.story = {}; state.storyRewarded = {}; state.gadgets = {};
-  alley.following = false; alley.wp = 0; alley.codeBuf = '';
+  state.story = {}; state.storyRewarded = {}; state.gadgets = {}; state.storyCounts = {};
+  alley.following = false; alley.wp = 0; alley.codeBuf = ''; alley.saidWp = -1; alley.unlockAt = 0; alley.shopVendor = null;
   setAlleyDoorOpen(false);
   if (alley.contact) { alley.contact.position.set(ALLEY.x0 + 2.4, 0, ALLEY.z); alley.contact.rotation.y = Math.PI / 2; }
   renderQuestBtn();
@@ -11386,7 +11742,7 @@ function saveGame() {
       dadResting: !!dad.userData.resting,
       streak: state.streak || 0,   // racha de noches perfectas
       missions: state.missions || null,   // misiones del día con su progreso
-      story: state.story || {}, storyRewarded: state.storyRewarded || {}, gadgets: state.gadgets || {}, alleyOpen: !!alley.open,
+      story: state.story || {}, storyRewarded: state.storyRewarded || {}, gadgets: state.gadgets || {}, storyCounts: state.storyCounts || {}, alleyOpen: !!alley.open,
       bestiary: state.bestiary || {},     // colección de monstruos
       album: state.album || {}, albumDone: !!state.albumDone,   // álbum de criaturas alien
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
@@ -11663,8 +12019,8 @@ function tryBank() {
 function bankAction(a) {
   const mv = (n) => { n = Math.min(n, state.money); if (n <= 0) { toast('💸 No tienes plata para depositar'); return; } state.money -= n; state.bank = (state.bank || 0) + n; toast('🏦 Depositaste $' + n + ' (ganará 5% cada noche)'); };
   const rt = (n) => { n = Math.min(n, state.bank || 0); if (n <= 0) { toast('🏦 No tienes ahorros'); return; } state.bank -= n; state.money += n; toast('💵 Retiraste $' + n); };
-  if (a === 'dep500') mv(500);
-  else if (a === 'depAll') mv(state.money);
+  if (a === 'dep500') { mv(500); if ((state.bank || 0) > 0 && typeof storyProgress === 'function') storyProgress('deposit'); }
+  else if (a === 'depAll') { mv(state.money); if ((state.bank || 0) > 0 && typeof storyProgress === 'function') storyProgress('deposit'); }
   else if (a === 'ret500') rt(500);
   else if (a === 'retAll') rt(state.bank || 0);
   else if (a === 'loan') {
@@ -11844,6 +12200,7 @@ function takePhoto() {
     const a = document.createElement('a'); a.href = url; a.download = 'this-is-money.png';
     document.body.appendChild(a); a.click(); a.remove();
     toast('📷 ¡Foto guardada! Compártela con tus amigos');
+    if (typeof storyBump === 'function') storyBump('photo');
     tone(880, .08, .05, 'triangle');
   } catch (e) { toast('📷 No se pudo sacar la foto aquí'); }
 }
@@ -12078,11 +12435,17 @@ const MISSION_DEFS = [
   { type: 'sport',   icon: '🏅', need: () => 1, txt: () => 'Completa un partido corto' },
   { type: 'runover', icon: '🚗', need: () => 4, txt: n => 'Atropella ' + n + ' monstruos' },
   { type: 'math',    icon: '🧮', need: () => 3, txt: n => 'Resuelve ' + n + ' desafíos de mates (U)' },
+  { type: 'eat',     icon: '🍖', need: () => 2, txt: n => 'Come ' + n + ' veces' },
+  { type: 'build',   icon: '🧱', need: () => 3, txt: n => 'Coloca ' + n + ' construcciones' },
+  { type: 'photo',   icon: '📷', need: () => 1, txt: () => 'Saca una foto' },
+  { type: 'gold',    icon: '🪙', need: () => 1, txt: () => 'Cobra el oro de la casa dorada' },
+  { type: 'drive',   icon: '🚗', need: () => 1, txt: () => 'Conduce un vehículo' },
+  { type: 'shopbuy', icon: '🛍️', need: () => 2, txt: n => 'Compra ' + n + ' cosas' },
 ];
 function newMissions() {
   const pool = MISSION_DEFS.slice();
   state.missions = [];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 8; i++) {
     const def = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
     const need = def.need();
     state.missions.push({ type: def.type, need, got: 0, done: false, reward: 150 + 50 * state.stage, icon: def.icon, txt: def.txt(need) });
@@ -12091,8 +12454,7 @@ function newMissions() {
   renderQuestBtn(); renderQuestPanel();
 }
 function missionProgress(type, n) {
-  if (type === 'harvest') storyProgress('harvest');
-  if (type === 'sport') storyProgress('sport');
+  if (typeof storyBump === 'function') storyBump(type, n || 1);
   if (!state.missions) return;
   for (const m of state.missions) {
     if (m.done || m.type !== type) continue;
@@ -12104,8 +12466,6 @@ function missionProgress(type, n) {
       vibr(90);
     }
   }
-  if (type === 'harvest') storyProgress('harvest');
-  if (type === 'sport') storyProgress('sport');
   renderMissions();
   renderQuestBtn(); renderQuestPanel();
 }
@@ -12236,9 +12596,10 @@ function loadGame() {
   applyDadArmed(!!d.dadArmed && state.dadGun);   // repone el arma del papá si estaba armado
   applyDadArmor(state.dadArmor < 1);             // repone la armadura del papá si la compraste
   if (d.missions && d.missions.length) { state.missions = d.missions; renderMissions(); } else newMissions();
-  state.story = d.story || {}; state.storyRewarded = d.storyRewarded || {}; state.gadgets = d.gadgets || {};
+  state.story = d.story || {}; state.storyRewarded = d.storyRewarded || {}; state.gadgets = d.gadgets || {}; state.storyCounts = d.storyCounts || {};
   setAlleyDoorOpen(!!d.alleyOpen);
   if (alley.contact) alley.contact.position.set(alley.open ? ALLEY.doorX + 1.6 : ALLEY.x0 + 2.4, 0, ALLEY.z);
+  syncStoryMilestones({ silent: true });
   renderQuestBtn(); renderQuestPanel();
   state.bestiary = d.bestiary || {};
   state.album = d.album || {}; state.albumDone = !!d.albumDone;
@@ -12299,8 +12660,8 @@ function resetAll() {
   state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false; state.cargo = {};
   resetWeather();
   removeRocket();
-  state.story = {}; state.storyRewarded = {}; state.gadgets = {};
-  alley.following = false; alley.wp = 0;
+  state.story = {}; state.storyRewarded = {}; state.gadgets = {}; state.storyCounts = {};
+  alley.following = false; alley.wp = 0; alley.saidWp = -1; alley.unlockAt = 0; alley.shopVendor = null;
   setAlleyDoorOpen(false);
   if (alley.contact) { alley.contact.position.set(ALLEY.x0 + 2.4, 0, ALLEY.z); alley.contact.rotation.y = Math.PI / 2; }
 }
@@ -12425,7 +12786,7 @@ function spawnCar(opts) {
   barG.add(bbg); barG.add(bfg); scene.add(barG);
   car = { group: g, wheels, rotors, hp: (opts && opts.hp != null ? opts.hp : 100), maxHp: 100, fuel: (opts && opts.fuel != null ? opts.fuel : 100), maxFuel: 100, heading, dmgCd: 0, enginePow: 0, bar: { g: barG, fg: bfg }, moto, helicopter, speedMult: moto ? 1.45 : 1, spawnRadius };
   vehicles.push(car);
-  if (!opts || !opts.restoring) toast((helicopter ? '🚁 ¡Helicóptero comprado!' : moto ? '🏍️ ¡Moto comprada!' : '🚗 ¡Auto comprado!') + ' Entrega lista frente al súper · tienes ' + vehicles.length + ' vehículos. Acércate y pulsa E');
+  if (!opts || !opts.restoring) { toast((helicopter ? '🚁 ¡Helicóptero comprado!' : moto ? '🏍️ ¡Moto comprada!' : '🚗 ¡Auto comprado!') + ' Entrega lista frente al súper · tienes ' + vehicles.length + ' vehículos. Acércate y pulsa E'); if (typeof storyProgress === 'function') storyProgress('car'); }
   return car;
 }
 // Auto más cercano de la CALLE (tráfico o estacionado) para robar
@@ -12470,7 +12831,7 @@ function toggleCar() {
   if (nearestOwned) {   // subir al vehículo propio más cercano
     car = nearestOwned;
     state.driving = true; yaw = car.heading + Math.PI; state.buildMode = false;
-    toast(car.helicopter ? '🚁 Pilotando: W/S avanzar · A/D girar · Espacio subir · Ctrl bajar · E salir' : '🚗 Conduces: W/S avanzar · A/D girar · Shift/correr TURBO · 👊/Espacio bocina · E bajar'); return true;
+    toast(car.helicopter ? '🚁 Pilotando: W/S avanzar · A/D girar · Espacio subir · Ctrl bajar · E salir' : '🚗 Conduces: W/S avanzar · A/D girar · Shift/correr TURBO · 👊/Espacio bocina · E bajar'); if (typeof storyBump === 'function') storyBump('drive'); return true;
   }
   // robar un auto de la CALLE: si hay uno cerca, róbalo — aunque ya tengas uno (abandonas el actual y te llevas el nuevo)
   const street = nearestStreetCar(6);
@@ -12566,7 +12927,7 @@ function tryRefuelCar() {
   const cost = missing * 3;
   if (state.money < cost) { toast('⛽ Necesitas $' + cost + ' para cargar gasolina'); return true; }
   state.money -= cost; target.fuel = target.maxFuel;
-  toast('⛽ Compraste ' + missing + ' unidades de gasolina · tanque lleno · -$' + cost); saveGame(); return true;
+  toast('⛽ Compraste ' + missing + ' unidades de gasolina · tanque lleno · -$' + cost); if (typeof markQuest === 'function') markQuest('fuel_up'); saveGame(); return true;
 }
 let arcadeMini = null;
 let miniRaf = 0;
@@ -13327,6 +13688,7 @@ function tryArcadeZone() {
   const game = ARCADE_GAMES.find(g => g.name === machine.name) || ARCADE_GAMES[0], price = game.price;
   if (state.money < price) { toast('🎮 ' + game.name + ' cuesta $' + price); return true; }
   state.money -= price; saveGame();
+  if (typeof storyBump === 'function') storyBump('arcade');
   if (game.name === 'Pac-Man') return pacOpen(true);
   openArcadeMini(game); return true;
 }
@@ -13427,7 +13789,7 @@ function trySkiResort() {
   if (dg < 14) {
     if (!state.skiPass) {
       if (state.money < 500) { toast('🎫 La tarjeta del centro de esquí cuesta $500'); return true; }
-      state.money -= 500; state.skiPass = true; addMoney(0); toast('🎫 ¡Tarjeta de acceso comprada! Ya puedes subir a las pistas'); saveGame(); return true;
+      state.money -= 500; state.skiPass = true; addMoney(0); if (typeof markQuest === 'function') markQuest('ski_go'); toast('🎫 ¡Tarjeta de acceso comprada! Ya puedes subir a las pistas'); saveGame(); return true;
     }
     if (!state.skiGear) { toast('⛷️ Compra esquís o snowboard en la caseta azul'); return true; }
     toggleSkiing(!state.skiing); return true;
@@ -13537,15 +13899,16 @@ function paintHouse(color, label) {
     }
   }
   toast('🎨 Pintaste tu casa (' + n + ' piezas) de ' + label.replace('Pintura ', '')); beep(520, 0.1, 0.04);
+  if (typeof storyProgress === 'function') storyProgress('paint');
 }
 function buyItem(item) {
   const fromAlley = !!(item && (item.gadget || (item.key && String(item.key).indexOf('bm_') === 0)));
   if (item.gadget) {
     if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
-    const once = { capa:1, gafas:1, gancho:1, radio:1 };
+    const once = { capa:1, gafas:1, gancho:1, radio:1, botas:1 };
     if (once[item.gadget] && state.gadgets && state.gadgets[item.gadget]) { toast('Ya tienes ' + item.name); return; }
     if (!state.creative) state.money -= item.price;
-    applyBlackMarketGadget(item); saveGame(); return;
+    applyBlackMarketGadget(item); if (typeof storyBump === 'function') storyBump('shopbuy'); saveGame(); return;
   }
   if (!state.creative && item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
   if (item.bow || item.key === 'arco') {
@@ -13660,7 +14023,8 @@ function buyItem(item) {
     toast('⚡ ¡Generador! Te paga plata cada noche que sobrevivas en Platus'); return;
   }
   state.money -= item.price;
-  if (fromAlley) storyProgress('alley', 5);
+  if (fromAlley && typeof storyProgress === 'function') storyProgress('alley', 5);
+  if (typeof storyBump === 'function') storyBump('shopbuy');
   tone(880, 0.06, 0.045, 'triangle'); setTimeout(() => tone(1175, 0.08, 0.045, 'triangle'), 70);   // sonido de compra
   if (item.build) { state.inv[item.key] = (state.inv[item.key] || 0) + 1; toast('🛒 Compraste ' + item.name + (item.deco ? ' (colócala: B y luego F)' : ' (constrúyela con B/F)')); }
   else if (item.seedType) { state.inv[item.key] = (state.inv[item.key] || 0) + (item.seedCount || 1); toast(shopIcon(item) + ' ' + item.name + ' · K planta · Shift+K cambia cultivo'); }
@@ -13705,6 +14069,7 @@ function tryCollectGolden() {
   if (!goldenHouse || goldenCollectedToday) return;
   if (dist2D(player.position, goldenHouse.position) < 5) {
     goldenCollectedToday = true; addMoney(1000); toast('🪙 ¡Casa secreta! Encontraste 1000 de oro (vuelve mañana)'); beep(660, 0.18, 0.05);
+    if (typeof storyBump === 'function') storyBump('gold');
   }
 }
 
@@ -13723,6 +14088,7 @@ function sellHouse() {
   }
   houseTier = 0;
   toast('🤝 ¡Le vendiste tu casa a un aldeano por $' + price + '! Construye otra y véndela de nuevo 🤑');
+  if (typeof storyProgress === 'function') storyProgress('sell');
 }
 
 // ===================================================================
@@ -13914,6 +14280,7 @@ function tryLaunchRocket() {
     toast('⛽ Cargaste 10 de carbón como combustible. ¡Despegando!');
   }
   closeRocket();   // cerrar los cajones si se despegó desde el panel
+  if (typeof storyProgress === 'function') storyProgress('rocket');
   state.usedRocket = true;
   state.trips = (state.trips || 0) + 1;
   state.nextDest = (state.planet === 'platus' && verdaniaReady()) ? 'verdania' : null;   // ¿el viaje final?
@@ -14680,13 +15047,14 @@ function surviveNight() {
   clearBombCraters();
   tutorialEvent('nightSurvived');
   storyProgress('night');
+  if (dad.visible && dist2D(dad.position, player.position) < 18 && typeof markQuest === 'function') markQuest('dad_night');
   const hs = houseStats();
   let reward = 100 * state.stage + (hs.ready ? 150 : 0) + Math.min(1200, hs.score * 8);
   reward += 300 * floors2.length;                              // cada segundo piso paga renta extra
   if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
   if (state.planet === 'platus') reward = Math.round(reward * 1.5);   // Platus paga más (es más difícil)
   if (state.bossNight) reward *= 3;                                    // noche jefe superada: paga x3
-  if ((state.bank || 0) > 0) { const int_ = Math.round(state.bank * 0.05); state.bank += int_; setTimeout(() => toast('🏦 +$' + int_ + ' de INTERÉS (5%): ¡tu plata ahorrada trabaja sola!'), 4000); }
+  if ((state.bank || 0) > 0) { const int_ = Math.round(state.bank * 0.05); state.bank += int_; if (typeof markQuest === 'function') markQuest('bank_interest'); setTimeout(() => toast('🏦 +$' + int_ + ' de INTERÉS (5%): ¡tu plata ahorrada trabaja sola!'), 4000); }
   if ((state.debt || 0) > 0) { state.debt = Math.round(state.debt * 1.10); setTimeout(() => toast('📉 Tu deuda creció 10%: debes $' + state.debt + ' (ve al BANCO a pagarla)'), 6000); }
   if (!state.nightDamage) {                                            // NOCHE PERFECTA: la casa no recibió daño
     state.streak = (state.streak || 0) + 1;
@@ -14704,7 +15072,7 @@ function surviveNight() {
   state.poison = 0; state.dadPoison = 0; state.blocking = false; state.stamina = 100;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
-  newMissions();                                     // 3 misiones nuevas cada amanecer
+  newMissions();                                     // 8 misiones nuevas cada amanecer
   state.mathLeft = 5;                                // se renuevan los desafíos de mates
   if (state.momUnlocked && dad.visible) { state.inv.food++; setTimeout(() => say('👩 Mamá', 'Te hice el desayuno, mi amor. ¡Come algo! 🍳'), 2500); }   // mamá cocina cada mañana
   if (state.momUnlocked && !mom.visible) dadReturnsWithMom();
@@ -15263,6 +15631,7 @@ function updateMovement(dt) {
   const crouch = keys['ControlLeft'] || keys['ControlRight'] || touch.crouch;   // agacharse con Ctrl / botón
   const running = (keys['ShiftLeft'] || keys['ShiftRight'] || touch.run) && state.hunger > 5 && !crouch;
   let spd = running ? 14 : (crouch ? 4 : 9);
+  if (state.gadgets && state.gadgets.botas) spd *= 1.12;
   if (state.hunger <= 0) spd = 6;     // muerto de hambre: caminas lento
   if (running) state.hunger = Math.max(0, state.hunger - 0.8 * dt);
   const step = spd * dt;
@@ -15641,6 +16010,38 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     renderer.render(scene, camera);
   };
   timDump.look = (y, p) => { yaw = y; pitch = p; camera.rotation.set(p, y, 0, 'YXZ'); renderer.render(scene, camera); };
+  timDump.probeZombies = () => {
+    const z = ENEMY_DEFS.zombie.spd, a = ENEMY_DEFS.zombieArmored.spd;
+    return { zombie1: z(1), zombie10: z(10), zombie20: z(20), armored1: a(1), bomber: ENEMY_DEFS.bomber.spd() };
+  };
+  timDump.measureNightShamble = () => {
+    clearWaves(); state.phase = 'NIGHT'; state.stage = 1;
+    const at = player.position.clone(); at.z -= 10;
+    const e = spawnEnemy('zombie', at);
+    const x0 = e.position.x, z0 = e.position.z;
+    moveToward(e, player.position, e.userData.speed);
+    return { speed: e.userData.speed, moved1s: Math.hypot(e.position.x - x0, e.position.z - z0), role: e.userData.role };
+  };
+  timDump.spawnDayDirtZombie = () => {
+    state.phase = 'DAY';
+    const at = player.position.clone(); at.z -= 1.15;
+    const z = spawnEnemy('zombie', at);
+    z.userData.dirtZombie = true; z.userData.attackCd = 0; z.userData.speed = 0.86;
+    z.rotation.y = Math.atan2(player.position.x - z.position.x, player.position.z - z.position.z);
+    const close = dist2D(z.position, player.position) < 2.4;
+    if (close) {
+      startEnemyAttack(z);
+      damageEnemyTarget(player.position, z.userData.dmg || 10, z.position);
+      z.userData.attackCd = 0.55;
+    }
+    return { combat: combatIsActive(), close, hp: state.hp, speed: z.userData.speed, phase: state.phase };
+  };
+  timDump.punchDirt = () => {
+    const e = enemies.find(x => x.userData.dirtZombie);
+    const before = e ? e.userData.hp : null;
+    tryCombatStrike(1);
+    return { combat: combatIsActive(), before, after: e ? e.userData.hp : null, phase: state.phase };
+  };
   window.__tim = timDump;
 } } catch (e) {}
 function netAddConn(c) {
@@ -16174,7 +16575,10 @@ function updateContextPrompt() {
       else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
       else if (state.planet === 'tierra' && alley.contact && dist2D(player.position, alley.contact.position) < 4.8) action = { key: 'E', touch: '🕶️', text: alleyQuestStep() <= 0 ? 'Hablar con Tito · te lleva al callejón' : (alley.open ? 'Hablar con Tito' : 'Tito: la clave es 4-8-1-5') };
       else if (state.planet === 'tierra' && !alley.open && Math.abs(player.position.x - ALLEY.doorX) < 2.4 && Math.abs(player.position.z - ALLEY.z) < 2.4) action = { key: 'E', touch: '🔒', text: 'Teclado de la puerta · clave de 4 números' };
-      else if (state.planet === 'tierra' && alley.open && inBlackMarket(player.position.x, player.position.z)) action = { key: 'E', touch: '🕯️', text: 'Mirar el mercado del callejón' };
+      else if (state.planet === 'tierra' && alley.open && inBlackMarket(player.position.x, player.position.z)) {
+        const v = nearestBlackVendor();
+        action = { key: 'E', touch: '🕯️', text: v ? ('Puesto de ' + v.name + ' · ' + v.blurb) : 'Mirar el mercado del callejón' };
+      }
       else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };
       else if (state.worldEvent && state.worldEvent.id === 'search' && dist2D(player.position, state.worldEvent.target) < 5) action = { key: 'E', touch: '🤝', text: 'Ayudar al vecino perdido' };
       else if (nearestWorldSecret()) action = { key: 'E', touch: '🗺️', text: 'Descubrir secreto del mundo' };
@@ -16312,6 +16716,7 @@ function renderHUD() {
   if (state.gadgets && state.gadgets.gafas) gear.push('🥽 noche');
   if (state.gadgets && state.gadgets.gancho) gear.push('🪝 salto');
   if (state.gadgets && state.gadgets.radio) gear.push('📻 radio');
+  if (state.gadgets && state.gadgets.botas) gear.push('🥾 botas');
   if (state.secretsFound > 0) gear.push('🗺️ secretos ' + state.secretsFound + '/' + SECRET_DEFS.length);
   if (state.business) gear.push(BUSINESS_TYPES[state.business.type].icon + ' negocio nv.' + state.business.level + ' · 📦' + state.business.stock);
   const medalCount = Object.keys(state.medals || {}).length; if (medalCount) gear.push('🏅 ' + medalCount + '/3 deportes');

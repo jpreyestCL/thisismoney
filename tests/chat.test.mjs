@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { CHAT_BUBBLE_MS, CHAT_MAX_LEN, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText } from '../src/chat.js';
+import { readFileSync } from 'node:fs';
+import { CHAT_BUBBLE_MS, CHAT_EMOJIS, CHAT_MAX_LEN, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, stickerFromText, stickerPayload } from '../src/chat.js';
 
 // El globo del chat dura 7 segundos: es la promesa del juego, no un detalle suelto.
 assert.equal(CHAT_BUBBLE_MS, 7000);
@@ -26,6 +27,20 @@ for (const frase of ['conoce a mi papa', 'conoci a la mama', 'tengo 3 conos', 's
 const familia = 'hola \u{1F468}\u200D\u{1F469}\u200D\u{1F467} familia';
 assert.equal(cleanChatText(familia), familia, 'el emoji de familia no se debe partir');
 
+// Los emoji de corazón y de conversación no se rompen (el selector de emoji se conserva).
+assert.equal(cleanChatText('te quiero ❤️'), 'te quiero ❤️');
+assert.equal(cleanChatText('hola 😀'), 'hola 😀');
+
+assert.ok(CHAT_EMOJIS.includes('😀'));
+assert.ok(CHAT_EMOJIS.includes('❤️'));
+assert.ok(CHAT_STICKERS.length >= 12);
+assert.equal(stickerPayload('gol'), 'sticker:gol');
+assert.equal(stickerFromText('sticker:gol').emoji, '⚽');
+assert.equal(cleanChatText('sticker:gol'), 'sticker:gol');
+assert.equal(stickerFromText(cleanChatText('sticker:hola')).label, 'Hola');
+assert.equal(stickerFromText('sticker:noexiste'), null);
+assert.equal(stickerFromText('hola'), null);
+
 // Un mensaje que solo tiene espacios o controles no se guarda.
 assert.equal(cleanChatText('    '), '');
 assert.equal(cleanChatText(null), '');
@@ -50,5 +65,13 @@ assert.equal(chatSendWait(1000, 99000), 0, 'después de la espera se puede escri
 // La hora corta del muro.
 assert.match(chatTime(new Date(2026, 0, 1, 9, 5)), /^09:05$/);
 assert.equal(chatTime('no es fecha'), '');
+
+const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+assert.match(html, /id="chatEmojiPad"/);
+assert.match(html, /id="chatStickerPad"/);
+assert.match(html, /function insertChatEmoji\(/);
+assert.match(html, /function sendChatSticker\(/);
+assert.match(html, /stickerFromText/);
+assert.match(html, /src\/chat\.js\?v=3/);
 
 console.log('chat: ok');

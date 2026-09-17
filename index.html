@@ -81,6 +81,13 @@
   .chat-line b { color:#7dd3fc; overflow-wrap:anywhere; }
   .chat-line.mine b { color:#4ade80; }
   .chat-line .chat-text { color:#e2e8f0; overflow-wrap:anywhere; }
+  .chat-line .chat-sticker { font-size:42px; line-height:1.1; }
+  .chat-bubble .chat-sticker { display:block; font-size:36px; line-height:1.1; margin:4px 0 2px; }
+  .chat-funpad { display:none; flex-wrap:wrap; gap:4px; margin-top:8px; max-height:132px; overflow-y:auto; }
+  .chat-funpad.open { display:flex; }
+  .chat-funpad button { width:38px; height:38px; font-size:20px; line-height:1; border-radius:8px; border:1px solid #334155; background:#0b1220; color:#fff; cursor:pointer; padding:0; }
+  .chat-funpad.stickers button { width:58px; height:58px; font-size:30px; }
+  #chatReply .chat-funpad { width:100%; flex-basis:100%; }
   .chat-line small { color:#64748b; font-size:10px; }
   #chatFeed { position:absolute; left:12px; bottom:112px; z-index:7; display:flex; flex-direction:column; gap:6px; max-width:min(44vw,340px); pointer-events:none; }
   .chat-bubble { background:rgba(2,6,23,.85); border:1px solid #22d3ee; border-left:4px solid #22d3ee; border-radius:10px; padding:6px 9px; font-size:12px; line-height:1.5; pointer-events:all; transition:opacity .4s, transform .4s; overflow-wrap:anywhere; }
@@ -525,10 +532,14 @@
   <div id="chatFeed" role="log" aria-live="polite" aria-label="Mensajes del chat mundial"></div>
   <div id="chatReply">
     <div id="chatReplyTo">Chat mundial</div>
-    <input id="chatReplyInput" type="text" placeholder="Escribe y presiona Enter…" autocomplete="off" aria-label="Mensaje para el chat mundial">
+    <input id="chatReplyInput" type="text" placeholder="Escribe, emoji o sticker…" autocomplete="off" aria-label="Mensaje para el chat mundial">
+    <button type="button" id="chatReplyEmoji" title="Emojis" aria-label="Abrir emojis">😊</button>
+    <button type="button" id="chatReplySticker" title="Stickers" aria-label="Abrir stickers">🖼️</button>
     <button type="button" id="chatReplySend">Enviar</button>
     <button type="button" id="chatReplyWall">💬 Muro</button>
     <button type="button" id="chatReplyClose" aria-label="Cerrar el chat">✕</button>
+    <div id="chatReplyEmojiPad" class="chat-funpad" aria-label="Emojis"></div>
+    <div id="chatReplyStickerPad" class="chat-funpad stickers" aria-label="Stickers"></div>
   </div>
   <div id="nethud" style="position:absolute; top:150px; left:12px; z-index:6; display:none; pointer-events:none; background:rgba(6,10,20,.8); border:1px solid #38bdf8; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700; color:#bae6fd;"></div>
   <div id="dadhud"></div>
@@ -836,9 +847,13 @@
     <div id="chatRows" style="flex:1;min-height:26vh;max-height:46vh;overflow-y:auto;margin:10px 0;padding-right:4px;border-top:1px solid rgba(148,163,184,.2);border-bottom:1px solid rgba(148,163,184,.2)"></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input id="chatNameInput" type="text" placeholder="Tu nombre" autocomplete="off" aria-label="Tu nombre en el chat" style="width:118px;padding:9px 10px;font-size:14px;border-radius:8px;border:1px solid #38bdf8;background:#0b1220;color:#fff;outline:none;">
-      <input id="chatInput" type="text" placeholder="Escribe algo para todos…" autocomplete="off" aria-label="Mensaje para el chat mundial" style="flex:1;min-width:160px;padding:9px 10px;font-size:14px;border-radius:8px;border:1px solid #22d3ee;background:#0b1220;color:#fff;outline:none;">
+      <input id="chatInput" type="text" placeholder="Escribe o manda un emoji / sticker…" autocomplete="off" aria-label="Mensaje para el chat mundial" style="flex:1;min-width:140px;padding:9px 10px;font-size:14px;border-radius:8px;border:1px solid #22d3ee;background:#0b1220;color:#fff;outline:none;">
+      <button class="bankBtn" id="chatEmojiBtn" type="button" title="Emojis" aria-label="Abrir emojis">😊</button>
+      <button class="bankBtn" id="chatStickerBtn" type="button" title="Stickers" aria-label="Abrir stickers">🖼️</button>
       <button class="bankBtn" id="chatSendBtn" style="border-color:#22d3ee">Enviar</button>
     </div>
+    <div id="chatEmojiPad" class="chat-funpad" aria-label="Emojis"></div>
+    <div id="chatStickerPad" class="chat-funpad stickers" aria-label="Stickers"></div>
     <div id="chatStatus" style="min-height:18px;margin:8px 0;color:#fca5a5;font-size:12px;text-align:center"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="bankBtn" id="chatRefresh">🔄 Actualizar</button>
@@ -1076,7 +1091,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=8';
-import { CHAT_BUBBLE_MS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText } from './src/chat.js?v=2';
+import { CHAT_BUBBLE_MS, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, stickerFromText, stickerPayload } from './src/chat.js?v=3';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -7983,6 +7998,7 @@ function updateHelpers(dt) {
     const h = helpers[hi];
     let near = null, nd = 14;
     if (state.phase === 'NIGHT') for (const e of enemies) {  const d = dist2D(h.position, e.position); if (d < nd) { nd = d; near = e; } }
+    else for (const e of enemies) { if (!e.userData.dirtZombie) continue; const d = dist2D(h.position, e.position); if (d < nd) { nd = d; near = e; } }
     if (near) {
       // Cada hijo ocupa un punto distinto alrededor del enemigo para que no se apilen al atacar.
       const ring = Math.floor(hi / 8), angle = (hi % 8) / 8 * Math.PI * 2;
@@ -8033,6 +8049,7 @@ function updatePet(dt) {
   if (!pet || state.inFlight) return;
   let near = null, nd = 18;
   if (state.phase === 'NIGHT') for (const e of enemies) {  const d = dist2D(pet.position, e.position); if (d < nd) { nd = d; near = e; } }
+  else for (const e of enemies) { if (!e.userData.dirtZombie) continue; const d = dist2D(pet.position, e.position); if (d < nd) { nd = d; near = e; } }
   if (near) {   // ataca al monstruo más cercano (muerde fuerte)
     if (nd > 1.3) { moveToward(pet, near.position, 4.4 * dt); pet.rotation.y = Math.atan2(near.position.x - pet.position.x, near.position.z - pet.position.z) - Math.PI / 2; }
     else { pet.userData.atkCd -= dt; if (pet.userData.atkCd <= 0) { pet.userData.atkCd = 0.5; hitEnemy(near, 30, pet.position); beep(500, 0.06, 0.04); } }
@@ -8064,6 +8081,7 @@ function updatePetAlien(dt) {
   if (!petAlien || state.inFlight) return;
   let near = null, nd = 20;
   if (state.phase === 'NIGHT') for (const e of enemies) {  const d = dist2D(petAlien.position, e.position); if (d < nd) { nd = d; near = e; } }
+  else for (const e of enemies) { if (!e.userData.dirtZombie) continue; const d = dist2D(petAlien.position, e.position); if (d < nd) { nd = d; near = e; } }
   if (near) {
     if (nd > 1.4) { moveToward(petAlien, near.position, 5.2 * dt); petAlien.rotation.y = Math.atan2(near.position.x - petAlien.position.x, near.position.z - petAlien.position.z); }
     else { petAlien.userData.atkCd -= dt; if (petAlien.userData.atkCd <= 0) { petAlien.userData.atkCd = 0.45; hitEnemy(near, 45, petAlien.position); beep(640, 0.06, 0.045); } }
@@ -8218,8 +8236,47 @@ function updateDirt(dt) {
     const d = dirt[i]; d.infection += dt;
     d.mesh.material.color.lerp(new THREE.Color(0x166534), 0.008);
     if (d.infection > 16) {
-      spawnEnemy('zombie', new THREE.Vector3(d.pos.x, 0, d.pos.z));
-      removeDirt(d); toast('🧟 ¡Un zombi salió de la suciedad! (¡limpia con O!)');
+      const z = spawnEnemy('zombie', new THREE.Vector3(d.pos.x, 0, d.pos.z));
+      z.userData.dirtZombie = true;
+      z.userData.attackCd = 0;
+      z.userData.speed *= 1.55;
+      z.rotation.y = Math.atan2(player.position.x - z.position.x, player.position.z - z.position.z);
+      removeDirt(d);       toast('🧟 ¡Un zombi salió de la suciedad y te ataca! Pégale ya (clic / 👊)');
+    }
+  }
+}
+function dirtZombiesAlive() {
+  for (const e of enemies) if (e.userData.dirtZombie) return true;
+  return false;
+}
+function hostileInStrikeRange() {
+  if (state.phase === 'NIGHT' || state.inCastle || state.inArena) return true;
+  const range = Math.max(MELEE_REACH, playerHitRange());
+  for (const e of enemies) {
+    if (!e.userData.dirtZombie) continue;
+    if (dist3D(player.position, e.position) <= range + 0.35) return true;
+  }
+  return false;
+}
+function tryCombatStrike(power) {
+  if (hostileInStrikeRange()) attack(power || 1);
+  else attackNPC();
+}
+function updateDirtZombies(dt) {
+  if (state.phase === 'NIGHT') return;
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i], ud = e.userData;
+    if (!ud || !ud.dirtZombie) continue;
+    ud.attackCd -= dt;
+    const tgt = pickTarget(e.position, e);
+    const d = dist2D(e.position, tgt);
+    if (d > 1.35) {
+      moveToward(e, tgt, ud.speed * dt);
+      e.rotation.y = Math.atan2(tgt.x - e.position.x, tgt.z - e.position.z);
+    } else if (ud.attackCd <= 0) {
+      ud.attackCd = 0.55;
+      startEnemyAttack(e);
+      damageEnemyTarget(tgt, ud.dmg || 10, e.position);
     }
   }
 }
@@ -8327,11 +8384,12 @@ function updateDad(dt) {
   if (state.dadHp > 0 && state.dadHp < 100) state.dadHp = Math.min(100, state.dadHp + (dad.userData.resting ? 2 : 0.5) * dt);
   if (dad.userData.resting) { dad.userData.guarding = false; dad.userData.protecting = false; if (dad.userData.shield) dad.userData.shield.visible = false; return; }   // descansando: no se mueve ni pelea
   // Protector: prioriza al monstruo que amenaza al jugador, se interpone y atrae su atención.
-  if (state.phase === 'NIGHT' && dad.userData.armed) {
+  if (dad.userData.armed && (state.phase === 'NIGHT' || dirtZombiesAlive())) {
     dad.userData.atkCd -= dt;
     let near = null, nd = Infinity, playerThreat = Infinity, bestScore = Infinity;
     const protectRange = state.dadArmor < 1 ? (state.hp <= 45 ? 15 : 11) : 7;
     for (const e of enemies) {
+      if (state.phase !== 'NIGHT' && !e.userData.dirtZombie) continue;
       const dDad = dist2D(dad.position, e.position), dPlayer = dist2D(player.position, e.position);
       if (dDad > protectRange && dPlayer > protectRange) continue;
       const score = dDad - (dPlayer < 5 ? 6 : (dPlayer < 9 ? 2.5 : 0)) - (state.hp <= 45 ? 2 : 0);
@@ -8639,7 +8697,7 @@ function damagePlayer(amount, fromPos, fromAirFoe) {
   showPlayerImpact(blocked || coveredByDad); voxelImpact(player.position.clone().setY(player.position.y - .45), blocked || coveredByDad ? 0x38bdf8 : 0xef4444, blocked || coveredByDad ? 5 : 8);
   if (!state.creative) state.hp -= dmg;
 }
-function combatIsActive() { return state.phase === 'NIGHT' || state.inCastle || state.inArena; }
+function combatIsActive() { return state.phase === 'NIGHT' || state.inCastle || state.inArena || dirtZombiesAlive(); }
 function updateCombat(dt) {
   state.dodgeCd = Math.max(0, state.dodgeCd - dt); state.invulnerable = Math.max(0, state.invulnerable - dt);
   if (!combatIsActive()) state.blocking = false;
@@ -9361,7 +9419,7 @@ canvas.addEventListener('mouseup', e => {
   if (trySeatedGamerKeyboard()) return;
   const held = (performance.now() - attackChargeStart) / 1000, power = combatIsActive() && held >= .65 && state.stamina >= 18 ? 2.2 : 1;
   if (power > 1) { state.stamina -= 18; toast('⚔️ Ataque cargado'); }
-  if (sportAction()) return; if (state.phase === 'NIGHT') attack(power); else attackNPC();
+  if (sportAction()) return; tryCombatStrike(power);
 });
 addEventListener('mouseup', e => { if (e.button === 2) state.blocking = false; });
 addEventListener('blur', clearInput);   // alt+tab / clic fuera: soltar todo
@@ -9695,7 +9753,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (trySeatedGamerKeyboard()) return;
       if (state.running && state.inCastle) attackCastleFoe();    // en el castillo, toque rápido = pegar al alien malo
       else if (state.running && bowEquipped()) shootBowArrow(.42);
-      else if (state.running && state.phase === 'NIGHT') attack();   // toque rápido de noche = golpear monstruo
+      else if (state.running && (state.phase === 'NIGHT' || hostileInStrikeRange())) attack();   // toque rápido: golpear monstruo (noche o zombi de suciedad)
     }
   });
   look.addEventListener('touchcancel', () => { lookId = null; });
@@ -9704,7 +9762,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
   function press(act) {
     if (typing && act !== 'shop' && act !== 'math' && act !== 'chat') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
-      case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (bowEquipped()) startBowDraw('touch'); else if (state.phase === 'NIGHT') attack(); else attackNPC(); break;
+      case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (bowEquipped()) startBowDraw('touch'); else tryCombatStrike(); break;
       case 'interact': if (bowEquipped() && startBowDraw('key')) break; tryInteract(); break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
@@ -10351,7 +10409,10 @@ function chatBubble(m) {
   const box = document.createElement('div'); box.className = 'chat-bubble';
   box.dataset.chatFrom = m.name;   // con Enter se contesta al último que habló
   const quien = document.createElement('b'); quien.textContent = m.name + ': ';
-  const texto = document.createElement('span'); texto.textContent = m.text;
+  const texto = document.createElement('span');
+  const sticker = stickerFromText(m.text);
+  if (sticker) { texto.className = 'chat-sticker'; texto.textContent = sticker.emoji; texto.title = sticker.label; }
+  else texto.textContent = m.text;
   const responder = document.createElement('button'); responder.type = 'button';
   responder.textContent = '💬 Responder';
   responder.onclick = () => { chatFadeBubble(box); openChatReply(m.name); };
@@ -10429,7 +10490,10 @@ function renderChatWall() {
     fila.className = 'chat-line' + (chat.mine.has(m.id) ? ' mine' : '');
     fila.dataset.chatId = String(m.id);
     const quien = document.createElement('b'); quien.textContent = m.name;
-    const texto = document.createElement('span'); texto.className = 'chat-text'; texto.textContent = m.text;
+    const texto = document.createElement('span');
+    const sticker = stickerFromText(m.text);
+    if (sticker) { texto.className = 'chat-sticker'; texto.textContent = sticker.emoji; texto.title = sticker.label; }
+    else { texto.className = 'chat-text'; texto.textContent = m.text; }
     const hora = document.createElement('small'); hora.textContent = chatTime(m.ts);
     fila.append(quien, texto, hora); box.appendChild(fila);
   }
@@ -10441,7 +10505,8 @@ function renderChatTeaser() {
   const el = ui('chatTeaser'); if (!el) return;
   const ultimo = chat.history[chat.history.length - 1];
   if (!ultimo) { el.style.display = 'none'; return; }
-  el.textContent = '💬 ' + ultimo.name + ': ' + ultimo.text + (chat.online ? '  ·  ' + chat.online + ' en línea' : '');
+  const sticker = stickerFromText(ultimo.text);
+  el.textContent = '💬 ' + ultimo.name + ': ' + (sticker ? sticker.emoji + ' ' + sticker.label : ultimo.text) + (chat.online ? '  ·  ' + chat.online + ' en línea' : '');
   el.style.display = '';
 }
 function openChatWall() {
@@ -10461,6 +10526,7 @@ function closeChatWall() {
   if (!chat.wallOpen) return;
   chat.wallOpen = false;
   ui('chatbox').style.display = 'none';
+  hideChatPads();
   typing = algunRecuadroAbierto();
   if (state.running) state.paused = false;
 }
@@ -10483,6 +10549,7 @@ function closeChatReply() {
   const caja = ui('chatReply');
   if (!caja || caja.style.display !== 'flex') return;
   caja.style.display = 'none'; ui('chatReplyInput').value = ''; chat.replyTo = null;
+  hideChatPads();
   typing = algunRecuadroAbierto();
 }
 async function sendChatReply() {
@@ -10491,6 +10558,61 @@ async function sendChatReply() {
   input.value = '';
   if (await sendChatMessage(texto)) closeChatReply(); else input.value = texto;
 }
+function chatTargetInput() {
+  if (ui('chatReply').style.display === 'flex') return ui('chatReplyInput');
+  return ui('chatInput');
+}
+function toggleChatPad(which) {
+  const wall = chat.wallOpen;
+  const emoji = ui(wall ? 'chatEmojiPad' : 'chatReplyEmojiPad');
+  const stickers = ui(wall ? 'chatStickerPad' : 'chatReplyStickerPad');
+  if (!emoji || !stickers) return;
+  const showEmoji = which === 'emoji' && !emoji.classList.contains('open');
+  const showStickers = which === 'sticker' && !stickers.classList.contains('open');
+  emoji.classList.toggle('open', showEmoji);
+  stickers.classList.toggle('open', showStickers);
+}
+function hideChatPads() {
+  for (const id of ['chatEmojiPad', 'chatStickerPad', 'chatReplyEmojiPad', 'chatReplyStickerPad']) {
+    const el = ui(id); if (el) el.classList.remove('open');
+  }
+}
+function insertChatEmoji(emoji) {
+  const input = chatTargetInput(); if (!input) return;
+  const start = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? input.value.length;
+  const next = (input.value.slice(0, start) + emoji + input.value.slice(end)).slice(0, CHAT_MAX_LEN);
+  input.value = next;
+  const pos = start + emoji.length;
+  input.focus();
+  try { input.setSelectionRange(pos, pos); } catch (e) {}
+}
+async function sendChatSticker(id) {
+  const ok = await sendChatMessage(stickerPayload(id));
+  if (ok) { hideChatPads(); if (ui('chatReply').style.display === 'flex') closeChatReply(); }
+}
+function fillChatFunPads() {
+  const fillEmojis = (box) => {
+    if (!box || box.dataset.ready) return;
+    box.dataset.ready = '1';
+    CHAT_EMOJIS.forEach(em => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = em; b.title = em;
+      b.onclick = () => insertChatEmoji(em);
+      box.appendChild(b);
+    });
+  };
+  const fillStickers = (box) => {
+    if (!box || box.dataset.ready) return;
+    box.dataset.ready = '1';
+    CHAT_STICKERS.forEach(s => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = s.emoji; b.title = s.label;
+      b.onclick = () => sendChatSticker(s.id);
+      box.appendChild(b);
+    });
+  };
+  fillEmojis(ui('chatEmojiPad')); fillEmojis(ui('chatReplyEmojiPad'));
+  fillStickers(ui('chatStickerPad')); fillStickers(ui('chatReplyStickerPad'));
+}
+fillChatFunPads();
 // ---- Enganches de la interfaz ----
 ui('chatReplyInput').maxLength = CHAT_MAX_LEN;
 ui('chatInput').maxLength = CHAT_MAX_LEN;
@@ -10523,6 +10645,10 @@ ui('chatReplyInput').addEventListener('keydown', e => {
 ui('chatReplySend').onclick = () => sendChatReply();
 ui('chatReplyClose').onclick = closeChatReply;
 ui('chatReplyWall').onclick = () => openChatWall();
+ui('chatEmojiBtn').onclick = () => toggleChatPad('emoji');
+ui('chatStickerBtn').onclick = () => toggleChatPad('sticker');
+ui('chatReplyEmoji').onclick = () => toggleChatPad('emoji');
+ui('chatReplySticker').onclick = () => toggleChatPad('sticker');
 setInterval(() => chatSync(false), 2500);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) chatSync(false); });
 chatSync(true);   // el muro del inicio ya llega con la conversación cargada
@@ -14084,7 +14210,7 @@ function loop() {
     updateDayNight(dt);
     updateEscape(dt);
     updateHunger(dt);
-    if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); }
+    if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); updateDirtZombies(dt); }
     updateMoles(dt);                       // topos: activos de día y de noche
     updatePoison(dt);                      // veneno de la hormiga (día y noche)
     updateTrafficLights(dt);               // semáforos del cruce central

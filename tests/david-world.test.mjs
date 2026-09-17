@@ -25,6 +25,6 @@ assert.doesNotMatch(html, /setProfile\('David'\);   \/\/ queda en tu cuenta Davi
 assert.match(html, /miners: \[/);
 assert.match(html, /crop: 'apple', grow: 1, produce: 3/);
 assert.match(html, /for \(let i = 0; i < 8; i\+\+\) for \(let j = 0; j < 6; j\+\+\)/);
-assert.match(sw, /tim-v42/);
+assert.match(sw, /tim-v43/);
 
 console.log('david restored world: ok');

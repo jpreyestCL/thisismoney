@@ -9,6 +9,44 @@ export const CHAT_BUBBLE_MS = 7000;     // el globo en pantalla dura 7 segundos 
 export const CHAT_SEND_GAP_MS = 2500;   // espera mínima entre dos mensajes del mismo jugador
 export const CHAT_HISTORY = 40;         // cuántos mensajes muestra el muro
 export const CHAT_NAME_MAX = 20;
+export const CHAT_STICKER_PREFIX = 'sticker:';
+
+// Emojis del teclado del muro (se meten en el texto que estás escribiendo).
+export const CHAT_EMOJIS = [
+  '😀', '😂', '😍', '🤩', '😎', '🥳', '😭', '😡', '😱', '😴', '🤔', '🙃',
+  '👍', '👎', '❤️', '🔥', '✨', '🎉', '🙏', '💪', '👋', '👀', '💀', '🧟',
+  '⚽', '🏆', '🚗', '🚀', '🌍', '💰', '🏠', '👨', '👩', '🐶', '🌟', '🍕',
+  '🎮', '☀️', '🌙', '❄️', '🌈', '👻', '🛡️', '❤️‍🔥',
+];
+
+// Stickers: un toque manda el dibujo grande (no se mezcla con el texto).
+export const CHAT_STICKERS = [
+  { id: 'hola', emoji: '👋', label: 'Hola' },
+  { id: 'risa', emoji: '😂', label: 'Risa' },
+  { id: 'love', emoji: '❤️', label: 'Corazón' },
+  { id: 'fuego', emoji: '🔥', label: 'Fuego' },
+  { id: 'gol', emoji: '⚽', label: 'Gol' },
+  { id: 'plata', emoji: '💰', label: 'Plata' },
+  { id: 'casa', emoji: '🏠', label: 'Casa' },
+  { id: 'zombi', emoji: '🧟', label: 'Zombi' },
+  { id: 'cohete', emoji: '🚀', label: 'Cohete' },
+  { id: 'ok', emoji: '👍', label: 'Ok' },
+  { id: 'wow', emoji: '🤩', label: 'Wow' },
+  { id: 'gg', emoji: '🏆', label: 'GG' },
+  { id: 'noche', emoji: '🌙', label: 'Noche' },
+  { id: 'planeta', emoji: '🪐', label: 'Planeta' },
+  { id: 'perro', emoji: '🐶', label: 'Perro' },
+  { id: 'juego', emoji: '🎮', label: 'Play' },
+];
+export function stickerPayload(id) {
+  const s = CHAT_STICKERS.find(x => x.id === id);
+  return s ? CHAT_STICKER_PREFIX + s.id : '';
+}
+export function stickerFromText(text) {
+  const raw = String(text || '');
+  if (!raw.startsWith(CHAT_STICKER_PREFIX)) return null;
+  return CHAT_STICKERS.find(s => s.id === raw.slice(CHAT_STICKER_PREFIX.length)) || null;
+}
 
 // Raíces de groserías (sin tildes ni mayúsculas). Se tapan también sus plurales
 // y su género: "putas" y "culiaos" caen con "puta" y "culiao". Las terminaciones
@@ -22,9 +60,17 @@ const BAD_ROOTS = [
 const BAD_SUFFIXES = ['', 's', 'es', 'a', 'as', 'o', 'os'];
 const LINKS = /\b(?:https?:\/\/|www\.)\S+/gi;
 const CONTROL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu;
-// El "unidor" invisible arma los emoji de familia (👨‍👩‍👧): si se borra, el emoji
-// se parte en tres. Es el único carácter invisible que dejamos pasar.
+// El "unidor" invisible arma los emoji de familia (👨‍👩‍👧). El selector de
+// emoji (❤️) y las etiquetas de banderas (🏴󠁧󠁢󠁳󠁣󠁴󠁿) también tienen que quedar.
 const ZWJ = String.fromCharCode(0x200d);
+function keepChatFormat(c) {
+  const cp = c.codePointAt(0);
+  return c === ZWJ || cp === 0xfe0e || cp === 0xfe0f || (cp >= 0xe0020 && cp <= 0xe007f);
+}
+function clipChatChars(text, max) {
+  const chars = Array.from(text);
+  return chars.length <= max ? text : chars.slice(0, max).join('');
+}
 
 // "Culiaoo" y "CULIAO" son la misma palabra: comparamos sin tildes ni signos.
 function fold(word) {
@@ -43,13 +89,14 @@ export function maskBadWords(text) {
 // Deja el mensaje listo para guardar: sin caracteres de control, sin enlaces,
 // en una sola línea y recortado. Devuelve '' si no queda nada que decir.
 export function cleanChatText(value) {
-  const text = String(value ?? '')
+  const text = clipChatChars(String(value ?? '')
     .normalize('NFKC')
-    .replace(CONTROL, c => (c === ZWJ ? c : ' '))
+    .replace(CONTROL, c => (keepChatFormat(c) ? c : ' '))
     .replace(LINKS, '(enlace)')
     .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, CHAT_MAX_LEN);
+    .trim(), CHAT_MAX_LEN);
+  const sticker = stickerFromText(text);
+  if (sticker) return stickerPayload(sticker.id);
   return maskBadWords(text).trim();
 }
 

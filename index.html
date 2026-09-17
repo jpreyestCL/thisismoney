@@ -451,7 +451,7 @@
   .quest-row.active { border-color:#f59e0b; background:rgba(245,158,11,.1); }
   .keypad-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin:10px 0; }
   .keypad-grid button { pointer-events:all; cursor:pointer; height:44px; font-size:20px; font-weight:900; border-radius:8px; border:1px solid #78350f; background:#1c1410; color:#fed7aa; }
-  #alleyfx { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .35s; background:radial-gradient(ellipse at center, rgba(8,6,4,.08) 20%, rgba(4,3,2,.72) 100%); box-shadow:inset 0 0 160px 50px rgba(0,0,0,.55); }
+  #alleyfx { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .35s; background:radial-gradient(ellipse at center, rgba(8,6,4,.02) 12%, rgba(6,4,3,.42) 100%); box-shadow:inset 0 0 120px 30px rgba(0,0,0,.28); }
   #contextPrompt { position:absolute; left:50%; top:calc(50% + 32px); transform:translateX(-50%); display:none; align-items:center; gap:8px; max-width:min(88vw, 520px); padding:8px 11px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm); color:var(--ink); font-size:13px; text-align:center; }
   #contextPrompt.visible { display:flex; }
   body.cine #contextPrompt { display:none !important; }
@@ -2332,7 +2332,7 @@ function makeTito() {
   fl.position.set(.5, 1.32, .3); fl.rotation.x = 1.05; g.add(fl);
   const lens = new THREE.Mesh(new THREE.SphereGeometry(.06, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfde68a }));
   lens.position.set(.5, 1.16, .5); g.add(lens);
-  const light = new THREE.PointLight(0xffe0a8, .4, 6.5, 2); light.position.set(.5, 1.18, .52); g.add(light);
+  const light = new THREE.PointLight(0xffe0a8, .28, 5.5, 2); light.position.set(.5, 1.18, .52); g.add(light);
   g.userData.flash = light;
   return g;
 }
@@ -2355,6 +2355,8 @@ function buildDarkAlley() {
     w.position.set(midX, wallH / 2, sz); w.castShadow = true; w.receiveShadow = true; root.add(w);
     addObstacle((ALLEY.x0 + ALLEY.x1) / 2, sz, len + 0.8, 0.5, wallH);
   }
+  const alleyRoof = new THREE.Mesh(new THREE.BoxGeometry(len + 1.2, 0.28, ALLEY.half * 2 + 0.9), mat(0x2a241f));
+  alleyRoof.position.set(midX, wallH + 0.08, ALLEY.z); alleyRoof.castShadow = true; root.add(alleyRoof);
   // bloques de edificio a los lados: el callejón queda escondido
   for (const [bx, bz, bw, bd, bh, col] of [
     [-122, 18.4, 26, 11, 8.2, 0x5b463a], [-122, -2.2, 24, 9, 7.4, 0x4b3b32],
@@ -2403,13 +2405,13 @@ function buildDarkAlley() {
   const catHead = new THREE.Mesh(new THREE.BoxGeometry(.16, .16, .16), mat(0x292524)); catHead.position.set(.22, 1.48, 0); cat.add(catHead);
   const tail = new THREE.Mesh(new THREE.BoxGeometry(.06, .06, .28), mat(0x1c1917)); tail.position.set(-.24, 1.48, .1); tail.rotation.y = .4; cat.add(tail);
   cat.position.set(-117.6, 0, ALLEY.z + 1.52); root.add(cat);
-  // faroles que parpadean
-  for (const [lx, lz] of [[-114, ALLEY.z + 1.9], [-122, ALLEY.z - 1.9], [-130, ALLEY.z + 1.85]]) {
+  // faroles que parpadean (pocos: el callejón tiene que verse sucio, no fundir el juego)
+  for (const [lx, lz] of [[-114, ALLEY.z + 1.9], [-128, ALLEY.z - 1.9]]) {
     const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.7), mat(0x292524));
     arm.position.set(lx, 3.6, lz > ALLEY.z ? lz - 0.3 : lz + 0.3); root.add(arm);
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
     bulb.position.set(lx, 3.45, ALLEY.z + (lz > ALLEY.z ? 1.55 : -1.55)); root.add(bulb);
-    const pl = new THREE.PointLight(0xffc46b, 0.55, 9, 2); pl.position.copy(bulb.position); root.add(pl); alley.lights.push({ l: pl, bulb, base: 0.55 });
+    const pl = new THREE.PointLight(0xffc46b, 0.85, 11, 2); pl.position.copy(bulb.position); root.add(pl); alley.lights.push({ l: pl, bulb, base: 0.85 });
   }
   // puerta de metal + teclado
   const door = new THREE.Group();
@@ -2456,7 +2458,7 @@ function buildDarkAlley() {
     cloth.position.set(stall.position.x, 1.12, stall.position.z); root.add(cloth);
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
     lamp.position.set(stall.position.x, 2.55, stall.position.z); root.add(lamp);
-    const sl = new THREE.PointLight(0xff7a3a, 0.35, 5, 2); sl.position.copy(lamp.position); root.add(sl);
+    if (i < 2) { const sl = new THREE.PointLight(0xff7a3a, 0.42, 6, 2); sl.position.copy(lamp.position); root.add(sl); }
   }
   const sign = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.45, 0.08), new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x7f1d1d, emissiveIntensity: .55 }));
   sign.position.set(mx + 1.5, 3.3, ALLEY.z); root.add(sign);
@@ -2624,7 +2626,7 @@ function tryAlleyInteract() {
   if (state.planet !== 'tierra' || state.country) return false;
   const tito = alley.contact; if (!tito || !tito.visible) return false;
   const px = player.position.x, pz = player.position.z;
-  if (dist2D(player.position, tito.position) < 3.2) {
+  if (dist2D(player.position, tito.position) < 3.8) {
     if (alleyQuestStep() <= 0) {
       storyProgress('alley', 1);
       alley.following = true; alley.wp = 0;
@@ -2658,7 +2660,7 @@ function updateAlley(dt) {
   const fx = ui('alleyfx');
   if (fx && state.running && state.planet === 'tierra' && !state.country) {
     const inside = inAlleyStreet(player.position.x, player.position.z) || inBlackMarket(player.position.x, player.position.z);
-    fx.style.opacity = inside ? (inBlackMarket(player.position.x, player.position.z) ? '1' : '0.82') : '0';
+    fx.style.opacity = inside ? (inBlackMarket(player.position.x, player.position.z) ? '0.72' : '0.48') : '0';
   } else if (fx) fx.style.opacity = '0';
   if (alley.contact && alley.contact.userData.flash) alley.contact.userData.flash.intensity = 0.28 + 0.2 * Math.sin(alley.flicker * 3);
   if (state.gadgets && state.gadgets.radio && state.wanted > 0 && police.length) {
@@ -15875,11 +15877,11 @@ function updateSky(dt) {
   sun.intensity += ((enclosed ? 0.015 : (night ? 0.15 : 1.0 * dim)) - sun.intensity) * 0.08;
   if (onIsland) { scene.fog.near += (40 - scene.fog.near) * 0.08; scene.fog.far += (800 - scene.fog.far) * 0.08; }
   else if (state.planet === 'tierra' && !state.country && inAlleyArea(player.position.x, player.position.z)) {
-    const far = (state.gadgets && state.gadgets.gafas) ? 78 : 26;
-    scene.fog.near += (1.2 - scene.fog.near) * 0.14;
+    const far = (state.gadgets && state.gadgets.gafas) ? 90 : 46;
+    scene.fog.near += (2.5 - scene.fog.near) * 0.14;
     scene.fog.far += (far - scene.fog.far) * 0.14;
-    ambient.intensity += ((inBlackMarket(player.position.x, player.position.z) ? 0.08 : 0.14) - ambient.intensity) * 0.12;
-    sun.intensity += (0.05 - sun.intensity) * 0.12;
+    ambient.intensity += ((inBlackMarket(player.position.x, player.position.z) ? 0.18 : 0.32) - ambient.intensity) * 0.12;
+    sun.intensity += (0.12 - sun.intensity) * 0.12;
   } else if (night && state.gadgets && state.gadgets.gafas) {
     scene.fog.far += (240 - scene.fog.far) * 0.08;
   }
@@ -15991,7 +15993,7 @@ function updateContextPrompt() {
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
       else if (nearKeeper()) action = { key: 'Y', touch: '🛒', text: 'Abrir catálogo del vendedor' };
       else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
-      else if (state.planet === 'tierra' && alley.contact && dist2D(player.position, alley.contact.position) < 3.2) action = { key: 'E', touch: '🕶️', text: alleyQuestStep() <= 0 ? 'Hablar con Tito · te lleva al callejón' : (alley.open ? 'Hablar con Tito' : 'Tito: la clave es 4-8-1-5') };
+      else if (state.planet === 'tierra' && alley.contact && dist2D(player.position, alley.contact.position) < 4.8) action = { key: 'E', touch: '🕶️', text: alleyQuestStep() <= 0 ? 'Hablar con Tito · te lleva al callejón' : (alley.open ? 'Hablar con Tito' : 'Tito: la clave es 4-8-1-5') };
       else if (state.planet === 'tierra' && !alley.open && Math.abs(player.position.x - ALLEY.doorX) < 2.4 && Math.abs(player.position.z - ALLEY.z) < 2.4) action = { key: 'E', touch: '🔒', text: 'Teclado de la puerta · clave de 4 números' };
       else if (state.planet === 'tierra' && alley.open && inBlackMarket(player.position.x, player.position.z)) action = { key: 'E', touch: '🕯️', text: 'Mirar el mercado del callejón' };
       else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };

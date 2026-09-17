@@ -8400,8 +8400,9 @@ function arrowFloorY(x, z) {
   if (state.planet === 'tierra' && inTreasureIsland(x, z)) y = Math.max(y, TREASURE_ISLAND.surface);
   return y;
 }
-function bowArrowDamage(power) {   // tensado bajo / medio / máximo: 40% + hasta 75% extra
-  return Math.round((state.weaponDmg || 16) * (.4 + .75 * THREE.MathUtils.clamp(power, .2, 1)));
+function bowArrowDamage(power) {   // el arco pega MENOS: a tope son 6 con el arco base,
+  // o sea DOS flechazos cargados al máximo para matar a un zombi sin armadura (10 de vida).
+  return Math.max(1, Math.round((state.weaponDmg || 16) * (.08 + .3 * THREE.MathUtils.clamp(power, .2, 1))));
 }
 function renderBowDamageHud(power) {
   const el = ui('bowdmg'); if (!el) return;

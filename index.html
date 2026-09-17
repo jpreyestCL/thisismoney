@@ -7967,7 +7967,7 @@ function makeLavaWorm() {   // HELIOS (lava): gusano segmentado incandescente
 // breaksAir (destruye construcciones aéreas / techos).
 // Los monstruos caminan MUCHO más lento: se les aplica este freno a la velocidad de
 // ENEMY_DEFS (y un tope, para que en las etapas altas no se vuelvan imposibles).
-const ENEMY_SPEED_MULT = 0.5, ENEMY_SPEED_CAP = 1.9;
+const ENEMY_SPEED_MULT = 0.58, ENEMY_SPEED_CAP = 2.2;   // un pelín más rápidos que antes (0.5 / 1.9)
 function enemySpeedFor(def) { return Math.min(def.spd(state.stage) * ENEMY_SPEED_MULT, ENEMY_SPEED_CAP); }
 const ENEMY_DEFS = {
   zombie:        { make: makeZombie,        hp: 10,  spd: s => 1.8 + s * 0.15, dmg: 10, barY: 3.3 },
@@ -8937,7 +8937,7 @@ function secondFloorSupportY(eye) {
 // ===================================================================
 //  LIMPIEZA (si el papá no limpia, salen zombis dentro de la casa)
 // ===================================================================
-const dirt = []; let dirtTimer = 30;   // la suciedad (y sus zombis) aparece MUCHO más lento
+const dirt = []; let dirtTimer = 60;   // la suciedad (y sus zombis) aparece MUY lento
 function spawnDirt() {
   const x = houseAnchor.x + (Math.random() * 6 - 3), z = houseAnchor.z + (Math.random() * 6 - 3);
   const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), new THREE.MeshStandardMaterial({ color: 0x4d7c0f }));
@@ -8950,11 +8950,11 @@ function clearDirt() { dirt.forEach(d => scene.remove(d.mesh)); dirt.length = 0;
 function updateDirt(dt) {
   if (!houseStats().ready) return;
   dirtTimer -= dt;
-  if (dirtTimer <= 0 && dirt.length < 4) { spawnDirt(); dirtTimer = 40; }   // una mancha nueva cada 40 s (antes 9) y máximo 4
+  if (dirtTimer <= 0 && dirt.length < 3) { spawnDirt(); dirtTimer = 90; }   // una mancha nueva cada 90 s y máximo 3 a la vez
   for (let i = dirt.length - 1; i >= 0; i--) {
     const d = dirt[i]; d.infection += dt;
     d.mesh.material.color.lerp(new THREE.Color(0x166534), 0.008);
-    if (d.infection > 60) {   // tarda 60 s en pudrirse (antes 16): da tiempo de sobra a limpiarla
+    if (d.infection > 120) {   // tarda 2 MINUTOS en pudrirse: da tiempo de sobra a limpiarla
       const z = spawnEnemy('zombie', new THREE.Vector3(d.pos.x, 0, d.pos.z));
       z.userData.dirtZombie = true;
       z.userData.attackCd = 0;

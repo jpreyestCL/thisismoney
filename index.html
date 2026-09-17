@@ -57,7 +57,7 @@
   #toastStack { position: absolute; top: auto; left: auto; right: 14px; bottom: calc(26% + 50px); transform: none; z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: flex-end; pointer-events: none; }
   #toastStack > div { max-width: min(340px, 34vw) !important; text-align: left; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #jobBtn, body.cine #questBtn, body.cine #questbox, body.cine #keypadbox, body.cine #blackbox, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
+  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #aimDot, body.cine #scopeMask, body.cine #jobBtn, body.cine #questBtn, body.cine #questbox, body.cine #keypadbox, body.cine #blackbox, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
   body.alley-mission #jobBtn, body.alley-mission #minimap, body.alley-mission #parkBusinessBtn, body.alley-mission #buildbar, body.alley-mission #blueprintBtn, body.alley-mission #objective, body.alley-mission #missions { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
@@ -448,6 +448,13 @@
   .stat span { font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:14px; }
   #objective { top:72px; max-width:min(72vw, 620px); background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm); padding:7px 12px; font-size:13px; }
   #missions { top:114px !important; background:var(--panel) !important; border:1px solid var(--line); border-radius:var(--radius-sm) !important; padding:8px 10px !important; }
+  #aimDot { position:fixed; top:50%; left:50%; width:9px; height:9px; margin:-4.5px 0 0 -4.5px; border-radius:50%;
+    background:#ef4444; box-shadow:0 0 8px #ef4444, 0 0 2px #fff inset; z-index:9; pointer-events:none; display:none; }
+  #scopeMask { position:fixed; inset:0; z-index:8; pointer-events:none; display:none;
+    background:radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 20%, rgba(0,0,0,.72) 30%, rgba(0,0,0,.97) 42%); }
+  #scopeMask::before, #scopeMask::after { content:''; position:absolute; background:rgba(15,23,42,.85); }
+  #scopeMask::before { left:50%; top:calc(50% - 22vh); width:2px; height:44vh; margin-left:-1px; }
+  #scopeMask::after { top:50%; left:calc(50% - 22vh); height:2px; width:44vh; margin-top:-1px; }
   #jobBtn { position:fixed; bottom:124px; left:50%; transform:translateX(-50%); z-index:7; pointer-events:all; cursor:pointer;
     background:rgba(4,14,8,.85); color:#bbf7d0; border:2px solid rgba(74,222,128,.6); border-radius:12px; font-size:14px; font-weight:800;
     min-height:42px; padding:6px 16px; display:none; max-width:min(92vw,540px); text-align:center; letter-spacing:.2px; }
@@ -979,6 +986,8 @@
 <button id="fotoBtn" aria-label="Guardar captura" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
 <button id="questBtn" aria-label="Abrir misiones" type="button"><span class="qdot"></span>📋 Misiones</button>
 <button id="jobBtn" aria-label="Empezar la misión" type="button">▶️ HACER MISIÓN</button>
+<div id="scopeMask" aria-hidden="true"></div>
+<div id="aimDot" aria-hidden="true"></div>
 <div id="help">
   <div class="guide-shell" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
     <nav class="guide-nav" aria-label="Secciones de la guía">
@@ -2588,6 +2597,22 @@ function buildDarkAlley() {
   tito.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z);
   tito.rotation.y = -Math.PI / 2;
   root.add(tito); alley.contact = tito;
+  // EL BALERO: vendedor de munición al fondo del local (E para comprar la caja de 50)
+  const balero = makePerson(0x334155, 0xd6a77a);
+  const gorro = new THREE.Mesh(new THREE.BoxGeometry(.6, .22, .6), mat(0x166534)); gorro.position.set(0, 2.28, 0); balero.add(gorro);
+  balero.position.set(mx - mw / 2 + 1.6, 0, ALLEY.z);
+  balero.rotation.y = Math.PI / 2;
+  root.add(balero); alley.ammoMan = balero;
+  const mesaBalas = new THREE.Mesh(new THREE.BoxGeometry(1.5, .9, 1.1), mat(0x57534e));
+  mesaBalas.position.set(balero.position.x + 1.1, .45, ALLEY.z); root.add(mesaBalas);
+  alleyAddObs(mesaBalas.position.x, ALLEY.z, 1.5, 1.1, 1);
+  for (let i = 0; i < 8; i++) {   // balas doradas sobre la mesa
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, .17, 6), new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: .8, roughness: .3 }));
+    b.position.set(mesaBalas.position.x + (i % 4) * .22 - .33, .99, ALLEY.z + (i < 4 ? .22 : -.22)); root.add(b);
+  }
+  const cartelBalas = makeSign('BALAS  50 x $600', 0xfacc15);
+  cartelBalas.scale.set(.5, .5, .5); cartelBalas.position.set(balero.position.x + .4, 2.9, ALLEY.z);
+  cartelBalas.rotation.y = Math.PI / 2; root.add(cartelBalas);
   root.visible = false;
   scene.add(root);
   setAlleyCollisions(false);
@@ -2781,7 +2806,8 @@ function applyBlackMarketGadget(item) {
   const g = item.gadget;
   if (g === 'humo') {
     state.wanted = 0; state.wantedLevel = 0; if (typeof clearPolice === 'function') clearPolice();
-    toast('💨 Bomba de humo: la calle se llenó de niebla y te perdiste');
+    spawnSmokeCloud(player.position.x, player.position.z);   // nube gris de verdad: dentro NO te ven
+    toast('💨 Bomba de humo: quédate DENTRO del humo y nadie te ve');
   } else if (g === 'capa') { state.gadgets.capa = true; toast('🧥 Capa de sombras: de noche te ven menos'); }
   else if (g === 'gafas') { state.gadgets.gafas = true; toast('🥽 Gafas de noche: ves más lejos en la oscuridad'); }
   else if (g === 'gancho') { state.gadgets.gancho = true; toast('🪝 Gancho trepador: ahora saltas más alto'); }
@@ -2808,6 +2834,13 @@ function tryAlleyInteract() {
     }
     if (alley.open && inBlackMarket(px, pz)) { openBlackMarket(); return true; }
     say('🕶️ Tito', alley.open ? 'Pasá, las pistolas están sobre la mesa.' : 'Seguime. No corras.');
+    return true;
+  }
+  if (alley.ammoMan && alley.open && dist2D(player.position, alley.ammoMan.position) < 3.2) {   // el balero: vende munición
+    const caja = BLACK_MARKET.find(x => x.key === 'bm_balas');
+    if (!state.creative && state.money < caja.price) { say('🧢 El balero', 'Sin plata no hay balas, chiquillo. Son $' + caja.price + ' la caja de ' + caja.ammo + '.'); return true; }
+    buyItem(caja);
+    say('🧢 El balero', 'Cincuenta balas. Vuelve cuando se te acaben.');
     return true;
   }
   if (alley.open && Math.abs(px - ALLEY.doorX) < 2.2 && Math.abs(pz - ALLEY.z) < 1.8) { openBlackMarket(); return true; }
@@ -8272,7 +8305,7 @@ function launchBull(k) {   // tres toros en abanico, más lentos y se pueden mat
     scene.add(e); enemies.push(e);
   }
 }
-function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena || state.inFlight || state.mission === 'alley' || (alley.open && inBlackMarket(player.position.x, player.position.z)); }   // bajo tierra / ruinas / castillo / coliseo / avión / callejón de Tito: los monstruos de la superficie NO te ven
+function isPlayerHidden() { return playerInSmoke() || state.underground || state.inRuins || state.inCastle || state.inArena || state.inFlight || state.mission === 'alley' || (alley.open && inBlackMarket(player.position.x, player.position.z)); }   // bajo tierra / ruinas / castillo / coliseo / avión / callejón de Tito: los monstruos de la superficie NO te ven
 function livingCompanions() { return [...helpers, ...(pet ? [pet] : []), ...(petAlien ? [petAlien] : []), ...eggPets].filter(c => c.visible && c.userData.hp > 0); }
 function initCompanionHealth(c, maxHp, hp = maxHp) {
   c.userData.maxHp = maxHp;
@@ -10416,6 +10449,7 @@ canvas.addEventListener('mousedown', e => {
   if (e.button === 2 && combatIsActive()) { state.blocking = true; return; }
   if (e.button === 0) {
     if (bowEquipped()) { startBowDraw('mouse'); return; }
+    if (startGunHold()) return;   // arma de fuego: mantener = apuntar con la mira y disparar
     attackChargeStart = performance.now();
   }
 });
@@ -10423,13 +10457,14 @@ canvas.addEventListener('mouseup', e => {
   if (e.button === 2) { state.blocking = false; return; }
   if (e.button !== 0) return;
   if (bowDrawSrc === 'mouse') { releaseBow(); return; }
+  if (gunHold) { endGunHold(); return; }
   if (trySeatedGamerKeyboard()) return;
   const held = (performance.now() - attackChargeStart) / 1000, power = combatIsActive() && held >= .65 && state.stamina >= 18 ? 2.2 : 1;
   if (power > 1) { state.stamina -= 18; toast('⚔️ Ataque cargado'); }
   if (sportAction()) return; tryCombatStrike(power);
 });
-addEventListener('mouseup', e => { if (e.button === 2) state.blocking = false; });
-addEventListener('blur', clearInput);   // alt+tab / clic fuera: soltar todo
+addEventListener('mouseup', e => { if (e.button === 2) state.blocking = false; if (e.button === 0) endGunHold(); });
+addEventListener('blur', () => { endGunHold(); clearInput(); });   // alt+tab / clic fuera: soltar todo
 // En PC el clic captura el mouse (pointer lock): la cámara gira sin que el cursor se escape; Esc lo suelta
 canvas.addEventListener('click', () => {
   if (document.body.classList.contains('touch')) return;
@@ -10840,6 +10875,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (act === 'closeMore') { closeMorePanel(); return; }   // ✖️ cerrar el panel
       if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
       if (act === 'rotate') { rotHold = 1; el.dataset.downAt = String(performance.now()); state.buildMode = true; return; }   // mantener = giro libre
+      if (act === 'hit' && currentGunSpec() && !state.driving) { startGunHold(); if (el.closest('#moreBtns')) closeMorePanel(); return; }   // mantener = mira + disparo seguido
       if ((act === 'hit' || act === 'interact') && bowEquipped() && (act !== 'interact' || !bowContextBlocksDraw())) {
         startBowDraw(act === 'hit' ? 'touch' : 'key');
         if (el.closest('#moreBtns')) closeMorePanel();
@@ -10849,6 +10885,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (el.closest('#moreBtns')) closeMorePanel();   // al usar cualquier acción del panel "⋯ más", ciérralo
     }, { passive: false });
     const release = e => {
+      endGunHold();   // soltar el botón = dejar de apuntar
       const el = e.target.closest && e.target.closest('.tbtn'); if (!el) return;
       if (el.dataset.act === 'jump') touch.jumpHeld = false;
       if (el.dataset.act === 'rotate') { if (performance.now() - (+el.dataset.downAt || 0) < 220) rotateBuild(1); rotHold = 0; }   // toque corto = 15°
@@ -10858,7 +10895,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     };
     container.addEventListener('pointerup', release);
     container.addEventListener('pointercancel', release);
-    container.addEventListener('pointerleave', () => { touch.jumpHeld = false; rotHold = 0; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
+    container.addEventListener('pointerleave', () => { endGunHold(); touch.jumpHeld = false; rotHold = 0; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
   }
   bindButtons(ui('touchBtns'));
   bindButtons(ui('moveBtns'));
@@ -10889,7 +10926,7 @@ function startGame() {
   hideScreens();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
-  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearPlants(); clearHelpers();
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearPlants(); clearHelpers();
   if (boat) { scene.remove(boat.group); boat = null; } state.boatCrew = 0; state.voyageDays = 0; state.islandDiscovered = false; state.sailing = false;
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   updateHouseAnchor();   // vuelve al marcador verde de la Tierra
@@ -12653,7 +12690,7 @@ function loadGame() {
   if (!d) return false;
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   abortFlight();
-  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearPolice(); clearPlants(); clearHelpers();
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearPolice(); clearPlants(); clearHelpers();
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: d.night || 0,
@@ -12805,7 +12842,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearJobs(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.guns = {}; state.gun = null; state.ammo = 0; state.clip = 0; state.reloadT = 0; state.gadgetCharges = {}; state.handGadget = null;
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
@@ -14652,7 +14689,7 @@ function goToPlanet() {
   clearTitan(); titanTimer = 150 + Math.random() * 130;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
-  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearJobs(); clearWaves();
+  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearJobs(); clearSmoke(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // no hay policía terrestre
   resetWeather();             // el clima no viaja contigo
   setEarthWorld(false);                                                      // NADA de la Tierra (súper, ciudad, estadios, gente, calles)
@@ -14780,12 +14817,71 @@ function attack(multiplier = 1) {
   else if (!tryMineIslandOre() && !tryHitGeode() && !tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // isla o recursos de Platus
 }
 // ===================================================================
+//  BOMBA DE HUMO — nube gris de verdad que te camufla
+// ===================================================================
+const smokeClouds = [];
+function spawnSmokeCloud(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  const puffs = [];
+  for (let i = 0; i < 22; i++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(.9 + Math.random() * .7, 7, 6),
+      new THREE.MeshBasicMaterial({ color: 0xd4d4d8, transparent: true, opacity: .0, depthWrite: false }));
+    const a = Math.random() * Math.PI * 2, r = Math.random() * 2.2;
+    m.position.set(Math.cos(a) * r, .5 + Math.random() * 1.8, Math.sin(a) * r);
+    m.userData.grow = .35 + Math.random() * .5; m.userData.rise = .25 + Math.random() * .45;
+    g.add(m); puffs.push(m);
+  }
+  scene.add(g);
+  smokeClouds.push({ g, puffs, t: 0, life: 14, radius: 6.5 });
+  beep(120, .3, .06);
+}
+function playerInSmoke() {
+  for (const c of smokeClouds) if (c.t < c.life - 2 && dist2D(player.position, c.g.position) < c.radius) return true;
+  return false;
+}
+function updateSmoke(dt) {
+  for (let i = smokeClouds.length - 1; i >= 0; i--) {
+    const c = smokeClouds[i]; c.t += dt;
+    const fade = c.t < 1 ? c.t : (c.t > c.life - 3 ? Math.max(0, (c.life - c.t) / 3) : 1);
+    for (const m of c.puffs) {
+      m.scale.setScalar(1 + c.t * m.userData.grow * .35);
+      m.position.y += m.userData.rise * dt;
+      m.material.opacity = .55 * fade;
+    }
+    if (c.t >= c.life) { scene.remove(c.g); smokeClouds.splice(i, 1); }
+  }
+}
+function clearSmoke() { smokeClouds.forEach(c => scene.remove(c.g)); smokeClouds.length = 0; }
+// ===================================================================
 //  ARMAS DE FUEGO — balas que se ven, disparo a la cabeza y recarga
 //  Cargador de 20 balas (GUN_CLIP). Al vaciarlo tarda 5 s en recargar:
 //  caen los casquillos al suelo, el arma se pone de lado y entran balas nuevas.
 // ===================================================================
 const bullets = [], shells = [];   // trazadoras que vuelan · casquillos que caen
 let gunCd = 0, gunFlash = 0, reloadAnim = 0, gunIdle = 0;
+let gunHold = false, gunHoldAt = 0, aimFov = 72;
+const CAM_FOV = 72;
+function startGunHold() {   // mantener el clic: apuntas con la mira y disparas seguido
+  const spec = currentGunSpec(); if (!spec) return false;
+  gunHold = true; gunHoldAt = performance.now();
+  fireGun(spec);            // un toque corto = un disparo
+  return true;
+}
+function endGunHold() { gunHold = false; state.aiming = false; }
+function updateAim(dt) {
+  const spec = currentGunSpec();
+  const quiere = !!(spec && gunHold && !typing && !state.paused && (performance.now() - gunHoldAt) > 200);
+  state.aiming = quiere;
+  if (quiere) fireGun(spec);                                   // apuntando: dispara al ritmo del arma
+  const objetivo = quiere ? (spec.scope ? 30 : 48) : CAM_FOV;   // con mira hace MUCHO zoom
+  if (Math.abs(aimFov - objetivo) > .3) {
+    aimFov += (objetivo - aimFov) * Math.min(1, dt * 9);
+    camera.fov = aimFov; camera.updateProjectionMatrix();
+  } else if (camera.fov !== objetivo) { aimFov = objetivo; camera.fov = objetivo; camera.updateProjectionMatrix(); }
+  const dot = ui('aimDot'), mask = ui('scopeMask');
+  if (dot) dot.style.display = quiere ? 'block' : 'none';       // PUNTO ROJO: ahí pega la bala
+  if (mask) mask.style.display = quiere && spec.scope ? 'block' : 'none';
+}
 function gunAmmoText() {
   const g = currentGunSpec(); if (!g) return '';
   if (state.reloadT > 0) return '🔄 recargando ' + state.reloadT.toFixed(1) + 's';
@@ -14869,6 +14965,22 @@ function gunRaycastEnemy(from, dir, range) {
   }
   return best ? { e: best, head: bestHead, point: bestPoint, dist: bestT } : null;
 }
+// ¿la bala le pega a una persona? (aldeanos, gente de la ciudad, víctimas)
+function gunRaycastPerson(from, dir, range) {
+  let best = null, bestT = range, bestHead = false, bestPoint = null;
+  const rel = new THREE.Vector3();
+  for (const person of npcs.concat(victims)) {
+    if (!person.visible) continue;
+    rel.copy(person.position).sub(from);
+    const t = rel.dot(dir);
+    if (t < 0 || t > bestT) continue;
+    const px = from.x + dir.x * t, py = from.y + dir.y * t, pz = from.z + dir.z * t;
+    if (Math.hypot(px - person.position.x, pz - person.position.z) > 1) continue;
+    if (py < person.position.y - .2 || py > person.position.y + 2.5) continue;
+    best = person; bestT = t; bestHead = py >= person.position.y + 1.75; bestPoint = new THREE.Vector3(px, py, pz);
+  }
+  return best ? { person: best, head: bestHead, point: bestPoint, dist: bestT } : null;
+}
 function fireGun(spec) {
   if (state.reloadT > 0) return true;                   // recargando: el gatillo no responde
   if (gunCd > 0) return true;
@@ -14879,8 +14991,17 @@ function fireGun(spec) {
   const dir = new THREE.Vector3(); getAimDirection(dir);
   const from = player.position.clone().addScaledVector(dir, .7); from.y -= .18;
   const hit = gunRaycastEnemy(from, dir, spec.range);
-  const to = hit ? hit.point.clone() : from.clone().addScaledVector(dir, spec.range);
+  const persona = gunRaycastPerson(from, dir, hit ? hit.dist : spec.range);   // a la gente también le llega
+  const to = persona ? persona.point.clone() : hit ? hit.point.clone() : from.clone().addScaledVector(dir, spec.range);
   spawnTracer(from, to);
+  if (persona) {
+    const push = new THREE.Vector3().subVectors(persona.person.position, player.position).setY(0).normalize().multiplyScalar(persona.head ? 2.2 : 1.3);
+    persona.person.position.add(push);
+    voxelImpact(persona.point.clone(), 0xb91c1c, 8);
+    becomeWanted(persona.head ? 26 : 18, persona.head ? 2 : 1);
+    toast(persona.head ? '🚨 ¡Le disparaste a alguien en la cabeza! BUSCADO ⭐⭐' : '🚨 ¡Le disparaste a una persona! Te volviste BUSCADO');
+    return true;
+  }
   if (hit) {
     const dmg = Math.round(spec.dmg * (hit.head ? spec.head : 1));
     hitEnemy(hit.e, dmg, player.position);
@@ -15622,6 +15743,8 @@ function loop() {
     if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); updateDirtZombies(dt); }
     updateJobs(dt);                        // recados: se pausan solos de noche (el marcador se esconde)
     updateBullets(dt);                     // balas que vuelan, casquillos, gatillo y recarga
+    updateAim(dt);                         // mira telescópica (mantener clic) + punto rojo
+    updateSmoke(dt);                       // nubes de las bombas de humo
     updateMoles(dt);                       // topos: activos de día y de noche
     updatePoison(dt);                      // veneno de la hormiga (día y noche)
     updateTrafficLights(dt);               // semáforos del cruce central
@@ -16316,7 +16439,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, spawnSmokeCloud, playerInSmoke, updateSmoke, updateAim, startGunHold, endGunHold, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -16825,6 +16948,7 @@ function updateContextPrompt() {
     if (alley.following) action = { key: '👀', touch: '🕶️', text: 'Siguiendo a Tito…' };
     else if (alley.open && (inBlackMarket(player.position.x, player.position.z) || (Math.abs(player.position.x - ALLEY.doorX) < 2.4 && Math.abs(player.position.z - ALLEY.z) < 2.4))) action = { key: 'E', touch: '🕯️', text: 'Entrar · pistolas sobre las mesas' };
     else if (alley.contact && dist2D(player.position, alley.contact.position) < 4.8) action = { key: 'E', touch: '🕶️', text: alley.open ? 'Hablar con Tito' : 'Tito te lleva por el callejón' };
+    else if (alley.ammoMan && alley.open && dist2D(player.position, alley.ammoMan.position) < 3.2) action = { key: 'E', touch: '🧰', text: 'El balero: caja de 50 balas · $600' };
     else if (!alley.following && player.position.x > ALLEY.x0 + 0.35) action = { key: 'E', touch: '🏠', text: 'Volver al mapa' };
   } else if (playable) {
     if (state.buildMode) {

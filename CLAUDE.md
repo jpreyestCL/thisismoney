@@ -259,6 +259,15 @@ con nombre de pistola" y ahora son armas de verdad.
   pistolas → láser → arco → bombas de mano. Las bombas (humo/confeti) se guardan como cargas y se
   usan con el clic (`throwHandGadget`).
 - Mercado negro: `bm_mira` ($1400, con mira), `bm_balas` (caja de 50 balas, $600).
+- **Apuntar con la mira**: mantener el clic (o el botón 👊 en celular) = `startGunHold()` →
+  `updateAim()` baja el FOV (30 con mira, 48 sin ella), muestra el **punto rojo** `#aimDot` y, en
+  las armas con mira, el visor `#scopeMask`; mientras apuntas dispara solo al ritmo del arma.
+- **También le pegas a la gente**: `gunRaycastPerson()` (aldeanos y víctimas) → empujón, sangre y
+  BUSCADO (2 estrellas si es en la cabeza).
+- **El balero**: vendedor de munición al fondo del mercado negro (`alley.ammoMan`); E le compra la
+  caja de 50 balas ($600).
+- **Bomba de humo**: `spawnSmokeCloud()` crea una nube de 22 esferas que crece y se disipa en 14 s;
+  `playerInSmoke()` entra en `isPlayerHidden()`, así que DENTRO del humo los monstruos no te ven.
 - Debug: `__tim.fireGun(spec)`, `__tim.currentGunSpec()`, `__tim.handItems()`, `__tim.gunAmmoText()`,
   `__tim.bulletsCount()`, `__tim.shellsCount()`.
 

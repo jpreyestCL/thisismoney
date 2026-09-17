@@ -7754,6 +7754,10 @@ function makeLavaWorm() {   // HELIOS (lava): gusano segmentado incandescente
 // spd(s) recibe la etapa actual. Flags: opensDoors (abre puertas), commander (manda toros),
 // mole (topo, lo maneja updateMoles), boss (topo jefe), poison (envenena), fly (vuela),
 // breaksAir (destruye construcciones aéreas / techos).
+// Los monstruos caminan MUCHO más lento: se les aplica este freno a la velocidad de
+// ENEMY_DEFS (y un tope, para que en las etapas altas no se vuelvan imposibles).
+const ENEMY_SPEED_MULT = 0.5, ENEMY_SPEED_CAP = 1.9;
+function enemySpeedFor(def) { return Math.min(def.spd(state.stage) * ENEMY_SPEED_MULT, ENEMY_SPEED_CAP); }
 const ENEMY_DEFS = {
   zombie:        { make: makeZombie,        hp: 10,  spd: s => 1.8 + s * 0.15, dmg: 10, barY: 3.3 },
   zombieArmored: { make: makeZombieArmored, hp: 30,  spd: s => 1.6 + s * 0.10, dmg: 10, barY: 3.8 },
@@ -7841,7 +7845,7 @@ function spawnEnemy(type, atPos) {
   const def = ENEMY_DEFS[type] || ENEMY_DEFS.zombie;
   const e = def.make();
   const level = ENEMY_LEVELS[type] || 1;
-  const data = { type, level, hp: def.hp, maxhp: def.hp, speed: def.spd(state.stage), attackCd: 0, dmg: def.dmg, barY: def.barY, attackAnim:0, hitPulse:0 };
+  const data = { type, level, hp: def.hp, maxhp: def.hp, speed: enemySpeedFor(def), attackCd: 0, dmg: def.dmg, barY: def.barY, attackAnim:0, hitPulse:0 };
   if (def.opensDoors) data.opensDoors = true;
   if (def.commander) { data.commander = true; data.shootCd = 5.5; data.bullCd = 12; }
   if (def.mole) data.mole = true;
@@ -8085,7 +8089,7 @@ function launchBull(k) {   // tres toros en abanico, más lentos y se pueden mat
     const e = makeBull();
     e.position.set(k.position.x + px * side - fx * 2.2, 0, k.position.z + pz * side - fz * 2.2);
     e.rotation.y = Math.atan2(dx, dz);
-    e.userData = { type: 'bull', hp: 18, maxhp: 18, speed: 7.2, life: 5.4, dmg: 9, vel: new THREE.Vector3(fx, 0, fz), barY: 3.2 };
+    e.userData = { type: 'bull', hp: 18, maxhp: 18, speed: 4.3, life: 5.4, dmg: 9, vel: new THREE.Vector3(fx, 0, fz), barY: 3.2 };
     addHealthBar(e);
     scene.add(e); enemies.push(e);
   }
@@ -8243,16 +8247,24 @@ function clearBombCraters(){bombCraters.forEach(c=>scene.remove(c));bombCraters.
 function updateProjectiles(dt) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i], ud = p.userData;
-    p.position.x += ud.vel.x * dt; p.position.z += ud.vel.z * dt; ud.life -= dt;
+    // avanza en pasos cortos y REVIENTA contra la pared (súper, edificios, tu casa): nada la atraviesa
+    let blocked = false;
+    const mx = ud.vel.x * dt, mz = ud.vel.z * dt, parts = Math.max(1, Math.ceil(Math.hypot(mx, mz) / 0.25));
+    for (let k = 0; k < parts && !blocked; k++) {
+      p.position.x += mx / parts; p.position.z += mz / parts;
+      if (obstacleAt(p.position.x, p.position.z, p.position.y, 0.16)) blocked = true;
+    }
+    ud.life -= dt;
     let hit = false;
-    if (ud.friendly) {                                  // dardo de ballesta/torreta: pega a los monstruos
+    if (blocked) voxelImpact(p.position.clone(), ud.friendly ? 0xfde047 : 0x94a3b8, 3);
+    else if (ud.friendly) {                                  // dardo de ballesta/torreta: pega a los monstruos
       for (let j = enemies.length - 1; j >= 0; j--) { const e = enemies[j]; if (dist2D(p.position, e.position) < 1.5) { hitEnemy(e, ud.dmg, p.position); hit = true; break; } }
     } else {                                            // proyectil enemigo: te pega a ti o al papá
       if (!playerAirborne() && dist3D(p.position, player.position) < 1.2) { damagePlayer(ud.dmg, p.position); hit = true; }
       else if (dad.visible && !dad.userData.resting && dist2D(p.position, dad.position) < 1.4) { damageDad(ud.dmg, p.position); hit = true; }
       else { const companion = livingCompanions().find(c => dist2D(p.position, c.position) < 1.2); if (companion) { damageCompanion(companion, ud.dmg); hit = true; } }
     }
-    if (hit || ud.life <= 0) { scene.remove(p); projectiles.splice(i, 1); }
+    if (hit || blocked || ud.life <= 0) { scene.remove(p); projectiles.splice(i, 1); }
   }
 }
 // Dardo amigo (de ballesta/torreta) hacia un objetivo

@@ -58,7 +58,7 @@
   #toastStack > div { max-width: min(340px, 34vw) !important; text-align: left; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
   body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #questBtn, body.cine #questbox, body.cine #keypadbox, body.cine #blackbox, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
-  body.alley-mission #minimap, body.alley-mission #parkBusinessBtn, body.alley-mission #buildbar, body.alley-mission #blueprintBtn { display: none !important; }
+  body.alley-mission #minimap, body.alley-mission #parkBusinessBtn, body.alley-mission #buildbar, body.alley-mission #blueprintBtn, body.alley-mission #objective, body.alley-mission #missions { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: auto; left: auto; right: 14px; bottom: calc(26% + 110px); transform: none; font-size: 16px; font-weight: 800; letter-spacing: 1px; text-shadow: 0 2px 8px #000; text-align: right; max-width: min(340px, 34vw); pointer-events: none; }
@@ -12532,6 +12532,8 @@ function spawnCar(opts) {
 }
 // Auto más cercano de la CALLE (tráfico o estacionado) para robar
 function nearestStreetCar(maxD) {
+  if (state.mission === 'alley') return null;
+  if (state.planet === 'platus') return null;   // en Platus no hay autos de calle
   if (state.planet === 'platus') return null;   // en Platus no hay autos de calle
   let best = null, bd = maxD;
   for (const c of traffic.concat(parkedCars)) { const d = dist2D(player.position, c.position); if (d < bd) { bd = d; best = c; } }
@@ -16214,7 +16216,12 @@ function updateContextPrompt() {
   if (!box) return;
   let action = null;
   const playable = state.running && !state.paused && !typing && (state.phase === 'DAY' || state.phase === 'NIGHT');
-  if (playable) {
+  if (playable && state.mission === 'alley') {
+    if (alley.following) action = { key: '👀', touch: '🕶️', text: 'Siguiendo a Tito…' };
+    else if (alley.open && (inBlackMarket(player.position.x, player.position.z) || (Math.abs(player.position.x - ALLEY.doorX) < 2.4 && Math.abs(player.position.z - ALLEY.z) < 2.4))) action = { key: 'E', touch: '🕯️', text: 'Entrar · pistolas sobre las mesas' };
+    else if (alley.contact && dist2D(player.position, alley.contact.position) < 4.8) action = { key: 'E', touch: '🕶️', text: alley.open ? 'Hablar con Tito' : 'Tito te lleva por el callejón' };
+    else if (!alley.following && player.position.x > ALLEY.x0 + 0.35) action = { key: 'E', touch: '🏠', text: 'Volver al mapa' };
+  } else if (playable) {
     if (state.buildMode) {
       const bp = currentBlueprint(), v = currentBuildVariant();
       action = bp ? { key: 'F', touch: '🏗️', text: 'Construir ' + bp.name + ' · G cambia plano · R gira' } : { key: 'F', touch: '✋', text: 'Colocar' + (v ? ' · ' + v.name : '') + ' · G planos · R variante · X quita' };

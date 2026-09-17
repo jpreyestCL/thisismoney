@@ -8803,7 +8803,7 @@ function secondFloorSupportY(eye) {
 // ===================================================================
 //  LIMPIEZA (si el papá no limpia, salen zombis dentro de la casa)
 // ===================================================================
-const dirt = []; let dirtTimer = 6;
+const dirt = []; let dirtTimer = 30;   // la suciedad (y sus zombis) aparece MUCHO más lento
 function spawnDirt() {
   const x = houseAnchor.x + (Math.random() * 6 - 3), z = houseAnchor.z + (Math.random() * 6 - 3);
   const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.6, 12), new THREE.MeshStandardMaterial({ color: 0x4d7c0f }));
@@ -8816,11 +8816,11 @@ function clearDirt() { dirt.forEach(d => scene.remove(d.mesh)); dirt.length = 0;
 function updateDirt(dt) {
   if (!houseStats().ready) return;
   dirtTimer -= dt;
-  if (dirtTimer <= 0 && dirt.length < 6) { spawnDirt(); dirtTimer = 9; }
+  if (dirtTimer <= 0 && dirt.length < 4) { spawnDirt(); dirtTimer = 40; }   // una mancha nueva cada 40 s (antes 9) y máximo 4
   for (let i = dirt.length - 1; i >= 0; i--) {
     const d = dirt[i]; d.infection += dt;
     d.mesh.material.color.lerp(new THREE.Color(0x166534), 0.008);
-    if (d.infection > 16) {
+    if (d.infection > 60) {   // tarda 60 s en pudrirse (antes 16): da tiempo de sobra a limpiarla
       const z = spawnEnemy('zombie', new THREE.Vector3(d.pos.x, 0, d.pos.z));
       z.userData.dirtZombie = true;
       z.userData.attackCd = 0;

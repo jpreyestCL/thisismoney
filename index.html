@@ -58,6 +58,7 @@
   #toastStack > div { max-width: min(340px, 34vw) !important; text-align: left; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
   body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #questBtn, body.cine #questbox, body.cine #keypadbox, body.cine #blackbox, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
+  body.alley-mission #minimap, body.alley-mission #parkBusinessBtn, body.alley-mission #buildbar, body.alley-mission #blueprintBtn { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: auto; left: auto; right: 14px; bottom: calc(26% + 110px); transform: none; font-size: 16px; font-weight: 800; letter-spacing: 1px; text-shadow: 0 2px 8px #000; text-align: right; max-width: min(340px, 34vw); pointer-events: none; }
@@ -651,7 +652,7 @@
   </div>
   <div id="questbox">
     <div style="font-size:15px; font-weight:800; color:#fbbf24">📋 MISIONES</div>
-    <div style="font-size:11px; opacity:.7; margin:2px 0 8px">Del juego y del día. Tito espera al oeste, detrás de las casas, en un callejón que nadie mira.</div>
+    <div style="font-size:11px; opacity:.7; margin:2px 0 8px">Del juego y del día. El callejón de Tito se desbloquea a los $20.000: te lleva a otro rincón, no está en el mapa.</div>
     <div id="questList" style="overflow-y:auto; max-height:58vh; -webkit-overflow-scrolling:touch;"></div>
     <button id="questCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px; margin-top:8px;">Cerrar ✕</button>
   </div>
@@ -667,7 +668,7 @@
   </div>
   <div id="blackbox">
     <div style="font-size:15px; font-weight:800; color:#f87171">🕯️ MERCADO DEL CALLEJÓN</div>
-    <div style="font-size:11px; opacity:.7; margin:2px 0 6px">Cosas que el súper y la armería no venden. Nada de la vida real: todo es del juego. Dinero: <b id="blackMoney" style="color:#4ade80">$0</b></div>
+    <div style="font-size:11px; opacity:.7; margin:2px 0 6px">Pistolas y fierros de verdad (del juego), no de la armería. Dinero: <b id="blackMoney" style="color:#4ade80">$0</b></div>
     <div id="blackList" style="overflow-y:auto; display:flex; flex-direction:column; gap:5px; max-height:56vh; -webkit-overflow-scrolling:touch; text-align:left;"></div>
     <button id="blackCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px; margin-top:8px;">Cerrar ✕</button>
   </div>
@@ -988,7 +989,7 @@
         <div class="guide-grid">
           <div class="guide-item"><b>1 · Llega al súper</b><span>Sigue la flecha, compra cuatro paredes y un techo manteniendo E.</span></div>
           <div class="guide-item"><b>2 · Construye una base</b><span>Pulsa B, elige una pieza con la rueda y colócala con F.</span></div>
-          <div class="guide-item"><b>Misiones</b><span>El botón 📋 Misiones (esquina, bajo el mapa) lista varias. Una te lleva con Tito por un callejón oscuro hasta una puerta con clave.</span></div>
+          <div class="guide-item"><b>Misiones</b><span>El botón 📋 Misiones lista varias. A los $20.000, Tito te teletransporta a un callejón con techo: lo sigues hasta una puerta normal.</span></div>
           <div class="guide-item"><b>3 · Prepárate</b><span>Compra comida y un arma. Usa U para ganar dinero con desafíos de mates.</span></div>
           <div class="guide-item"><b>4 · Sobrevive</b><span>Pulsa N cuando estés listo. Cada noche mejora tu economía y desbloquea contenido.</span></div>
         </div>
@@ -1000,7 +1001,7 @@
           <kbd>WASD</kbd><span>Caminar. Shift corre, Espacio salta y Ctrl agacha.</span>
           <kbd>Espacio ×3</kbd><span>Llamar al mayordomo y darle una orden o encargarle compras. Primero contrátalo en el súper por $500. Su sueldo es $100 cada 7 días del juego.</span>
           <kbd>P</kbd><span>Llamar por celular a tus amigos cuando estés en una partida online.</span>
-          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros, edificios y el callejón de Tito (puerta con clave). Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Daño del arco: tensado bajo 9, medio 12 y máximo 18 (si tu arco es de 16). Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco. En casa, E en la Play abre juegos de consola (fútbol, Gran Prix y Héroes), pero la mesa tiene que tener una tele.</span>
+          <kbd>E</kbd><span>Interactuar, entrar a vehículos, banco, cohete, tesoros, edificios y la puerta del callejón de Tito (misión a $20.000). Con el arco en la mano, mantén E (o el clic) para tensar: cuanto más tiempo, más fuerte sale la flecha. Daño del arco: tensado bajo 9, medio 12 y máximo 18 (si tu arco es de 16). Mira hacia arriba para que vuele lejos; abajo llega menos. Si tienes espada, láser y arco: pulsa 1 una vez para la espada (o el láser), 1 otra vez para cambiar entre espada y láser, y 1 dos veces seguidas para el arco. En casa, E en la Play abre juegos de consola (fútbol, Gran Prix y Héroes), pero la mesa tiene que tener una tele.</span>
           <kbd>Y</kbd><span>Abrir el catálogo del vendedor cuando estés cerca.</span>
           <kbd>B / G</kbd><span>Activa construcción con B. En ese modo, G abre planos completos; F coloca y X quita.</span>
           <kbd>1–9 · 0</kbd><span>Elegir herramienta o pieza de la pestaña activa (🏠 casa · 🛡️ defensa · 🪑 muebles). La tecla 1: un toque = espada, pala o pistola láser (nunca los puños si ya las compraste); dos toques seguidos = arco. La rueda recorre TODO el inventario y Shift+rueda cambia de pestaña.</span>
@@ -2297,39 +2298,53 @@ function buildCity() {
 buildCity();
 
 // ===================================================================
-//  CALLEJÓN OSCURO + MERCADO NEGRO (misión de Tito)
-//  Detrás de las casas del oeste: nadie lo busca, hay basureros y una
-//  puerta con clave. Las "cosas ilegales" son del juego, no de verdad.
+//  CALLEJÓN DE TITO — mundo de misión (no está en el mapa)
+//  A los $20.000 te teletransporta a un rincón vacío. Solo hay el
+//  callejón con techo: lo sigues despacio hasta una puerta normal.
 // ===================================================================
-const ALLEY = { x0: -110, x1: -134, z: 8, half: 2.42, doorX: -134, code: '4815' };
+const ALLEY = { unlock: 20000, x0: 8, x1: -20, z: 0, half: 2.08, doorX: -20, shopW: 13.6, shopD: 9.6 };
 const BLACK_MARKET = [
+  { key: 'bm_pistola', name: 'Pistola del callejón', price: 900, color: 0x4b5563, dmg: 11, icon: '🔫', gun: 'pistol', blurb: 'Corta y pesada. Se ve de metal, no un punto naranja.' },
+  { key: 'bm_escopeta', name: 'Escopeta recortada', price: 1400, color: 0x57534e, dmg: 16, icon: '💥', gun: 'shotgun', blurb: 'Cañón corto de verdad, sobre la mesa.' },
+  { key: 'bm_rifle', name: 'Rifle viejo', price: 1750, color: 0x44403c, dmg: 18, icon: '🎯', gun: 'rifle', blurb: 'Madera y cañón largo. Pega de lejos.' },
   { key: 'bm_espada', name: 'Espada sucia', price: 380, color: 0x6b7280, dmg: 9, icon: '⚔️', blurb: 'Filo mellado. Pega más que una de madera.' },
-  { key: 'bm_honda', name: 'Honda de goma', price: 260, color: 0x92400e, dmg: 6, icon: '🪃', blurb: 'Tira piedras. No es de la armería.' },
   { key: 'bm_humo', name: 'Bomba de humo', price: 220, color: 0x64748b, gadget: 'humo', icon: '💨', blurb: 'Nube gris: la policía te pierde de vista.' },
-  { key: 'bm_capa', name: 'Capa de sombras', price: 850, color: 0x111827, gadget: 'capa', icon: '🧥', blurb: 'De noche los monstruos te ven de más lejos, peor.' },
+  { key: 'bm_capa', name: 'Capa de sombras', price: 850, color: 0x111827, gadget: 'capa', icon: '🧥', blurb: 'De noche los monstruos te ven menos.' },
   { key: 'bm_gafas', name: 'Gafas de noche', price: 620, color: 0x22c55e, gadget: 'gafas', icon: '🥽', blurb: 'El callejón y la noche se ven más lejos.' },
-  { key: 'bm_mascara', name: 'Máscara de cartón', price: 160, color: 0xd6d3d1, gadget: 'mascara', icon: '🎭', blurb: 'Disfraz tonto. Baja un poco el buscado.' },
   { key: 'bm_gancho', name: 'Gancho trepador', price: 700, color: 0x78716c, gadget: 'gancho', icon: '🪝', blurb: 'Saltas más alto, como de techo a techo.' },
   { key: 'bm_confeti', name: 'Granada de confeti', price: 240, color: 0xec4899, gadget: 'confeti', icon: '🎉', blurb: 'Una nube de papelitos. Aturde a los monstruos cerca.' },
   { key: 'bm_radio', name: 'Radio chatarra', price: 380, color: 0x334155, gadget: 'radio', icon: '📻', blurb: 'Pitido cuando se acerca un patrullero.' },
-  { key: 'bm_dardos', name: 'Dardos de dormir', price: 360, color: 0x7c3aed, gadget: 'dardos', icon: '🎯', blurb: 'Los bichos cerca se mueven como en cámara lenta.' },
-  { key: 'bm_iman', name: 'Súper imán', price: 480, color: 0x94a3b8, gadget: 'iman', icon: '🧲', blurb: 'Al comprar, las monedas del suelo saltan hacia vos.' },
-  { key: 'bm_silencio', name: 'Silenciador de globos', price: 180, color: 0xf8fafc, gadget: 'silencio', icon: '🎈', blurb: 'Un globo pinchado que no suena. Tito se ríe.' },
 ];
 const STORY_QUESTS = [
-  { id: 'alley', icon: '🕶️', title: 'El callejón oscuro', need: 5, reward: 450,
-    hint: 'Al oeste de la ciudad, detrás de las casas. Un tipo de hoodie te espera donde nadie mira.',
-    steps: ['Habla con Tito en la boca del callejón', 'Síguelo entre los basureros', 'Pon la clave en la puerta', 'Entra al mercado', 'Compra algo que el súper no vende'] },
+  { id: 'alley', icon: '🕶️', title: 'El callejón de Tito', need: 5, reward: 450,
+    hint: 'Se desbloquea a los $20.000 ganados. Tito te lleva a otro rincón: ahí solo hay un callejón con techo.',
+    steps: ['Gana $20.000 y pulsa Ir con Tito', 'Habla con Tito en la boca del callejón', 'Síguelo (el juego te lleva despacio)', 'Entra por la puerta', 'Compra un arma de verdad'] },
   { id: 'night', icon: '🌙', title: 'Aguanta la noche', need: 1, reward: 200, hint: 'Construye un techo y pulsa N cuando estés listo.', steps: ['Sobrevive una noche completa'] },
   { id: 'harvest', icon: '🌾', title: 'Cosecha del patio', need: 1, reward: 150, hint: 'Planta con K y cosecha con E cuando esté listo.', steps: ['Cosecha algo del huerto'] },
   { id: 'bank', icon: '🏦', title: 'La plata trabaja', need: 1, reward: 180, hint: 'El banco está al este del súper. Entra con E.', steps: ['Entra al banco'] },
   { id: 'sport', icon: '🏅', title: 'Partido corto', need: 1, reward: 160, hint: 'Acércate a un estadio y juega un partido corto.', steps: ['Completa un partido'] },
 ];
-const alley = { root: null, contact: null, door: null, doorObs: null, lights: [], steam: [], following: false, wp: 0, open: false, flicker: 0, codeBuf: '', radioCd: 0 };
+const alley = { root: null, contact: null, door: null, doorObs: null, obs: [], lights: [], steam: [], following: false, wp: 0, open: false, flicker: 0, radioCd: 0, returnTo: null, followIn: 0, skyWas: 0x87ceeb };
+function alleyUnlocked() { return !!(state.creative || (state.totalEarned || 0) >= ALLEY.unlock); }
 function alleyRng(i) { const x = Math.sin(i * 127.13 + 19.7) * 43758.5453; return x - Math.floor(x); }
-function inAlleyStreet(x, z) { return x <= ALLEY.x0 + 1.2 && x >= ALLEY.x1 - 0.4 && Math.abs(z - ALLEY.z) < ALLEY.half + 0.55; }
-function inBlackMarket(x, z) { return x < ALLEY.x1 + 0.4 && x > ALLEY.x1 - 15.5 && Math.abs(z - ALLEY.z) < 6.2; }
-function inAlleyArea(x, z) { return inAlleyStreet(x, z) || inBlackMarket(x, z) || (Math.abs(x - (ALLEY.x0 + 2)) < 4 && Math.abs(z - ALLEY.z) < 5); }
+function inAlleyStreet(x, z) { return x <= ALLEY.x0 + 0.6 && x >= ALLEY.doorX - 0.2 && Math.abs(z - ALLEY.z) < ALLEY.half + 0.2; }
+function inBlackMarket(x, z) {
+  const mx = ALLEY.doorX - ALLEY.shopW / 2;
+  return x < ALLEY.doorX + 0.6 && x > mx - ALLEY.shopW / 2 - 0.4 && Math.abs(z - ALLEY.z) < ALLEY.shopD / 2 + 0.3;
+}
+function inAlleyArea(x, z) { return state.mission === 'alley' && (inAlleyStreet(x, z) || inBlackMarket(x, z)); }
+function alleyAddObs(x, z, w, d, h) {
+  const o = addObstacle(x, z, w, d, h);
+  alley.obs.push(o);
+  return o;
+}
+function setAlleyCollisions(on) {
+  for (const o of alley.obs) {
+    const i = obstacles.indexOf(o);
+    if (on && i < 0) obstacles.push(o);
+    if (!on && i >= 0) obstacles.splice(i, 1);
+  }
+}
 function makeDumpster(x, z, rot, seed) {
   const g = new THREE.Group();
   const rust = new THREE.MeshStandardMaterial({ color: 0x3d5224, roughness: .86, metalness: .22, flatShading: true });
@@ -2341,164 +2356,142 @@ function makeDumpster(x, z, rot, seed) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.12, 7), mat(0x1f2937));
     w.rotation.z = Math.PI / 2; w.position.set(sx, 0.09, sz); g.add(w);
   }
-  for (let i = 0; i < 3; i++) {
-    const bag = new THREE.Mesh(new THREE.SphereGeometry(0.2 + alleyRng(seed + i) * 0.1, 7, 6), new THREE.MeshStandardMaterial({ color: [0x1a1f16, 0x111827, 0x292524][i], roughness: .95 }));
-    bag.position.set((alleyRng(seed + 4 + i) - 0.5) * 0.7, 1.18 + alleyRng(seed + 8 + i) * 0.12, (alleyRng(seed + 12 + i) - 0.5) * 0.35);
-    bag.scale.set(1, 0.72, 1); g.add(bag);
-  }
   g.position.set(x, 0, z); g.rotation.y = rot || 0;
-  addObstacle(x, z, 1.55, 1.05, 1.35);
+  alleyAddObs(x, z, 1.55, 1.05, 1.35);
   return g;
 }
 function makeTito() {
   const g = makePerson(0x1c1917, 0xc4a574);
   const hood = new THREE.Mesh(new THREE.BoxGeometry(.6, .3, .6), mat(0x0f0f12)); hood.position.set(0, 2.3, -0.02); g.add(hood);
   const brim = new THREE.Mesh(new THREE.BoxGeometry(.58, .08, .22), mat(0x09090b)); brim.position.set(0, 2.16, .24); g.add(brim);
-  const fl = new THREE.Mesh(new THREE.CylinderGeometry(.045, .065, .4, 6), mat(0x4b5563));
-  fl.position.set(.5, 1.32, .3); fl.rotation.x = 1.05; g.add(fl);
-  const lens = new THREE.Mesh(new THREE.SphereGeometry(.06, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfde68a }));
-  lens.position.set(.5, 1.16, .5); g.add(lens);
-  const light = new THREE.PointLight(0xffe0a8, .28, 5.5, 2); light.position.set(.5, 1.18, .52); g.add(light);
-  g.userData.flash = light;
   return g;
 }
+function makeGunMesh(kind) {
+  const g = new THREE.Group();
+  const steel = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: .38, metalness: .72, flatShading: true });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: .45, metalness: .55, flatShading: true });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: .86, metalness: .08, flatShading: true });
+  if (kind === 'shotgun') {
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.12), wood); stock.position.set(-0.38, 0.02, 0); g.add(stock);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.14), dark); body.position.set(0.08, 0.04, 0); g.add(body);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.72, 8), steel); barrel.rotation.z = Math.PI / 2; barrel.position.set(0.52, 0.06, 0); g.add(barrel);
+    const pump = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.12), wood); pump.position.set(0.28, -0.02, 0); g.add(pump);
+  } else if (kind === 'rifle') {
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.1), wood); stock.position.set(-0.48, 0, 0); g.add(stock);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.14, 0.12), dark); body.position.set(0.02, 0.04, 0); g.add(body);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.95, 8), steel); barrel.rotation.z = Math.PI / 2; barrel.position.set(0.7, 0.06, 0); g.add(barrel);
+    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.04), dark); sight.position.set(0.12, 0.14, 0); g.add(sight);
+  } else {
+    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.14, 0.12), steel); slide.position.set(0.06, 0.08, 0); g.add(slide);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.1), dark); grip.position.set(-0.12, -0.1, 0); grip.rotation.z = 0.42; g.add(grip);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.28, 8), dark); barrel.rotation.z = Math.PI / 2; barrel.position.set(0.38, 0.08, 0); g.add(barrel);
+    const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.04), dark); trigger.position.set(-0.02, -0.04, 0); g.add(trigger);
+  }
+  g.rotation.y = -0.55;
+  g.rotation.z = 0.08;
+  return g;
+}
+function makeWoodDoor() {
+  const door = new THREE.Group();
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.28, 1.18), new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: .82, metalness: .05 }));
+  slab.position.y = 1.16; slab.castShadow = true; door.add(slab);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.7, 0.42), mat(0x5b3518)); panel.position.set(0.08, 1.45, 0); door.add(panel);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), new THREE.MeshStandardMaterial({ color: 0xc4a574, metalness: .7, roughness: .3 }));
+  knob.position.set(0.1, 1.1, -0.42); door.add(knob);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.1), mat(0x78716c)); plate.position.set(0.09, 1.1, -0.42); door.add(plate);
+  return door;
+}
 function buildDarkAlley() {
+  alley.obs = []; alley.lights = []; alley.steam = [];
   const root = new THREE.Group(); alley.root = root;
-  const brickN = 0x4a372c, brickS = 0x3f2e26, tar = 0x161311, metal = 0x3f3f46;
-  const midX = (ALLEY.x0 + ALLEY.x1) / 2, len = ALLEY.x0 - ALLEY.x1;
-  const asphalt = new THREE.Mesh(new THREE.BoxGeometry(len + 2.4, 0.07, ALLEY.half * 2 + 0.35), new THREE.MeshStandardMaterial({ color: tar, roughness: .97 }));
-  asphalt.position.set(midX, 0.035, ALLEY.z); asphalt.receiveShadow = true; root.add(asphalt);
-  for (let i = 0; i < 7; i++) {
-    const pud = new THREE.Mesh(new THREE.CircleGeometry(0.28 + alleyRng(i) * 0.35, 8), new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: .15, metalness: .55, transparent: true, opacity: 0.55 }));
-    pud.rotation.x = -Math.PI / 2; pud.position.set(ALLEY.x0 - 2 - i * 3.1 - alleyRng(i + 3), 0.08, ALLEY.z + (alleyRng(i + 9) - 0.5) * 2.2);
+  const voidMat = new THREE.MeshBasicMaterial({ color: 0x05050a });
+  const voidFloor = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), voidMat);
+  voidFloor.rotation.x = -Math.PI / 2; voidFloor.position.y = -0.4; root.add(voidFloor);
+  const brickN = 0x6b5344, brickS = 0x5c463a, tar = 0x2a2924;
+  const midX = (ALLEY.x0 + ALLEY.doorX) / 2, len = ALLEY.x0 - ALLEY.doorX;
+  const wallH = 4.6;
+  const asphalt = new THREE.Mesh(new THREE.BoxGeometry(len + 3.2, 0.08, ALLEY.half * 2 + 0.2), new THREE.MeshStandardMaterial({ color: tar, roughness: .97 }));
+  asphalt.position.set(midX, 0.04, ALLEY.z); asphalt.receiveShadow = true; root.add(asphalt);
+  for (let i = 0; i < 5; i++) {
+    const pud = new THREE.Mesh(new THREE.CircleGeometry(0.22 + alleyRng(i) * 0.22, 8), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: .18, metalness: .4, transparent: true, opacity: 0.45 }));
+    pud.rotation.x = -Math.PI / 2; pud.position.set(ALLEY.x0 - 2.2 - i * 3.4, 0.09, ALLEY.z + (alleyRng(i + 4) - 0.5) * 1.4);
     root.add(pud);
   }
-  const stain = new THREE.Mesh(new THREE.CircleGeometry(0.7, 8), new THREE.MeshStandardMaterial({ color: 0x1c1208, roughness: .9, transparent: true, opacity: 0.7 }));
-  stain.rotation.x = -Math.PI / 2; stain.position.set(midX - 2, 0.075, ALLEY.z + 0.4); root.add(stain);
-  const wallH = 5.4;
   for (const [sz, col] of [[ALLEY.z + ALLEY.half, brickN], [ALLEY.z - ALLEY.half, brickS]]) {
-    const w = new THREE.Mesh(new THREE.BoxGeometry(len + 0.8, wallH, 0.42), mat(col));
+    const w = new THREE.Mesh(new THREE.BoxGeometry(len + 3.4, wallH, 0.55), mat(col));
     w.position.set(midX, wallH / 2, sz); w.castShadow = true; w.receiveShadow = true; root.add(w);
-    addObstacle((ALLEY.x0 + ALLEY.x1) / 2, sz, len + 0.8, 0.5, wallH);
+    alleyAddObs(midX, sz, len + 3.4, 0.62, wallH);
   }
-  const alleyRoof = new THREE.Mesh(new THREE.BoxGeometry(len + 1.2, 0.28, ALLEY.half * 2 + 0.9), mat(0x2a241f));
-  alleyRoof.position.set(midX, wallH + 0.08, ALLEY.z); alleyRoof.castShadow = true; root.add(alleyRoof);
-  // bloques de edificio a los lados: el callejón queda escondido
-  for (const [bx, bz, bw, bd, bh, col] of [
-    [-122, 18.4, 26, 11, 8.2, 0x5b463a], [-122, -2.2, 24, 9, 7.4, 0x4b3b32],
-    [-108.6, 8, 2.2, 8.6, 6.5, 0x3d322c],
-  ]) {
-    const blk = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat(col));
-    blk.position.set(bx, bh / 2, bz); blk.castShadow = true; root.add(blk);
-    addObstacle(bx, bz, bw, bd, bh);
-  }
-  // caños, cables, aire acondicionado, escalera de incendio
-  for (let i = 0; i < 5; i++) {
-    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 3.2, 6), mat(metal));
-    pipe.position.set(ALLEY.x0 - 3 - i * 4.4, 3.4, ALLEY.z + ALLEY.half - 0.28); pipe.rotation.z = 1.2; root.add(pipe);
-    const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 4.2, 4), mat(0x111111));
-    cable.position.set(ALLEY.x0 - 4 - i * 4.2, 4.7, ALLEY.z); cable.rotation.z = 0.5 + alleyRng(i) * 0.2; root.add(cable);
-  }
-  const ac = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.45, 0.55), mat(0x64748b));
-  ac.position.set(-118, 2.6, ALLEY.z + ALLEY.half - 0.5); root.add(ac);
-  for (let i = 0; i < 6; i++) {
-    const step = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.06, 0.7), mat(0x334155));
-    step.position.set(-125.5, 0.4 + i * 0.7, ALLEY.z - ALLEY.half + 0.45); root.add(step);
-  }
-  // grafitis (manchas planas)
-  for (let i = 0; i < 6; i++) {
-    const g = new THREE.Mesh(new THREE.BoxGeometry(1.1 + alleyRng(i) * 0.8, 0.55, 0.04), new THREE.MeshStandardMaterial({ color: [0xdc2626, 0x22c55e, 0x38bdf8, 0xf97316, 0xa855f7, 0xfacc15][i], roughness: .85 }));
-    g.position.set(ALLEY.x0 - 3.5 - i * 3.4, 1.7 + alleyRng(i + 2) * 1.2, ALLEY.z + ((i % 2) ? ALLEY.half : -ALLEY.half) * 0.97);
-    root.add(g);
-  }
-  root.add(makeDumpster(-113.2, ALLEY.z - 1.55, 0.08, 1));
-  root.add(makeDumpster(-117.6, ALLEY.z + 1.52, 3.2, 2));
-  root.add(makeDumpster(-123.4, ALLEY.z - 1.48, -0.12, 3));
-  root.add(makeDumpster(-128.8, ALLEY.z + 1.5, 3.05, 4));
-  for (let i = 0; i < 8; i++) {
-    const box = new THREE.Mesh(new THREE.BoxGeometry(0.42 + alleyRng(i) * 0.2, 0.28, 0.36), mat(0x8b5a2b));
-    box.position.set(ALLEY.x0 - 2.5 - i * 2.6, 0.18, ALLEY.z + (i % 2 ? 1.7 : -1.7)); box.rotation.y = alleyRng(i + 5); root.add(box);
-  }
-  const grate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.7), mat(0x1f2937));
-  grate.position.set(-121, 0.08, ALLEY.z); root.add(grate);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(len + 3.6, 0.32, ALLEY.half * 2 + 1.1), mat(0x3f342c));
+  roof.position.set(midX, wallH + 0.1, ALLEY.z); roof.castShadow = true; root.add(roof);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.7, wallH, ALLEY.half * 2 + 0.8), mat(brickN));
+  back.position.set(ALLEY.x0 + 1.2, wallH / 2, ALLEY.z); root.add(back);
+  alleyAddObs(ALLEY.x0 + 1.2, ALLEY.z, 0.75, ALLEY.half * 2 + 0.8, wallH);
   for (let i = 0; i < 4; i++) {
-    const steam = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), new THREE.MeshStandardMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.22, roughness: 1 }));
-    steam.position.set(-121, 0.3 + i * 0.18, ALLEY.z); steam.userData.baseY = steam.position.y; alley.steam.push(steam); root.add(steam);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.55), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: .3, metalness: .15, emissive: 0x334155, emissiveIntensity: .12 }));
+    win.position.set(ALLEY.x0 - 3 - i * 4.2, 2.35, ALLEY.z + ALLEY.half - 0.28); root.add(win);
   }
-  // gato tirado sobre un basurero
-  const cat = new THREE.Group();
-  const catBody = new THREE.Mesh(new THREE.BoxGeometry(.38, .18, .22), mat(0x1c1917)); catBody.position.y = 1.42; cat.add(catBody);
-  const catHead = new THREE.Mesh(new THREE.BoxGeometry(.16, .16, .16), mat(0x292524)); catHead.position.set(.22, 1.48, 0); cat.add(catHead);
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(.06, .06, .28), mat(0x1c1917)); tail.position.set(-.24, 1.48, .1); tail.rotation.y = .4; cat.add(tail);
-  cat.position.set(-117.6, 0, ALLEY.z + 1.52); root.add(cat);
-  // faroles que parpadean (pocos: el callejón tiene que verse sucio, no fundir el juego)
-  for (const [lx, lz] of [[-114, ALLEY.z + 1.9], [-128, ALLEY.z - 1.9]]) {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.7), mat(0x292524));
-    arm.position.set(lx, 3.6, lz > ALLEY.z ? lz - 0.3 : lz + 0.3); root.add(arm);
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
-    bulb.position.set(lx, 3.45, ALLEY.z + (lz > ALLEY.z ? 1.55 : -1.55)); root.add(bulb);
-    const pl = new THREE.PointLight(0xffc46b, 0.85, 11, 2); pl.position.copy(bulb.position); root.add(pl); alley.lights.push({ l: pl, bulb, base: 0.85 });
+  root.add(makeDumpster(ALLEY.x0 - 2.4, ALLEY.z - 1.28, 0.1, 1));
+  root.add(makeDumpster(ALLEY.x0 - 7.6, ALLEY.z + 1.28, 3.05, 2));
+  root.add(makeDumpster(ALLEY.x0 - 13.2, ALLEY.z - 1.26, -0.08, 3));
+  for (let i = 0; i < 5; i++) {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.26, 0.32), mat(0x8b5a2b));
+    box.position.set(ALLEY.x0 - 4 - i * 3.1, 0.16, ALLEY.z + (i % 2 ? 1.55 : -1.55)); root.add(box);
   }
-  // puerta de metal + teclado
-  const door = new THREE.Group();
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.36, 1.42), new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: .55, metalness: .45 }));
-  slab.position.y = 1.18; slab.castShadow = true; door.add(slab);
-  for (const [y, z] of [[0.45, 0.55], [0.45, -0.55], [1.85, 0.55], [1.85, -0.55]]) {
-    const riv = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.08), mat(0x52525b)); riv.position.set(0.02, y, z); door.add(riv);
+  for (const lx of [ALLEY.x0 - 4, ALLEY.x0 - 14]) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.55), mat(0x292524));
+    arm.position.set(lx, 3.15, ALLEY.z + ALLEY.half - 0.4); root.add(arm);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xfde68a, emissiveIntensity: .85 }));
+    bulb.position.set(lx, 3.05, ALLEY.z + 0.85); root.add(bulb);
+    const pl = new THREE.PointLight(0xffe7b0, 0.55, 8, 2); pl.position.copy(bulb.position); root.add(pl); alley.lights.push({ l: pl, bulb, base: 0.55 });
   }
-  const slot = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, 0.08), mat(0x0a0a0b)); slot.position.set(0.1, 1.2, 0.5); door.add(slot);
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.28), new THREE.MeshStandardMaterial({ color: 0x1c1917, emissive: 0x14532d, emissiveIntensity: .35 }));
-  pad.position.set(0.12, 1.35, -0.48); door.add(pad);
+  const door = makeWoodDoor();
   door.position.set(ALLEY.doorX, 0, ALLEY.z); root.add(door); alley.door = door;
-  alley.doorObs = addObstacle(ALLEY.doorX, ALLEY.z, 0.55, ALLEY.half * 2 - 0.15, 2.6);
-  // interior del mercado (al oeste de la puerta)
-  const mx = ALLEY.x1 - 7.4, mw = 14.2, md = 11.2, mh = 4.2;
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(mw, 0.1, md), new THREE.MeshStandardMaterial({ color: 0x1c1410, roughness: .9 }));
+  alley.doorObs = alleyAddObs(ALLEY.doorX, ALLEY.z, 0.5, 1.35, 2.4);
+  const mx = ALLEY.doorX - ALLEY.shopW / 2, mw = ALLEY.shopW, md = ALLEY.shopD, mh = 4.4;
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(mw, 0.1, md), new THREE.MeshStandardMaterial({ color: 0x3f2e24, roughness: .9 }));
   floor.position.set(mx, 0.05, ALLEY.z); floor.receiveShadow = true; root.add(floor);
-  const ceil = new THREE.Mesh(new THREE.BoxGeometry(mw, 0.12, md), mat(0x1f140f));
+  const ceil = new THREE.Mesh(new THREE.BoxGeometry(mw + 0.4, 0.28, md + 0.4), mat(0x2a211c));
   ceil.position.set(mx, mh, ALLEY.z); root.add(ceil);
   for (const [wx, wz, ww, wd] of [
-    [mx, ALLEY.z + md / 2, mw, 0.4], [mx, ALLEY.z - md / 2, mw, 0.4],
-    [mx - mw / 2, ALLEY.z, 0.4, md],
+    [mx, ALLEY.z + md / 2, mw, 0.5], [mx, ALLEY.z - md / 2, mw, 0.5],
+    [mx - mw / 2, ALLEY.z, 0.5, md],
   ]) {
-    const w = new THREE.Mesh(new THREE.BoxGeometry(ww, mh, wd), mat(0x2a1d18));
+    const w = new THREE.Mesh(new THREE.BoxGeometry(ww, mh, wd), mat(0x4b3b32));
     w.position.set(wx, mh / 2, wz); w.castShadow = true; root.add(w);
-    addObstacle(wx, wz, ww, wd, mh);
+    alleyAddObs(wx, wz, ww, wd, mh);
   }
-  // pared este con hueco de puerta (dos jambas)
-  for (const zz of [ALLEY.z + 2.55, ALLEY.z - 2.55]) {
-    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.4, mh, 3.7), mat(0x2a1d18));
-    jamb.position.set(ALLEY.x1, mh / 2, zz); root.add(jamb);
-    addObstacle(ALLEY.x1, zz, 0.4, 3.7, mh);
+  for (const zz of [ALLEY.z + 2.35, ALLEY.z - 2.35]) {
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.5, mh, 3.2), mat(0x4b3b32));
+    jamb.position.set(ALLEY.doorX, mh / 2, zz); root.add(jamb);
+    alleyAddObs(ALLEY.doorX, zz, 0.5, 3.2, mh);
   }
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.4, 11.2), mat(0x2a1d18));
-  lintel.position.set(ALLEY.x1, 3.5, ALLEY.z); root.add(lintel);
-  // puestos
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, md), mat(0x4b3b32));
+  lintel.position.set(ALLEY.doorX, 3.55, ALLEY.z); root.add(lintel);
+  const guns = ['pistol', 'shotgun', 'rifle', 'pistol'];
   for (let i = 0; i < 4; i++) {
-    const stall = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.05, 1.1), mat(0x3f2a1d));
     const side = i < 2 ? 1 : -1;
-    stall.position.set(ALLEY.x1 - 3.2 - (i % 2) * 4.4, 0.55, ALLEY.z + side * 3.4);
-    stall.castShadow = true; root.add(stall);
-    addObstacle(stall.position.x, stall.position.z, 2.2, 1.1, 1.1);
-    const cloth = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.06, 1.2), mat([0x7f1d1d, 0x1e3a5f, 0x365314, 0x78350f][i]));
-    cloth.position.set(stall.position.x, 1.12, stall.position.z); root.add(cloth);
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
-    lamp.position.set(stall.position.x, 2.55, stall.position.z); root.add(lamp);
-    if (i < 2) { const sl = new THREE.PointLight(0xff7a3a, 0.42, 6, 2); sl.position.copy(lamp.position); root.add(sl); }
+    const tx = ALLEY.doorX - 3.4 - (i % 2) * 4.2, tz = ALLEY.z + side * 2.85;
+    const stall = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.95, 1.05), mat(0x5b4638));
+    stall.position.set(tx, 0.5, tz); stall.castShadow = true; root.add(stall);
+    alleyAddObs(tx, tz, 2.15, 1.05, 1.05);
+    const gun = makeGunMesh(guns[i]); gun.position.set(tx, 1.18, tz); gun.scale.setScalar(1.85); root.add(gun);
+    const rack = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.55, 0.7), mat(0x292524));
+    rack.position.set(tx, 1.55, tz + side * 0.42); root.add(rack);
+    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.16, 8), new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xfde68a, emissiveIntensity: .7 }));
+    lamp.position.set(tx, 2.7, tz); root.add(lamp);
+    const pl = new THREE.PointLight(0xfff1c8, 0.38, 5.5, 2); pl.position.copy(lamp.position); root.add(pl); alley.lights.push({ l: pl, bulb: lamp, base: 0.38 });
   }
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.45, 0.08), new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x7f1d1d, emissiveIntensity: .55 }));
-  sign.position.set(mx + 1.5, 3.3, ALLEY.z); root.add(sign);
-  const crateStack = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.4, 0.9), mat(0x6b4423));
-  crateStack.position.set(ALLEY.x1 - 12.2, 0.7, ALLEY.z); root.add(crateStack);
-  addObstacle(crateStack.position.x, crateStack.position.z, 1.1, 0.9, 1.4);
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.4, 0.08), new THREE.MeshStandardMaterial({ color: 0x1c1917, emissive: 0x7f1d1d, emissiveIntensity: .4 }));
+  sign.position.set(mx + 1.2, 3.15, ALLEY.z); root.add(sign);
   const tito = makeTito();
-  tito.position.set(ALLEY.x0 + 2.4, 0, ALLEY.z);
-  tito.rotation.y = Math.PI / 2;   // mira hacia el este, a quien llega
+  tito.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z);
+  tito.rotation.y = -Math.PI / 2;
   root.add(tito); alley.contact = tito;
+  root.visible = false;
   scene.add(root);
+  setAlleyCollisions(false);
 }
-buildDarkAlley();
-
 function alleyQuestStep() { return (state.story && state.story.alley) || 0; }
 function questDone(id) {
   const q = STORY_QUESTS.find(x => x.id === id); if (!q) return false;
@@ -2537,10 +2530,15 @@ function renderQuestPanel() {
   const rows = [];
   for (const q of STORY_QUESTS) {
     const done = questDone(q.id);
-    const step = id => { if (id === 'alley') return alleyQuestStep(); return done ? 1 : 0; };
-    const s = step(q.id);
+    const s = q.id === 'alley' ? alleyQuestStep() : (done ? 1 : 0);
     const line = q.steps[Math.min(q.steps.length - 1, Math.max(0, (q.id === 'alley' ? s : done ? 1 : 0)))] || q.hint;
-    rows.push('<div class="quest-row' + (done ? ' done' : (q.id === 'alley' && s > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + q.hint + '<br><span style="opacity:.8">' + (done ? 'Listo.' : line) + (q.id === 'alley' ? ' · ' + Math.min(s, q.need) + '/' + q.need : '') + '</span></div></div>');
+    let extra = '';
+    if (q.id === 'alley' && !done) {
+      if (!alleyUnlocked()) extra = '<br><span style="color:#fbbf24">🔒 Se desbloquea a los $20.000 ganados (' + Math.floor(state.totalEarned || 0) + '/20000)</span>';
+      else if (state.mission === 'alley') extra = '<br><button type="button" data-alley-act="leave" class="bankBtn" style="margin-top:6px">Salir del callejón</button>';
+      else extra = '<br><button type="button" data-alley-act="go" class="bankBtn" style="margin-top:6px;border-color:#f59e0b">🕶️ Ir con Tito</button>';
+    }
+    rows.push('<div class="quest-row' + (done ? ' done' : (q.id === 'alley' && s > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + q.hint + '<br><span style="opacity:.8">' + (done ? 'Listo.' : line) + (q.id === 'alley' ? ' · ' + Math.min(s, q.need) + '/' + q.need : '') + '</span>' + extra + '</div></div>');
   }
   if (state.missions && state.missions.length) {
     rows.push('<div style="font-size:11px; font-weight:800; color:#fde68a; margin:8px 0 4px">HOY</div>');
@@ -2557,62 +2555,112 @@ function openQuestPanel() {
   renderQuestPanel(); ui('questbox').style.display = 'flex';
 }
 function closeQuestPanel() { const el = ui('questbox'); if (el) el.style.display = 'none'; typing = algunRecuadroAbierto(); }
+function applyAlleySky() {
+  scene.background.set(0x0a0a12); scene.fog.color.set(0x0a0a12);
+  scene.fog.near = 3.5; scene.fog.far = (state.gadgets && state.gadgets.gafas) ? 42 : 24;
+  ambient.intensity = 0.2; sun.intensity = 0.06;
+}
+function restoreAlleyExitWorld() {
+  const back = alley.returnTo;
+  const planet = (back && back.planet) || state.planet || 'tierra';
+  const country = back && back.country !== undefined ? back.country : state.country;
+  state.planet = planet;
+  state.country = country || null;
+  if (planet === 'platus') {
+    setEarthWorld(false); setCityVisible(false); if (typeof setCountryVisible === 'function') setCountryVisible(false);
+    if (typeof setPlatusVisible === 'function') setPlatusVisible(true);
+    ground.visible = true; scene.fog.near = 1; scene.fog.far = 160;
+  } else if (country) {
+    setEarthWorld(false); setCityVisible(false); if (typeof setPlatusVisible === 'function') setPlatusVisible(false);
+    if (typeof setCountryVisible === 'function') setCountryVisible(true);
+    ground.visible = true; scene.fog.near = 1; scene.fog.far = 320;
+  } else {
+    setEarthWorld(true); setCityVisible(true); if (typeof setPlatusVisible === 'function') setPlatusVisible(false);
+    if (typeof setCountryVisible === 'function') setCountryVisible(false);
+    ground.visible = true; scene.fog.near = 1; scene.fog.far = 900;
+  }
+}
+function showAlleyWorld(on) {
+  state.mission = on ? 'alley' : null;
+  document.body.classList.toggle('alley-mission', !!on);
+  if (on) {
+    alley.skyWas = scene.background.getHex ? scene.background.getHex() : 0x87ceeb;
+    setEarthWorld(false); setCityVisible(false); if (typeof setCountryVisible === 'function') setCountryVisible(false);
+    if (typeof setPlatusVisible === 'function') setPlatusVisible(false);
+    ground.visible = false;
+    if (typeof skiResortGroup !== 'undefined' && skiResortGroup) skiResortGroup.visible = false;
+    if (typeof oceanFxGroup !== 'undefined' && oceanFxGroup) oceanFxGroup.visible = false;
+    applyAlleySky();
+    if (alley.root) alley.root.visible = true;
+    setAlleyCollisions(true);
+    dad.visible = false;
+  } else {
+    setAlleyCollisions(false);
+    if (alley.root) alley.root.visible = false;
+    ground.visible = true;
+    dad.visible = true;
+    restoreAlleyExitWorld();
+  }
+}
+function enterAlleyMission() {
+  if (!alleyUnlocked()) { toast('🔒 El callejón se desbloquea a los $20.000 ganados'); return false; }
+  if (state.mission === 'alley') return true;
+  if (state.driving) toggleCar();
+  standUp(true);
+  alley.returnTo = {
+    x: player.position.x, z: player.position.z, y: player.position.y, yaw,
+    dadX: dad.position.x, dadZ: dad.position.z,
+    planet: state.planet, country: state.country || null,
+  };
+  showAlleyWorld(true);
+  setAlleyDoorOpen(false);
+  alley.following = false; alley.wp = 0; alley.followIn = 0.85;
+  if (alley.contact) { alley.contact.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z); alley.contact.rotation.y = -Math.PI / 2; }
+  player.position.set(ALLEY.x0 - 0.2, PLAYER_EYE, ALLEY.z); yaw = Math.PI / 2; pitch = -0.08;
+  storyProgress('alley', 1);
+  toast('🕶️ Tito te trajo a otro rincón. El juego te lleva detrás de él, despacio.');
+  say('🕶️ Tito', 'Che, seguime. Por acá no hay por dónde salir. Yo voy despacio.');
+  saveGame();
+  return true;
+}
+function leaveAlleyMission() {
+  if (state.mission !== 'alley') return;
+  closeBlackMarket(); closeKeypad();
+  alley.following = false; alley.followIn = 0;
+  const back = alley.returnTo;
+  showAlleyWorld(false);
+  if (back) {
+    player.position.set(back.x, back.y || PLAYER_EYE, back.z); yaw = back.yaw || 0;
+    dad.position.set(back.dadX != null ? back.dadX : back.x + 2, 0, back.dadZ != null ? back.dadZ : back.z);
+  }
+  alley.returnTo = null;
+  if (typeof syncFarWorld === 'function') syncFarWorld();
+  toast('🏠 Volviste al mapa');
+  saveGame();
+}
 function setAlleyDoorOpen(v) {
   alley.open = !!v;
-  if (alley.door) { alley.door.position.z = ALLEY.z + (v ? 1.65 : 0); alley.door.rotation.y = v ? 0.18 : 0; }
+  if (alley.door) { alley.door.rotation.y = v ? -1.25 : 0; alley.door.position.z = ALLEY.z + (v ? 0.55 : 0); }
   if (v && alley.doorObs) {
     const i = obstacles.indexOf(alley.doorObs); if (i >= 0) obstacles.splice(i, 1);
-    if (typeof earthObstacles !== 'undefined') { const j = earthObstacles.indexOf(alley.doorObs); if (j >= 0) earthObstacles.splice(j, 1); }
+    const j = alley.obs.indexOf(alley.doorObs); if (j >= 0) alley.obs.splice(j, 1);
     alley.doorObs = null;
   } else if (!v && !alley.doorObs) {
-    alley.doorObs = addObstacle(ALLEY.doorX, ALLEY.z, 0.55, ALLEY.half * 2 - 0.15, 2.6);
-    if (typeof earthObstacles !== 'undefined') earthObstacles.push(alley.doorObs);
+    alley.doorObs = alleyAddObs(ALLEY.doorX, ALLEY.z, 0.5, 1.35, 2.4);
+    if (state.mission !== 'alley') { const i = obstacles.indexOf(alley.doorObs); if (i >= 0) obstacles.splice(i, 1); }
   }
 }
 function keypadScreen() {
   const el = ui('keypadScreen'); if (!el) return;
-  const s = (alley.codeBuf || '').padEnd(4, '_');
-  el.textContent = s.split('').join(' ');
+  el.textContent = '____';
 }
-function openKeypad() {
-  closeQuestPanel(); closeShopInput(); closeMathBox(); closeChatReply(); releaseLock();
-  typing = true; for (const k in keys) keys[k] = false;
-  alley.codeBuf = ''; keypadScreen();
-  const grid = ui('keypadGrid');
-  if (grid && !grid.dataset.ready) {
-    grid.dataset.ready = '1';
-    [1,2,3,4,5,6,7,8,9,'ok',0,'x'].forEach(n => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.textContent = n === 'ok' ? 'OK' : n === 'x' ? '⌫' : String(n);
-      b.onclick = () => keypadPress(n);
-      grid.appendChild(b);
-    });
-  }
-  ui('keypadbox').style.display = 'flex';
-}
+function openKeypad() { closeKeypad(); }
 function closeKeypad() { const el = ui('keypadbox'); if (el) el.style.display = 'none'; typing = algunRecuadroAbierto(); }
-function keypadPress(n) {
-  if (n === 'x') { alley.codeBuf = (alley.codeBuf || '').slice(0, -1); keypadScreen(); return; }
-  if (n === 'ok') { tryAlleyCode(alley.codeBuf); return; }
-  if ((alley.codeBuf || '').length >= 4) return;
-  alley.codeBuf = (alley.codeBuf || '') + String(n);
-  keypadScreen(); beep(520 + (+n) * 20, 0.05, 0.03);
-  if (alley.codeBuf.length === 4) tryAlleyCode(alley.codeBuf);
-}
-function tryAlleyCode(code) {
-  if (String(code) !== ALLEY.code) {
-    toast('🔒 Clave incorrecta · el teclado zumba'); tone(140, .18, .06, 'square'); alley.codeBuf = ''; keypadScreen(); return false;
-  }
-  closeKeypad();
-  setAlleyDoorOpen(true);
-  storyProgress('alley', 3);
-  say('🕶️ Tito', 'Entrá. Si alguien pregunta, no nos viste.');
-  toast('🕯️ La puerta se abre hacia un cuarto en penumbra');
-  tone(660, .08, .04, 'triangle'); setTimeout(() => tone(880, .1, .04, 'triangle'), 80);
-  saveGame(); return true;
-}
+function keypadPress() {}
+function tryAlleyCode() { return false; }
 function openBlackMarket() {
-  if (!alley.open) { toast('🔒 La puerta sigue cerrada'); return; }
+  if (state.mission !== 'alley') return;
+  if (!alley.open) { toast('🚪 La puerta sigue cerrada · seguí a Tito'); return; }
   closeQuestPanel(); closeKeypad(); closeShopInput(); closeMathBox(); closeChatReply(); releaseLock();
   typing = true; for (const k in keys) keys[k] = false;
   renderBlackMarket(); ui('blackbox').style.display = 'flex';
@@ -2635,83 +2683,105 @@ function applyBlackMarketGadget(item) {
     toast('💨 Bomba de humo: la calle se llenó de niebla y te perdiste');
   } else if (g === 'capa') { state.gadgets.capa = true; toast('🧥 Capa de sombras: de noche te ven menos'); }
   else if (g === 'gafas') { state.gadgets.gafas = true; toast('🥽 Gafas de noche: ves más lejos en la oscuridad'); }
-  else if (g === 'mascara') { state.wanted = Math.max(0, (state.wanted || 0) - 18); state.wantedLevel = Math.max(0, (state.wantedLevel || 0) - 1); toast('🎭 Te pusiste la máscara de cartón · te buscan menos'); }
   else if (g === 'gancho') { state.gadgets.gancho = true; toast('🪝 Gancho trepador: ahora saltas más alto'); }
   else if (g === 'confeti') {
     let n = 0; if (typeof enemies !== 'undefined') for (const e of enemies) if (dist2D(e.position, player.position) < 8) { e.userData.slow = 6; n++; if (typeof hitEnemy === 'function') hitEnemy(e, 8, player.position); }
     toast('🎉 Granada de confeti: ' + n + ' monstruo(s) aturdido(s)');
   } else if (g === 'radio') { state.gadgets.radio = true; toast('📻 Radio chatarra: vas a oír a la policía antes de verla'); }
-  else if (g === 'dardos') {
-    let n = 0; if (typeof enemies !== 'undefined') for (const e of enemies) if (dist2D(e.position, player.position) < 10) { e.userData.slow = 8; n++; }
-    toast('🎯 Dardos de dormir: ' + n + ' se mueven lento');
-  } else if (g === 'iman') { addMoney(80); if (typeof coinBurst === 'function') coinBurst(player.position, 8); toast('🧲 El imán juntó monedas perdidas · +$80'); }
-  else if (g === 'silencio') { toast('🎈 Tito: «sirve para las fiestas, no preguntes»'); addMoney(20); }
   storyProgress('alley', 5);
 }
 function tryAlleyInteract() {
-  if (state.planet !== 'tierra' || state.country) return false;
+  if (state.mission !== 'alley') return false;
   const tito = alley.contact; if (!tito || !tito.visible) return false;
   const px = player.position.x, pz = player.position.z;
-  if (dist2D(player.position, tito.position) < 3.8) {
-    if (alleyQuestStep() <= 0) {
-      storyProgress('alley', 1);
-      alley.following = true; alley.wp = 0;
-      say('🕶️ Tito', 'Che, seguime. Por acá nadie pasa. Si te pierdo, la clave de la puerta es cuatro ocho uno cinco.');
-      toast('🕶️ Tito se mete en el callejón · seguilo');
+  if (!alley.following && alley.followIn <= 0 && player.position.x > ALLEY.x0 + 0.35 && Math.abs(player.position.z - ALLEY.z) < 1.6) {
+    leaveAlleyMission(); return true;
+  }
+  if (dist2D(player.position, tito.position) < 3.6) {
+    if (!alley.following && !alley.open && alleyQuestStep() <= 2) {
+      storyProgress('alley', 2);
+      alley.following = true; alley.wp = 0; alley.followIn = 0;
+      say('🕶️ Tito', 'Vení atrás mío. Yo voy lento, el juego te trae. No hay huecos para escaparte.');
+      toast('🕶️ El juego te lleva detrás de Tito');
       return true;
     }
-    if (!alley.open && dist2D(tito.position, { x: ALLEY.doorX + 1.4, z: ALLEY.z }) < 3) {
-      say('🕶️ Tito', 'La clave es 4-8-1-5. Yo la pongo.');
-      tryAlleyCode(ALLEY.code); return true;
-    }
     if (alley.open && inBlackMarket(px, pz)) { openBlackMarket(); return true; }
-    say('🕶️ Tito', alley.open ? 'Pasá, el puesto ya está armado.' : 'La clave es cuatro ocho uno cinco. No se la digas a nadie.');
+    say('🕶️ Tito', alley.open ? 'Pasá, las pistolas están sobre la mesa.' : 'Seguime. No corras.');
     return true;
   }
-  if (!alley.open && Math.abs(px - ALLEY.doorX) < 2.4 && Math.abs(pz - ALLEY.z) < 2.4) { openKeypad(); return true; }
+  if (alley.open && Math.abs(px - ALLEY.doorX) < 2.2 && Math.abs(pz - ALLEY.z) < 1.8) { openBlackMarket(); return true; }
   if (alley.open && inBlackMarket(px, pz)) { openBlackMarket(); return true; }
   return false;
+}
+function clampAlleyPlayer() {
+  if (state.mission !== 'alley') return;
+  const inShop = alley.open && player.position.x < ALLEY.doorX + 0.35;
+  const zMax = inShop ? ALLEY.shopD / 2 - 0.7 : ALLEY.half - 0.55;
+  player.position.z = THREE.MathUtils.clamp(player.position.z, ALLEY.z - zMax, ALLEY.z + zMax);
+  const xMin = alley.open ? ALLEY.doorX - ALLEY.shopW + 0.8 : ALLEY.doorX + 0.55;
+  player.position.x = THREE.MathUtils.clamp(player.position.x, xMin, ALLEY.x0 + 0.55);
+  player.position.y = PLAYER_EYE;
 }
 function updateAlley(dt) {
   if (!alley.root) return;
   alley.flicker += dt;
   for (const o of alley.lights) {
-    const k = 0.35 + 0.65 * (0.55 + 0.45 * Math.sin(alley.flicker * 7 + o.l.position.x) * (Math.random() < 0.04 ? 0.15 : 1));
-    o.l.intensity = o.base * k; if (o.bulb && o.bulb.material) o.bulb.material.color.setHex(k < 0.25 ? 0x431407 : 0xfbbf24);
-  }
-  for (const s of alley.steam) {
-    s.position.y += dt * 0.35; s.material.opacity = 0.2 * (1 - (s.position.y - s.userData.baseY) / 1.4);
-    if (s.position.y > s.userData.baseY + 1.5) { s.position.y = s.userData.baseY; s.material.opacity = 0.22; }
+    const k = 0.82 + 0.18 * Math.sin(alley.flicker * 2.2 + o.l.position.x);
+    o.l.intensity = o.base * k;
   }
   const fx = ui('alleyfx');
-  if (fx && state.running && state.planet === 'tierra' && !state.country) {
-    const inside = inAlleyStreet(player.position.x, player.position.z) || inBlackMarket(player.position.x, player.position.z);
-    fx.style.opacity = inside ? (inBlackMarket(player.position.x, player.position.z) ? '0.72' : '0.48') : '0';
-  } else if (fx) fx.style.opacity = '0';
-  if (alley.contact && alley.contact.userData.flash) alley.contact.userData.flash.intensity = 0.28 + 0.2 * Math.sin(alley.flicker * 3);
+  if (fx) fx.style.opacity = state.mission === 'alley' ? (inBlackMarket(player.position.x, player.position.z) ? '0.35' : '0.22') : '0';
   if (state.gadgets && state.gadgets.radio && state.wanted > 0 && police.length) {
     alley.radioCd = (alley.radioCd || 0) - dt;
     if (alley.radioCd <= 0) { alley.radioCd = 8; const p = police[0]; if (p && dist2D(p.position, player.position) < 40) toast('📻 Radio: patrulla a ' + Math.round(dist2D(p.position, player.position)) + ' metros'); }
   }
-  if (!state.running || state.paused || !alley.following || !alley.contact) return;
-  const wps = [{ x: -116, z: ALLEY.z }, { x: -124, z: ALLEY.z }, { x: ALLEY.doorX + 1.6, z: ALLEY.z }];
-  const tito = alley.contact, goal = wps[Math.min(alley.wp, wps.length - 1)];
-  const d = dist2D(tito.position, goal);
-  if (d > 0.35) {
-    const step = 1.7 * dt, len = d || 1;
-    tito.position.x += (goal.x - tito.position.x) / len * step;
-    tito.position.z += (goal.z - tito.position.z) / len * step;
-    tito.rotation.y = Math.atan2(goal.x - tito.position.x, goal.z - tito.position.z);
-    if (typeof swingLimbs === 'function') swingLimbs(tito, dt);
-  } else {
-    alley.wp++;
-    if (alley.wp >= wps.length) {
-      alley.following = false;
-      tito.rotation.y = Math.PI / 2;
+  if (state.mission !== 'alley' || !state.running || state.paused) return;
+  if (alley.followIn > 0 && !alley.following && !alley.open) {
+    alley.followIn -= dt;
+    if (alley.followIn <= 0) {
+      alley.followIn = 0; alley.following = true; alley.wp = 0;
       storyProgress('alley', 2);
-      say('🕶️ Tito', 'Acá. La chapa es 4-8-1-5. Si te trabás, yo la pongo.');
+      say('🕶️ Tito', 'Vení atrás mío. Yo voy lento.');
+      toast('🕶️ El juego te lleva detrás de Tito');
     }
   }
+  if (alley.following && alley.contact) {
+    const wps = [
+      { x: ALLEY.x0 - 6, z: ALLEY.z },
+      { x: ALLEY.x0 - 14, z: ALLEY.z },
+      { x: ALLEY.doorX + 1.5, z: ALLEY.z },
+    ];
+    const tito = alley.contact, goal = wps[Math.min(alley.wp, wps.length - 1)];
+    const d = dist2D(tito.position, goal);
+    if (d > 0.28) {
+      const step = 1.05 * dt, len = d || 1;
+      tito.position.x += (goal.x - tito.position.x) / len * step;
+      tito.position.z += (goal.z - tito.position.z) / len * step;
+      tito.rotation.y = Math.atan2(goal.x - tito.position.x, goal.z - tito.position.z);
+      if (typeof swingLimbs === 'function') swingLimbs(tito, dt);
+    } else {
+      alley.wp++;
+      if (alley.wp >= wps.length) {
+        alley.following = false;
+        tito.rotation.y = Math.PI / 2;
+        setAlleyDoorOpen(true);
+        storyProgress('alley', 3);
+        say('🕶️ Tito', 'Esta es la puerta. Entrá, las pistolas están adentro sobre las mesas.');
+        toast('🚪 Puerta abierta · caminá y pulsá E');
+      }
+    }
+    const faceX = Math.sin(tito.rotation.y), faceZ = Math.cos(tito.rotation.y);
+    const wantX = tito.position.x - faceX * 2.35, wantZ = tito.position.z - faceZ * 2.35;
+    player.position.x += (wantX - player.position.x) * Math.min(1, 3.2 * dt);
+    player.position.z += (wantZ - player.position.z) * Math.min(1, 3.2 * dt);
+    player.position.y = PLAYER_EYE;
+    const lookYaw = Math.atan2(-(tito.position.x - player.position.x), -(tito.position.z - player.position.z));
+    let dy = lookYaw - yaw;
+    while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
+    yaw += dy * Math.min(1, 4 * dt);
+    camera.rotation.y = yaw; camera.rotation.x = pitch;
+  }
+  clampAlleyPlayer();
 }
 
 // Barrios extra (más ciudades, sin casa dorada) alrededor de un centro dado
@@ -3518,6 +3588,11 @@ function nearParksNow() {
     || ((px - WATER_PARK.x) ** 2 + (pz - WATER_PARK.z) ** 2) < 100 * 100;
 }
 function syncFarWorld() {
+  if (state.mission === 'alley') {
+    if (skiResortGroup) skiResortGroup.visible = false;
+    if (oceanFxGroup) oceanFxGroup.visible = false;
+    return;
+  }
   skiResortGroup.visible = nearSkiNow();
   if (oceanFxGroup) oceanFxGroup.visible = !!(state.sailing || state.swimming || player.position.x < -160);
   const nearIsl = nearIslandNow(520);
@@ -5480,6 +5555,8 @@ function setEarthWorld(v) {   // muestra/oculta la Tierra completa (con sus coli
   else { for (const o of earthObstacles) if (!obstacles.includes(o)) obstacles.push(o); }
   setCityVisible(v);
 }
+
+if (typeof buildDarkAlley === 'function') buildDarkAlley();
 
 // ===================================================================
 //  PLATUS: árboles muertos, rocas de carbón, fogatas y frío nocturno
@@ -8090,7 +8167,7 @@ function launchBull(k) {   // tres toros en abanico, más lentos y se pueden mat
     scene.add(e); enemies.push(e);
   }
 }
-function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena || state.inFlight || (alley.open && inBlackMarket(player.position.x, player.position.z)); }   // bajo tierra / ruinas / castillo / coliseo / avión / mercado del callejón: los monstruos de la superficie NO te ven
+function isPlayerHidden() { return state.underground || state.inRuins || state.inCastle || state.inArena || state.inFlight || state.mission === 'alley' || (alley.open && inBlackMarket(player.position.x, player.position.z)); }   // bajo tierra / ruinas / castillo / coliseo / avión / callejón de Tito: los monstruos de la superficie NO te ven
 function livingCompanions() { return [...helpers, ...(pet ? [pet] : []), ...(petAlien ? [petAlien] : []), ...eggPets].filter(c => c.visible && c.userData.hp > 0); }
 function initCompanionHealth(c, maxHp, hp = maxHp) {
   c.userData.maxHp = maxHp;
@@ -8981,7 +9058,7 @@ const state = {
   worldEvent: null, worldEventTime: 0, nextWorldEvent: 45,
   foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   hasPhone: false, skiPass: false, skiGear: null, skiGearWorn: false, skiing: false, skiLiftRide: null,
-  story: {}, storyRewarded: {}, gadgets: {},
+  story: {}, storyRewarded: {}, gadgets: {}, mission: null,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -9064,7 +9141,11 @@ function checkProgress() {
       tone(520, .1, .05, 'triangle'); setTimeout(() => tone(780, .12, .05, 'triangle'), 100);
     }
   }
-  updateBest();   // ¿superaste tu récord personal?
+  if (!state.alleyUnlockedToast && state.totalEarned >= ALLEY.unlock) {
+    state.alleyUnlockedToast = true;
+    toast('🕶️ Misión nueva: Tito te puede llevar al callejón ($20.000)');
+    renderQuestBtn();
+  }
 }
 
 const BUSINESS_TYPES = {
@@ -10161,7 +10242,11 @@ ui('soundBtn').onclick = () => toggleSound();
 ui('exitBtn').onclick = () => saveAndExit();
 ui('fotoBtn').onclick = () => takePhoto();
 if (ui('questBtn')) ui('questBtn').onclick = () => { if (ui('questbox').style.display === 'flex') closeQuestPanel(); else openQuestPanel(); };
-if (ui('questCloseBtn')) ui('questCloseBtn').onclick = closeQuestPanel;
+if (ui('questList')) ui('questList').onclick = e => {
+  const act = e.target.closest('[data-alley-act]') && e.target.closest('[data-alley-act]').dataset.alleyAct;
+  if (act === 'go') { closeQuestPanel(); enterAlleyMission(); }
+  else if (act === 'leave') { closeQuestPanel(); leaveAlleyMission(); }
+};
 if (ui('keypadClear')) ui('keypadClear').onclick = () => { alley.codeBuf = ''; keypadScreen(); };
 if (ui('keypadClose')) ui('keypadClose').onclick = closeKeypad;
 if (ui('blackCloseBtn')) ui('blackCloseBtn').onclick = closeBlackMarket;
@@ -10418,10 +10503,11 @@ function startGame() {
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
   houseTier = 0;
   newMissions();
-  state.story = {}; state.storyRewarded = {}; state.gadgets = {};
-  alley.following = false; alley.wp = 0; alley.codeBuf = '';
+  state.story = {}; state.storyRewarded = {}; state.gadgets = {}; state.alleyUnlockedToast = false;
+  alley.following = false; alley.wp = 0; alley.returnTo = null; alley.followIn = 0;
+  showAlleyWorld(false);
   setAlleyDoorOpen(false);
-  if (alley.contact) { alley.contact.position.set(ALLEY.x0 + 2.4, 0, ALLEY.z); alley.contact.rotation.y = Math.PI / 2; }
+  if (alley.contact) { alley.contact.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z); alley.contact.rotation.y = -Math.PI / 2; }
   renderQuestBtn();
   checkDailyStreak();
   player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
@@ -11386,7 +11472,7 @@ function saveGame() {
       dadResting: !!dad.userData.resting,
       streak: state.streak || 0,   // racha de noches perfectas
       missions: state.missions || null,   // misiones del día con su progreso
-      story: state.story || {}, storyRewarded: state.storyRewarded || {}, gadgets: state.gadgets || {}, alleyOpen: !!alley.open,
+      story: state.story || {}, storyRewarded: state.storyRewarded || {}, gadgets: state.gadgets || {}, alleyOpen: !!alley.open, mission: state.mission || null, alleyReturn: alley.returnTo || null, alleyUnlockedToast: !!state.alleyUnlockedToast,
       bestiary: state.bestiary || {},     // colección de monstruos
       album: state.album || {}, albumDone: !!state.albumDone,   // álbum de criaturas alien
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
@@ -12237,8 +12323,23 @@ function loadGame() {
   applyDadArmor(state.dadArmor < 1);             // repone la armadura del papá si la compraste
   if (d.missions && d.missions.length) { state.missions = d.missions; renderMissions(); } else newMissions();
   state.story = d.story || {}; state.storyRewarded = d.storyRewarded || {}; state.gadgets = d.gadgets || {};
-  setAlleyDoorOpen(!!d.alleyOpen);
-  if (alley.contact) alley.contact.position.set(alley.open ? ALLEY.doorX + 1.6 : ALLEY.x0 + 2.4, 0, ALLEY.z);
+  state.alleyUnlockedToast = !!d.alleyUnlockedToast || (state.totalEarned || 0) >= ALLEY.unlock;
+  alley.returnTo = d.alleyReturn || null;
+  alley.followIn = 0; alley.following = false;
+  if (d.mission === 'alley') {
+    showAlleyWorld(true);
+    setAlleyDoorOpen(!!d.alleyOpen);
+    if (alley.open) {
+      if (alley.contact) { alley.contact.position.set(ALLEY.doorX + 1.4, 0, ALLEY.z); alley.contact.rotation.y = Math.PI / 2; }
+    } else {
+      if (alley.contact) { alley.contact.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z); alley.contact.rotation.y = -Math.PI / 2; }
+      player.position.set(ALLEY.x0 - 0.2, PLAYER_EYE, ALLEY.z); yaw = Math.PI / 2;
+      alley.followIn = 0.4;
+    }
+  } else {
+    showAlleyWorld(false);
+    setAlleyDoorOpen(false);
+  }
   renderQuestBtn(); renderQuestPanel();
   state.bestiary = d.bestiary || {};
   state.album = d.album || {}; state.albumDone = !!d.albumDone;
@@ -12299,10 +12400,11 @@ function resetAll() {
   state.bank = 0; state.debt = 0; state.trips = 0; state.ngplus = false; state.cargo = {};
   resetWeather();
   removeRocket();
-  state.story = {}; state.storyRewarded = {}; state.gadgets = {};
-  alley.following = false; alley.wp = 0;
+  state.story = {}; state.storyRewarded = {}; state.gadgets = {}; state.alleyUnlockedToast = false;
+  alley.following = false; alley.wp = 0; alley.returnTo = null; alley.followIn = 0;
+  showAlleyWorld(false);
   setAlleyDoorOpen(false);
-  if (alley.contact) { alley.contact.position.set(ALLEY.x0 + 2.4, 0, ALLEY.z); alley.contact.rotation.y = Math.PI / 2; }
+  if (alley.contact) { alley.contact.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z); alley.contact.rotation.y = -Math.PI / 2; }
 }
 
 // ===================================================================
@@ -13547,6 +13649,17 @@ function buyItem(item) {
     if (!state.creative) state.money -= item.price;
     applyBlackMarketGadget(item); saveGame(); return;
   }
+  if (fromAlley && item.dmg) {
+    if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
+    if (!state.creative) state.money -= item.price;
+    if (item.dmg > state.weaponDmg) {
+      state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color || 0x4b5563);
+      rememberMeleeWeapon(item.name, item.dmg, item.color);
+      equipHandWeapon('melee');
+      toast('🔫 ' + item.name + ' en la mano: hace ' + item.dmg + ' de daño');
+    } else toast('Ya tienes un arma más fuerte (' + state.weaponName + ')');
+    storyProgress('alley', 5); saveGame(); return;
+  }
   if (!state.creative && item.unlockAt && state.totalEarned < item.unlockAt) { toast('🔒 ' + item.name + ' se desbloquea a los $' + item.unlockAt + ' ganados en total'); return; }
   if (item.bow || item.key === 'arco') {
     if (state.hasBow && bowEquipped()) { toast('🏹 Ya tienes el arco en la mano · pulsa 1 una vez para la espada o el láser, dos veces para el arco'); return; }
@@ -14077,6 +14190,7 @@ function applyPlanetLook(P) {
   scene.fog.far = P.fog;
 }
 function goToPlanet() {
+  if (state.mission === 'alley') { alley.following = false; alley.followIn = 0; alley.returnTo = null; showAlleyWorld(false); }
   const P = PLANETS[Math.max(0, (state.trips || 1) - 1) % PLANETS.length];   // planeta según cuántos viajes llevas
   state.planet = 'platus'; state.planetName = P.name; state.planetGround = P.ground;
   state.planetSky = P.sky; state.planetHazard = P.hazard; state.planetGrav = P.grav; state.planetCreature = P.creature;   // rasgos propios del planeta
@@ -14118,6 +14232,7 @@ function goToPlanet() {
 //  CONSTRUIR LA NOCHE / COMBATE
 // ===================================================================
 function tryStartNight() {
+  if (state.mission === 'alley') { toast('🕶️ Primero salí del callejón'); return; }
   if (state.phase !== 'DAY') return;
   if (!houseStats().ready) { toast('Construye al menos 4 paredes cerca de tu casa (B para construir)'); return; }
   if (state.dayTime < currentDayLength() - 60) {   // prepararse con tiempo paga un pequeño bono
@@ -15069,7 +15184,7 @@ function drawMinimap() {
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
-  if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); icon(SKI_RESORT.gate.x, SKI_RESORT.gate.z, '⛷️', 15); icon(ALLEY.x0 + 2, ALLEY.z, alley.open ? '🕯️' : '🕶️', 13); }   // súper / armería / banco / gasolinera / arcade / esquí / callejón
+  if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); icon(SKI_RESORT.gate.x, SKI_RESORT.gate.z, '⛷️', 15); }   // súper / armería / banco / gasolinera / arcade / esquí
   if (state.planet !== 'platus') {   // los tres parques
     icon(CONDO_PARK.x, CONDO_PARK.z, '🌳', 13); icon(FUN_PARK.x, FUN_PARK.z, '🎡', 15); icon(WATER_PARK.x, WATER_PARK.z, '🏊', 14);
     icon(AIRPORT.x, AIRPORT.z, '✈️', 15);
@@ -15233,6 +15348,11 @@ function updateCreativeFlight(dt) {
 }
 function updateMovement(dt) {
   if (raceState) return;   // durante la carrera 3D el auto y la cámara siguen la pista aérea
+  if (state.mission === 'alley' && alley.following) {
+    camera.rotation.y = yaw; camera.rotation.x = pitch;
+    player.position.y = PLAYER_EYE; vy = 0; grounded = true;
+    return;
+  }
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
   if (state.sailing) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }
   if (typing) clearInput();   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
@@ -15601,7 +15721,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, openKeypad, tryAlleyCode, openBlackMarket, setAlleyDoorOpen, storyProgress });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -16031,6 +16151,10 @@ function playerInClosedRoom() {
   return closedRoomResult;
 }
 function updateSky(dt) {
+  if (state.mission === 'alley') {
+    applyAlleySky();
+    return;
+  }
   if (state.inFlight) {   // de día o de noche: el vuelo se ve cielo y nubes, nunca negro
     scene.background.setHex(0x5ec8f2); scene.fog.color.setHex(0xb9e7ff);
     scene.fog.near = 8; scene.fog.far = 90;
@@ -16172,9 +16296,9 @@ function updateContextPrompt() {
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
       else if (nearKeeper()) action = { key: 'Y', touch: '🛒', text: 'Abrir catálogo del vendedor' };
       else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
-      else if (state.planet === 'tierra' && alley.contact && dist2D(player.position, alley.contact.position) < 4.8) action = { key: 'E', touch: '🕶️', text: alleyQuestStep() <= 0 ? 'Hablar con Tito · te lleva al callejón' : (alley.open ? 'Hablar con Tito' : 'Tito: la clave es 4-8-1-5') };
-      else if (state.planet === 'tierra' && !alley.open && Math.abs(player.position.x - ALLEY.doorX) < 2.4 && Math.abs(player.position.z - ALLEY.z) < 2.4) action = { key: 'E', touch: '🔒', text: 'Teclado de la puerta · clave de 4 números' };
-      else if (state.planet === 'tierra' && alley.open && inBlackMarket(player.position.x, player.position.z)) action = { key: 'E', touch: '🕯️', text: 'Mirar el mercado del callejón' };
+      else if (state.mission === 'alley' && alley.contact && dist2D(player.position, alley.contact.position) < 4.8) action = { key: 'E', touch: '🕶️', text: alley.following ? 'Siguiendo a Tito…' : (alley.open ? 'Hablar con Tito' : 'Tito te lleva por el callejón') };
+      else if (state.mission === 'alley' && alley.open && (Math.abs(player.position.x - ALLEY.doorX) < 2.4 && Math.abs(player.position.z - ALLEY.z) < 2.4 || inBlackMarket(player.position.x, player.position.z))) action = { key: 'E', touch: '🕯️', text: 'Entrar · pistolas sobre las mesas' };
+      else if (state.mission === 'alley' && !alley.following && player.position.x > ALLEY.x0 + 0.35) action = { key: 'E', touch: '🏠', text: 'Volver al mapa' };
       else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };
       else if (state.worldEvent && state.worldEvent.id === 'search' && dist2D(player.position, state.worldEvent.target) < 5) action = { key: 'E', touch: '🤝', text: 'Ayudar al vecino perdido' };
       else if (nearestWorldSecret()) action = { key: 'E', touch: '🗺️', text: 'Descubrir secreto del mundo' };

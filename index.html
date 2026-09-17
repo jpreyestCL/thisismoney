@@ -8062,17 +8062,19 @@ function makeLavaWorm() {   // HELIOS (lava): gusano segmentado incandescente
 // spd(s) recibe la etapa actual. Flags: opensDoors (abre puertas), commander (manda toros),
 // mole (topo, lo maneja updateMoles), boss (topo jefe), poison (envenena), fly (vuela),
 // breaksAir (destruye construcciones aéreas / techos).
+// Los zombis (y el bombardero) van ARRASTRÁNDOSE de noche: ~la mitad que antes,
+// para que no corran detrás del jugador. El umbral scout (speed > 2.4) ya no los alcanza.
 const ENEMY_DEFS = {
-  zombie:        { make: makeZombie,        hp: 10,  spd: s => 1.8 + s * 0.15, dmg: 10, barY: 3.3 },
-  zombieArmored: { make: makeZombieArmored, hp: 30,  spd: s => 1.6 + s * 0.10, dmg: 10, barY: 3.8 },
-  smart:         { make: makeSmart,         hp: 10,  spd: s => 1.9 + s * 0.12, dmg: 10, barY: 3.3, opensDoors: true },
-  smartArmored:  { make: makeSmartArmored,  hp: 30,  spd: s => 1.7 + s * 0.10, dmg: 10, barY: 3.8, opensDoors: true },
+  zombie:        { make: makeZombie,        hp: 10,  spd: s => 0.78 + s * 0.05, dmg: 10, barY: 3.3 },
+  zombieArmored: { make: makeZombieArmored, hp: 30,  spd: s => 0.68 + s * 0.04, dmg: 10, barY: 3.8 },
+  smart:         { make: makeSmart,         hp: 10,  spd: s => 0.82 + s * 0.045, dmg: 10, barY: 3.3, opensDoors: true },
+  smartArmored:  { make: makeSmartArmored,  hp: 30,  spd: s => 0.72 + s * 0.04, dmg: 10, barY: 3.8, opensDoors: true },
   toro:          { make: makeKnight,         hp: 40,  spd: () => 1.15,          dmg: 12, barY: 3.3, commander: true },
   toroArmored:   { make: makeKnightArmored,  hp: 62,  spd: () => 1.05,          dmg: 12, barY: 3.6, commander: true },
   mole:          { make: makeMole,          hp: 20,  spd: () => 2.8,           dmg: 20, barY: 1.9, mole: true },
   moleBoss:      { make: makeMoleBoss,      hp: 160, spd: () => 2.2,           dmg: 20, barY: 3.4, mole: true, boss: true },
   ant:           { make: makeAnt,           hp: 30,  spd: () => 2.6,           dmg: 17, barY: 2.2, poison: true },
-  bomber:        { make: makeBomberZombie,  hp: 85,  spd: () => 1.7,           dmg: 24, barY: 3.8, bomber: true },
+  bomber:        { make: makeBomberZombie,  hp: 85,  spd: () => 0.95,          dmg: 24, barY: 3.8, bomber: true },
   flyer:         { make: makeFlyer,         hp: 60,  spd: () => 3.2,           dmg: 20, barY: 4.6, fly: true, breaksAir: true },
   alien:         { make: makeAlien,         hp: 90,  spd: () => 2.4,           dmg: 18, barY: 3.2 },
   alienBig:      { make: makeAlienBig,      hp: 140, spd: () => 2.2,           dmg: 24, barY: 4.0 },
@@ -9043,9 +9045,15 @@ function updateDirt(dt) {
       const z = spawnEnemy('zombie', new THREE.Vector3(d.pos.x, 0, d.pos.z));
       z.userData.dirtZombie = true;
       z.userData.attackCd = 0;
-      z.userData.speed *= 1.55;
+      z.userData.speed = 0.86;
       z.rotation.y = Math.atan2(player.position.x - z.position.x, player.position.z - z.position.z);
-      removeDirt(d);       toast('🧟 ¡Un zombi salió de la suciedad y te ataca! Pégale ya (clic / 👊)');
+      removeDirt(d);
+      toast('🧟 ¡Un zombi salió de la suciedad y te ataca! Pégale ya (clic / 👊)');
+      if (dist2D(z.position, player.position) < 2.4) {
+        startEnemyAttack(z);
+        damageEnemyTarget(player.position, z.userData.dmg || 10, z.position);
+        z.userData.attackCd = 0.55;
+      }
     }
   }
 }
@@ -9063,7 +9071,7 @@ function hostileInStrikeRange() {
   return false;
 }
 function tryCombatStrike(power) {
-  if (hostileInStrikeRange()) attack(power || 1);
+  if (combatIsActive()) attack(power || 1);
   else attackNPC();
 }
 function updateDirtZombies(dt) {
@@ -10592,7 +10600,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (trySeatedGamerKeyboard()) return;
       if (state.running && state.inCastle) attackCastleFoe();    // en el castillo, toque rápido = pegar al alien malo
       else if (state.running && bowEquipped()) shootBowArrow(.42);
-      else if (state.running && (state.phase === 'NIGHT' || hostileInStrikeRange())) attack();   // toque rápido: golpear monstruo (noche o zombi de suciedad)
+      else if (state.running && combatIsActive()) attack();   // toque rápido: golpear monstruo (noche o zombi de suciedad)
     }
   });
   look.addEventListener('touchcancel', () => { lookId = null; });

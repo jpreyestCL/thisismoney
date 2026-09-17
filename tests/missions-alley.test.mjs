@@ -70,5 +70,5 @@ assert.equal(sandbox.__vendors.length, 4);
 assert.ok(sandbox.__market.length >= 18);
 assert.ok(sandbox.__vendors.every(v => v.keys.every(k => sandbox.__market.some(it => it.key === k))));
 
-assert.match(sw, /tim-v45/);
+assert.match(sw, /tim-v46/);
 console.log('missions alley black market: ok · ' + sandbox.__quests.length + ' quests');

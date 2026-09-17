@@ -42,5 +42,5 @@ assert.match(html, /questbox.*keypadbox.*blackbox/);
 
 assert.doesNotMatch(html, /coca[ií]na|hero[ií]na|metanfet|pistola 9mm|sicario/i);
 
-assert.match(sw, /tim-v44/);
+assert.match(sw, /tim-v45/);
 console.log('missions alley black market: ok');

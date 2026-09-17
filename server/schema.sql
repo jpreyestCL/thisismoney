@@ -38,8 +38,12 @@ create table if not exists chat_messages (
   source_hash text not null default '',
   created_at timestamptz not null default now(),
   check (char_length(display_name) between 1 and 20),
-  check (char_length(body) between 1 and 140)
+  check (char_length(body) between 1 and 14000)
 );
+
+-- Partidas viejas tenían tope 140 (solo texto). Los stickers de foto necesitan más.
+alter table chat_messages drop constraint if exists chat_messages_body_check;
+alter table chat_messages add constraint chat_messages_body_check check (char_length(body) between 1 and 14000);
 
 create index if not exists chat_messages_created_idx on chat_messages (created_at);
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHAT_BUBBLE_MS, CHAT_EMOJIS, CHAT_MAX_LEN, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, stickerFromText, stickerPayload } from '../src/chat.js';
+import { CHAT_BUBBLE_MS, CHAT_CUSTOM_PREFIX, CHAT_EMOJIS, CHAT_MAX_LEN, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, isJpegBase64, stickerFromText, stickerPayload } from '../src/chat.js';
 
 // El globo del chat dura 7 segundos: es la promesa del juego, no un detalle suelto.
 assert.equal(CHAT_BUBBLE_MS, 7000);
@@ -41,6 +41,23 @@ assert.equal(stickerFromText(cleanChatText('sticker:hola')).label, 'Hola');
 assert.equal(stickerFromText('sticker:noexiste'), null);
 assert.equal(stickerFromText('hola'), null);
 
+const jpeg = Buffer.alloc(80, 1);
+jpeg[0] = 0xff; jpeg[1] = 0xd8;
+const jpegB64 = jpeg.toString('base64');
+assert.equal(isJpegBase64(jpegB64), true);
+assert.equal(cleanStickerLabel('  Mi perro!!  '), 'Mi perro');
+assert.equal(cleanStickerLabel('<script>'), 'script');
+const custom = customStickerPayload('Mi perro', jpegB64);
+assert.ok(custom.startsWith(CHAT_CUSTOM_PREFIX + 'Mi perro:'));
+assert.equal(cleanChatText(custom), custom, 'el sticker de foto se guarda entero');
+assert.equal(stickerFromText(custom).custom, true);
+assert.equal(stickerFromText(custom).label, 'Mi perro');
+assert.match(stickerFromText(custom).src, /^data:image\/jpeg;base64,/);
+assert.equal(cleanChatText('sticker:img:http://malo'), '', 'no se cuelan enlaces como sticker');
+assert.equal(cleanChatText('sticker:img:Hola:abc'), '', 'no se acepta basura que no sea jpeg');
+assert.equal(customStickerPayload('x', 'not-a-jpeg'), '');
+assert.ok(cleanChatText('sticker:gol') === 'sticker:gol');
+
 // Un mensaje que solo tiene espacios o controles no se guarda.
 assert.equal(cleanChatText('    '), '');
 assert.equal(cleanChatText(null), '');
@@ -67,11 +84,23 @@ assert.match(chatTime(new Date(2026, 0, 1, 9, 5)), /^09:05$/);
 assert.equal(chatTime('no es fecha'), '');
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const server = readFileSync(new URL('../server/leaderboard.mjs', import.meta.url), 'utf8');
+const schema = readFileSync(new URL('../server/schema.sql', import.meta.url), 'utf8');
+const nginx = readFileSync(new URL('../server/nginx-location.conf', import.meta.url), 'utf8');
 assert.match(html, /id="chatEmojiPad"/);
 assert.match(html, /id="chatStickerPad"/);
+assert.match(html, /id="stickerMake"/);
+assert.match(html, /id="stickerMakePhoto"/);
 assert.match(html, /function insertChatEmoji\(/);
 assert.match(html, /function sendChatSticker\(/);
+assert.match(html, /function openStickerMake\(/);
+assert.match(html, /function sendCustomChatSticker\(/);
 assert.match(html, /stickerFromText/);
-assert.match(html, /src\/chat\.js\?v=3/);
+assert.match(html, /src\/chat\.js\?v=4/);
+assert.match(html, /stickerMake.*TYPING_BOXES|TYPING_BOXES = \[.*stickerMake/);
+assert.match(server, /CHAT_POST_MAX/);
+assert.match(schema, /char_length\(body\) between 1 and 14000/);
+assert.match(nginx, /location = \/api\/chat/);
+assert.match(nginx, /client_max_body_size 20k/);
 
 console.log('chat: ok');

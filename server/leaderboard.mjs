@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import pg from 'pg';
-import { CHAT_HISTORY, accountNameKey, cleanAccountName, cleanChatName, cleanChatText } from '../src/chat.js';
+import { CHAT_CUSTOM_PREFIX, CHAT_HISTORY, accountNameKey, cleanAccountName, cleanChatName, cleanChatText } from '../src/chat.js';
 
 const { Pool } = pg;
 const PORT = Number(process.env.PORT || 8788);
@@ -137,13 +137,14 @@ async function chatList(req, res, url) {
   ]);
   json(res, 200, { lastId: Number(last.rows[0].last), online: online.rows[0].online, messages: messages.map(chatRow) });
 }
+const CHAT_POST_MAX = 20_000;  // texto corto o un sticker de foto/dibujo
 async function chatSend(req, res) {
   if (chatRateLimited(req)) return json(res, 429, { error: 'Espera un poco antes de escribir de nuevo' });
-  const body = await readBody(req);
+  const body = await readBody(req, CHAT_POST_MAX);
   const id = validPlayerId(body.playerId);
   if (!id) return json(res, 400, { error: 'Jugador inválido' });
   const text = cleanChatText(body.text);
-  if (!text) return json(res, 400, { error: 'Escribe algo para mandar' });
+  if (!text) return json(res, 400, { error: String(body.text || '').trim().startsWith(CHAT_CUSTOM_PREFIX) ? 'Ese sticker no se pudo publicar' : 'Escribe algo para mandar' });
   const name = cleanChatName(body.name);
   const fingerprint = crypto.createHash('sha256').update(clientKey(req)).digest('hex').slice(0, 24);
   const saved = await pool.query(

@@ -57,8 +57,8 @@
   #toastStack { position: absolute; top: auto; left: auto; right: 14px; bottom: calc(26% + 50px); transform: none; z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: flex-end; pointer-events: none; }
   #toastStack > div { max-width: min(340px, 34vw) !important; text-align: left; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #questBtn, body.cine #questbox, body.cine #keypadbox, body.cine #blackbox, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
-  body.alley-mission #minimap, body.alley-mission #parkBusinessBtn, body.alley-mission #buildbar, body.alley-mission #blueprintBtn, body.alley-mission #objective, body.alley-mission #missions { display: none !important; }
+  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #jobBtn, body.cine #questBtn, body.cine #questbox, body.cine #keypadbox, body.cine #blackbox, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
+  body.alley-mission #jobBtn, body.alley-mission #minimap, body.alley-mission #parkBusinessBtn, body.alley-mission #buildbar, body.alley-mission #blueprintBtn, body.alley-mission #objective, body.alley-mission #missions { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
   #phase { position: absolute; top: auto; left: auto; right: 14px; bottom: calc(26% + 110px); transform: none; font-size: 16px; font-weight: 800; letter-spacing: 1px; text-shadow: 0 2px 8px #000; text-align: right; max-width: min(340px, 34vw); pointer-events: none; }
@@ -448,6 +448,11 @@
   .stat span { font-family:ui-monospace, SFMono-Regular, Consolas, monospace; font-size:14px; }
   #objective { top:72px; max-width:min(72vw, 620px); background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm); padding:7px 12px; font-size:13px; }
   #missions { top:114px !important; background:var(--panel) !important; border:1px solid var(--line); border-radius:var(--radius-sm) !important; padding:8px 10px !important; }
+  #jobBtn { position:fixed; bottom:124px; left:50%; transform:translateX(-50%); z-index:7; pointer-events:all; cursor:pointer;
+    background:rgba(4,14,8,.85); color:#bbf7d0; border:2px solid rgba(74,222,128,.6); border-radius:12px; font-size:14px; font-weight:800;
+    min-height:42px; padding:6px 16px; display:none; max-width:min(92vw,540px); text-align:center; letter-spacing:.2px; }
+  #jobBtn.active { color:#fde68a; border-color:rgba(245,158,11,.7); background:rgba(16,11,3,.85); }
+  body.touch #jobBtn { bottom:78px; font-size:12px; min-height:34px; padding:4px 12px; }
   #questBtn { position:fixed; top:254px; right:12px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(8,6,4,.78); color:#fde68a; border:2px solid rgba(245,158,11,.55); border-radius:10px; font-size:13px; font-weight:800; height:40px; padding:0 12px; display:none; letter-spacing:.3px; }
   #questBtn .qdot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#ef4444; margin-right:6px; box-shadow:0 0 8px #ef4444; }
   #questBtn.done .qdot { background:#22c55e; box-shadow:0 0 8px #22c55e; }
@@ -973,6 +978,7 @@
 </dialog>
 <button id="fotoBtn" aria-label="Guardar captura" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
 <button id="questBtn" aria-label="Abrir misiones" type="button"><span class="qdot"></span>📋 Misiones</button>
+<button id="jobBtn" aria-label="Empezar la misión" type="button">▶️ HACER MISIÓN</button>
 <div id="help">
   <div class="guide-shell" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
     <nav class="guide-nav" aria-label="Secciones de la guía">
@@ -8940,10 +8946,79 @@ const jobMarker = new THREE.Group();
   beam.position.y = 25; jobMarker.add(beam);
   jobMarker.visible = false; scene.add(jobMarker);
 }
+// Flechas pintadas en el SUELO que te llevan hasta el objetivo del recado
+const jobPath = new THREE.Group();
+{
+  const geo = new THREE.ConeGeometry(.5, 1.25, 3); geo.rotateX(Math.PI / 2);   // triángulo plano apuntando a +Z
+  for (let i = 0; i < 8; i++) {
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: .8, depthWrite: false }));
+    m.rotation.x = 0; jobPath.add(m);
+  }
+  jobPath.visible = false; scene.add(jobPath);
+}
+function updateJobPath() {   // se dibujan delante tuyo, avanzando hacia el objetivo
+  if (!job || !jobMarker.visible) { jobPath.visible = false; return; }
+  const dx = job.target.x - player.position.x, dz = job.target.z - player.position.z;
+  const len = Math.hypot(dx, dz);
+  if (len < 3.5) { jobPath.visible = false; return; }   // ya llegaste: no estorban
+  jobPath.visible = true;
+  const ux = dx / len, uz = dz / len, rot = Math.atan2(ux, uz);
+  const flow = (performance.now() / 700) % 1;           // las flechas "corren" hacia el objetivo
+  for (let i = 0; i < jobPath.children.length; i++) {
+    const m = jobPath.children[i];
+    const d = 2.6 + (i + flow) * 2.9;
+    if (d > len - 1) { m.visible = false; continue; }
+    m.visible = true;
+    const x = player.position.x + ux * d, z = player.position.z + uz * d;
+    m.position.set(x, mountainHeightAt(x, z) + .09, z);
+    m.rotation.set(0, rot, 0);
+    m.material.opacity = .85 - i * .07;
+  }
+}
+function jobBark() {   // ¡guau, guau!
+  tone(430, .1, .05, 'square'); setTimeout(() => tone(330, .13, .05, 'square'), 120);
+}
+function updateJobSound(dt, d) {
+  if (!job) return;
+  job.sndCd = (job.sndCd || 0) - dt;
+  if (job.sndCd > 0) return;
+  if (job.id === 'dog') {
+    if (job.calm) { job.sndCd = 4.5; tone(620, .07, .035, 'square'); }          // contento, te sigue
+    else { jobBark(); job.sndCd = Math.max(.9, Math.min(4, d / 14)); }          // ladra más seguido si estás cerca
+  } else if (job.id === 'delivery') {
+    job.sndCd = job.timer < 15 ? .9 : 3.2;                                       // el pedido se enfría
+    tone(job.timer < 15 ? 880 : 520, .06, .03, 'triangle');
+  } else if (job.id === 'crates') {
+    job.sndCd = Math.max(1.4, Math.min(5, d / 12)); tone(180, .1, .04, 'square'); // golpeteo metálico del cajón
+  }
+}
+function renderJobBtn() {
+  const b = ui('jobBtn'); if (!b) return;
+  if (!state.running || state.paused || !jobCanRun()) { b.style.display = 'none'; return; }
+  if (job) {
+    b.style.display = 'block'; b.classList.add('active');
+    const q = STORY_QUESTS.find(x => x.id === job.id) || {};
+    setTextIfChanged(b, job.icon + ' ' + (q.title || '') + ' · ' + job.label + (job.timer > 0 ? ' (' + Math.ceil(job.timer) + 's)' : ''));
+    return;
+  }
+  const id = nextJobId();
+  if (!id) { b.style.display = 'none'; return; }
+  const q = STORY_QUESTS.find(x => x.id === id) || {};
+  b.style.display = 'block'; b.classList.remove('active');
+  setTextIfChanged(b, '▶️ HACER MISIÓN · ' + (q.icon || '') + ' ' + (q.title || ''));
+}
+function jobBtnClick() {
+  if (!jobCanRun()) { toast('🕒 Las misiones son de día y en la Tierra'); return; }
+  if (job) { toast(job.icon + ' ' + job.label); return; }
+  const id = nextJobId();
+  if (!id) { toast('✅ No te queda ninguna misión por ahora'); return; }
+  startJob(id);
+}
 let job = null;          // recado activo { id, icon, step, target, label, timer }
 let jobDog = null;       // el perro perdido
 let jobCrate = null;     // el cajón de Tito que toca abrir
-let jobOfferCd = 25;     // espera antes de ofrecer el siguiente recado
+let jobOfferCd = 6;      // espera antes de avisar del siguiente recado
+const jobOffered = {};   // misiones que ya te avisamos (para no repetir el aviso)
 function jobTargetPos() { return job && job.target; }
 function makeCrateMesh() {   // cajón de madera con flejes
   const g = new THREE.Group();
@@ -8974,17 +9049,16 @@ function clearJobProps() {
   if (jobDog) { scene.remove(jobDog); jobDog = null; }
   if (jobCrate) { scene.remove(jobCrate); jobCrate = null; }
 }
-function clearJobs() { clearJobProps(); job = null; jobMarker.visible = false; jobOfferCd = 25; }
+function clearJobs() { clearJobProps(); job = null; jobMarker.visible = false; jobPath.visible = false; jobOfferCd = 6; for (const k in jobOffered) delete jobOffered[k]; renderJobBtn(); }
 function finishJob(id, msg) {
-  clearJobProps(); jobMarker.visible = false; job = null; jobOfferCd = 45;
+  clearJobProps(); jobMarker.visible = false; jobPath.visible = false; job = null; jobOfferCd = 12;
   storyProgress(id, (STORY_QUESTS.find(q => q.id === id) || {}).need || 1);
   if (msg) toast(msg);
   tone(760, .1, .05, 'triangle'); setTimeout(() => tone(1140, .14, .05, 'triangle'), 95); vibr(110);
 }
 function nextJobId() {
-  if (!houseStats().ready) return null;
-  if (!questDone('dog')) return 'dog';
-  if (!questDone('delivery')) return 'delivery';
+  if (!questDone('dog')) return 'dog';                              // la del perro se puede hacer desde el principio
+  if (!questDone('delivery') && houseStats().ready) return 'delivery';
   if (!questDone('crates') && alleyUnlocked()) return 'crates';
   return null;
 }
@@ -9053,15 +9127,29 @@ function tryJobInteract() {   // E sobre el perro o sobre un cajón
   return false;
 }
 function updateJobs(dt) {
-  if (!jobCanRun()) { jobMarker.visible = false; return; }
+  if (!jobCanRun()) { jobMarker.visible = false; jobPath.visible = false; renderJobBtn(); return; }
   if (!job) {
+    jobPath.visible = false;
     jobOfferCd -= dt;
-    if (jobOfferCd <= 0) { const id = nextJobId(); if (id) startJob(id); else jobOfferCd = 30; }
+    if (jobOfferCd <= 0) {   // avisa que hay misión nueva, pero la empiezas TÚ con el botón
+      jobOfferCd = 40;
+      const id = nextJobId();
+      if (id && !jobOffered[id]) {
+        jobOffered[id] = true;
+        const q = STORY_QUESTS.find(x => x.id === id) || {};
+        toast('📋 Misión nueva: ' + (q.icon || '') + ' ' + (q.title || '') + ' · pulsa HACER MISIÓN abajo');
+        beep(660, .09, .04);
+      }
+    }
+    renderJobBtn();
     return;
   }
   jobMarker.visible = true;
   jobMarker.rotation.y += dt * .7;
   const d = dist2D(player.position, job.target);
+  updateJobPath();            // flechas en el suelo hasta el objetivo
+  updateJobSound(dt, d);      // ladridos del perro, aviso del pedido, golpes del cajón
+  renderJobBtn();
   if (job.id === 'dog') {
     if (jobDog) {
       if (job.calm) {   // te sigue trotando
@@ -10579,6 +10667,7 @@ if (ui('questList')) ui('questList').onclick = e => {
 };
 if (ui('keypadClear')) ui('keypadClear').onclick = () => { alley.codeBuf = ''; keypadScreen(); };
 if (ui('keypadClose')) ui('keypadClose').onclick = closeKeypad;
+if (ui('jobBtn')) ui('jobBtn').onclick = jobBtnClick;
 if (ui('blackCloseBtn')) ui('blackCloseBtn').onclick = closeBlackMarket;
 if (ui('blackList')) ui('blackList').onclick = e => {
   const key = e.target.closest('[data-bm]')?.dataset.bm; if (!key) return;

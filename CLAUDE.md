@@ -281,6 +281,13 @@ vive en `state.story[id]` (se guarda).
 - **📦 El cargamento de Tito** (pide el callejón, $20.000): 3 cajones; cada uno suelta 2 zombis
   al abrirlo (marcados `dirtZombie` para que sirva el combate de día) → +$250 c/u y al final
   +$1.500 y las **gafas de noche** (`state.gadgets.gafas`).
+- **Se empiezan a mano**: botón `#jobBtn` abajo al centro ("▶️ HACER MISIÓN · …"). `nextJobId()`
+  decide cuál toca, `renderJobBtn()` lo pinta (y muestra el paso actual mientras la haces) y
+  `jobBtnClick()` la arranca. Ya no se auto-arrancan: solo avisan una vez por toast (`jobOffered`).
+- **Flechas en el suelo** (`jobPath` + `updateJobPath`): 8 triángulos planos que corren desde tus
+  pies hacia el objetivo y se apagan al llegar.
+- **Sonidos por misión** (`updateJobSound`): el perro LADRA cada vez más seguido según te acercas
+  (`jobBark`), el pedido pita (más rápido bajo 15 s) y el cajón suena a metal.
 - Debug (`?debug=1`): `__tim.startJob(id)`, `__tim.updateJobs(dt)`, `__tim.tryJobInteract()`,
   `__tim.jobInfo()`, `__tim.jobDogPos()`, `__tim.jobCratePos()`.
 

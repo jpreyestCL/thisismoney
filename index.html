@@ -16010,6 +16010,38 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     renderer.render(scene, camera);
   };
   timDump.look = (y, p) => { yaw = y; pitch = p; camera.rotation.set(p, y, 0, 'YXZ'); renderer.render(scene, camera); };
+  timDump.probeZombies = () => {
+    const z = ENEMY_DEFS.zombie.spd, a = ENEMY_DEFS.zombieArmored.spd;
+    return { zombie1: z(1), zombie10: z(10), zombie20: z(20), armored1: a(1), bomber: ENEMY_DEFS.bomber.spd() };
+  };
+  timDump.measureNightShamble = () => {
+    clearWaves(); state.phase = 'NIGHT'; state.stage = 1;
+    const at = player.position.clone(); at.z -= 10;
+    const e = spawnEnemy('zombie', at);
+    const x0 = e.position.x, z0 = e.position.z;
+    moveToward(e, player.position, e.userData.speed);
+    return { speed: e.userData.speed, moved1s: Math.hypot(e.position.x - x0, e.position.z - z0), role: e.userData.role };
+  };
+  timDump.spawnDayDirtZombie = () => {
+    state.phase = 'DAY';
+    const at = player.position.clone(); at.z -= 1.15;
+    const z = spawnEnemy('zombie', at);
+    z.userData.dirtZombie = true; z.userData.attackCd = 0; z.userData.speed = 0.86;
+    z.rotation.y = Math.atan2(player.position.x - z.position.x, player.position.z - z.position.z);
+    const close = dist2D(z.position, player.position) < 2.4;
+    if (close) {
+      startEnemyAttack(z);
+      damageEnemyTarget(player.position, z.userData.dmg || 10, z.position);
+      z.userData.attackCd = 0.55;
+    }
+    return { combat: combatIsActive(), close, hp: state.hp, speed: z.userData.speed, phase: state.phase };
+  };
+  timDump.punchDirt = () => {
+    const e = enemies.find(x => x.userData.dirtZombie);
+    const before = e ? e.userData.hp : null;
+    tryCombatStrike(1);
+    return { combat: combatIsActive(), before, after: e ? e.userData.hp : null, phase: state.phase };
+  };
   window.__tim = timDump;
 } } catch (e) {}
 function netAddConn(c) {

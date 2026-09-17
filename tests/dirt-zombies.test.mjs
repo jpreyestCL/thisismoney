@@ -33,6 +33,9 @@ assert.ok(z(10) < 1.5, 'stage 10 zombie should stay slow, got ' + z(10));
 assert.ok(z(20) < 2.0, 'late-game zombie should not sprint, got ' + z(20));
 assert.ok(z(20) < 2.4, 'zombies must stay below scout-run threshold');
 
+assert.match(html, /timDump\.probeZombies/)
+assert.match(html, /timDump\.spawnDayDirtZombie/)
+assert.match(html, /timDump\.punchDirt/)
 assert.match(sw, /tim-v46/);
 
 console.log('dirt zombies: ok');

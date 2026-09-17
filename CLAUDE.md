@@ -240,6 +240,28 @@ Implementados para mantener al jugador enganchado. Todo persiste en el save dond
    - **Policía desde la cárcel**: `spawnPolice` los coloca en la puerta de `JAIL_POS` (55,-8), no
      en un ángulo aleatorio alrededor del jugador.
 
+## Recados de la ciudad (misiones largas)
+
+Tres misiones nuevas al estilo del callejón, en la sección **"RECADOS DE LA CIUDAD"** de
+`index.html` (buscar ese banner). Van en `STORY_QUESTS` (se ven en el panel 📜) y su progreso
+vive en `state.story[id]` (se guarda).
+
+- Un solo recado activo a la vez (`let job`), solo de día, en la Tierra y fuera de mundos de
+  misión (`jobCanRun()`). `nextJobId()` los ofrece en orden cuando ya tienes casa.
+- `jobMarker` = aro + haz de luz reutilizado; `updateArrow` apunta la flecha guía al recado
+  activo y el HUD de objetivo muestra `job.label` (+ el reloj del reparto).
+- `tryJobInteract()` (enganchado en `tryInteract`) es la tecla **E**: calmar al perro / abrir
+  el cajón. `updateJobs(dt)` corre en el loop (se pausa sola de noche).
+- **🐕 El perro perdido**: aparece en la ciudad, lo calmas con E, te sigue y lo llevas a casa →
+  +$500 y el **perro guardián** gratis (`spawnPet()`).
+- **🍕 Reparto exprés**: 3 pedidos contra reloj (80 s cada uno; si se enfría, otro pedido sin
+  castigo) → +$180 por pedido y +$900 + 3 comidas al terminar.
+- **📦 El cargamento de Tito** (pide el callejón, $20.000): 3 cajones; cada uno suelta 2 zombis
+  al abrirlo (marcados `dirtZombie` para que sirva el combate de día) → +$250 c/u y al final
+  +$1.500 y las **gafas de noche** (`state.gadgets.gafas`).
+- Debug (`?debug=1`): `__tim.startJob(id)`, `__tim.updateJobs(dt)`, `__tim.tryJobInteract()`,
+  `__tim.jobInfo()`, `__tim.jobDogPos()`, `__tim.jobCratePos()`.
+
 ## Sistema de enemigos por etapa (acumulativo)
 
 Los monstruos dependen de `state.stage` (sube cada 1000 ganados) y **se acumulan**: los de etapas

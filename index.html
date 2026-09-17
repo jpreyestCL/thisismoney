@@ -2319,6 +2319,15 @@ const STORY_QUESTS = [
   { id: 'alley', icon: '🕶️', title: 'El callejón de Tito', need: 5, reward: 450,
     hint: 'Se desbloquea a los $20.000 ganados. Tito te lleva a otro rincón: ahí solo hay un callejón con techo.',
     steps: ['Gana $20.000 y pulsa Ir con Tito', 'Habla con Tito en la boca del callejón', 'Síguelo (el juego te lleva despacio)', 'Entra por la puerta', 'Compra un arma de verdad'] },
+  { id: 'dog', icon: '🐕', title: 'El perro perdido', need: 3, reward: 500,
+    hint: 'Alguien perdió su perro en la ciudad. Sigue la flecha y los ladridos.',
+    steps: ['Busca al perro (sigue la flecha)', 'Acércate y pulsa E para calmarlo', 'Llévalo hasta tu casa', 'Listo: el perro guardián se queda contigo'] },
+  { id: 'delivery', icon: '🍕', title: 'Reparto exprés', need: 3, reward: 900,
+    hint: 'Don Pepe te presta la caja térmica: tres pedidos, cada uno contra reloj.',
+    steps: ['Lleva el pedido 1 antes de que se enfríe', 'Lleva el pedido 2', 'Lleva el pedido 3', 'Repartos terminados'] },
+  { id: 'crates', icon: '📦', title: 'El cargamento de Tito', need: 3, reward: 1500,
+    hint: 'Se desbloquea con el callejón ($20.000). Tres cajones perdidos, y no están solos.',
+    steps: ['Encuentra el cajón 1 y ábrelo con E', 'Encuentra el cajón 2', 'Encuentra el cajón 3', 'Cargamento recuperado'] },
   { id: 'night', icon: '🌙', title: 'Aguanta la noche', need: 1, reward: 200, hint: 'Construye un techo y pulsa N cuando estés listo.', steps: ['Sobrevive una noche completa'] },
   { id: 'harvest', icon: '🌾', title: 'Cosecha del patio', need: 1, reward: 150, hint: 'Planta con K y cosecha con E cuando esté listo.', steps: ['Cosecha algo del huerto'] },
   { id: 'bank', icon: '🏦', title: 'La plata trabaja', need: 1, reward: 180, hint: 'El banco está al este del súper. Entra con E.', steps: ['Entra al banco'] },
@@ -2530,15 +2539,16 @@ function renderQuestPanel() {
   const rows = [];
   for (const q of STORY_QUESTS) {
     const done = questDone(q.id);
-    const s = q.id === 'alley' ? alleyQuestStep() : (done ? 1 : 0);
-    const line = q.steps[Math.min(q.steps.length - 1, Math.max(0, (q.id === 'alley' ? s : done ? 1 : 0)))] || q.hint;
+    const raw = q.id === 'alley' ? alleyQuestStep() : ((state.story && +state.story[q.id]) || 0);
+    const s = Math.min(raw, q.need || 1);
+    const line = q.steps[Math.min(q.steps.length - 1, Math.max(0, done ? q.steps.length - 1 : s))] || q.hint;
     let extra = '';
     if (q.id === 'alley' && !done) {
       if (!alleyUnlocked()) extra = '<br><span style="color:#fbbf24">🔒 Se desbloquea a los $20.000 ganados (' + Math.floor(state.totalEarned || 0) + '/20000)</span>';
       else if (state.mission === 'alley') extra = '<br><button type="button" data-alley-act="leave" class="bankBtn" style="margin-top:6px">Salir del callejón</button>';
       else extra = '<br><button type="button" data-alley-act="go" class="bankBtn" style="margin-top:6px;border-color:#f59e0b">🕶️ Ir con Tito</button>';
     }
-    rows.push('<div class="quest-row' + (done ? ' done' : (q.id === 'alley' && s > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + q.hint + '<br><span style="opacity:.8">' + (done ? 'Listo.' : line) + (q.id === 'alley' ? ' · ' + Math.min(s, q.need) + '/' + q.need : '') + '</span>' + extra + '</div></div>');
+    rows.push('<div class="quest-row' + (done ? ' done' : (q.id === 'alley' && s > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + q.hint + '<br><span style="opacity:.8">' + (done ? 'Listo.' : line) + ((q.need || 1) > 1 ? ' · ' + s + '/' + q.need : '') + '</span>' + extra + '</div></div>');
   }
   if (state.missions && state.missions.length) {
     rows.push('<div style="font-size:11px; font-weight:800; color:#fde68a; margin:8px 0 4px">HOY</div>');
@@ -8830,6 +8840,182 @@ function updateDirt(dt) {
     }
   }
 }
+// ===================================================================
+//  RECADOS DE LA CIUDAD — misiones largas (perro perdido, reparto, cajones)
+//  Cada recado marca un punto con un haz de luz, mueve la flecha guía y
+//  se cobra al terminar. Solo uno activo a la vez, de día y en la Tierra.
+// ===================================================================
+const jobMarker = new THREE.Group();
+{
+  const pad = new THREE.Mesh(new THREE.CircleGeometry(2.6, 30), new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: .2, side: THREE.DoubleSide }));
+  pad.rotation.x = -Math.PI / 2; pad.position.y = .06; jobMarker.add(pad);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.3, 2.75, 36), new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: .9, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = .07; jobMarker.add(ring);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 50, 8), new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: .3 }));
+  beam.position.y = 25; jobMarker.add(beam);
+  jobMarker.visible = false; scene.add(jobMarker);
+}
+let job = null;          // recado activo { id, icon, step, target, label, timer }
+let jobDog = null;       // el perro perdido
+let jobCrate = null;     // el cajón de Tito que toca abrir
+let jobOfferCd = 25;     // espera antes de ofrecer el siguiente recado
+function jobTargetPos() { return job && job.target; }
+function makeCrateMesh() {   // cajón de madera con flejes
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.05, 1.25), mat(0x92703a)); box.position.y = .53; box.castShadow = true; g.add(box);
+  for (const y of [.22, .84]) { const fleje = new THREE.Mesh(new THREE.BoxGeometry(1.3, .1, 1.3), mat(0x57534e)); fleje.position.y = y; g.add(fleje); }
+  const tapa = new THREE.Mesh(new THREE.BoxGeometry(1.32, .1, 1.32), mat(0x6b4423)); tapa.position.y = 1.08; g.add(tapa);
+  return g;
+}
+function jobSpotNear(from, minR, maxR) {   // punto libre (sin paredes ni tu casa encima)
+  for (let i = 0; i < 45; i++) {
+    const a = Math.random() * Math.PI * 2, r = minR + Math.random() * (maxR - minR);
+    const x = from.x + Math.cos(a) * r, z = from.z + Math.sin(a) * r;
+    if (Math.abs(x) > 200 || Math.abs(z) > 200) continue;
+    if (obstacleAt(x, z, 0, 2.2)) continue;
+    if (insidePlayerStructure(x, z, 2.5)) continue;
+    if (waterZoneAt(x, z)) continue;
+    return { x, z };
+  }
+  return { x: THREE.MathUtils.clamp(from.x + minR, -200, 200), z: THREE.MathUtils.clamp(from.z + minR, -200, 200) };
+}
+function setJobTarget(x, z, label, timer) {
+  if (!job) return;
+  job.target.set(x, mountainHeightAt(x, z), z);
+  job.label = label; job.timer = timer || 0;
+  jobMarker.position.copy(job.target); jobMarker.visible = true;
+}
+function clearJobProps() {
+  if (jobDog) { scene.remove(jobDog); jobDog = null; }
+  if (jobCrate) { scene.remove(jobCrate); jobCrate = null; }
+}
+function clearJobs() { clearJobProps(); job = null; jobMarker.visible = false; jobOfferCd = 25; }
+function finishJob(id, msg) {
+  clearJobProps(); jobMarker.visible = false; job = null; jobOfferCd = 45;
+  storyProgress(id, (STORY_QUESTS.find(q => q.id === id) || {}).need || 1);
+  if (msg) toast(msg);
+  tone(760, .1, .05, 'triangle'); setTimeout(() => tone(1140, .14, .05, 'triangle'), 95); vibr(110);
+}
+function nextJobId() {
+  if (!houseStats().ready) return null;
+  if (!questDone('dog')) return 'dog';
+  if (!questDone('delivery')) return 'delivery';
+  if (!questDone('crates') && alleyUnlocked()) return 'crates';
+  return null;
+}
+function startJob(id) {
+  clearJobProps();
+  job = { id, step: (state.story && +state.story[id]) || 0, target: new THREE.Vector3(), label: '', timer: 0, icon: (STORY_QUESTS.find(q => q.id === id) || {}).icon || '📍' };
+  if (id === 'dog') {
+    const p = jobSpotNear(player.position, 35, 105);
+    jobDog = makePet(); jobDog.scale.set(.85, .85, .85);
+    jobDog.position.set(p.x, mountainHeightAt(p.x, p.z), p.z); scene.add(jobDog);
+    job.calm = false;
+    setJobTarget(p.x, p.z, 'Busca al perro perdido · sigue la flecha');
+    toast('🐕 Se escuchan ladridos en la ciudad: alguien perdió su perro. ¡Búscalo!');
+  } else if (id === 'delivery') {
+    const p = jobSpotNear(player.position, 30, 95);
+    setJobTarget(p.x, p.z, 'Pedido ' + (job.step + 1) + '/3 · llega antes de que se enfríe', 80);
+    toast('🍕 Don Pepe te pasó la caja térmica: 3 pedidos, uno a la vez. ¡Corre!');
+  } else if (id === 'crates') {
+    const p = jobSpotNear(player.position, 40, 110);
+    jobCrate = makeCrateMesh(); jobCrate.position.set(p.x, mountainHeightAt(p.x, p.z), p.z); scene.add(jobCrate);
+    setJobTarget(p.x, p.z, 'Cajón ' + (job.step + 1) + '/3 · ábrelo con E (ojo: hay zombis)');
+    toast('📦 Tito perdió 3 cajones por la ciudad. El primero está marcado — cuidado al abrirlo.');
+  }
+  beep(520, .09, .04);
+}
+function jobNextCrate() {
+  const p = jobSpotNear(player.position, 40, 110);
+  if (jobCrate) scene.remove(jobCrate);
+  jobCrate = makeCrateMesh(); jobCrate.position.set(p.x, mountainHeightAt(p.x, p.z), p.z); scene.add(jobCrate);
+  setJobTarget(p.x, p.z, 'Cajón ' + (job.step + 1) + '/3 · ábrelo con E (ojo: hay zombis)');
+}
+function jobCanRun() {
+  return state.running && !state.paused && state.phase === 'DAY' && state.planet === 'tierra'
+    && !state.mission && !state.inFlight && !state.underground && !state.inRuins && !state.inCastle && !state.inArena && !state.country;
+}
+function tryJobInteract() {   // E sobre el perro o sobre un cajón
+  if (!job || !jobCanRun()) return false;
+  if (job.id === 'dog' && jobDog && !job.calm && dist2D(player.position, jobDog.position) < 3) {
+    job.calm = true; storyProgress('dog', 2);
+    setJobTarget(houseAnchor.x, houseAnchor.z, 'Llévalo a tu casa · te sigue');
+    toast('🐕 ¡El perro se calmó y te sigue! Llévalo hasta tu casa.');
+    beep(660, .1, .05); vibr(60); return true;
+  }
+  if (job.id === 'crates' && jobCrate && dist2D(player.position, jobCrate.position) < 3) {
+    const pos = jobCrate.position.clone();
+    voxelImpact(pos.clone().setY(1), 0x92703a, 14); beep(140, .25, .07);
+    scene.remove(jobCrate); jobCrate = null; jobMarker.visible = false;
+    for (let k = 0; k < 2; k++) {   // el cajón venía con sorpresa
+      const a = Math.random() * Math.PI * 2;
+      const z = spawnEnemy('zombie', new THREE.Vector3(pos.x + Math.cos(a) * 3, 0, pos.z + Math.sin(a) * 3));
+      z.userData.dirtZombie = true; z.userData.attackCd = .6;
+    }
+    const pago = 250;
+    addMoney(pago); coinBurst(pos, 8);
+    job.step++; storyProgress('crates', job.step);
+    if (job.step >= 3) {
+      if (!state.gadgets) state.gadgets = {};
+      state.gadgets.gafas = true;
+      finishJob('crates', '📦 ¡Recuperaste el cargamento! Tito te regala las GAFAS DE NOCHE 🥽');
+    } else {
+      toast('📦 Cajón ' + job.step + '/3 · +$' + pago + ' · ¡y te salieron zombis! El siguiente ya está marcado');
+      jobNextCrate();
+    }
+    return true;
+  }
+  return false;
+}
+function updateJobs(dt) {
+  if (!jobCanRun()) { jobMarker.visible = false; return; }
+  if (!job) {
+    jobOfferCd -= dt;
+    if (jobOfferCd <= 0) { const id = nextJobId(); if (id) startJob(id); else jobOfferCd = 30; }
+    return;
+  }
+  jobMarker.visible = true;
+  jobMarker.rotation.y += dt * .7;
+  const d = dist2D(player.position, job.target);
+  if (job.id === 'dog') {
+    if (jobDog) {
+      if (job.calm) {   // te sigue trotando
+        if (dist2D(jobDog.position, player.position) > 2.2) {
+          moveToward(jobDog, player.position, 4 * dt);
+          jobDog.rotation.y = Math.atan2(player.position.x - jobDog.position.x, player.position.z - jobDog.position.z) - Math.PI / 2;
+        }
+        jobDog.position.y = mountainHeightAt(jobDog.position.x, jobDog.position.z);
+        if (dist2D(jobDog.position, houseAnchor) < 6) {
+          spawnPet(); addMoney(500);
+          finishJob('dog', '🐕 ¡Llegó a casa! Se queda contigo de perro guardián · +$500');
+        }
+      } else {
+        jobDog.position.y = mountainHeightAt(jobDog.position.x, jobDog.position.z) + Math.abs(Math.sin(performance.now() / 260)) * .08;
+        jobDog.rotation.y = Math.atan2(player.position.x - jobDog.position.x, player.position.z - jobDog.position.z) - Math.PI / 2;
+        if (d < 9 && !job.barked) { job.barked = true; toast('🐕 ¡Guau! Está ahí mismo: acércate y pulsa E'); beep(620, .08, .04); }
+        if (!questDone('dog') && ((state.story && state.story.dog) || 0) < 1) storyProgress('dog', 1);
+      }
+    }
+  } else if (job.id === 'delivery') {
+    job.timer = Math.max(0, job.timer - dt);
+    if (d < 3.2) {
+      job.step++; storyProgress('delivery', job.step);
+      if (job.step >= 3) { addMoney(900); state.inv.food = (state.inv.food || 0) + 3; finishJob('delivery', '🍕 ¡Los 3 pedidos entregados! +$900 y 3 de comida'); }
+      else {
+        addMoney(180); coinBurst(player.position, 6);
+        const p = jobSpotNear(player.position, 30, 95);
+        setJobTarget(p.x, p.z, 'Pedido ' + (job.step + 1) + '/3 · llega antes de que se enfríe', 80);
+        toast('🍕 Pedido ' + job.step + '/3 entregado · +$180 · ¡al siguiente!');
+      }
+    } else if (job.timer <= 0) {
+      const p = jobSpotNear(player.position, 26, 80);
+      setJobTarget(p.x, p.z, 'Pedido ' + (job.step + 1) + '/3 · llega antes de que se enfríe', 80);
+      toast('🍕 Se enfrió… Don Pepe te pasa otro pedido. ¡Ahora sí!');
+    }
+  } else if (job.id === 'crates') {
+    if (jobCrate) jobCrate.rotation.y += dt * .4;
+  }
+}
 function dirtZombiesAlive() {
   for (const e of enemies) if (e.userData.dirtZombie) return true;
   return false;
@@ -9571,6 +9757,7 @@ function algunRecuadroAbierto() {
 const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
 function tryInteract() {
   if (tryAlleyInteract()) return;
+  if (tryJobInteract()) return;   // recados: calmar al perro / abrir el cajón
   if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); }
 }
 addEventListener('keydown', e => {
@@ -10483,7 +10670,7 @@ function startGame() {
   hideScreens();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
-  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPlants(); clearHelpers();
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearPlants(); clearHelpers();
   if (boat) { scene.remove(boat.group); boat = null; } state.boatCrew = 0; state.voyageDays = 0; state.islandDiscovered = false; state.sailing = false;
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   updateHouseAnchor();   // vuelve al marcador verde de la Tierra
@@ -12245,7 +12432,7 @@ function loadGame() {
   if (!d) return false;
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   abortFlight();
-  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearPolice(); clearPlants(); clearHelpers();
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearPolice(); clearPlants(); clearHelpers();
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: d.night || 0,
@@ -12396,7 +12583,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearJobs(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
@@ -14216,7 +14403,7 @@ function goToPlanet() {
   clearTitan(); titanTimer = 150 + Math.random() * 130;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
-  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearWaves();
+  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearJobs(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // no hay policía terrestre
   resetWeather();             // el clima no viaja contigo
   setEarthWorld(false);                                                      // NADA de la Tierra (súper, ciudad, estadios, gente, calles)
@@ -15065,6 +15252,7 @@ function loop() {
     updateEscape(dt);
     updateHunger(dt);
     if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); updateDirtZombies(dt); }
+    updateJobs(dt);                        // recados: se pausan solos de noche (el marcador se esconde)
     updateMoles(dt);                       // topos: activos de día y de noche
     updatePoison(dt);                      // veneno de la hormiga (día y noche)
     updateTrafficLights(dt);               // semáforos del cruce central
@@ -15759,7 +15947,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -16026,7 +16214,8 @@ function netLeave() {
 function updateArrow() {
   const ready = houseStats().ready;
   let target = houseAnchor;
-  if (state.worldEvent && state.worldEvent.id === 'search') target = state.worldEvent.target;
+  if (job && jobMarker.visible) target = job.target;   // recado activo: la flecha apunta al marcador
+  else if (state.worldEvent && state.worldEvent.id === 'search') target = state.worldEvent.target;
   else if (state.meteorTriggered && state.rocket) target = state.rocket.position;
   else if (state.phase === 'NIGHT') target = houseAnchor;
   else if (!ready) target = SUPER_POS;
@@ -16274,6 +16463,8 @@ function updateContextPrompt() {
       else if (sitOn && sitOn.flightSeat) action = { key: 'E', touch: '🤝', text: 'Levantarte · la peli sigue en las pantallas' };
       else action = { key: 'E · F5', touch: '🎬', text: 'E asiento = peli · pasillo hasta la puerta 👨‍✈️ · F5 ves las alas' };
     }
+    else if (job && jobDog && job.id === 'dog' && !job.calm && dist2D(player.position, jobDog.position) < 3) action = { key: 'E', touch: '🐕', text: 'Calmar al perro perdido' };
+    else if (job && jobCrate && job.id === 'crates' && dist2D(player.position, jobCrate.position) < 3) action = { key: 'E', touch: '📦', text: 'Abrir el cajón de Tito' };
     else {
       const harvest = nearestHarvestable(2.8);
       let owned = null;
@@ -16511,6 +16702,7 @@ function renderHUD() {
     obj = '✈️ Vuelo a ' + dest + ' · ' + Math.floor(left / 60) + ':' + String(Math.floor(left % 60)).padStart(2, '0') + ' · camina el pasillo · E asiento = película';
   }
   else if (state.worldEvent) obj = state.worldEvent.icon + ' ' + state.worldEvent.name + ' · ' + state.worldEvent.text + ' · ' + fmt(state.worldEventTime);
+  else if (job && jobMarker.visible) obj = job.icon + ' ' + job.label + (job.timer > 0 ? ' · ' + Math.ceil(job.timer) + 's' : '');
   else if (state.chapter < CHAPTERS.length) { const ch = currentChapter(); obj = '📖 CAP. ' + (state.chapter + 1) + ' · ' + ch.title + ' · ' + ch.goal; }
   else if (state.phase === 'DAY') {
     if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);

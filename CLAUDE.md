@@ -274,7 +274,16 @@ con nombre de pistola" y ahora son armas de verdad.
   caja de 50 balas ($600).
 - **Bomba de humo**: se LANZA lejos (`throwSmokeBomb` → `updateThrownBombs`, ~65 de alcance en
   terreno abierto); al caer `spawnSmokeCloud()` crea una nube de 22 esferas que crece y se disipa en
-  14 s. `playerInSmoke()` entra en `isPlayerHidden()`: DENTRO del humo los monstruos no te ven.
+  14 s. `playerInSmoke()` entra en `isPlayerHidden()`: DENTRO del humo los monstruos no te ven, y
+  `updatePolice` tampoco: los pacos se quedan dando vueltas en `lostAt` (donde te vieron por última
+  vez) y la marca de BUSCADO baja 2,5 veces más rápido.
+
+## Gráficos
+
+`renderer` con `ACESFilmicToneMapping` (exposición 1.15, 1 en modo rendimiento), sombras suaves
+`PCFSoftShadowMap` con mapa de 2048 (512 en rendimiento), `pixelRatio` hasta 2 y luces nuevas:
+hemisférica azulada 1.15, sol cálido 2.1 con `normalBias` y un relleno frío (`rim`) del lado
+opuesto. `applyPerfMode()` baja todo eso de golpe en equipos lentos y en celular.
 - **Tubo de confeti** (`makeHandTube` + `fireConfettiTube` + `updateConfetti`): 130 papelitos de 8
   colores que salen hacia donde miras, caen al suelo y se apagan a los ~6 s; de paso aturde a los
   monstruos a menos de 11.

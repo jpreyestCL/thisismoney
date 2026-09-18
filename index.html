@@ -1439,8 +1439,11 @@ function fillGrassChunk() {   // se reparte de a poco (no traba el juego al move
       const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * GRASS_R;
       const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r;
       if (Math.abs(x) > 240 || Math.abs(z) > 240) continue;
-      if (obstacleAt(x, z, 0, .6)) continue;                       // no crece dentro de las casas ni del súper
-      if (insidePlayerStructure(x, z, .5)) continue;
+      if (obstacleAt(x, z, 0, 1.1)) continue;                      // pegado a una pared tampoco
+      if (insidePlayerStructure(x, z, 1)) continue;                 // dentro de TU casa no
+      if (typeof insideBuilding === 'function' && insideBuilding(x, z)) continue;   // dentro del súper, la armería, el banco…
+      if (typeof onRoadAt === 'function' && onRoadAt(x, z)) continue;               // en la calle tampoco
+      if (typeof insideStoreFloor === 'function' && insideStoreFloor(x, z)) continue;
       const y = mountainHeightAt(x, z);
       if (y > 8) continue;                                          // en los cerros altos no
       const esc = .55 + Math.random() * .6;
@@ -2414,8 +2417,14 @@ const _preEarthObsN = obstacles.length;
 
 const shopStands = [];
 const keepers = [];   // posiciones de los vendedores (para comprar escribiendo con Y)
+const storeFloors = [];   // suelo cubierto de las tiendas (ahí NO crece pasto)
+function insideStoreFloor(x, z, margen = 1.5) {
+  for (const f of storeFloors) if (Math.abs(x - f.x) <= f.hw + margen && Math.abs(z - f.z) <= f.hd + margen) return true;
+  return false;
+}
 function makeStore(cx, cz, items, title, roofColor) {
   const wallC = 0xe2e8f0, H = 5, T = 0.5, hw = 11, hd = 11;
+  storeFloors.push({ x: cx, z: cz, hw, hd });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(hw * 2, hd * 2), mat(0xcbd5e1));
   floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0.06, cz); floor.receiveShadow = true; scene.add(floor);
   const roof = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 + 1, T, hd * 2 + 1), mat(roofColor));
@@ -4300,6 +4309,16 @@ const roads = [
   { cx: 40, cz: -18, len: 130, horizontal: true },  // hacia el súper
 ];
 roads.forEach(r => makeRoad(r.cx, r.cz, r.len, r.horizontal));
+// ¿ese punto cae sobre el asfalto? (para que el pasto no crezca en medio de la calle)
+function onRoadAt(x, z, margen = 1.2) {
+  const w = 9 / 2 + margen;
+  for (const r of roads) {
+    const half = r.len / 2 + margen;
+    if (r.horizontal) { if (Math.abs(z - r.cz) <= w && Math.abs(x - r.cx) <= half) return true; }
+    else if (Math.abs(x - r.cx) <= w && Math.abs(z - r.cz) <= half) return true;
+  }
+  return false;
+}
 
 const traffic = [], parkedCars = [];
 // Debe existir antes de crear los autos: spawnCars() consulta las zonas durante

@@ -302,7 +302,9 @@ reales por tienda, solo fuera de modo rendimiento), mostrador con caja registrad
 tapa, repisa y cintillo de precios.
 
 **Puerta que se abre**: la hoja cuelga de un grupo-bisagra (`obj.hinge`) con paneles, manilla de
-latón, cerradura y bisagras; tiene caja de choque (`obj.aabb`) mientras está CERRADA. `tryDoor()`
+latón, cerradura y bisagras; el marco es dintel + dos jambas (sin barra abajo: el vano queda limpio)
+y la caja de guía se esconde con `material.visible = false` (NO con `mesh.visible`, que se llevaría
+también el marco y la hoja). Tiene caja de choque (`obj.aabb`) mientras está CERRADA. `tryDoor()`
 (enganchada en `tryInteract`, tecla E) llama a `setDoorOpen`, que gira la hoja y quita/pone el
 obstáculo. El estado se guarda (`open` en `placed`).
 
@@ -339,9 +341,10 @@ de iluminación con 6 focos cada una y arco de entrada con el nombre. El públic
 gradas (muslos a 90°, `userData.seated` para que `swingLimbs` no lo haga caminar) y mirando al centro
 de la cancha. Solo básquet y tenis son `addNoGrassZone`: la cancha de fútbol SÍ lleva pasto 3D.
 
-**Rayo láser** (`spawnLaserBeam` + `updateLaserShots`): núcleo blanco, halo de color y resplandor
-exterior en mezcla aditiva, fogonazo en el cañón, estallido y anillo que se abre en el impacto; se
-apaga en 0,22 s. `shootBeam(target, color)` lo usa el jugador y la torreta láser dispara un rayo
+**Rayo láser** (`spawnLaserBeam` + `updateLaserShots`): haz CÓNICO (grueso en el cañón, fino en el
+blanco) con núcleo blanco, halo de color y resplandor aditivo que titila, tres anillos de energía
+que viajan hacia el objetivo, fogonazo en el cañón y estallido con anillo en el impacto; se apaga en
+0,26 s. `shootBeam(target, color)` lo usa el jugador y la torreta láser dispara un rayo
 azul instantáneo en vez de un dardo.
 
 **Pasto**: el suelo usa una textura en grises generada por canvas (`makeGroundDetailTexture`, con

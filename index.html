@@ -1583,22 +1583,50 @@ function makeHandGun(kind = 'pistol', color = 0x4b5563, scale = 1, scope = false
   if (kind === 'shotgun' || kind === 'rifle') {
     const largo = kind === 'rifle' ? .95 : .72;
     add(new THREE.BoxGeometry(kind === 'rifle' ? .46 : .38, .15, .11), wood, -.48, 0, 0);            // culata
-    add(new THREE.BoxGeometry(.58, .16, .13), dark, .02, .05, 0);                                     // cajón
+    add(new THREE.BoxGeometry(.1, .19, .12), dark, -.7, -.01, 0);                                     // cantonera
+    add(new THREE.BoxGeometry(.58, .16, .13), dark, .02, .05, 0);                                     // cajón de mecanismos
     const cañon = add(new THREE.CylinderGeometry(kind === 'rifle' ? .032 : .048, kind === 'rifle' ? .036 : .052, largo, 10), steel, .5 + largo * .2, .08, 0);
     cañon.rotation.z = Math.PI / 2;
-    add(new THREE.BoxGeometry(.2, .1, .12), wood, .3, -.02, 0);                                       // guardamano
-    add(new THREE.BoxGeometry(.09, .2, .08), dark, -.12, -.12, 0, .25);                               // empuñadura
+    const freno = add(new THREE.CylinderGeometry(kind === 'rifle' ? .045 : .06, kind === 'rifle' ? .045 : .06, .1, 8), steel, .5 + largo * .4, .08, 0);
+    freno.rotation.z = Math.PI / 2;                                                                   // freno de boca
+    add(new THREE.BoxGeometry(.22, .12, .12), wood, .32, -.02, 0);                                    // guardamano
+    for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(.015, .1, .125), dark, .26 + i * .06, -.02, 0);   // ranuras del guardamano
+    add(new THREE.BoxGeometry(.09, .22, .08), dark, -.12, -.13, 0, .25);                              // empuñadura de pistola
+    if (kind === 'rifle') {
+      add(new THREE.BoxGeometry(.14, .22, .1), dark, .04, -.14, 0, .1);                               // cargador curvo
+      const cerrojo = add(new THREE.CylinderGeometry(.022, .022, .17, 6), steel, -.06, .1, .09);      // manija del cerrojo
+      cerrojo.rotation.x = Math.PI / 2;
+      add(new THREE.SphereGeometry(.035, 6, 5), steel, -.06, .1, .17);
+    } else {
+      add(new THREE.CylinderGeometry(.045, .045, .5, 8), dark, .42, -.03, 0, Math.PI / 2);            // tubo de cartuchos
+    }
+    for (const sx of [-.5, .42]) { const arg = new THREE.Mesh(new THREE.TorusGeometry(.03, .008, 5, 10), steel); arg.position.set(sx, -.1, 0); arg.rotation.y = Math.PI / 2; inner.add(arg); }   // anillas de la correa
+    add(new THREE.BoxGeometry(.03, .05, .05), dark, .5 + largo * .35, .17, 0);                        // punto de mira alto
   } else {
+    // ---- PISTOLA: corredera con estrías, ventana de expulsión, cachas cuadriculadas y cargador ----
     add(new THREE.BoxGeometry(.5, .15, .12), steel, .08, .1, 0);                                      // corredera
+    for (let i = 0; i < 6; i++) add(new THREE.BoxGeometry(.012, .13, .128), dark, -.07 - i * .028, .1, 0);   // estrías para amartillar
+    const ventana = add(new THREE.BoxGeometry(.13, .06, .13), dark, .12, .13, 0); ventana.scale.z = 1.02;    // ventana de expulsión
     add(new THREE.BoxGeometry(.46, .07, .1), dark, .06, -.01, 0);                                     // armazón
-    const cañon = add(new THREE.CylinderGeometry(.028, .028, .16, 8), dark, .38, .1, 0); cañon.rotation.z = Math.PI / 2;
-    const grip = add(new THREE.BoxGeometry(.13, .3, .11), dark, -.13, -.15, 0, .38);                  // cacha inclinada
-    add(new THREE.BoxGeometry(.11, .26, .085), wood, -.135, -.15, 0, .38).scale.set(.92, .92, 1.06);  // cachas de madera
+    add(new THREE.BoxGeometry(.1, .05, .105), steel, -.16, -.01, 0);                                  // martillo trasero
+    const cañon = add(new THREE.CylinderGeometry(.03, .03, .2, 10), dark, .4, .1, 0); cañon.rotation.z = Math.PI / 2;
+    const boca = add(new THREE.CylinderGeometry(.034, .034, .05, 10), steel, .5, .1, 0); boca.rotation.z = Math.PI / 2;   // boca reforzada
+    const grip = add(new THREE.BoxGeometry(.13, .32, .11), dark, -.135, -.16, 0, .38);                // empuñadura inclinada
+    const cacha = add(new THREE.BoxGeometry(.115, .27, .088), wood, -.14, -.16, 0, .38);              // cacha de madera
+    cacha.scale.set(.95, .95, 1.08);
+    for (let f = 0; f < 4; f++) for (const sz of [-.052, .052]) {                                     // cuadriculado de la cacha
+      const p = add(new THREE.BoxGeometry(.085, .028, .012), steel, -.09 - f * .035, -.09 - f * .072, sz, .38);
+      p.material = new THREE.MeshStandardMaterial({ color: 0x3b2a18, roughness: .95, flatShading: true });
+    }
+    add(new THREE.BoxGeometry(.13, .05, .1), steel, -.2, -.31, 0, .38);                               // base del cargador
     add(new THREE.BoxGeometry(.03, .09, .04), dark, -.02, -.1, 0);                                    // gatillo
     const guarda = new THREE.Mesh(new THREE.TorusGeometry(.085, .018, 6, 12, Math.PI), dark);         // guardamonte
     guarda.position.set(-.02, -.09, 0); guarda.rotation.set(Math.PI / 2, 0, Math.PI); inner.add(guarda);
-    add(new THREE.BoxGeometry(.03, .05, .05), dark, .3, .2, 0);                                       // punto de mira
-    add(new THREE.BoxGeometry(.04, .05, .07), dark, -.1, .2, 0);                                      // alza
+    add(new THREE.BoxGeometry(.03, .055, .05), dark, .32, .2, 0);                                     // punto de mira
+    const alza = add(new THREE.BoxGeometry(.05, .055, .085), dark, -.12, .2, 0);                      // alza con muesca
+    alza.scale.y = 1.05;
+    add(new THREE.BoxGeometry(.018, .035, .022), steel, -.12, .215, 0);
+    add(new THREE.BoxGeometry(.08, .03, .09), steel, -.19, .1, 0);                                    // parte trasera de la corredera
     grip.userData.gripPart = true;
   }
   if (scope) {   // mira telescópica: tubo, lente y monturas
@@ -8104,11 +8132,10 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
   if (key === 'luces_gamer') { const glow = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.07, 0.14), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 2 })); glow.position.z = 0.04; m.add(glow); const light = new THREE.PointLight(0xa855f7, 1.2, 7); light.position.set(0, 0.15, 0.5); m.add(light); obj.rgbParts = [glow]; obj.rgbLight = light; }
   if (key === 'door') {
     // La HOJA cuelga de un grupo-bisagra en el borde izquierdo: así gira como una puerta de verdad.
-    m.visible = false;                                   // la caja original queda de guía invisible
+    m.material = m.material.clone(); m.material.visible = false;   // la caja original es solo guía: se oculta SU material (no el grupo, o se irían también el marco y la hoja)
     const marcoMat = new THREE.MeshStandardMaterial({ color: 0x4a2f15, roughness: .92, flatShading: true });
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.24), marcoMat); b.position.set(x, y, 0); b.castShadow = true; m.add(b); };
-    bar(1.7, 0.22, 0, 1.32); bar(1.7, 0.22, 0, -1.32); bar(0.22, 2.64, -0.78, 0); bar(0.22, 2.64, 0.78, 0);   // marco
-    for (const b of m.children) b.visible = true;        // el marco sí se ve (aunque la caja base no)
+    bar(1.7, 0.22, 0, 1.32); bar(0.22, 2.64, -0.78, 0); bar(0.22, 2.64, 0.78, 0);   // marco: dintel y jambas (SIN barra abajo, para pasar sin tropezar)
     const bisagra = new THREE.Group(); bisagra.position.set(-.72, 0, 0); m.add(bisagra);
     const hojaMat = new THREE.MeshStandardMaterial({ color: objColor(key, variant && variant.id), roughness: .88, flatShading: true });
     const tablaMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(objColor(key, variant && variant.id)).offsetHSL(0, 0, -.07).getHex(), roughness: .9, flatShading: true });
@@ -15793,13 +15820,13 @@ function spawnLaserBeam(from, to, color) {
   const rot = new THREE.Quaternion().setFromUnitVectors(LASER_UP, dirv.clone().normalize());
   const centro = from.clone().addScaledVector(dirv, 0.5);
   const g = new THREE.Group(); g.position.copy(centro); g.quaternion.copy(rot); scene.add(g);
-  // 1) núcleo blanco finito · 2) halo de color · 3) resplandor exterior
-  const nucleo = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, len, 6),
+  // El haz sale GRUESO del cañón y se afina al llegar: núcleo blanco, halo de color y resplandor
+  const nucleo = new THREE.Mesh(new THREE.CylinderGeometry(.02, .045, len, 7),
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
-  const halo = new THREE.Mesh(new THREE.CylinderGeometry(.072, .072, len, 8),
-    new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false }));
-  const brillo = new THREE.Mesh(new THREE.CylinderGeometry(.15, .15, len, 8),
-    new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .3, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const halo = new THREE.Mesh(new THREE.CylinderGeometry(.05, .1, len, 10),
+    new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const brillo = new THREE.Mesh(new THREE.CylinderGeometry(.1, .2, len, 10),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(col).lerp(new THREE.Color(0xffffff), .35).getHex(), transparent: true, opacity: .26, blending: THREE.AdditiveBlending, depthWrite: false }));
   g.add(nucleo); g.add(halo); g.add(brillo);
   // fogonazo en el cañón y estallido en el blanco
   const flashMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -15807,7 +15834,14 @@ function spawnLaserBeam(from, to, color) {
   const impacto = new THREE.Mesh(new THREE.SphereGeometry(.26, 8, 6), flashMat.clone()); impacto.position.y = len / 2; g.add(impacto);
   const anillo = new THREE.Mesh(new THREE.TorusGeometry(.4, .06, 6, 14), flashMat.clone());
   anillo.position.y = len / 2; anillo.rotation.x = Math.PI / 2; g.add(anillo);
-  laserShots.push({ g, t: 0, vida: .22, len });
+  // anillos de energía que VIAJAN por el rayo hacia el blanco
+  const viajeros = [];
+  for (let i = 0; i < 3; i++) {
+    const r = new THREE.Mesh(new THREE.TorusGeometry(.13, .035, 5, 12),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    r.rotation.x = Math.PI / 2; r.position.y = -len / 2; g.add(r); viajeros.push(r);
+  }
+  laserShots.push({ g, t: 0, vida: .26, len, viajeros });
   voxelImpact(to.clone(), col, 5);
   tone(1250, .05, .04, 'sawtooth'); beep(760, 0.05, 0.04);
   cameraShake = Math.max(cameraShake, .06);
@@ -15818,12 +15852,19 @@ function updateLaserShots(dt) {
     const k = 1 - s.t / s.vida;                       // se apaga y se adelgaza
     if (k <= 0) { killMesh(s.g); laserShots.splice(i, 1); continue; }
     const c = s.g.children;
-    c[0].material.opacity = k; c[1].material.opacity = .85 * k; c[2].material.opacity = .3 * k * k;
+    const titileo = .82 + Math.abs(Math.sin(s.t * 90)) * .18;                 // el haz titila
+    c[0].material.opacity = k * titileo; c[1].material.opacity = .8 * k * titileo; c[2].material.opacity = .26 * k * k;
     c[0].scale.set(k * .6 + .4, 1, k * .6 + .4);
     c[2].scale.set(1 + (1 - k) * 1.6, 1, 1 + (1 - k) * 1.6);
     c[3].material.opacity = .9 * k; c[3].scale.setScalar(1 + (1 - k) * .8);   // fogonazo
     c[4].material.opacity = .9 * k; c[4].scale.setScalar(1 + (1 - k) * 1.4);  // estallido
     c[5].material.opacity = .8 * k; c[5].scale.setScalar(1 + (1 - k) * 2.6);  // anillo que se abre
+    if (s.viajeros) for (let j = 0; j < s.viajeros.length; j++) {             // anillos que corren hacia el blanco
+      const r = s.viajeros[j], avance = ((s.t / s.vida) * 1.5 + j * .33) % 1;
+      r.position.y = -s.len / 2 + avance * s.len;
+      r.scale.setScalar(.7 + avance * 1.5);
+      r.material.opacity = .85 * k * (1 - avance * .6);
+    }
   }
 }
 function clearLaserShots() { laserShots.forEach(s => killMesh(s.g)); laserShots.length = 0; }

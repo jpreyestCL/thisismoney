@@ -245,8 +245,17 @@ Implementados para mantener al jugador enganchado. Todo persiste en el save dond
 Sección **"ARMAS DE FUEGO"** de `index.html`. Las armas del callejón dejaron de ser "espadas
 con nombre de pistola" y ahora son armas de verdad.
 
-- `GUN_SPECS` (pistola, pistola con mira, escopeta, rifle): daño, alcance, cadencia, multiplicador
-  de cabeza (`head`) y si trae `scope`. `GUN_CLIP = 20`, `GUN_RELOAD = 5`.
+- `GUN_SPECS` (daño, alcance, cadencia, multiplicador de cabeza y si trae `scope`).
+  `GUN_CLIP = 20`, `GUN_RELOAD = 5`. Cada arma tiene su personalidad:
+
+  | Arma | Daño | Cabeza | Alcance | Cadencia | Precio |
+  |---|---|---|---|---|---|
+  | 🔫 Pistola del callejón | 9 | x2,2 → 20 | 60 m | 0,26 s | $1.800 |
+  | 🔭 Pistola con mira | 14 | x3,2 → 45 | 95 m | 0,40 s | $3.200 |
+  | 💥 Escopeta recortada | 26 | x1,8 → 47 | 30 m | 0,85 s | $2.600 |
+  | 🎯 Rifle viejo | 22 | x3,0 → 66 | 130 m | 0,60 s | $4.500 |
+
+  La lista del mercado negro muestra esos números en cada arma.
 - Estado: `state.guns` (las que compraste), `state.gun` (la que llevas), `state.clip` (cargador),
   `state.ammo` (reserva), `state.reloadT`, `state.gadgetCharges`, `state.handGadget`. Todo se guarda.
 - `makeHandGun(kind,color,scale,scope)` dibuja corredera, cachas, guardamonte, alza/punto de mira y

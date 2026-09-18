@@ -2407,10 +2407,10 @@ buildCity();
 // ===================================================================
 const ALLEY = { unlock: 20000, x0: 8, x1: -20, z: 0, half: 2.08, doorX: -20, shopW: 13.6, shopD: 9.6 };
 const BLACK_MARKET = [
-  { key: 'bm_pistola', name: 'Pistola del callejón', price: 1800, color: 0x4b5563, dmg: 11, icon: '🔫', gun: 'pistol', blurb: 'Corta y pesada. Llega a 60 metros.' },
-  { key: 'bm_escopeta', name: 'Escopeta recortada', price: 2600, color: 0x57534e, dmg: 16, icon: '💥', gun: 'shotgun', blurb: 'Cerca hace un desastre; de lejos no sirve.' },
-  { key: 'bm_mira', name: 'Pistola con mira', price: 3200, color: 0x334155, dmg: 13, icon: '🔭', gun: 'pistol', blurb: 'Visor arriba, 95 metros y en la cabeza hace muchísimo daño.' },
-  { key: 'bm_rifle', name: 'Rifle viejo', price: 4500, color: 0x44403c, dmg: 18, icon: '🎯', gun: 'rifle', blurb: 'Madera, cañón largo y mira: llega a 130 metros.' },
+  { key: 'bm_pistola', name: 'Pistola del callejón', price: 1800, color: 0x4b5563, dmg: 9, icon: '🔫', gun: 'pistol', blurb: 'La más floja, pero dispara rapidísimo.' },
+  { key: 'bm_escopeta', name: 'Escopeta recortada', price: 2600, color: 0x57534e, dmg: 26, icon: '💥', gun: 'shotgun', blurb: 'La que MÁS pega, pero lenta y solo de cerca.' },
+  { key: 'bm_mira', name: 'Pistola con mira', price: 3200, color: 0x334155, dmg: 14, icon: '🔭', gun: 'pistol', blurb: 'La más precisa: en la cabeza hace x3,2 (45 de daño).' },
+  { key: 'bm_rifle', name: 'Rifle viejo', price: 4500, color: 0x44403c, dmg: 22, icon: '🎯', gun: 'rifle', blurb: 'Fuerte y de lejísimos: 130 metros y x3 en la cabeza.' },
   { key: 'bm_balas', name: 'Caja de 50 balas', price: 600, ammo: 50, icon: '🧰', blurb: 'Munición para todas tus armas de fuego. El cargador es de 20.' },
   { key: 'bm_espada', name: 'Espada sucia', price: 380, color: 0x6b7280, dmg: 9, icon: '⚔️', blurb: 'Filo mellado. Pega más que una de madera.' },
   { key: 'bm_humo', name: 'Bomba de humo', price: 220, color: 0x64748b, gadget: 'humo', icon: '💨', blurb: 'Nube gris: la policía te pierde de vista.' },
@@ -2423,10 +2423,10 @@ const BLACK_MARKET = [
 // Armas de fuego de verdad (las del mercado negro). Cargador de 20 balas, 5 s de recarga.
 const GUN_CLIP = 20, GUN_RELOAD = 5;
 const GUN_SPECS = {
-  bm_pistola:  { key:'bm_pistola', name:'Pistola del callejón', kind:'pistol',  dmg:11, range:60,  head:2.2, rate:.30, scope:false, color:0x4b5563, icon:'🔫' },
-  bm_mira:     { key:'bm_mira',    name:'Pistola con mira',     kind:'pistol',  dmg:13, range:95,  head:3.2, rate:.36, scope:true,  color:0x334155, icon:'🔭' },
-  bm_escopeta: { key:'bm_escopeta',name:'Escopeta recortada',   kind:'shotgun', dmg:16, range:30,  head:1.8, rate:.72, scope:false, color:0x57534e, icon:'💥' },
-  bm_rifle:    { key:'bm_rifle',   name:'Rifle viejo',          kind:'rifle',   dmg:18, range:130, head:3.0, rate:.52, scope:true,  color:0x44403c, icon:'🎯' },
+  bm_pistola:  { key:'bm_pistola', name:'Pistola del callejón', kind:'pistol',  dmg:9,  range:60,  head:2.2, rate:.26, scope:false, color:0x4b5563, icon:'🔫' },   // floja pero rapidísima
+  bm_mira:     { key:'bm_mira',    name:'Pistola con mira',     kind:'pistol',  dmg:14, range:95,  head:3.2, rate:.40, scope:true,  color:0x334155, icon:'🔭' },   // precisa: la reina de los tiros a la cabeza
+  bm_escopeta: { key:'bm_escopeta',name:'Escopeta recortada',   kind:'shotgun', dmg:26, range:30,  head:1.8, rate:.85, scope:false, color:0x57534e, icon:'💥' },   // la que más pega, pero lenta y de cerca
+  bm_rifle:    { key:'bm_rifle',   name:'Rifle viejo',          kind:'rifle',   dmg:22, range:130, head:3.0, rate:.60, scope:true,  color:0x44403c, icon:'🎯' },   // fuerte y de lejísimos
 };
 function gunSpecByName(name) { const n = String(name || '').toLowerCase(); for (const k in GUN_SPECS) if (GUN_SPECS[k].name.toLowerCase() === n) return GUN_SPECS[k]; return null; }
 const STORY_QUESTS = [
@@ -2818,7 +2818,7 @@ function renderBlackMarket() {
   if (money) money.textContent = state.creative ? '$∞' : '$' + state.money;
   list.innerHTML = BLACK_MARKET.map(it => {
     const have = (it.gadget && !GADGET_HAND[it.gadget] && state.gadgets && state.gadgets[it.gadget]) || (GUN_SPECS[it.key] && state.guns && state.guns[it.key]) || (!GUN_SPECS[it.key] && it.dmg && state.weaponName === it.name);
-    return '<button type="button" data-bm="' + it.key + '" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(127,29,29,.2); border:1px solid #7f1d1d; color:#fecaca; border-radius:9px; padding:8px 10px;"><b style="color:#fecaca">' + it.icon + ' ' + it.name + '</b> · $' + it.price + (have ? (GUN_SPECS[it.key] ? ' · ya la tienes (toca para llevarla en la mano)' : ' · ya lo tienes') : '') + (it.ammo ? ' · llevas ' + (state.ammo || 0) + ' balas' : '') + (GADGET_HAND[it.gadget] ? ' · tienes ' + ((state.gadgetCharges || {})[it.gadget] || 0) : '') + '<br><span style="opacity:.75; font-size:11px">' + it.blurb + '</span></button>';
+    return '<button type="button" data-bm="' + it.key + '" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(127,29,29,.2); border:1px solid #7f1d1d; color:#fecaca; border-radius:9px; padding:8px 10px;"><b style="color:#fecaca">' + it.icon + ' ' + it.name + '</b> · $' + it.price + (have ? (GUN_SPECS[it.key] ? ' · ya la tienes (toca para llevarla en la mano)' : ' · ya lo tienes') : '') + (it.ammo ? ' · llevas ' + (state.ammo || 0) + ' balas' : '') + (GADGET_HAND[it.gadget] ? ' · tienes ' + ((state.gadgetCharges || {})[it.gadget] || 0) : '') + '<br><span style="opacity:.75; font-size:11px">' + it.blurb + (GUN_SPECS[it.key] ? '<br>💥 daño ' + GUN_SPECS[it.key].dmg + ' · 🎯 cabeza x' + GUN_SPECS[it.key].head + ' (' + Math.round(GUN_SPECS[it.key].dmg * GUN_SPECS[it.key].head) + ') · 📏 ' + GUN_SPECS[it.key].range + ' m · ⏱️ ' + GUN_SPECS[it.key].rate + ' s' : '') + '</span></button>';
   }).join('');
 }
 function applyBlackMarketGadget(item) {

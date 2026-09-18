@@ -3446,13 +3446,53 @@ function updateScoreboard() {
 function makeStadium(cx, cz, fieldColor, name) {
   const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), mat(fieldColor));
   field.rotation.x = -Math.PI / 2; field.position.set(cx, 0.05, cz); field.receiveShadow = true; scene.add(field);
-  // graderías en los 4 lados (bloquean al jugador)
-  // graderias: la de adelante (dz=+9) va partida en dos para dejar una ENTRADA en el medio
-  [[0, -9, 20, 2], [-6, 9, 8, 2], [6, 9, 8, 2], [-11, 0, 2, 16], [11, 0, 2, 16]].forEach(([dx, dz, w, d]) => {
-    const s = new THREE.Mesh(new THREE.BoxGeometry(w, 2, d), mat(0x9ca3af));
-    s.position.set(cx + dx, 1, cz + dz); s.castShadow = true; s.receiveShadow = true; scene.add(s);
-    addObstacle(cx + dx, cz + dz, w, d);
+  // Rayas de cortadora: franjas más claras y más oscuras, como una cancha de verdad
+  const claro = new THREE.Color(fieldColor).offsetHSL(0, 0, .06).getHex();
+  for (let i = 0; i < 5; i++) {
+    const franja = new THREE.Mesh(new THREE.PlaneGeometry(4, 14), mat(i % 2 ? claro : fieldColor));
+    franja.rotation.x = -Math.PI / 2; franja.position.set(cx - 8 + i * 4, .06, cz); franja.receiveShadow = true; scene.add(franja);
+  }
+  // Líneas pintadas: borde, mitad de cancha y círculo central
+  const linea = (w, d, dx, dz) => { const l = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: .9 })); l.rotation.x = -Math.PI / 2; l.position.set(cx + dx, .075, cz + dz); scene.add(l); };
+  linea(19, .22, 0, -6.6); linea(19, .22, 0, 6.6); linea(.22, 13.4, -9.4, 0); linea(.22, 13.4, 9.4, 0); linea(.22, 13.4, 0, 0);
+  const circulo = new THREE.Mesh(new THREE.RingGeometry(2.1, 2.32, 32), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: .9, side: THREE.DoubleSide }));
+  circulo.rotation.x = -Math.PI / 2; circulo.position.set(cx, .075, cz); scene.add(circulo);
+  // Graderías escalonadas con asientos de colores (bloquean al jugador)
+  // la de adelante (dz=+9) va partida en dos para dejar una ENTRADA en el medio
+  const asientoCols = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e];
+  [[0, -9, 20, 2], [-6, 9, 8, 2], [6, 9, 8, 2], [-11, 0, 2, 16], [11, 0, 2, 16]].forEach(([dx, dz, w, d], idx) => {
+    const largoX = w > d;
+    const base = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, d), mat(0x9ca3af));
+    base.position.set(cx + dx, .55, cz + dz); base.castShadow = true; base.receiveShadow = true; scene.add(base);
+    for (let g = 0; g < 3; g++) {   // tres gradas que van subiendo hacia afuera
+      const fuera = Math.sign(largoX ? dz : dx) || 1;
+      const paso = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w : .62, .55 + g * .5, largoX ? .62 : d), mat(0xb6bcc6));
+      paso.position.set(cx + dx + (largoX ? 0 : fuera * (g * .62 - .1)), (.55 + g * .5) / 2 + .55, cz + dz + (largoX ? fuera * (g * .62 - .1) : 0));
+      paso.castShadow = true; paso.receiveShadow = true; scene.add(paso);
+      const asientos = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w - .4 : .46, .22, largoX ? .46 : d - .4), mat(asientoCols[(idx + g) % asientoCols.length]));
+      asientos.position.set(paso.position.x, paso.position.y + (.55 + g * .5) / 2 + .11, paso.position.z); scene.add(asientos);
+    }
+    const baranda = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w : .1, .1, largoX ? .1 : d), mat(0xe2e8f0));
+    baranda.position.set(cx + dx - (largoX ? 0 : Math.sign(dx) * 1.1), 2.75, cz + dz - (largoX ? Math.sign(dz) * 1.1 : 0)); scene.add(baranda);
+    addObstacle(cx + dx, cz + dz, w, d, 2.9);
   });
+  // Torres de iluminación en las cuatro esquinas
+  for (const [lx, lz] of [[-11.5, -9.5], [11.5, -9.5], [-11.5, 9.5], [11.5, 9.5]]) {
+    const torre = new THREE.Group(); torre.position.set(cx + lx, 0, cz + lz); scene.add(torre);
+    const poste = new THREE.Mesh(new THREE.CylinderGeometry(.16, .26, 9, 8), mat(0x64748b)); poste.position.y = 4.5; poste.castShadow = true; torre.add(poste);
+    for (const h of [3, 6]) { const travesa = new THREE.Mesh(new THREE.BoxGeometry(.7, .12, .12), mat(0x64748b)); travesa.position.set(0, h, 0); torre.add(travesa); }
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, .3), mat(0x475569)); panel.position.y = 9.3; panel.castShadow = true; torre.add(panel);
+    for (let i = 0; i < 6; i++) {
+      const foco = new THREE.Mesh(new THREE.BoxGeometry(.62, .46, .16), new THREE.MeshStandardMaterial({ color: 0xfff8e1, emissive: 0xfff3c4, emissiveIntensity: 1.15, roughness: .4 }));
+      foco.position.set(-.9 + (i % 3) * .9, 9.3 + (i < 3 ? .28 : -.28), .2);
+      foco.lookAt(cx, 0, cz); torre.add(foco);
+    }
+  }
+  // Arco de entrada con el nombre
+  const arco = new THREE.Group(); arco.position.set(cx, 0, cz + 10.6); scene.add(arco);
+  for (const sx of [-3.2, 3.2]) { const col = new THREE.Mesh(new THREE.BoxGeometry(.7, 5.2, .7), mat(0xe2e8f0)); col.position.set(sx, 2.6, 0); col.castShadow = true; arco.add(col); }
+  const dintel = new THREE.Mesh(new THREE.BoxGeometry(7.6, 1.1, .8), mat(0xf8fafc)); dintel.position.y = 5.6; dintel.castShadow = true; arco.add(dintel);
+  const bandera = makeSign(name, 0xfacc15); bandera.scale.set(.62, .62, .62); bandera.position.set(0, 5.6, .5); arco.add(bandera);
   const sign = makeSign(name, 0xfacc15); sign.position.set(cx, 5, cz - 9); scene.add(sign);
   // gente sentada (víctimas)
   for (let i = 0; i < 8; i++) {
@@ -4499,13 +4539,16 @@ function mcFloor(parent, x, z, w, d, color, y) {   // loza/pasto/camino
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, .3, d), mcMat(color));
   m.position.set(x, (y != null ? y : .05) - .15, z); m.receiveShadow = true; parent.add(m); return m;
 }
-function mcTree(parent, x, z, h, leaf, baseY) {     // árbol de bloques (tronco + copa cúbica)
+function mcTree(parent, x, z, h, leaf, baseY) {     // árbol de parque: tronco cónico + copa en capas
   const t = h || 4, y0 = baseY || 0;
-  mcBox(parent, x, y0 + t / 2, z, .8, t, .8, 0x6b4423);
+  const tronco = new THREE.Mesh(new THREE.CylinderGeometry(.28, .45, t, 7), mat(0x6b4423));
+  tronco.position.set(x, y0 + t / 2, z); tronco.castShadow = true; parent.add(tronco);
   const L = leaf || 0x3f8f29;
-  mcBox(parent, x, y0 + t + 1.1, z, 3.4, 1.2, 3.4, L);
-  mcBox(parent, x, y0 + t + 2.1, z, 2.2, 1.2, 2.2, L);
-  mcBox(parent, x, y0 + t + 3, z, 1, 1, 1, L);
+  const capa = (y, s, giro) => {
+    const c = new THREE.Mesh(new THREE.BoxGeometry(s, s * .38, s), mat(L));
+    c.position.set(x, y0 + y, z); c.rotation.y = giro; c.castShadow = true; c.receiveShadow = true; parent.add(c);
+  };
+  capa(t + .9, 3.5, .3); capa(t + 1.9, 2.7, -.4); capa(t + 2.7, 1.6, .8);
 }
 function mcDeadTree(parent, x, z, h, baseY) {       // árbol SECO: tronco pelado + ramas, sin hojas
   const t = h || 4, y0 = baseY || 0;
@@ -4518,18 +4561,52 @@ function mcDeadTree(parent, x, z, h, baseY) {       // árbol SECO: tronco pelad
     mcBox(parent, x + dx * 1.6, y + .5, z + dz * 1.6, .28, .9, .28, 0x3b2b1f);
   }
 }
-function mcBench(parent, x, z, rot) {              // banca de plaza
+function mcBench(parent, x, z, rot) {              // banca de plaza: tablas, respaldo y patas de fierro
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot || 0; parent.add(g);
-  mcBox(g, 0, .45, 0, 2.2, .18, .7, 0x8b5a2b);
-  mcBox(g, 0, .85, -.32, 2.2, .7, .16, 0x8b5a2b);
-  mcBox(g, -.9, .22, 0, .2, .45, .6, 0x4b5563); mcBox(g, .9, .22, 0, .2, .45, .6, 0x4b5563);
+  for (let i = 0; i < 4; i++) mcBox(g, 0, .45, -.24 + i * .17, 2.2, .1, .14, i % 2 ? 0x8b5a2b : 0x7a4d24);   // tablas del asiento
+  for (let i = 0; i < 3; i++) mcBox(g, 0, .72 + i * .22, -.34, 2.2, .16, .1, i % 2 ? 0x7a4d24 : 0x8b5a2b);   // respaldo listado
+  for (const sx of [-1.02, 1.02]) {
+    mcBox(g, sx, .3, 0, .1, .58, .66, 0x475569);              // pata de fierro
+    mcBox(g, sx, .07, 0, .22, .12, .78, 0x334155);            // zapata
+    mcBox(g, sx, .62, .18, .1, .1, .42, 0x475569);            // apoyabrazos
+    mcBox(g, sx, .78, 0, .1, .35, .1, 0x475569);
+  }
   return g;
 }
-function mcLamp(parent, x, z, color) {             // farol de parque (con luz de noche)
+function mcLamp(parent, x, z, color) {             // farol de parque: base, poste, farola de vidrio y remate
   const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
-  mcBox(g, 0, 1.7, 0, .3, 3.4, .3, 0x3f3f46);
-  const head = mcBox(g, 0, 3.6, 0, .8, .8, .8, color || 0xfde047);
-  head.material = new THREE.MeshStandardMaterial({ color: color || 0xfde047, emissive: color || 0xfde047, emissiveIntensity: 1.1, roughness: 1 });
+  const col = color || 0xfde047;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(.34, .44, .5, 8), mat(0x27272a)); base.position.y = .25; base.castShadow = true; g.add(base);
+  const poste = new THREE.Mesh(new THREE.CylinderGeometry(.09, .12, 3.3, 8), mat(0x3f3f46)); poste.position.y = 1.95; poste.castShadow = true; g.add(poste);
+  const anillo = new THREE.Mesh(new THREE.TorusGeometry(.18, .04, 6, 12), mat(0x52525b)); anillo.rotation.x = Math.PI / 2; anillo.position.y = 3.1; g.add(anillo);
+  const vidrio = new THREE.Mesh(new THREE.CylinderGeometry(.34, .42, .8, 6), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1.25, roughness: .35, transparent: true, opacity: .92 }));
+  vidrio.position.y = 3.85; g.add(vidrio);
+  const techito = new THREE.Mesh(new THREE.ConeGeometry(.5, .38, 6), mat(0x27272a)); techito.position.y = 4.42; techito.castShadow = true; g.add(techito);
+  const perilla = new THREE.Mesh(new THREE.SphereGeometry(.08, 6, 5), mat(0x52525b)); perilla.position.y = 4.68; g.add(perilla);
+  return g;
+}
+function mcFlowers(parent, x, z, r) {   // macizo de flores de colores
+  const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+  const tierra = new THREE.Mesh(new THREE.CylinderGeometry(r, r + .15, .22, 10), mat(0x6b4b2a)); tierra.position.y = .11; tierra.receiveShadow = true; g.add(tierra);
+  const cols = [0xef4444, 0xfacc15, 0xf472b6, 0xa855f7, 0xf97316, 0xffffff];
+  const n = Math.round(r * 7);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * (r - .2);
+    const fx = Math.cos(a) * rr, fz = Math.sin(a) * rr;
+    const tallo = new THREE.Mesh(new THREE.BoxGeometry(.05, .34, .05), mat(0x3f8f29)); tallo.position.set(fx, .38, fz); g.add(tallo);
+    const flor = new THREE.Mesh(new THREE.SphereGeometry(.12, 6, 5), mat(cols[i % cols.length]));
+    flor.position.set(fx, .58, fz); flor.scale.y = .7; g.add(flor);
+  }
+  return g;
+}
+function mcBush(parent, x, z, r) {   // arbusto redondeado
+  const g = new THREE.Group(); g.position.set(x, 0, z); parent.add(g);
+  const verde = 0x2f7d23 + Math.floor(Math.random() * 3) * 0x000800;
+  for (let i = 0; i < 4; i++) {
+    const b = new THREE.Mesh(new THREE.DodecahedronGeometry((r || 1) * (.55 + Math.random() * .35), 0), mat(verde));
+    b.position.set((Math.random() - .5) * r, (r || 1) * (.45 + Math.random() * .3), (Math.random() - .5) * r);
+    b.castShadow = true; g.add(b);
+  }
   return g;
 }
 function mcFence(parent, cx, cz, w, d, color, gapW) {   // reja baja (decorativa, no bloquea)
@@ -4541,6 +4618,12 @@ function mcFence(parent, cx, cz, w, d, color, gapW) {   // reja baja (decorativa
   for (let z = -d / 2; z <= d / 2; z += step) {
     mcBox(g, cx - w / 2, .6, cz + z, .25, 1.2, .25, color);
     mcBox(g, cx + w / 2, .6, cz + z, .25, 1.2, .25, color);
+  }
+  for (const sx of [-1, 1]) {   // pasamanos arriba y abajo (se ve como una reja de verdad)
+    mcBox(g, cx + sx * w / 2, 1.18, cz, .12, .1, d, color);
+    mcBox(g, cx + sx * w / 2, .35, cz, .1, .08, d, color);
+    mcBox(g, cx, 1.18, cz + sx * d / 2, w, .1, .12, color);
+    mcBox(g, cx, .35, cz + sx * d / 2, w, .08, .1, color);
   }
   return g;
 }
@@ -4593,11 +4676,24 @@ function buildCondoPark() {
   const ramp = mcBox(sl, 1.4, 2, 1.6, 1.4, .25, 5.4, 0x38bdf8); ramp.rotation.x = -.62;
   addObstacle(cx + 8.5, cz - 10, 2, 2);
 
-  // Piletita/fuente del centro
-  mcBox(g, cx, .35, cz, 5, .7, 5, 0xb8b8c0);
-  const w = new THREE.Mesh(new THREE.BoxGeometry(4.2, .12, 4.2), new THREE.MeshStandardMaterial({ color: 0x3aa7dd, transparent: true, opacity: .8, roughness: .35 }));
-  w.position.set(cx, .74, cz); g.add(w);
-  mcBox(g, cx, 1.4, cz, .9, 1.4, .9, 0xd4d4d8);
+  // Flores y arbustos alrededor de los caminos
+  for (const [fx, fz, r] of [[-12, -4, 1.5], [12, 4, 1.5], [-4, 12, 1.2], [4, -12, 1.2]]) mcFlowers(g, cx + fx, cz + fz, r);
+  for (const [bx, bz] of [[-15, 0], [15, 0], [0, -15], [0, 15], [-9, -9], [9, 9]]) mcBush(g, cx + bx, cz + bz, 1.1);
+
+  // Piletita/fuente del centro: taza redonda, agua clara y chorro
+  const taza = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.9, .75, 14), mat(0xd4d4d8)); taza.position.set(cx, .38, cz); taza.castShadow = true; taza.receiveShadow = true; g.add(taza);
+  const borde = new THREE.Mesh(new THREE.TorusGeometry(2.62, .16, 8, 18), mat(0xe7e5e4)); borde.rotation.x = Math.PI / 2; borde.position.set(cx, .76, cz); g.add(borde);
+  const agua = new THREE.Mesh(new THREE.CylinderGeometry(2.45, 2.45, .1, 16), new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: .75, roughness: .1, metalness: .3 }));
+  agua.position.set(cx, .72, cz); g.add(agua);
+  const pie = new THREE.Mesh(new THREE.CylinderGeometry(.28, .45, 1.5, 10), mat(0xe7e5e4)); pie.position.set(cx, 1.45, cz); g.add(pie);
+  const plato = new THREE.Mesh(new THREE.CylinderGeometry(1.05, .85, .22, 12), mat(0xe7e5e4)); plato.position.set(cx, 2.2, cz); g.add(plato);
+  const chorro = new THREE.Mesh(new THREE.CylinderGeometry(.09, .13, 1.2, 8), new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: .6, emissive: 0x38bdf8, emissiveIntensity: .25 }));
+  chorro.position.set(cx, 2.85, cz); g.add(chorro);
+  for (let i = 0; i < 8; i++) {   // gotitas cayendo del plato a la taza
+    const a = i / 8 * Math.PI * 2;
+    const gota = new THREE.Mesh(new THREE.CylinderGeometry(.04, .04, .9, 5), new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: .45 }));
+    gota.position.set(cx + Math.cos(a) * .95, 1.7, cz + Math.sin(a) * .95); g.add(gota);
+  }
   addObstacle(cx, cz, 5, 5);
   return g;
 }
@@ -4611,6 +4707,17 @@ function buildFunPark() {
   mcFloor(g, cx, cz - 20, 10, 56, 0xe8d7b0, .09);            // avenida principal
   mcFloor(g, cx, cz + 4, 60, 10, 0xe8d7b0, .09);             // avenida transversal
   mcFence(g, cx, cz, 96, 96, 0xf59e0b, 12);
+  // Jardines del parque de diversiones: flores a lo largo de las avenidas y arbustos en las esquinas
+  for (const [fx, fz] of [[-7, -38], [7, -38], [-7, -8], [7, -8], [-26, 10], [26, 10], [-26, -2], [26, -2]]) mcFlowers(g, cx + fx, cz + fz, 1.6);
+  for (const [bx, bz] of [[-42, -42], [42, -42], [-42, 42], [42, 42], [-20, 30], [20, 30], [-34, -12], [34, -12]]) mcBush(g, cx + bx, cz + bz, 1.4);
+  for (const [lx, lz] of [[-8, -30], [8, -30], [-8, 0], [8, 0], [-28, 6], [28, 6]]) mcLamp(g, cx + lx, cz + lz, 0xfff0b0);
+  for (const [bx, bz, rot] of [[-9, -22, 0], [9, -22, Math.PI], [-9, 12, 0], [9, 12, Math.PI]]) mcBench(g, cx + bx, cz + bz, rot);
+  for (let i = 0; i < 10; i++) {   // basureros del parque
+    const [tx, tz] = [[-11, -34], [11, -34], [-11, -14], [11, -14], [-11, 6], [11, 6], [-24, 14], [24, 14], [-30, -6], [30, -6]][i];
+    const tacho = new THREE.Mesh(new THREE.CylinderGeometry(.34, .28, .9, 8), mat(0x166534));
+    tacho.position.set(cx + tx, .45, cz + tz); tacho.castShadow = true; g.add(tacho);
+    const tapa = new THREE.Mesh(new THREE.CylinderGeometry(.38, .38, .1, 8), mat(0x14532d)); tapa.position.set(cx + tx, .95, cz + tz); g.add(tapa);
+  }
 
   // ---- Entrada con arco y boletería ----
   const ent = new THREE.Group(); ent.position.set(cx, 0, cz - 48); g.add(ent);
@@ -9084,7 +9191,11 @@ function updateDefenses(dt) {
     if (!near) continue;               // sin objetivo, no dispara
     o.mesh.rotation.y = Math.atan2(near.position.x - o.mesh.position.x, near.position.z - o.mesh.position.z);
     if (o.shotCd <= 0 && o.ammo > 0) {
-      spawnBolt(o.mesh.position, near.position, laser ? 26 : (turret ? 12 : 16));
+      if (laser) {   // torreta láser: rayo instantáneo azul
+        const desde = o.mesh.position.clone(); desde.y += .8;
+        spawnLaserBeam(desde, near.position.clone().setY(near.position.y + 1.1), 0x22d3ee);
+        hitEnemy(near, 26, desde);
+      } else spawnBolt(o.mesh.position, near.position, turret ? 12 : 16);
       o.ammo--; o.shotCd = laser ? 0.22 : (turret ? 0.4 : 1.0);
       if (o.ammo <= 0) { o.reloading = true; o.reloadT = laser ? 0.8 : (turret ? 1 : 3); }   // recarga: láser 0.8s, torreta 1s, ballesta 3s
     }
@@ -15503,17 +15614,57 @@ function fireGun(spec) {
   if ((state.clip || 0) <= 0) startReload(true);
   return true;
 }
-// Rayo láser: línea roja del jugador al enemigo (breve destello)
-function shootBeam(target) {
+// ===================================================================
+//  RAYO LÁSER — núcleo blanco + halo de color, fogonazo y chispas
+// ===================================================================
+const laserShots = [];
+const LASER_UP = new THREE.Vector3(0, 1, 0);
+function shootBeam(target, color) {   // el láser del jugador
   const from = player.position.clone(); from.y -= 0.3;
-  const to = target.clone(); to.y += 1;
-  const dirv = new THREE.Vector3().subVectors(to, from); const len = dirv.length() || 1;
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, len, 6), new THREE.MeshBasicMaterial({ color: 0xff3b3b }));
-  beam.position.copy(from).addScaledVector(dirv, 0.5);
-  beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirv.clone().normalize());
-  scene.add(beam); beep(760, 0.05, 0.045);
-  setTimeout(() => killMesh(beam), 90);
+  const dir0 = new THREE.Vector3(); getAimDirection(dir0);
+  from.addScaledVector(dir0, .55);
+  spawnLaserBeam(from, target.clone().setY(target.y + 1), color);
 }
+function spawnLaserBeam(from, to, color) {
+  const col = color != null ? color : 0xff3b3b;
+  const dirv = new THREE.Vector3().subVectors(to, from); const len = dirv.length() || 1;
+  const rot = new THREE.Quaternion().setFromUnitVectors(LASER_UP, dirv.clone().normalize());
+  const centro = from.clone().addScaledVector(dirv, 0.5);
+  const g = new THREE.Group(); g.position.copy(centro); g.quaternion.copy(rot); scene.add(g);
+  // 1) núcleo blanco finito · 2) halo de color · 3) resplandor exterior
+  const nucleo = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, len, 6),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const halo = new THREE.Mesh(new THREE.CylinderGeometry(.072, .072, len, 8),
+    new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .85, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const brillo = new THREE.Mesh(new THREE.CylinderGeometry(.15, .15, len, 8),
+    new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .3, blending: THREE.AdditiveBlending, depthWrite: false }));
+  g.add(nucleo); g.add(halo); g.add(brillo);
+  // fogonazo en el cañón y estallido en el blanco
+  const flashMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false });
+  const boca = new THREE.Mesh(new THREE.SphereGeometry(.2, 8, 6), flashMat); boca.position.y = -len / 2; g.add(boca);
+  const impacto = new THREE.Mesh(new THREE.SphereGeometry(.26, 8, 6), flashMat.clone()); impacto.position.y = len / 2; g.add(impacto);
+  const anillo = new THREE.Mesh(new THREE.TorusGeometry(.4, .06, 6, 14), flashMat.clone());
+  anillo.position.y = len / 2; anillo.rotation.x = Math.PI / 2; g.add(anillo);
+  laserShots.push({ g, t: 0, vida: .22, len });
+  voxelImpact(to.clone(), col, 5);
+  tone(1250, .05, .04, 'sawtooth'); beep(760, 0.05, 0.04);
+  cameraShake = Math.max(cameraShake, .06);
+}
+function updateLaserShots(dt) {
+  for (let i = laserShots.length - 1; i >= 0; i--) {
+    const s = laserShots[i]; s.t += dt;
+    const k = 1 - s.t / s.vida;                       // se apaga y se adelgaza
+    if (k <= 0) { killMesh(s.g); laserShots.splice(i, 1); continue; }
+    const c = s.g.children;
+    c[0].material.opacity = k; c[1].material.opacity = .85 * k; c[2].material.opacity = .3 * k * k;
+    c[0].scale.set(k * .6 + .4, 1, k * .6 + .4);
+    c[2].scale.set(1 + (1 - k) * 1.6, 1, 1 + (1 - k) * 1.6);
+    c[3].material.opacity = .9 * k; c[3].scale.setScalar(1 + (1 - k) * .8);   // fogonazo
+    c[4].material.opacity = .9 * k; c[4].scale.setScalar(1 + (1 - k) * 1.4);  // estallido
+    c[5].material.opacity = .8 * k; c[5].scale.setScalar(1 + (1 - k) * 2.6);  // anillo que se abre
+  }
+}
+function clearLaserShots() { laserShots.forEach(s => killMesh(s.g)); laserShots.length = 0; }
 
 // Pegarle a una PERSONA de día (aldeano o gente del estadio): te vuelve BUSCADO
 function attackNPC() {
@@ -16235,6 +16386,7 @@ function loop() {
     updateGrassField(dt);                  // pasto 3D alrededor tuyo, meciéndose
     updateBullets(dt);                     // balas que vuelan, casquillos, gatillo y recarga
     updateAim(dt);                         // mira telescópica (mantener clic) + punto rojo
+    updateLaserShots(dt);                  // rayos láser que se apagan
     updateSmoke(dt);                       // nubes de las bombas de humo
     updateThrownBombs(dt);                 // bombas de humo en el aire
     updateConfetti(dt);                    // papelitos del tubo de confeti
@@ -16949,7 +17101,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,

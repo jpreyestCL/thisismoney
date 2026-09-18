@@ -301,6 +301,21 @@ vidrio con tiradores, felpudo, carritos, piso de cerámica con juntas, lámparas
 reales por tienda, solo fuera de modo rendimiento), mostrador con caja registradora y góndolas con
 tapa, repisa y cintillo de precios.
 
+**Parques**: helpers compartidos mejorados — `mcBench` (tablas, respaldo listado, patas y
+apoyabrazos de fierro), `mcLamp` (base, poste, farola de vidrio emisiva y remate), `mcTree` (tronco
+cónico + copa en 3 capas giradas), `mcFence` (pasamanos arriba y abajo) y dos nuevos: `mcFlowers`
+(macizo de flores de 6 colores) y `mcBush` (arbusto). El parque del condominio tiene fuente redonda
+con chorro y gotas; el de diversiones suma flores, arbustos, faroles, bancas y basureros.
+
+**Estadios** (`makeStadium`): cancha con rayas de cortadora y líneas pintadas (borde, mitad y
+círculo central), graderías escalonadas de 3 gradas con asientos de colores y baranda, cuatro torres
+de iluminación con 6 focos cada una y arco de entrada con el nombre.
+
+**Rayo láser** (`spawnLaserBeam` + `updateLaserShots`): núcleo blanco, halo de color y resplandor
+exterior en mezcla aditiva, fogonazo en el cañón, estallido y anillo que se abre en el impacto; se
+apaga en 0,22 s. `shootBeam(target, color)` lo usa el jugador y la torreta láser dispara un rayo
+azul instantáneo en vez de un dardo.
+
 **Pasto**: el suelo usa una textura en grises generada por canvas (`makeGroundDetailTexture`, con
 parches, briznas y tierrita) para que el color del planeta la siga tiñendo, más un normal map
 procedural (`makeGroundNormalTexture`) que le da relieve (se salta en modo rendimiento).

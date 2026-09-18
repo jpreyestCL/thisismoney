@@ -301,6 +301,10 @@ vidrio con tiradores, felpudo, carritos, piso de cerámica con juntas, lámparas
 reales por tienda, solo fuera de modo rendimiento), mostrador con caja registradora y góndolas con
 tapa, repisa y cintillo de precios.
 
+**Zonas sin pasto**: `noGrassZones` (declarado junto a `landingSurfaces`) + `addNoGrassZone`/
+`inNoGrassZone`. `mcFloor` registra automáticamente cada loza que dibuja (parques, plazas, canchas
+del coliseo, el resort de esquí…) y `makeStadium` registra su cancha, así el pasto 3D no brota ahí.
+
 **Parques**: helpers compartidos mejorados — `mcBench` (tablas, respaldo listado, patas y
 apoyabrazos de fierro), `mcLamp` (base, poste, farola de vidrio emisiva y remate), `mcTree` (tronco
 cónico + copa en 3 capas giradas), `mcFence` (pasamanos arriba y abajo) y dos nuevos: `mcFlowers`

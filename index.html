@@ -1444,6 +1444,7 @@ function fillGrassChunk() {   // se reparte de a poco (no traba el juego al move
       if (typeof insideBuilding === 'function' && insideBuilding(x, z)) continue;   // dentro del súper, la armería, el banco…
       if (typeof onRoadAt === 'function' && onRoadAt(x, z)) continue;               // en la calle tampoco
       if (typeof insideStoreFloor === 'function' && insideStoreFloor(x, z)) continue;
+      if (typeof inNoGrassZone === 'function' && inNoGrassZone(x, z)) continue;   // parques, canchas y plazas
       const y = mountainHeightAt(x, z);
       if (y > 8) continue;                                          // en los cerros altos no
       const esc = .55 + Math.random() * .6;
@@ -2045,6 +2046,12 @@ momTag.scale.set(.5, .5, .5); momTag.position.set(0, 3, 0); mom.add(momTag); mom
 // ===================================================================
 const SUPER_POS = new THREE.Vector3(40, 0, -18);
 const obstacles = [];   // cajas que bloquean al jugador
+const noGrassZones = [];   // losas construidas (parques, canchas, plazas): ahí NO brota pasto 3D
+function addNoGrassZone(x, z, w, d) { noGrassZones.push({ x, z, hw: w / 2, hd: d / 2 }); }
+function inNoGrassZone(x, z) {
+  for (const p of noGrassZones) if (Math.abs(x - p.x) <= p.hw && Math.abs(z - p.z) <= p.hd) return true;
+  return false;
+}
 const landingSurfaces = []; // superficies elevadas donde puedes aterrizar al caer
 
 function addObstacle(cx, cz, w, d, top) {
@@ -3446,6 +3453,7 @@ function updateScoreboard() {
 function makeStadium(cx, cz, fieldColor, name) {
   const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), mat(fieldColor));
   field.rotation.x = -Math.PI / 2; field.position.set(cx, 0.05, cz); field.receiveShadow = true; scene.add(field);
+  addNoGrassZone(cx, cz, 24, 20);   // la cancha es cancha: nada de matitas de pasto encima
   // Rayas de cortadora: franjas más claras y más oscuras, como una cancha de verdad
   const claro = new THREE.Color(fieldColor).offsetHSL(0, 0, .06).getHex();
   for (let i = 0; i < 5; i++) {
@@ -4535,9 +4543,14 @@ function mcBox(parent, x, y, z, w, h, d, color) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mcMat(color));
   m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
 }
+const _mcFloorV = new THREE.Vector3();
 function mcFloor(parent, x, z, w, d, color, y) {   // loza/pasto/camino
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, .3, d), mcMat(color));
-  m.position.set(x, (y != null ? y : .05) - .15, z); m.receiveShadow = true; parent.add(m); return m;
+  m.position.set(x, (y != null ? y : .05) - .15, z); m.receiveShadow = true; parent.add(m);
+  parent.updateWorldMatrix(true, false);            // por si el grupo está desplazado
+  _mcFloorV.set(x, 0, z).applyMatrix4(parent.matrixWorld);
+  addNoGrassZone(_mcFloorV.x, _mcFloorV.z, w, d);
+  return m;
 }
 function mcTree(parent, x, z, h, leaf, baseY) {     // árbol de parque: tronco cónico + copa en capas
   const t = h || 4, y0 = baseY || 0;

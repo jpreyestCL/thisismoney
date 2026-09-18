@@ -301,6 +301,10 @@ vidrio con tiradores, felpudo, carritos, piso de cerámica con juntas, lámparas
 reales por tienda, solo fuera de modo rendimiento), mostrador con caja registradora y góndolas con
 tapa, repisa y cintillo de precios.
 
+**Cama**: patas torneadas, marco de madera, colchón con sábana, plumón que cubre la mitad de abajo
+con doblez y pliegues, dos almohadas inclinadas, cabecera con postes y piecera (en `spawnPlaced`,
+rama `key === 'cama'`). El color comprado tiñe el plumón.
+
 **Zonas sin pasto**: `noGrassZones` (declarado junto a `landingSurfaces`) + `addNoGrassZone`/
 `inNoGrassZone`. `mcFloor` registra automáticamente cada loza que dibuja (parques, plazas, canchas
 del coliseo, el resort de esquí…) y `makeStadium` registra su cancha, así el pasto 3D no brota ahí.

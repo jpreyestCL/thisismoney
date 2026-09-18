@@ -325,6 +325,11 @@ agua la estela y el brillo se apagan. Una flecha disparada desde dentro del agua
 5,55 × altura) con el mismo chequeo de barrido que los techos, y `mcTree` registra una
 `addLandingSurface` para los árboles de los parques.
 
+**Hueco de la piscina**: el suelo del mundo (un plano de 1800²) pasaba por DENTRO del vaso y se veía
+verde bajo el agua. `buildWaterPark` reemplaza `ground.geometry` por un `ShapeGeometry` con un hueco
+del tamaño del vaso, reescribiendo las UV en metros (por eso `groundTex`/`groundNormalTex` pasan a
+`repeat 1/9`). Fuera de la Tierra el hueco se tapa con `poolPatch` (se alterna en `updateGrassField`).
+
 **Zonas sin pasto**: `noGrassZones` (declarado junto a `landingSurfaces`) + `addNoGrassZone`/
 `inNoGrassZone`. `mcFloor` registra automáticamente cada loza que dibuja (parques, plazas, canchas
 del coliseo, el resort de esquí…) y `makeStadium` registra su cancha, así el pasto 3D no brota ahí.

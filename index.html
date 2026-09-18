@@ -1462,6 +1462,7 @@ function fillGrassChunk() {   // se reparte de a poco (no traba el juego al move
   if (grassFill.i >= GRASS_N) grassFill = null;
 }
 function updateGrassField(dt) {
+  if (poolPatch) poolPatch.visible = state.planet !== 'tierra' || !!state.country;   // fuera de la Tierra el hueco de la piscina se tapa
   if (!grassField) return;
   const visible = state.planet === 'tierra' && !state.country && !state.underground && !state.inCastle
     && !state.inRuins && !state.inArena && !state.mission && !(perfMode && perfExtra);
@@ -2075,6 +2076,7 @@ momTag.scale.set(.5, .5, .5); momTag.position.set(0, 3, 0); mom.add(momTag); mom
 // ===================================================================
 const SUPER_POS = new THREE.Vector3(40, 0, -18);
 const obstacles = [];   // cajas que bloquean al jugador
+let poolPatch = null;      // tapa el hueco de la piscina fuera de la Tierra
 const noGrassZones = [];   // losas construidas (parques, canchas, plazas): ahí NO brota pasto 3D
 function addNoGrassZone(x, z, w, d) { noGrassZones.push({ x, z, hw: w / 2, hd: d / 2 }); }
 function inNoGrassZone(x, z) {
@@ -4991,6 +4993,27 @@ function buildWaterPark() {
   mcFloor(g, (right + holeR) / 2, cz, right - holeR, 60, 0x9fd3ea);
   mcFloor(g, p.cx, (back + holeB) / 2, holeW, holeB - back, 0x9fd3ea);
   mcFloor(g, p.cx, (front + holeF) / 2, holeW, front - holeF, 0x9fd3ea);
+  // El SUELO del mundo (el pasto) pasaba por dentro de la piscina y se veía verde bajo el agua:
+  // le recortamos un hueco justo del tamaño del vaso.
+  (function cavarPiscinaEnElSuelo() {
+    const S = 1800, hw = (p.waterW + 2.6) / 2, hd = (p.waterD + 2.6) / 2;
+    const shape = new THREE.Shape();
+    shape.moveTo(-S / 2, -S / 2); shape.lineTo(S / 2, -S / 2); shape.lineTo(S / 2, S / 2); shape.lineTo(-S / 2, S / 2); shape.closePath();
+    const hx = p.cx, hy = -p.cz;                 // el plano está girado -90° en X: la Y del plano es -Z del mundo
+    const hueco = new THREE.Path();
+    hueco.moveTo(hx - hw, hy - hd); hueco.lineTo(hx - hw, hy + hd); hueco.lineTo(hx + hw, hy + hd); hueco.lineTo(hx + hw, hy - hd); hueco.closePath();
+    shape.holes.push(hueco);
+    const geo = new THREE.ShapeGeometry(shape);
+    const pos = geo.getAttribute('position'), uv = geo.getAttribute('uv');
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i), pos.getY(i));   // UV en metros: la textura sigue igual de fina
+    uv.needsUpdate = true;
+    ground.geometry.dispose(); ground.geometry = geo;
+    groundTex.repeat.set(1 / 9, 1 / 9); groundNormalTex.repeat.set(1 / 9, 1 / 9);
+    // En Platus y en los países no hay piscina: un parche tapa el hueco para que no se vea el vacío
+    poolPatch = new THREE.Mesh(new THREE.PlaneGeometry(hw * 2, hd * 2), groundMat);
+    poolPatch.rotation.x = -Math.PI / 2; poolPatch.position.set(p.cx, 0, p.cz);
+    poolPatch.receiveShadow = true; poolPatch.visible = false; scene.add(poolPatch);
+  })();
   mcBox(g, p.cx, p.bottom - .3, p.cz, p.waterW, .6, p.waterD, 0x2b7fa8);   // fondo azulejo
   for (const sx of [-1, 1]) mcBox(g, p.cx + sx * (p.waterW / 2 + .6), .3, p.cz, 1.2, .6, p.waterD + 2.4, 0xf1f5f9);
   for (const sz of [-1, 1]) mcBox(g, p.cx, .3, p.cz + sz * (p.waterD / 2 + .6), p.waterW + 2.4, .6, 1.2, 0xf1f5f9);

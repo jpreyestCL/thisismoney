@@ -266,8 +266,12 @@ con nombre de pistola" y ahora son armas de verdad.
   BUSCADO (2 estrellas si es en la cabeza).
 - **El balero**: vendedor de munición al fondo del mercado negro (`alley.ammoMan`); E le compra la
   caja de 50 balas ($600).
-- **Bomba de humo**: `spawnSmokeCloud()` crea una nube de 22 esferas que crece y se disipa en 14 s;
-  `playerInSmoke()` entra en `isPlayerHidden()`, así que DENTRO del humo los monstruos no te ven.
+- **Bomba de humo**: se LANZA lejos (`throwSmokeBomb` → `updateThrownBombs`, ~65 de alcance en
+  terreno abierto); al caer `spawnSmokeCloud()` crea una nube de 22 esferas que crece y se disipa en
+  14 s. `playerInSmoke()` entra en `isPlayerHidden()`: DENTRO del humo los monstruos no te ven.
+- **Tubo de confeti** (`makeHandTube` + `fireConfettiTube` + `updateConfetti`): 130 papelitos de 8
+  colores que salen hacia donde miras, caen al suelo y se apagan a los ~6 s; de paso aturde a los
+  monstruos a menos de 11.
 - Debug: `__tim.fireGun(spec)`, `__tim.currentGunSpec()`, `__tim.handItems()`, `__tim.gunAmmoText()`,
   `__tim.bulletsCount()`, `__tim.shellsCount()`.
 

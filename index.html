@@ -1424,6 +1424,16 @@ function makeHandGun(kind = 'pistol', color = 0x4b5563, scale = 1, scope = false
   g.scale.setScalar(scale); g.userData.toolKind = 'gun'; g.userData.toolColor = color;
   return g;
 }
+// Tubo lanza-confeti (el de las fiestas): se agarra con las dos manos y escupe papelitos
+function makeHandTube(color = 0xec4899, scale = 1) {
+  const g = new THREE.Group();
+  const tubo = new THREE.Mesh(new THREE.CylinderGeometry(.16, .18, .95, 12), mat(color)); tubo.position.y = .45; tubo.castShadow = true; g.add(tubo);
+  const franja = new THREE.Mesh(new THREE.CylinderGeometry(.19, .19, .16, 12), mat(0xfacc15)); franja.position.y = .3; g.add(franja);
+  const tapa = new THREE.Mesh(new THREE.CylinderGeometry(.17, .17, .06, 12), mat(0xf8fafc)); tapa.position.y = .93; g.add(tapa);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(.19, .19, .1, 12), mat(0x1f2937)); base.position.y = .02; g.add(base);
+  g.scale.setScalar(scale); g.userData.toolKind = 'gadget'; g.userData.toolColor = color;
+  return g;
+}
 // Bomba de mano (humo / confeti) para llevarla en la mano
 function makeHandBomb(color = 0x64748b, scale = 1) {
   const g = new THREE.Group();
@@ -1517,7 +1527,7 @@ function weaponKindFromName(name) {
 function firearmEquipped() { return !!(state.gun && GUN_SPECS[state.gun] && weaponKindFromName(state.weaponName) === 'gun'); }
 function currentGunSpec() { return firearmEquipped() ? GUN_SPECS[state.gun] : null; }
 function createVoxelTool(kind, color, scale) {
-  if (kind === 'gadget') return makeHandBomb(color, scale * 1.1);
+  if (kind === 'gadget') return state.handGadget === 'confeti' ? makeHandTube(color, scale * 1.15) : makeHandBomb(color, scale * 1.1);
   if (kind === 'gun') {
     const g = currentGunSpec();
     if (g) return makeHandGun(g.kind, g.color, scale * 1.15, g.scope);   // pistola / escopeta / rifle de verdad
@@ -10200,8 +10210,10 @@ function throwHandGadget() {   // clic con una bomba en la mano: la usas y gasta
   const left = ((state.gadgetCharges || {})[key] || 0);
   if (left <= 0) { toast('No te quedan ' + GADGET_HAND[key].name.toLowerCase() + 's'); return true; }
   state.gadgetCharges[key] = left - 1;
-  applyBlackMarketGadget({ gadget: key, name: GADGET_HAND[key].name });
-  vmSwing = 1; beep(300, .1, .05);
+  if (key === 'humo') throwSmokeBomb();            // sale volando lejos y el humo brota donde cae
+  else if (key === 'confeti') fireConfettiTube();  // tubo de fiesta: lluvia de papelitos
+  else applyBlackMarketGadget({ gadget: key, name: GADGET_HAND[key].name });
+  vmSwing = 1;
   if (state.gadgetCharges[key] <= 0) { toast('Se te acabaron · pulsa 1 para cambiar de arma'); equipHandItem(handItems()[0]); }
   return true;
 }
@@ -10926,7 +10938,7 @@ function startGame() {
   hideScreens();
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   clearSave();   // JUGAR DE NUEVO = empezar de cero (borra la partida guardada)
-  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearPlants(); clearHelpers();
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearConfetti(); clearPlants(); clearHelpers();
   if (boat) { scene.remove(boat.group); boat = null; } state.boatCrew = 0; state.voyageDays = 0; state.islandDiscovered = false; state.sailing = false;
   state.planet = 'tierra'; groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true);
   updateHouseAnchor();   // vuelve al marcador verde de la Tierra
@@ -12690,7 +12702,7 @@ function loadGame() {
   if (!d) return false;
   closeBlueprintPanel(); activeBlueprintId = null; blueprintGhost.visible = false;
   abortFlight();
-  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearPolice(); clearPlants(); clearHelpers();
+  placed.slice().forEach(removePlaced); removeCar(); clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearConfetti(); clearPolice(); clearPlants(); clearHelpers();
   Object.assign(state, {
     money: d.money || 0, totalEarned: d.totalEarned || 0, stage: d.stage || 1,
     hp: d.hp || 100, dadHp: d.dadHp || 100, hunger: d.hunger || 100, air: 100, inWater: false, underwater: false, drownCd: 0, night: d.night || 0,
@@ -12842,7 +12854,7 @@ function resetAll() {
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
-  clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
+  clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearConfetti(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.guns = {}; state.gun = null; state.ammo = 0; state.clip = 0; state.reloadT = 0; state.gadgetCharges = {}; state.handGadget = null;
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
@@ -14689,7 +14701,7 @@ function goToPlanet() {
   clearTitan(); titanTimer = 150 + Math.random() * 130;
   state.money = 200; state.hunger = 100; state.night = 0; state.inv = freshInv();
   state.inv.food = 5; state.inv.semillas = 2;                                // raciones del cohete (en los planetas no hay súper)
-  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearJobs(); clearSmoke(); clearWaves();
+  placed.slice().forEach(removePlaced); removeCar(); clearDirt(); clearJobs(); clearSmoke(); clearConfetti(); clearWaves();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();                    // no hay policía terrestre
   resetWeather();             // el clima no viaja contigo
   setEarthWorld(false);                                                      // NADA de la Tierra (súper, ciudad, estadios, gente, calles)
@@ -14835,6 +14847,72 @@ function spawnSmokeCloud(x, z) {
   smokeClouds.push({ g, puffs, t: 0, life: 14, radius: 6.5 });
   beep(120, .3, .06);
 }
+// La bomba de humo se LANZA lejos: vuela, rebota en el suelo y ahí suelta la nube
+const thrownBombs = [];
+function throwSmokeBomb() {
+  const dir = new THREE.Vector3(); getAimDirection(dir);
+  const m = makeHandBomb(0x64748b, 1.1);
+  m.position.copy(player.position).addScaledVector(dir, .9); m.position.y -= .15;
+  scene.add(m);
+  thrownBombs.push({ m, vel: dir.clone().multiplyScalar(34).add(new THREE.Vector3(0, 9, 0)), life: 6 });
+  beep(300, .09, .05); vibr(30);
+  toast('💨 ¡Bomba lanzada! El humo sale donde caiga');
+}
+function updateThrownBombs(dt) {
+  for (let i = thrownBombs.length - 1; i >= 0; i--) {
+    const b = thrownBombs[i];
+    b.vel.y -= 14 * dt;
+    b.m.position.addScaledVector(b.vel, dt);
+    b.m.rotation.x += dt * 9; b.m.rotation.z += dt * 6;
+    b.life -= dt;
+    const suelo = mountainHeightAt(b.m.position.x, b.m.position.z) + .2;
+    const choca = obstacleAt(b.m.position.x, b.m.position.z, b.m.position.y, .3);
+    if (b.m.position.y <= suelo || choca || b.life <= 0) {
+      const x = b.m.position.x, z = b.m.position.z;
+      spawnSmokeCloud(x, z);
+      if (dist2D(player.position, { x, z }) < 16) { state.wanted = 0; state.wantedLevel = 0; if (typeof clearPolice === 'function') clearPolice(); }
+      scene.remove(b.m); thrownBombs.splice(i, 1);
+    }
+  }
+}
+// Tubo de confeti: una lluvia ENORME de papelitos de colores hacia donde miras
+const confettiBits = [];
+const CONFETTI_GEO = new THREE.PlaneGeometry(.17, .1);
+const CONFETTI_MATS = [0xef4444, 0xf59e0b, 0xfacc15, 0x22c55e, 0x38bdf8, 0xa855f7, 0xec4899, 0xffffff]
+  .map(c => new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide, transparent: true }));
+function fireConfettiTube() {
+  const dir = new THREE.Vector3(); getAimDirection(dir);
+  const lado = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+  const origin = player.position.clone().addScaledVector(dir, 1).addScaledVector(lado, .35); origin.y -= .1;
+  for (let i = 0; i < 130; i++) {
+    const m = new THREE.Mesh(CONFETTI_GEO, CONFETTI_MATS[i % CONFETTI_MATS.length]);
+    m.position.copy(origin);
+    m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+    const v = dir.clone().multiplyScalar(11 + Math.random() * 16)
+      .addScaledVector(lado, (Math.random() - .5) * 7)
+      .add(new THREE.Vector3(0, 5 + Math.random() * 7, 0));
+    scene.add(m);
+    confettiBits.push({ m, vel: v, spin: new THREE.Vector3((Math.random() - .5) * 9, (Math.random() - .5) * 9, (Math.random() - .5) * 9), life: 4 + Math.random() * 2.5 });
+  }
+  beep(880, .12, .06); setTimeout(() => beep(1180, .12, .05), 90); setTimeout(() => beep(1480, .14, .05), 190); vibr(80);
+  let n = 0;
+  for (const e of enemies) if (dist2D(e.position, player.position) < 11) { e.userData.slow = 6; n++; hitEnemy(e, 8, player.position); }
+  toast('🎉 ¡PUM! Lluvia de confeti' + (n ? ' · ' + n + ' monstruo(s) aturdido(s)' : ''));
+}
+function updateConfetti(dt) {
+  for (let i = confettiBits.length - 1; i >= 0; i--) {
+    const c = confettiBits[i];
+    c.vel.y -= 9.5 * dt; c.vel.x *= .992; c.vel.z *= .992;
+    c.m.position.addScaledVector(c.vel, dt);
+    c.m.rotation.x += c.spin.x * dt; c.m.rotation.y += c.spin.y * dt; c.m.rotation.z += c.spin.z * dt;
+    const suelo = mountainHeightAt(c.m.position.x, c.m.position.z) + .03;
+    if (c.m.position.y < suelo) { c.m.position.y = suelo; c.vel.set(0, 0, 0); c.m.rotation.x = -Math.PI / 2; }
+    c.life -= dt;
+    if (c.life < 1.2) { c.m.material = c.m.material; c.m.visible = Math.sin(c.life * 22) > -.4; }   // parpadea al desaparecer
+    if (c.life <= 0) { scene.remove(c.m); confettiBits.splice(i, 1); }
+  }
+}
+function clearConfetti() { confettiBits.forEach(c => scene.remove(c.m)); confettiBits.length = 0; thrownBombs.forEach(b => scene.remove(b.m)); thrownBombs.length = 0; }
 function playerInSmoke() {
   for (const c of smokeClouds) if (c.t < c.life - 2 && dist2D(player.position, c.g.position) < c.radius) return true;
   return false;
@@ -15745,6 +15823,8 @@ function loop() {
     updateBullets(dt);                     // balas que vuelan, casquillos, gatillo y recarga
     updateAim(dt);                         // mira telescópica (mantener clic) + punto rojo
     updateSmoke(dt);                       // nubes de las bombas de humo
+    updateThrownBombs(dt);                 // bombas de humo en el aire
+    updateConfetti(dt);                    // papelitos del tubo de confeti
     updateMoles(dt);                       // topos: activos de día y de noche
     updatePoison(dt);                      // veneno de la hormiga (día y noche)
     updateTrafficLights(dt);               // semáforos del cruce central
@@ -16439,7 +16519,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, spawnSmokeCloud, playerInSmoke, updateSmoke, updateAim, startGunHold, endGunHold, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, spawnSmokeCloud, playerInSmoke, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, startGunHold, endGunHold, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,

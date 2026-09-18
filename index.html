@@ -2724,10 +2724,10 @@ const BLACK_MARKET = [
 // Armas de fuego de verdad (las del mercado negro). Cargador de 20 balas, 5 s de recarga.
 const GUN_CLIP = 20, GUN_RELOAD = 5;
 const GUN_SPECS = {
-  bm_pistola:  { key:'bm_pistola', name:'Pistola del callejón', kind:'pistol',  dmg:9,  range:60,  head:2.2, rate:.26, scope:false, color:0x4b5563, icon:'🔫' },   // floja pero rapidísima
-  bm_mira:     { key:'bm_mira',    name:'Pistola con mira',     kind:'pistol',  dmg:14, range:95,  head:3.2, rate:.40, scope:true,  color:0x334155, icon:'🔭' },   // precisa: la reina de los tiros a la cabeza
-  bm_escopeta: { key:'bm_escopeta',name:'Escopeta recortada',   kind:'shotgun', dmg:26, range:30,  head:1.8, rate:.85, scope:false, color:0x57534e, icon:'💥' },   // la que más pega, pero lenta y de cerca
-  bm_rifle:    { key:'bm_rifle',   name:'Rifle viejo',          kind:'rifle',   dmg:22, range:130, head:3.0, rate:.60, scope:true,  color:0x44403c, icon:'🎯' },   // fuerte y de lejísimos
+  bm_pistola:  { key:'bm_pistola', name:'Pistola del callejón', kind:'pistol',  dmg:9,  range:60,  head:2.2, rate:.09, scope:false, color:0x4b5563, icon:'🔫' },   // floja pero rapidísima
+  bm_mira:     { key:'bm_mira',    name:'Pistola con mira',     kind:'pistol',  dmg:14, range:95,  head:3.2, rate:.15, scope:true,  color:0x334155, icon:'🔭' },   // precisa: la reina de los tiros a la cabeza
+  bm_escopeta: { key:'bm_escopeta',name:'Escopeta recortada',   kind:'shotgun', dmg:26, range:30,  head:1.8, rate:.32, scope:false, color:0x57534e, icon:'💥' },   // la que más pega, pero la más lenta
+  bm_rifle:    { key:'bm_rifle',   name:'Rifle viejo',          kind:'rifle',   dmg:22, range:130, head:3.0, rate:.22, scope:true,  color:0x44403c, icon:'🎯' },   // fuerte y de lejísimos
 };
 function gunSpecByName(name) { const n = String(name || '').toLowerCase(); for (const k in GUN_SPECS) if (GUN_SPECS[k].name.toLowerCase() === n) return GUN_SPECS[k]; return null; }
 const STORY_QUESTS = [
@@ -4599,6 +4599,7 @@ function mcTree(parent, x, z, h, leaf, baseY) {     // árbol de parque: tronco 
   const t = h || 4, y0 = baseY || 0;
   const tronco = new THREE.Mesh(new THREE.CylinderGeometry(.28, .45, t, 7), mat(0x6b4423));
   tronco.position.set(x, y0 + t / 2, z); tronco.castShadow = true; parent.add(tronco);
+  if (typeof addLandingSurface === 'function') addLandingSurface(x, z, 3, 3, y0 + t + 1.5, parent);   // te puedes parar sobre la copa
   const L = leaf || 0x3f8f29;
   const capa = (y, s, giro) => {
     const c = new THREE.Mesh(new THREE.BoxGeometry(s, s * .38, s), mat(L));
@@ -9289,7 +9290,21 @@ function updatePlayerArrows(dt) {
     ud.life -= dt;
     if (!ud.stuck) {
       arrowPrev.copy(a.position);
-      ud.vel.y -= grav * dt;
+      const zona = waterZoneAt(a.position.x, a.position.z);
+      const bajoAgua = !!(zona && a.position.y < zona.surface);
+      if (bajoAgua) {
+        if (!ud.splashed) {   // chapuzón al entrar: el agua le come casi toda la fuerza
+          ud.splashed = true;
+          ud.vel.multiplyScalar(.22);
+          voxelImpact(a.position.clone().setY(zona.surface), 0x93c5fd, 7); beep(240, .12, .04);
+          const trail = a.getObjectByName('flyTrail'), glow = a.getObjectByName('flyGlow'), luz = a.getObjectByName('flyLight');
+          if (trail) trail.visible = false; if (glow) glow.visible = false; if (luz) luz.intensity = 0;
+        }
+        ud.vel.multiplyScalar(Math.max(0, 1 - 2.2 * dt));   // el agua la sigue frenando
+        ud.vel.y -= 1.8 * dt;                                // y se va hundiendo despacio
+        if (ud.vel.y < -1.3) ud.vel.y = -1.3;
+        ud.life = Math.max(ud.life, .6);                     // que dé tiempo a verla hundirse
+      } else ud.vel.y -= grav * dt;
       a.position.addScaledVector(ud.vel, dt);
       const sp = ud.vel.length();
       if (sp > .05) a.quaternion.setFromUnitVectors(bowFwd.set(0, 0, 1), ud.vel.clone().multiplyScalar(1 / sp));
@@ -9297,7 +9312,8 @@ function updatePlayerArrows(dt) {
       if (trail && trail.material) trail.material.opacity = .42 + Math.abs(Math.sin(ud.life * 16)) * .38;
       arrowMid.lerpVectors(arrowPrev, a.position, .5);
       if (hitWithArrow(a.position, ud.dmg) || hitWithArrow(arrowMid, ud.dmg) || hitWithArrow(arrowPrev, ud.dmg)) { voxelImpact(a.position.clone(), 0xfde047, 8); scene.remove(a); playerArrows.splice(i, 1); continue; }
-      const floor = arrowFloorY(a.position.x, a.position.z);
+      const zonaSuelo = waterZoneAt(a.position.x, a.position.z);
+      const floor = zonaSuelo ? zonaSuelo.bottom : arrowFloorY(a.position.x, a.position.z);   // en el agua se hunde hasta el fondo
       if (a.position.y <= floor + .06) {
         a.position.y = floor + .04; ud.stuck = true; ud.vel.set(0, 0, 0); ud.life = Math.min(ud.life, 1.8);
         const trailOff = a.getObjectByName('flyTrail'), glowOff = a.getObjectByName('flyGlow'), lightOff = a.getObjectByName('flyLight');
@@ -16992,6 +17008,19 @@ function updateMovement(dt) {
     if (Math.abs(player.position.x - s.x) > s.w / 2 || Math.abs(player.position.z - s.z) > s.d / 2) continue;
     const encima = player.position.y >= top - 0.7 || yAntesDeCaer >= top - .05;   // venías cayendo desde arriba
     if (encima && top > floorY) floorY = top;
+  }
+  // COPAS DE LOS ÁRBOLES: si dejas de volar encima de un árbol, te quedas sobre las hojas
+  if (state.planet === 'tierra' && !state.underground && !state.inCastle && !state.inRuins && !state.inArena && !swimming && worldTreeSpots.length) {
+    const eye = crouch ? CROUCH_EYE : PLAYER_EYE;
+    const px = player.position.x, pz = player.position.z, pies = player.position.y - eye, piesAntes = yAntesDeCaer - eye;
+    for (let i = 0; i < worldTreeSpots.length; i++) {
+      const [tx, tz] = worldTreeSpots[i];
+      if (Math.abs(px - tx) > 1.7 || Math.abs(pz - tz) > 1.7) continue;
+      if (insidePlayerStructure(tx, tz, 1.4)) continue;          // ese árbol está escondido
+      const alto = worldTreeSizes[i] || 1, copa = 5.55 * alto;   // altura de la copa grande
+      if (pies < copa - .9 && piesAntes < copa - .05) continue;  // vas por debajo: pasas entre el follaje
+      if (copa + eye > floorY) floorY = copa + eye;
+    }
   }
   // TECHOS del mundo: si vienes cayendo sobre una estructura con altura conocida
   // (súper, armería, casas, tus propias paredes) te quedas ARRIBA en vez de atravesarla.

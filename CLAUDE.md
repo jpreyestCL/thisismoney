@@ -250,10 +250,10 @@ con nombre de pistola" y ahora son armas de verdad.
 
   | Arma | Daño | Cabeza | Alcance | Cadencia | Precio |
   |---|---|---|---|---|---|
-  | 🔫 Pistola del callejón | 9 | x2,2 → 20 | 60 m | 0,26 s | $1.800 |
-  | 🔭 Pistola con mira | 14 | x3,2 → 45 | 95 m | 0,40 s | $3.200 |
-  | 💥 Escopeta recortada | 26 | x1,8 → 47 | 30 m | 0,85 s | $2.600 |
-  | 🎯 Rifle viejo | 22 | x3,0 → 66 | 130 m | 0,60 s | $4.500 |
+  | 🔫 Pistola del callejón | 9 | x2,2 → 20 | 60 m | 0,09 s (~11/s) | $1.800 |
+  | 🔭 Pistola con mira | 14 | x3,2 → 45 | 95 m | 0,15 s | $3.200 |
+  | 💥 Escopeta recortada | 26 | x1,8 → 47 | 30 m | 0,32 s | $2.600 |
+  | 🎯 Rifle viejo | 22 | x3,0 → 66 | 130 m | 0,22 s | $4.500 |
 
   La lista del mercado negro muestra esos números en cada arma.
 - Estado: `state.guns` (las que compraste), `state.gun` (la que llevas), `state.clip` (cargador),
@@ -314,6 +314,14 @@ campo).
 **Cama**: patas torneadas, marco de madera, colchón con sábana, plumón que cubre la mitad de abajo
 con doblez y pliegues, dos almohadas inclinadas, cabecera con postes y piecera (en `spawnPlaced`,
 rama `key === 'cama'`). El color comprado tiñe el plumón.
+
+**Flechas en el agua** (`updatePlayerArrows`): al tocar una `waterZone` sueltan un chapuzón, pierden
+el 78% de la velocidad y se hunden despacio (tope 1,3 m/s) hasta el `bottom` de la zona; dentro del
+agua la estela y el brillo se apagan. Una flecha disparada desde dentro del agua sale igual de lenta.
+
+**Aterrizar en los árboles**: el cálculo del suelo revisa `worldTreeSpots`/`worldTreeSizes` (copa a
+5,55 × altura) con el mismo chequeo de barrido que los techos, y `mcTree` registra una
+`addLandingSurface` para los árboles de los parques.
 
 **Zonas sin pasto**: `noGrassZones` (declarado junto a `landingSurfaces`) + `addNoGrassZone`/
 `inNoGrassZone`. `mcFloor` registra automáticamente cada loza que dibuja (parques, plazas, canchas

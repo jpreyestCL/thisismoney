@@ -1876,7 +1876,7 @@ function addWallMesh(cx, cz, w, d, h, color, addColl) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
   mesh.position.set(cx, h / 2, cz); mesh.castShadow = true; mesh.receiveShadow = true;
   scene.add(mesh);
-  if (addColl) addObstacle(cx, cz, w, d);
+  if (addColl) addObstacle(cx, cz, w, d, h);   // con su altura: si caes encima te quedas ARRIBA, no la atraviesas
   return mesh;
 }
 
@@ -2237,6 +2237,7 @@ function makeStore(cx, cz, items, title, roofColor) {
   floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0.06, cz); floor.receiveShadow = true; scene.add(floor);
   const roof = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 + 1, T, hd * 2 + 1), mat(roofColor));
   roof.position.set(cx, H, cz); roof.castShadow = true; scene.add(roof);
+  addLandingSurface(cx, cz, hw * 2 + 1, hd * 2 + 1, H + T / 2, roof);   // te puedes parar en el techo del súper
   addWallMesh(cx, cz - hd, hw * 2, T, H, wallC, true);
   addWallMesh(cx - hw, cz, T, hd * 2, H, wallC, true);
   addWallMesh(cx + hw, cz, T, hd * 2, H, wallC, true);
@@ -2410,7 +2411,7 @@ function makeCityHouse(x, z, golden) {
   }
   g.position.set(x, 0, z); scene.add(g);
   // pista secreta: la del tesoro es la ÚNICA en la que puedes entrar (las demás te bloquean)
-  if (!golden) addObstacle(x, z, w, w);
+  if (!golden) { addObstacle(x, z, w, w, topY); addLandingSurface(x, z, w * 1.12, w * 1.12, topY + .2, g); }   // te puedes parar en el techo
   return g;
 }
 function buildCity() {
@@ -3016,7 +3017,8 @@ function loadBuilding(path, x, z, targetH) {
     let enPlatus = false; try { enPlatus = state.planet === 'platus'; } catch (e) {}
     m.visible = !enPlatus;
     scene.add(m); earthMeshes.push(m);
-    earthObstacles.push(addObstacle(x, z, s.x * 0.9, s.z * 0.9));
+    earthObstacles.push(addObstacle(x, z, s.x * 0.9, s.z * 0.9, s.y));
+    addLandingSurface(x, z, s.x * 0.9, s.z * 0.9, s.y, m);   // se puede aterrizar en su techo
   });
 }
 // Los .glb se piden en el siguiente tick: si uno termina de cargar MIENTRAS el módulo
@@ -16366,6 +16368,7 @@ function updateMovement(dt) {
     vy += 40 * dt; if (vy > 9) vy = 9; state.jetOn = true;
   } else state.jetOn = false;
   touch.jump = false;   // el salto (de piso) es de un solo toque
+  const yAntesDeCaer = player.position.y;   // para saber si CRUZASTE un techo en este frame (si no, lo atravesabas cayendo rápido)
   vy -= grav * dt; player.position.y += vy * dt;
   // suelo efectivo: el piso normal o el TOPE de una isla flotante debajo (para pararte encima)
   let floorY = standY;
@@ -16388,7 +16391,23 @@ function updateMovement(dt) {
   for (const s of landingSurfaces) {
     if (!s.root || !s.root.visible || !s.root.parent) continue;
     const top = s.top + (crouch ? CROUCH_EYE : PLAYER_EYE);
-    if (Math.abs(player.position.x - s.x) <= s.w / 2 && Math.abs(player.position.z - s.z) <= s.d / 2 && player.position.y >= top - 0.7 && top > floorY) floorY = top;
+    if (Math.abs(player.position.x - s.x) > s.w / 2 || Math.abs(player.position.z - s.z) > s.d / 2) continue;
+    const encima = player.position.y >= top - 0.7 || yAntesDeCaer >= top - .05;   // venías cayendo desde arriba
+    if (encima && top > floorY) floorY = top;
+  }
+  // TECHOS del mundo: si vienes cayendo sobre una estructura con altura conocida
+  // (súper, armería, casas, tus propias paredes) te quedas ARRIBA en vez de atravesarla.
+  if (!state.underground && !state.inCastle && !state.inRuins && !state.inArena && !swimming) {
+    const eye = crouch ? CROUCH_EYE : PLAYER_EYE;
+    const px = player.position.x, pz = player.position.z, pies = player.position.y - eye;
+    for (const o of obstacles) {
+      if (o.top == null) continue;
+      if (o.country !== undefined && (o.country || null) !== (state.country || null)) continue;
+      if (px < o.minX - .3 || px > o.maxX + .3 || pz < o.minZ - .3 || pz > o.maxZ + .3) continue;
+      if (pies < o.top - .9 && (yAntesDeCaer - eye) < o.top - .05) continue;   // vas por debajo: es una pared, no un piso
+      const top = o.top + eye;
+      if (top > floorY) floorY = top;
+    }
   }
   const floor2Y = secondFloorSupportY(crouch ? CROUCH_EYE : PLAYER_EYE);
   if (floor2Y != null) { floorY = Math.max(floorY, floor2Y); if (grounded && vy <= 0) player.position.y = floorY; }

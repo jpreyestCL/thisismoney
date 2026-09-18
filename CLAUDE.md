@@ -317,7 +317,9 @@ con chorro y gotas; el de diversiones suma flores, arbustos, faroles, bancas y b
 
 **Estadios** (`makeStadium`): cancha con rayas de cortadora y líneas pintadas (borde, mitad y
 círculo central), graderías escalonadas de 3 gradas con asientos de colores y baranda, cuatro torres
-de iluminación con 6 focos cada una y arco de entrada con el nombre.
+de iluminación con 6 focos cada una y arco de entrada con el nombre. El público va SENTADO en las
+gradas (muslos a 90°, `userData.seated` para que `swingLimbs` no lo haga caminar) y mirando al centro
+de la cancha. Solo básquet y tenis son `addNoGrassZone`: la cancha de fútbol SÍ lleva pasto 3D.
 
 **Rayo láser** (`spawnLaserBeam` + `updateLaserShots`): núcleo blanco, halo de color y resplandor
 exterior en mezcla aditiva, fogonazo en el cañón, estallido y anillo que se abre en el impacto; se

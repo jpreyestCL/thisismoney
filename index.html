@@ -3453,7 +3453,7 @@ function updateScoreboard() {
 function makeStadium(cx, cz, fieldColor, name) {
   const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), mat(fieldColor));
   field.rotation.x = -Math.PI / 2; field.position.set(cx, 0.05, cz); field.receiveShadow = true; scene.add(field);
-  addNoGrassZone(cx, cz, 24, 20);   // la cancha es cancha: nada de matitas de pasto encima
+  if (name !== 'FUTBOL') addNoGrassZone(cx, cz, 24, 20);   // básquet y tenis son piso duro; la de fútbol SÍ lleva pasto
   // Rayas de cortadora: franjas más claras y más oscuras, como una cancha de verdad
   const claro = new THREE.Color(fieldColor).offsetHSL(0, 0, .06).getHex();
   for (let i = 0; i < 5; i++) {
@@ -3502,12 +3502,28 @@ function makeStadium(cx, cz, fieldColor, name) {
   const dintel = new THREE.Mesh(new THREE.BoxGeometry(7.6, 1.1, .8), mat(0xf8fafc)); dintel.position.y = 5.6; dintel.castShadow = true; arco.add(dintel);
   const bandera = makeSign(name, 0xfacc15); bandera.scale.set(.62, .62, .62); bandera.position.set(0, 5.6, .5); arco.add(bandera);
   const sign = makeSign(name, 0xfacc15); sign.position.set(cx, 5, cz - 9); scene.add(sign);
-  // gente sentada (víctimas)
-  for (let i = 0; i < 8; i++) {
-    const v = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
-    const side = i < 4 ? -8.2 : 8.2, off = ((i % 4) - 1.5) * 3;
-    v.position.set(cx + off, 1.2, cz + side); v.userData.victim = true; v.userData.robbed = false;
+  // Público SENTADO en las graderías y MIRANDO la cancha (son las víctimas a las que puedes robar)
+  const sentarHincha = (px, py, pz) => {
+    const v = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a, 0xf97316][victims.length % 6], 0xf1c27d);
+    v.position.set(px, py - .9, pz);                       // la cadera queda a la altura del asiento
+    v.rotation.y = Math.atan2(cx - px, cz - pz);           // la cara (eje +Z) apunta al centro de la cancha
+    const l = v.userData.limbs;
+    if (l) {
+      l.legL.rotation.x = -Math.PI / 2; l.legR.rotation.x = -Math.PI / 2;   // muslos hacia adelante: sentado
+      l.armL.rotation.x = -.45; l.armR.rotation.x = -.45;                   // manos sobre las piernas
+      v.userData.seated = true;                             // que swingLimbs no lo haga "caminar"
+    }
+    v.userData.victim = true; v.userData.robbed = false;
     scene.add(v); victims.push(v);
+  };
+  const filaY = [1.32, 1.82];                               // altura del asiento de la 1ª y 2ª grada
+  for (let i = 0; i < 4; i++) {                             // tribuna del fondo (z = cz - 9)
+    const g = i % 2;
+    sentarHincha(cx + (i - 1.5) * 3.4, filaY[g], cz - 8.9 - g * .62);
+  }
+  for (let i = 0; i < 2; i++) {                             // tribunas laterales
+    sentarHincha(cx - 10.9 - i * .62, filaY[i], cz - 2 + i * 4);
+    sentarHincha(cx + 10.9 + i * .62, filaY[i], cz + 2 - i * 4);
   }
   if (name === 'FUTBOL') setupSoccer(cx, cz);
   else if (name === 'BASQUET') setupBasketball(cx, cz);
@@ -17432,7 +17448,7 @@ function updateDayNight(dt) {
 }
 
 function swingLimbs(o, dt) {
-  const l = o.userData.limbs; if (!l || !o.visible) return;
+  const l = o.userData.limbs; if (!l || !o.visible || o.userData.seated) return;   // el público sentado no mueve las piernas
   if (!o.userData.prevPos) o.userData.prevPos = o.position.clone();
   const moved = o.position.distanceTo(o.userData.prevPos); o.userData.prevPos.copy(o.position);
   const walking = moved > 0.003;

@@ -10858,7 +10858,7 @@ function algunRecuadroAbierto() {
   return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
 }
 // Estado de los controles táctiles (celular). moveX/moveY: joystick analógico (-1..1)
-const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false };
+const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jumpHeld: false, heliDown: false , hitHeld: false, hitRepeat: 0 };
 // La tecla E hace TODO lo que tengas delante. Estas son las últimas de la lista:
 // solo se activan cuando no hay nada más cerca con qué interactuar.
 function tryVendorHere() {   // hablarle al vendedor sin acordarse de la Y
@@ -11697,17 +11697,42 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       e.preventDefault();
     }
   }
-  joy.addEventListener('touchstart', e => { if (joyId === null) { joyId = e.changedTouches[0].identifier; joyUpdate(e); } }, { passive: false });
+  // El joystick es FLOTANTE: aparece donde apoyas el dedo en la mitad izquierda,
+  // así no hay que buscarlo ni estirar el pulgar hasta la esquina.
+  const joyHome = { left: joy.style.left, bottom: joy.style.bottom };
+  function joyMoveTo(x, y) {
+    joy.style.left = (x - joy.offsetWidth / 2) + 'px';
+    joy.style.top = (y - joy.offsetHeight / 2) + 'px';
+    joy.style.bottom = 'auto';
+  }
+  function joyReset() {
+    joy.style.left = joyHome.left || '24px'; joy.style.top = 'auto'; joy.style.bottom = joyHome.bottom || '26px';
+    joy.style.opacity = '';
+  }
+  function joyStart(e) {
+    if (joyId !== null) return;
+    const t = e.changedTouches[0];
+    joyId = t.identifier;
+    if (e.currentTarget !== joy) joyMoveTo(t.clientX, t.clientY);   // vino de la capa de mirar: el joystick salta al dedo
+    joy.style.opacity = '1';
+    joyUpdate(e);
+  }
+  joy.addEventListener('touchstart', joyStart, { passive: false });
   joy.addEventListener('touchmove', joyUpdate, { passive: false });
-  function joyEnd(e) { for (const t of e.changedTouches) if (t.identifier === joyId) { joyId = null; touch.moveX = touch.moveY = 0; knob.style.transform = ''; } }
+  function joyEnd(e) { for (const t of e.changedTouches) if (t.identifier === joyId) { joyId = null; touch.moveX = touch.moveY = 0; knob.style.transform = ''; joyReset(); } }
   joy.addEventListener('touchend', joyEnd);
   joy.addEventListener('touchcancel', joyEnd);
+  addEventListener('touchmove', e => { if (joyId !== null) joyUpdate(e); }, { passive: false });   // el dedo puede salirse del círculo sin soltar
+  addEventListener('touchend', joyEnd); addEventListener('touchcancel', joyEnd);
 
   // ---------- Capa de mirar (arrastrar) + toque para golpear ----------
   const look = ui('lookLayer');
   let lookId = null, lx = 0, ly = 0, lStartT = 0, lMoved = 0;
   look.addEventListener('touchstart', e => {
     if (ui('moreBtns').classList.contains('open')) { closeMorePanel(); return; }   // tocar la pantalla cierra el panel "⋯ más"
+    const t0 = e.changedTouches[0];
+    // mitad izquierda = caminar (el joystick salta a tu dedo); derecha = mirar
+    if (joyId === null && t0.clientX < innerWidth * .46 && !state.buildMode && !typing) { joyStart(e); return; }
     if (lookId !== null) return;
     const t = e.changedTouches[0]; lookId = t.identifier;
     lx = t.clientX; ly = t.clientY; lStartT = performance.now(); lMoved = 0;
@@ -11798,6 +11823,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (act === 'more') { ui('moreBtns').classList.toggle('open'); const m = document.querySelector('.tbtn[data-act="more"]'), open = ui('moreBtns').classList.contains('open'); if (m) { m.classList.toggle('on', open); m.setAttribute('aria-expanded', String(open)); } return; }
       if (act === 'closeMore') { closeMorePanel(); return; }   // ✖️ cerrar el panel
       if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
+      if (act === 'hit') { touch.hitHeld = true; touch.hitRepeat = .35; }   // mantener = seguir disparando / pegando
       if (act === 'rotate') { rotHold = 1; el.dataset.downAt = String(performance.now()); state.buildMode = true; return; }   // mantener = giro libre
       if ((act === 'hit' || act === 'interact') && bowEquipped() && (act !== 'interact' || !bowContextBlocksDraw())) {
         startBowDraw(act === 'hit' ? 'touch' : 'key');
@@ -11808,6 +11834,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (el.closest('#moreBtns')) closeMorePanel();   // al usar cualquier acción del panel "⋯ más", ciérralo
     }, { passive: false });
     const release = e => {
+      touch.hitHeld = false;
       const el = e.target.closest && e.target.closest('.tbtn'); if (!el) return;
       if (el.dataset.act === 'jump') touch.jumpHeld = false;
       if (el.dataset.act === 'rotate') { if (performance.now() - (+el.dataset.downAt || 0) < 220) rotateBuild(1); rotHold = 0; }   // toque corto = 15°
@@ -11817,7 +11844,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     };
     container.addEventListener('pointerup', release);
     container.addEventListener('pointercancel', release);
-    container.addEventListener('pointerleave', () => { touch.jumpHeld = false; rotHold = 0; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
+    container.addEventListener('pointerleave', () => { touch.hitHeld = false; touch.jumpHeld = false; rotHold = 0; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
   }
   bindButtons(ui('touchBtns'));
   bindButtons(ui('moveBtns'));
@@ -15738,9 +15765,10 @@ function attack(multiplier = 1) {
   const range = playerHitRange(), dmg = Math.round(state.weaponDmg * multiplier);
   if (range <= 0) return;
   let best = null, bestD = range;
+  const cono = document.body.classList.contains('touch') ? 0.05 : 0.3;   // en celular el golpe perdona más
   for (const e of enemies) {
     const d = dist3D(p, e.position);
-    if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > 0.3) { best = e; bestD = d; } }
+    if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > cono) { best = e; bestD = d; } }
   }
   if (best) { hitEnemy(best, dmg, p); if (laserEquipped()) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
   else if (!tryMineIslandOre() && !tryHitGeode() && !tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // isla o recursos de Platus
@@ -15850,7 +15878,7 @@ function clearSmoke() { smokeClouds.forEach(c => scene.remove(c.g)); smokeClouds
 // ===================================================================
 //  ENERGÍA DE LA PISTOLA LÁSER — barra que se gasta y tarda 20 s en volver
 // ===================================================================
-const LASER_MAX = 100, LASER_SHOT = 9, LASER_RELOAD = 20, LASER_REGEN = 7;
+const LASER_MAX = 100, LASER_SHOT = 4, LASER_RELOAD = 20, LASER_REGEN = 9;   // 25 tiros con la barra llena (la energía se gasta lento)
 function laserReady() { return !state.laserCooling; }
 function laserSpendShot() {   // ¿alcanza la energía para este disparo?
   if (state.laserEnergy == null) state.laserEnergy = LASER_MAX;
@@ -15996,8 +16024,10 @@ function startReload(auto) {
   return true;
 }
 // ¿la bala pasa por la cabeza? Devuelve {e, dmg, head, point} del blanco más cercano
+function aimHelp() { return document.body.classList.contains('touch') ? 2.25 : 1.15; }   // en celular apuntar es más difícil: el blanco es más ancho
 function gunRaycastEnemy(from, dir, range) {
   let best = null, bestT = range, bestHead = false, bestPoint = null;
+  const ancho = aimHelp();
   const rel = new THREE.Vector3();
   for (const e of enemies) {
     rel.copy(e.position).sub(from);   // las embestidas (toros lanzados) también se pueden balear
@@ -16006,7 +16036,7 @@ function gunRaycastEnemy(from, dir, range) {
     const px = from.x + dir.x * t, py = from.y + dir.y * t, pz = from.z + dir.z * t;
     const alto = (e.userData.barY || 2.8) - .45;                 // alto aproximado del bicho
     const dxz = Math.hypot(px - e.position.x, pz - e.position.z);
-    if (dxz > 1.15) continue;                                     // la bala pasa al lado
+    if (dxz > ancho) continue;                                    // la bala pasa al lado
     if (py < e.position.y - .2 || py > e.position.y + alto + .5) continue;
     const cabeza = py >= e.position.y + alto - .55;               // el tercio de arriba = cabeza
     best = e; bestT = t; bestHead = cabeza; bestPoint = new THREE.Vector3(px, py, pz);
@@ -16023,7 +16053,7 @@ function gunRaycastPerson(from, dir, range) {
     const t = rel.dot(dir);
     if (t < 0 || t > bestT) continue;
     const px = from.x + dir.x * t, py = from.y + dir.y * t, pz = from.z + dir.z * t;
-    if (Math.hypot(px - person.position.x, pz - person.position.z) > 1) continue;
+    if (Math.hypot(px - person.position.x, pz - person.position.z) > 1) continue;   // a la GENTE no se le ayuda a apuntar (si no, te vuelves buscado sin querer)
     if (py < person.position.y - .2 || py > person.position.y + 2.5) continue;
     best = person; bestT = t; bestHead = py >= person.position.y + 1.75; bestPoint = new THREE.Vector3(px, py, pz);
   }
@@ -16850,6 +16880,13 @@ function loop() {
     updateAim(dt);                         // mira telescópica (mantener clic) + punto rojo
     updateLaserShots(dt);                  // rayos láser que se apagan
     updateLaserEnergy(dt);                 // barra de energía del láser
+    if (touch.hitHeld && !typing && !state.paused) {   // celular: mantener 👊 dispara/pega seguido
+      touch.hitRepeat -= dt;
+      if (touch.hitRepeat <= 0) {
+        touch.hitRepeat = currentGunSpec() ? Math.max(.08, currentGunSpec().rate) : .42;
+        if (!state.buildMode && !state.driving && !bowEquipped()) { if (!tryGunShot()) tryCombatStrike(); }
+      }
+    }
     updateSmoke(dt);                       // nubes de las bombas de humo
     updateThrownBombs(dt);                 // bombas de humo en el aire
     updateConfetti(dt);                    // papelitos del tubo de confeti
@@ -17577,7 +17614,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,

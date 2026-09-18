@@ -359,7 +359,7 @@ gradas (muslos a 90°, `userData.seated` para que `swingLimbs` no lo haga camina
 de la cancha. Solo básquet y tenis son `addNoGrassZone`: la cancha de fútbol SÍ lleva pasto 3D.
 
 **Energía del láser**: `state.laserEnergy` (0-100) con barra `#laserBar` abajo al centro (solo cuando
-llevas el láser). Cada tiro gasta `LASER_SHOT = 9` (11 tiros con la barra llena); al agotarse entra
+llevas el láser). Cada tiro gasta `LASER_SHOT = 4` (25 tiros con la barra llena); al agotarse entra
 en `laserCooling` y tarda `LASER_RELOAD = 20` s en volver al 100% (la barra se va llenando y avisa
 los segundos que faltan). Si dejas de disparar 2,5 s se recupera solita a 7%/s. `laserSpendShot()`
 se llama al principio de `attack`/`attackNPC`: sin energía no hay rayo ni daño.
@@ -469,6 +469,17 @@ Bugs detectados en un code review de la fusión (calles/tráfico + estrellas + r
 
 Verificado con Playwright (Chromium, viewport táctil 851×393): cargar + iniciar + conducir + abrir/cerrar
 tienda con Enter vacío → **cero errores** de consola y render correcto de la ciudad.
+
+## Celular más fácil de jugar
+
+- **Joystick flotante**: tocar cualquier parte de la mitad IZQUIERDA de la pantalla hace que el
+  joystick salte al dedo (`joyStart`/`joyMoveTo`/`joyReset`); la derecha sigue siendo mirar. El
+  `touchmove`/`touchend` se escuchan también en `window`, así el dedo puede salirse del círculo.
+- **Mantener 👊 dispara/pega seguido** (`touch.hitHeld` + `touch.hitRepeat` en el loop), al ritmo del
+  arma que lleves.
+- **Ayuda de puntería** (`aimHelp()`): en celular el blanco de las balas mide 2,25 (1,15 en PC) y el
+  cono del golpe cuerpo a cuerpo es mucho más ancho. A las PERSONAS no se les aplica, para no
+  volverte BUSCADO sin querer.
 
 ## Menos teclas en PC (E contextual + menú de rueda)
 

@@ -2403,10 +2403,10 @@ buildCity();
 // ===================================================================
 const ALLEY = { unlock: 20000, x0: 8, x1: -20, z: 0, half: 2.08, doorX: -20, shopW: 13.6, shopD: 9.6 };
 const BLACK_MARKET = [
-  { key: 'bm_pistola', name: 'Pistola del callejón', price: 900, color: 0x4b5563, dmg: 11, icon: '🔫', gun: 'pistol', blurb: 'Corta y pesada. Se ve de metal, no un punto naranja.' },
-  { key: 'bm_escopeta', name: 'Escopeta recortada', price: 1400, color: 0x57534e, dmg: 16, icon: '💥', gun: 'shotgun', blurb: 'Cañón corto de verdad, sobre la mesa.' },
-  { key: 'bm_mira', name: 'Pistola con mira', price: 1400, color: 0x334155, dmg: 13, icon: '🔭', gun: 'pistol', blurb: 'Con visor arriba: en la cabeza hace muchísimo daño.' },
-  { key: 'bm_rifle', name: 'Rifle viejo', price: 1750, color: 0x44403c, dmg: 18, icon: '🎯', gun: 'rifle', blurb: 'Madera, cañón largo y mira. Pega de lejos.' },
+  { key: 'bm_pistola', name: 'Pistola del callejón', price: 1800, color: 0x4b5563, dmg: 11, icon: '🔫', gun: 'pistol', blurb: 'Corta y pesada. Llega a 60 metros.' },
+  { key: 'bm_escopeta', name: 'Escopeta recortada', price: 2600, color: 0x57534e, dmg: 16, icon: '💥', gun: 'shotgun', blurb: 'Cerca hace un desastre; de lejos no sirve.' },
+  { key: 'bm_mira', name: 'Pistola con mira', price: 3200, color: 0x334155, dmg: 13, icon: '🔭', gun: 'pistol', blurb: 'Visor arriba, 95 metros y en la cabeza hace muchísimo daño.' },
+  { key: 'bm_rifle', name: 'Rifle viejo', price: 4500, color: 0x44403c, dmg: 18, icon: '🎯', gun: 'rifle', blurb: 'Madera, cañón largo y mira: llega a 130 metros.' },
   { key: 'bm_balas', name: 'Caja de 50 balas', price: 600, ammo: 50, icon: '🧰', blurb: 'Munición para todas tus armas de fuego. El cargador es de 20.' },
   { key: 'bm_espada', name: 'Espada sucia', price: 380, color: 0x6b7280, dmg: 9, icon: '⚔️', blurb: 'Filo mellado. Pega más que una de madera.' },
   { key: 'bm_humo', name: 'Bomba de humo', price: 220, color: 0x64748b, gadget: 'humo', icon: '💨', blurb: 'Nube gris: la policía te pierde de vista.' },
@@ -2419,10 +2419,10 @@ const BLACK_MARKET = [
 // Armas de fuego de verdad (las del mercado negro). Cargador de 20 balas, 5 s de recarga.
 const GUN_CLIP = 20, GUN_RELOAD = 5;
 const GUN_SPECS = {
-  bm_pistola:  { key:'bm_pistola', name:'Pistola del callejón', kind:'pistol',  dmg:11, range:34, head:2.2, rate:.30, scope:false, color:0x4b5563, icon:'🔫' },
-  bm_mira:     { key:'bm_mira',    name:'Pistola con mira',     kind:'pistol',  dmg:13, range:50, head:3.2, rate:.36, scope:true,  color:0x334155, icon:'🔭' },
-  bm_escopeta: { key:'bm_escopeta',name:'Escopeta recortada',   kind:'shotgun', dmg:16, range:18, head:1.8, rate:.72, scope:false, color:0x57534e, icon:'💥' },
-  bm_rifle:    { key:'bm_rifle',   name:'Rifle viejo',          kind:'rifle',   dmg:18, range:64, head:3.0, rate:.52, scope:true,  color:0x44403c, icon:'🎯' },
+  bm_pistola:  { key:'bm_pistola', name:'Pistola del callejón', kind:'pistol',  dmg:11, range:60,  head:2.2, rate:.30, scope:false, color:0x4b5563, icon:'🔫' },
+  bm_mira:     { key:'bm_mira',    name:'Pistola con mira',     kind:'pistol',  dmg:13, range:95,  head:3.2, rate:.36, scope:true,  color:0x334155, icon:'🔭' },
+  bm_escopeta: { key:'bm_escopeta',name:'Escopeta recortada',   kind:'shotgun', dmg:16, range:30,  head:1.8, rate:.72, scope:false, color:0x57534e, icon:'💥' },
+  bm_rifle:    { key:'bm_rifle',   name:'Rifle viejo',          kind:'rifle',   dmg:18, range:130, head:3.0, rate:.52, scope:true,  color:0x44403c, icon:'🎯' },
 };
 function gunSpecByName(name) { const n = String(name || '').toLowerCase(); for (const k in GUN_SPECS) if (GUN_SPECS[k].name.toLowerCase() === n) return GUN_SPECS[k]; return null; }
 const STORY_QUESTS = [
@@ -2669,10 +2669,10 @@ function renderQuestPanel() {
     const s = Math.min(raw, q.need || 1);
     const line = q.steps[Math.min(q.steps.length - 1, Math.max(0, done ? q.steps.length - 1 : s))] || q.hint;
     let extra = '';
-    if (q.id === 'alley' && !done) {
+    if (q.id === 'alley') {   // al callejón se puede VOLVER las veces que quieras (a comprar balas y armas)
       if (!alleyUnlocked()) extra = '<br><span style="color:#fbbf24">🔒 Se desbloquea a los $20.000 ganados (' + Math.floor(state.totalEarned || 0) + '/20000)</span>';
       else if (state.mission === 'alley') extra = '<br><button type="button" data-alley-act="leave" class="bankBtn" style="margin-top:6px">Salir del callejón</button>';
-      else extra = '<br><button type="button" data-alley-act="go" class="bankBtn" style="margin-top:6px;border-color:#f59e0b">🕶️ Ir con Tito</button>';
+      else extra = '<br><button type="button" data-alley-act="go" class="bankBtn" style="margin-top:6px;border-color:#f59e0b">🕶️ ' + (done ? 'Volver al callejón' : 'Ir con Tito') + '</button>';
     }
     rows.push('<div class="quest-row' + (done ? ' done' : (q.id === 'alley' && s > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + q.hint + '<br><span style="opacity:.8">' + (done ? 'Listo.' : line) + ((q.need || 1) > 1 ? ' · ' + s + '/' + q.need : '') + '</span>' + extra + '</div></div>');
   }
@@ -2748,14 +2748,20 @@ function enterAlleyMission() {
     dadX: dad.position.x, dadZ: dad.position.z,
     planet: state.planet, country: state.country || null,
   };
+  const yaFue = questDone('alley');
   showAlleyWorld(true);
-  setAlleyDoorOpen(false);
-  alley.following = false; alley.wp = 0; alley.followIn = 0.85;
+  setAlleyDoorOpen(yaFue);            // si ya hiciste la misión, la puerta ya está abierta
+  alley.following = false; alley.wp = 0; alley.followIn = yaFue ? 0 : 0.85;   // y no hay que volver a seguir a Tito
   if (alley.contact) { alley.contact.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z); alley.contact.rotation.y = -Math.PI / 2; }
   player.position.set(ALLEY.x0 - 0.2, PLAYER_EYE, ALLEY.z); yaw = Math.PI / 2; pitch = -0.08;
   storyProgress('alley', 1);
-  toast('🕶️ Tito te trajo a otro rincón. El juego te lleva detrás de él, despacio.');
-  say('🕶️ Tito', 'Che, seguime. Por acá no hay por dónde salir. Yo voy despacio.');
+  if (yaFue) {
+    toast('🕶️ De vuelta en el callejón · la puerta está abierta: entra a comprar armas y balas');
+    say('🕶️ Tito', 'Otra vez por acá. Pasá nomás, la puerta está abierta. El balero tiene munición.');
+  } else {
+    toast('🕶️ Tito te trajo a otro rincón. El juego te lleva detrás de él, despacio.');
+    say('🕶️ Tito', 'Che, seguime. Por acá no hay por dónde salir. Yo voy despacio.');
+  }
   saveGame();
   return true;
 }

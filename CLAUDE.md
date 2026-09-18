@@ -258,7 +258,11 @@ con nombre de pistola" y ahora son armas de verdad.
 - `1` ahora **recorre todas tus armas** (`handItems()` / `equipHandItem()`): puños o espada →
   pistolas → láser → arco → bombas de mano. Las bombas (humo/confeti) se guardan como cargas y se
   usan con el clic (`throwHandGadget`).
-- Mercado negro: `bm_mira` ($1400, con mira), `bm_balas` (caja de 50 balas, $600).
+- Mercado negro: pistola $1800 (60 m), escopeta $2600 (30 m), pistola con mira $3200 (95 m),
+  rifle $4500 (130 m) y la caja de 50 balas $600.
+- **Al callejón se vuelve cuantas veces quieras**: el botón del panel de misiones dice "Volver al
+  callejón" aunque la misión esté hecha, y `enterAlleyMission` abre la puerta directo (sin repetir
+  el paseo detrás de Tito) cuando `questDone('alley')`.
 - **Apuntar con la mira**: tecla **E** (o el botón 🤝 en celular) = `toggleAim()` → `updateAim()`
   baja el FOV (30 con mira, 48 sin ella), muestra el **punto rojo** `#aimDot` y, en las armas con
   mira, el visor `#scopeMask`. El **CLIC solo dispara** (`tryGunShot`, un tiro por clic).

@@ -10051,6 +10051,7 @@ addEventListener('keydown', e => {
     const alexaTarget = e.shiftKey && aimedFurniture();
     if (alexaTarget && alexaTarget.key === 'alexa') { useAlexaText(alexaTarget); return; }
     if (!e.repeat && startBowDraw('key')) return;
+    if (!e.repeat && currentGunSpec() && !ctxWantsE) { toggleAim(); return; }   // E = poner/quitar la mira
     tryInteract();
   }
   if (e.code === 'KeyJ') tryCollectGolden();
@@ -10461,7 +10462,7 @@ canvas.addEventListener('mousedown', e => {
   if (e.button === 2 && combatIsActive()) { state.blocking = true; return; }
   if (e.button === 0) {
     if (bowEquipped()) { startBowDraw('mouse'); return; }
-    if (startGunHold()) return;   // arma de fuego: mantener = apuntar con la mira y disparar
+    if (tryGunShot()) return;   // arma de fuego: el clic dispara (la mira se pone con E)
     attackChargeStart = performance.now();
   }
 });
@@ -10469,14 +10470,14 @@ canvas.addEventListener('mouseup', e => {
   if (e.button === 2) { state.blocking = false; return; }
   if (e.button !== 0) return;
   if (bowDrawSrc === 'mouse') { releaseBow(); return; }
-  if (gunHold) { endGunHold(); return; }
+  if (currentGunSpec()) return;   // ya disparó al apretar
   if (trySeatedGamerKeyboard()) return;
   const held = (performance.now() - attackChargeStart) / 1000, power = combatIsActive() && held >= .65 && state.stamina >= 18 ? 2.2 : 1;
   if (power > 1) { state.stamina -= 18; toast('⚔️ Ataque cargado'); }
   if (sportAction()) return; tryCombatStrike(power);
 });
-addEventListener('mouseup', e => { if (e.button === 2) state.blocking = false; if (e.button === 0) endGunHold(); });
-addEventListener('blur', () => { endGunHold(); clearInput(); });   // alt+tab / clic fuera: soltar todo
+addEventListener('mouseup', e => { if (e.button === 2) state.blocking = false; });
+addEventListener('blur', clearInput);   // alt+tab / clic fuera: soltar todo
 // En PC el clic captura el mouse (pointer lock): la cámara gira sin que el cursor se escape; Esc lo suelta
 canvas.addEventListener('click', () => {
   if (document.body.classList.contains('touch')) return;
@@ -10831,8 +10832,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
   function press(act) {
     if (typing && act !== 'shop' && act !== 'math' && act !== 'chat') return;   // con el vendedor/mates abierto, ciérralo antes
     switch (act) {
-      case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (bowEquipped()) startBowDraw('touch'); else tryCombatStrike(); break;
-      case 'interact': if (bowEquipped() && startBowDraw('key')) break; tryInteract(); break;
+      case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (bowEquipped()) startBowDraw('touch'); else if (tryGunShot()) break; else tryCombatStrike(); break;
+      case 'interact': if (bowEquipped() && startBowDraw('key')) break; if (currentGunSpec() && !ctxWantsE) { toggleAim(); break; } tryInteract(); break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -10887,7 +10888,6 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (act === 'closeMore') { closeMorePanel(); return; }   // ✖️ cerrar el panel
       if (act === 'jump') touch.jumpHeld = true;   // mantener presionado = jetpack (en Platus)
       if (act === 'rotate') { rotHold = 1; el.dataset.downAt = String(performance.now()); state.buildMode = true; return; }   // mantener = giro libre
-      if (act === 'hit' && currentGunSpec() && !state.driving) { startGunHold(); if (el.closest('#moreBtns')) closeMorePanel(); return; }   // mantener = mira + disparo seguido
       if ((act === 'hit' || act === 'interact') && bowEquipped() && (act !== 'interact' || !bowContextBlocksDraw())) {
         startBowDraw(act === 'hit' ? 'touch' : 'key');
         if (el.closest('#moreBtns')) closeMorePanel();
@@ -10897,7 +10897,6 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (el.closest('#moreBtns')) closeMorePanel();   // al usar cualquier acción del panel "⋯ más", ciérralo
     }, { passive: false });
     const release = e => {
-      endGunHold();   // soltar el botón = dejar de apuntar
       const el = e.target.closest && e.target.closest('.tbtn'); if (!el) return;
       if (el.dataset.act === 'jump') touch.jumpHeld = false;
       if (el.dataset.act === 'rotate') { if (performance.now() - (+el.dataset.downAt || 0) < 220) rotateBuild(1); rotHold = 0; }   // toque corto = 15°
@@ -10907,7 +10906,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     };
     container.addEventListener('pointerup', release);
     container.addEventListener('pointercancel', release);
-    container.addEventListener('pointerleave', () => { endGunHold(); touch.jumpHeld = false; rotHold = 0; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
+    container.addEventListener('pointerleave', () => { touch.jumpHeld = false; rotHold = 0; touch.heliDown = false; const b = ui('heliDownBtn'); if (b) b.classList.remove('on'); });
   }
   bindButtons(ui('touchBtns'));
   bindButtons(ui('moveBtns'));
@@ -14937,20 +14936,26 @@ function clearSmoke() { smokeClouds.forEach(c => scene.remove(c.g)); smokeClouds
 // ===================================================================
 const bullets = [], shells = [];   // trazadoras que vuelan · casquillos que caen
 let gunCd = 0, gunFlash = 0, reloadAnim = 0, gunIdle = 0;
-let gunHold = false, gunHoldAt = 0, aimFov = 72;
+let aimFov = 72, ctxWantsE = false;
 const CAM_FOV = 72;
-function startGunHold() {   // mantener el clic: apuntas con la mira y disparas seguido
+function tryGunShot() {   // el CLIC solo dispara (un tiro por clic)
   const spec = currentGunSpec(); if (!spec) return false;
-  gunHold = true; gunHoldAt = performance.now();
-  fireGun(spec);            // un toque corto = un disparo
+  fireGun(spec);
   return true;
 }
-function endGunHold() { gunHold = false; state.aiming = false; }
+function toggleAim(force) {   // la tecla E (o 🔭 en celular) pone y quita la mira
+  const spec = currentGunSpec();
+  if (!spec) { state.aiming = false; return false; }
+  state.aiming = force != null ? !!force : !state.aiming;
+  if (state.aiming) toast((spec.scope ? '🔭 MIRA puesta' : '🎯 Apuntando') + ' · el punto rojo marca dónde pega · CLIC para disparar');
+  else toast('👁️ Bajaste la mira');
+  beep(state.aiming ? 660 : 440, .06, .035);
+  return true;
+}
 function updateAim(dt) {
   const spec = currentGunSpec();
-  const quiere = !!(spec && gunHold && !typing && !state.paused && (performance.now() - gunHoldAt) > 200);
-  state.aiming = quiere;
-  if (quiere) fireGun(spec);                                   // apuntando: dispara al ritmo del arma
+  const quiere = !!(spec && state.aiming && !typing && !state.paused);
+  if (!spec) state.aiming = false;
   const objetivo = quiere ? (spec.scope ? 30 : 48) : CAM_FOV;   // con mira hace MUCHO zoom
   if (Math.abs(aimFov - objetivo) > .3) {
     aimFov += (objetivo - aimFov) * Math.min(1, dt * 9);
@@ -16519,7 +16524,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, spawnSmokeCloud, playerInSmoke, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, startGunHold, endGunHold, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, spawnSmokeCloud, playerInSmoke, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -17133,6 +17138,8 @@ function updateContextPrompt() {
       if (!action && bowEquipped()) action = { key: 'E / CLIC', touch: '👊', text: 'Mantén para tensar el arco · suelta para tirar · mira arriba = lejos' };
     }
   }
+  if (!action && currentGunSpec()) action = { key: 'E', touch: '🔭', text: state.aiming ? 'Bajar la mira · CLIC dispara' : 'E pone la MIRA · CLIC dispara' };
+  ctxWantsE = !!(action && String(action.key).includes('E') && !currentGunSpec());   // hay algo del mundo que usa la E
   box.classList.toggle('visible', !!action);
   if (action) { key.textContent = document.body.classList.contains('touch') ? action.touch : action.key; txt.textContent = action.text; }
 }

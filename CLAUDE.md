@@ -259,9 +259,11 @@ con nombre de pistola" y ahora son armas de verdad.
   pistolas → láser → arco → bombas de mano. Las bombas (humo/confeti) se guardan como cargas y se
   usan con el clic (`throwHandGadget`).
 - Mercado negro: `bm_mira` ($1400, con mira), `bm_balas` (caja de 50 balas, $600).
-- **Apuntar con la mira**: mantener el clic (o el botón 👊 en celular) = `startGunHold()` →
-  `updateAim()` baja el FOV (30 con mira, 48 sin ella), muestra el **punto rojo** `#aimDot` y, en
-  las armas con mira, el visor `#scopeMask`; mientras apuntas dispara solo al ritmo del arma.
+- **Apuntar con la mira**: tecla **E** (o el botón 🤝 en celular) = `toggleAim()` → `updateAim()`
+  baja el FOV (30 con mira, 48 sin ella), muestra el **punto rojo** `#aimDot` y, en las armas con
+  mira, el visor `#scopeMask`. El **CLIC solo dispara** (`tryGunShot`, un tiro por clic).
+  `ctxWantsE` (lo calcula `updateContextPrompt`) hace que la E siga sirviendo para comprar, hablar
+  o abrir cuando hay algo del mundo cerca; la mira solo se activa si no hay nada que usar.
 - **También le pegas a la gente**: `gunRaycastPerson()` (aldeanos y víctimas) → empujón, sangre y
   BUSCADO (2 estrellas si es en la cabeza).
 - **El balero**: vendedor de munición al fondo del mercado negro (`alley.ammoMan`); E le compra la

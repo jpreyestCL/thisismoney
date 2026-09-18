@@ -1445,6 +1445,7 @@ function fillGrassChunk() {   // se reparte de a poco (no traba el juego al move
       if (typeof onRoadAt === 'function' && onRoadAt(x, z)) continue;               // en la calle tampoco
       if (typeof insideStoreFloor === 'function' && insideStoreFloor(x, z)) continue;
       if (typeof inNoGrassZone === 'function' && inNoGrassZone(x, z)) continue;   // parques, canchas y plazas
+      if (waterZoneAt(x, z)) continue;                               // mar y piscina del parque acuático
       const y = mountainHeightAt(x, z);
       if (y > 8) continue;                                          // en los cerros altos no
       const esc = .55 + Math.random() * .6;
@@ -3976,6 +3977,32 @@ function updatePolice(dt) {
 }
 function policeCatch() { state.wanted = 0; state.wantedLevel = 0; state.driving = false; clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
 
+// Puertas que se abren y se cierran con E (con la puerta cerrada NO se pasa)
+function nearestDoor(maxD = 3.2) {
+  let best = null, bd = maxD;
+  for (const o of placed) {
+    if (o.key !== 'door' || !o.hinge || o.hp <= 0) continue;
+    if ((o.country || null) !== (state.country || null)) continue;
+    const d = dist2D(player.position, o.mesh.position);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+function setDoorOpen(o, abierta) {
+  if (!o || !o.hinge) return;
+  o.open = !!abierta;
+  o.hinge.rotation.y = o.open ? -Math.PI / 2.1 : 0;     // la hoja gira sobre su bisagra
+  const i = obstacles.indexOf(o.aabb);
+  if (o.open) { if (i >= 0) obstacles.splice(i, 1); }   // abierta: se puede pasar
+  else if (o.aabb && i < 0 && !o.baseY) obstacles.push(o.aabb);
+}
+function tryDoor() {
+  const o = nearestDoor(); if (!o) return false;
+  setDoorOpen(o, !o.open);
+  beep(o.open ? 420 : 300, .09, .045);
+  toast(o.open ? '🚪 Puerta abierta · E para cerrarla' : '🚪 Puerta cerrada · nadie pasa');
+  return true;
+}
 // Robar a la gente del estadio (con E cerca). Riesgo: que te persiga la policía
 function tryRob() {
   if (state.planet === 'platus') return;   // en Platus no hay estadios ni gente
@@ -4928,6 +4955,7 @@ function buildWaterPark() {
   // para que, al hundirte, se vea el vaso de la piscina y no un piso tapando.
   const p = POOL;
   const holeW = p.waterW + 1.8, holeD = p.waterD + 2.6;
+  addNoGrassZone(p.cx, p.cz, p.waterW + 4, p.waterD + 4);   // en la piscina no crece pasto
   const left = cx - 34, right = cx + 34, back = cz - 30, front = cz + 30;
   const holeL = p.cx - holeW / 2, holeR = p.cx + holeW / 2, holeB = p.cz - holeD / 2, holeF = p.cz + holeD / 2;
   mcFloor(g, (left + holeL) / 2, cz, holeL - left, 60, 0x9fd3ea);
@@ -7977,8 +8005,17 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     const seam = mat(0x8f7046);
     for (let y = -1; y <= 1; y += 0.65) { const line = new THREE.Mesh(new THREE.BoxGeometry(3.92, 0.05, 0.45), seam); line.position.y = y; m.add(line); }
   }
-  if (key === 'cuadro') {
-    const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), new THREE.MeshStandardMaterial({ color: 0x60a5fa })); pic.position.z = 0.06; m.add(pic);
+  if (key === 'cuadro') {   // marco con moldura, paspartú y un paisaje pintado adentro
+    const oro = new THREE.MeshStandardMaterial({ color: 0xc9a227, metalness: .7, roughness: .35, flatShading: true });
+    for (const [w, h, x, y] of [[1.5, .12, 0, .53], [1.5, .12, 0, -.53], [.12, 1.18, -.69, 0], [.12, 1.18, .69, 0]]) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, .16), oro); b.position.set(x, y, .03); b.castShadow = true; m.add(b);
+    }
+    const paspartu = new THREE.Mesh(new THREE.BoxGeometry(1.26, .86, .04), mat(0xf8fafc)); paspartu.position.z = .05; m.add(paspartu);
+    const cielo = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .7), new THREE.MeshStandardMaterial({ color: 0x7dd3fc, roughness: .9 })); cielo.position.z = .08; m.add(cielo);
+    const sol = new THREE.Mesh(new THREE.CircleGeometry(.09, 12), new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xfacc15, emissiveIntensity: .5 })); sol.position.set(-.3, .18, .085); m.add(sol);
+    const cerro1 = new THREE.Mesh(new THREE.ConeGeometry(.3, .32, 3), mat(0x4d7c4a)); cerro1.position.set(.16, -.08, .085); m.add(cerro1);
+    const cerro2 = new THREE.Mesh(new THREE.ConeGeometry(.24, .24, 3), mat(0x3f6b3c)); cerro2.position.set(-.12, -.12, .088); m.add(cerro2);
+    const campo = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .22), mat(0x65a30d)); campo.position.set(0, -.24, .086); m.add(campo);
   }
   if (key === 'mesa') legs(0.7, 0.4, 0.7);
   if (key === 'silla') { legs(0.24, 0.24, 0.45); const back = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.1), mat(objColor(key))); back.position.set(0, 0.3, -0.25); m.add(back); }
@@ -8040,7 +8077,20 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     for (const sx of [-.62, .62]) { const rail = new THREE.Mesh(new THREE.TorusGeometry(.28, .035, 7, 16, Math.PI), mat(0x94a3b8)); rail.rotation.z = Math.PI / 2; rail.position.set(sx, .5, 1.25); m.add(rail); }
     obj.poolZone = { surface: by + .14, bottom: by - deep };
   }
-  if (key === 'planta') { const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 10), mat(0x22c55e)); leaf.position.y = 0.55; leaf.scale.set(1, 1.3, 1); leaf.castShadow = true; m.add(leaf); }
+  if (key === 'planta') {   // macetero de terracota con borde, tierra y hojas abiertas
+    const borde = new THREE.Mesh(new THREE.CylinderGeometry(.36, .34, .12, 12), mat(0x9a5b3b)); borde.position.y = .28; m.add(borde);
+    const tierra = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, .08, 12), mat(0x4a3728)); tierra.position.y = .3; m.add(tierra);
+    const tallo = new THREE.Mesh(new THREE.CylinderGeometry(.045, .06, .5, 6), mat(0x3f6212)); tallo.position.y = .55; m.add(tallo);
+    const hojaGeo = new THREE.SphereGeometry(.26, 8, 6);
+    for (let i = 0; i < 7; i++) {
+      const a = i / 7 * Math.PI * 2, alto = .62 + (i % 3) * .2;
+      const hoja = new THREE.Mesh(hojaGeo, mat(i % 2 ? 0x22c55e : 0x16a34a));
+      hoja.position.set(Math.cos(a) * .26, alto, Math.sin(a) * .26);
+      hoja.scale.set(1.5, .42, .75); hoja.rotation.y = -a; hoja.rotation.z = .5;
+      hoja.castShadow = true; m.add(hoja);
+    }
+    const cogollo = new THREE.Mesh(new THREE.ConeGeometry(.14, .38, 6), mat(0x22c55e)); cogollo.position.y = 1.02; cogollo.castShadow = true; m.add(cogollo);
+  }
   if (key === 'mesa_gamer') { legs(1.05, 0.43, 0.75); const edge = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); edge.position.set(0, 0.02, 0.54); m.add(edge); obj.rgbParts = [edge]; }
   if (key === 'silla_gamer') { legs(0.28, 0.28, 0.5); const back = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.15, 0.18), mat(0xdc2626)); back.position.set(0, 0.62, -0.3); m.add(back); const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.18, 0.2), mat(0x111827)); head.position.set(0, 0.95, -0.19); m.add(head);
     const franja = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.04), new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x22d3ee, emissiveIntensity: 1.2 })); franja.position.set(0, 0.62, -0.4); m.add(franja); obj.rgbParts = [franja]; }
@@ -8052,10 +8102,31 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
   if (key === 'alexa') { const ring=new THREE.Mesh(new THREE.TorusGeometry(.27,.035,8,24),new THREE.MeshStandardMaterial({color:0x22d3ee,emissive:0x22d3ee,emissiveIntensity:1.8}));ring.rotation.x=Math.PI/2;ring.position.y=.38;m.add(ring);const dot=new THREE.Mesh(new THREE.SphereGeometry(.045,8,8),mat(0x38bdf8));dot.position.set(0,.39,.18);m.add(dot);obj.rgbParts=[ring]; }
   if (key === 'luces_gamer') { const glow = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.07, 0.14), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0xa855f7, emissiveIntensity: 2 })); glow.position.z = 0.04; m.add(glow); const light = new THREE.PointLight(0xa855f7, 1.2, 7); light.position.set(0, 0.15, 0.5); m.add(light); obj.rgbParts = [glow]; obj.rgbLight = light; }
   if (key === 'door') {
-    const fr = new THREE.MeshStandardMaterial({ color: 0x4a2f15, roughness: 0.9 });
-    const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.22), fr); b.position.set(x, y, 0); m.add(b); };
-    bar(1.6, 0.2, 0, 1.3); bar(1.6, 0.2, 0, -1.3); bar(0.2, 2.6, -0.75, 0); bar(0.2, 2.6, 0.75, 0);  // marco
-    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), mat(0xfacc15)); knob.position.set(0.55, 0, 0.13); m.add(knob);  // manilla
+    // La HOJA cuelga de un grupo-bisagra en el borde izquierdo: así gira como una puerta de verdad.
+    m.visible = false;                                   // la caja original queda de guía invisible
+    const marcoMat = new THREE.MeshStandardMaterial({ color: 0x4a2f15, roughness: .92, flatShading: true });
+    const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.24), marcoMat); b.position.set(x, y, 0); b.castShadow = true; m.add(b); };
+    bar(1.7, 0.22, 0, 1.32); bar(1.7, 0.22, 0, -1.32); bar(0.22, 2.64, -0.78, 0); bar(0.22, 2.64, 0.78, 0);   // marco
+    for (const b of m.children) b.visible = true;        // el marco sí se ve (aunque la caja base no)
+    const bisagra = new THREE.Group(); bisagra.position.set(-.72, 0, 0); m.add(bisagra);
+    const hojaMat = new THREE.MeshStandardMaterial({ color: objColor(key, variant && variant.id), roughness: .88, flatShading: true });
+    const tablaMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(objColor(key, variant && variant.id)).offsetHSL(0, 0, -.07).getHex(), roughness: .9, flatShading: true });
+    const hoja = new THREE.Mesh(new THREE.BoxGeometry(1.44, 2.5, .14), hojaMat); hoja.position.set(.72, 0, 0); hoja.castShadow = true; bisagra.add(hoja);
+    for (const [py, ph] of [[.62, 1], [-.62, 1]]) {      // dos paneles hundidos
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(.95, ph, .05), tablaMat); panel.position.set(.72, py, .07); bisagra.add(panel);
+      const borde = new THREE.Mesh(new THREE.BoxGeometry(1.08, ph + .14, .04), hojaMat); borde.position.set(.72, py, .05); bisagra.add(borde);
+    }
+    const laton = new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: .85, roughness: .28 });
+    const roseta = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, .05, 10), laton); roseta.rotation.x = Math.PI / 2; roseta.position.set(1.26, 0, .1); bisagra.add(roseta);
+    const manilla = new THREE.Mesh(new THREE.BoxGeometry(.28, .07, .07), laton); manilla.position.set(1.16, 0, .16); bisagra.add(manilla);
+    const cerradura = new THREE.Mesh(new THREE.BoxGeometry(.13, .2, .04), laton); cerradura.position.set(1.26, -.24, .1); bisagra.add(cerradura);
+    for (const by of [.85, -.85]) { const bis = new THREE.Mesh(new THREE.BoxGeometry(.08, .28, .16), laton); bis.position.set(.05, by, 0); bisagra.add(bis); }
+    obj.hinge = bisagra; obj.open = false;
+    // caja de choque: con la puerta CERRADA no se pasa (se quita al abrirla con E)
+    const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
+    obj.aabb = { minX: m.position.x - (1.5 * ca + .3 * sa) / 2, maxX: m.position.x + (1.5 * ca + .3 * sa) / 2,
+                 minZ: m.position.z - (1.5 * sa + .3 * ca) / 2, maxZ: m.position.z + (1.5 * sa + .3 * ca) / 2, top: 3, country: region };
+    if (!by) obstacles.push(obj.aabb);
   }
   if (key === 'ballesta' || key === 'torreta' || key === 'laser') {
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.9), mat(key === 'laser' ? 0x22d3ee : 0x1f2937));
@@ -8097,9 +8168,24 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     const centro = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.07, 1.1), mat(0xfacc15)); centro.position.y = 0.03; m.add(centro);
     const rombo = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.5), mat(0xb91c1c)); rombo.position.y = 0.05; rombo.rotation.y = Math.PI / 4; m.add(rombo);
   }
-  if (key === 'heladera') {   // manilla de la heladera
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.08), mat(0x9ca3af));
-    handle.position.set(0.35, 0.2, 0.44); m.add(handle);
+  if (key === 'heladera') {   // heladera de dos puertas: manillas largas, dispensador, imanes y patas
+    const acero = new THREE.MeshStandardMaterial({ color: 0xc3cad3, roughness: .3, metalness: .72, flatShading: true });
+    const oscuro = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: .5, metalness: .5, flatShading: true });
+    const junta = new THREE.Mesh(new THREE.BoxGeometry(.92, .05, .06), oscuro); junta.position.set(0, .28, .41); m.add(junta);   // separación freezer/heladera
+    for (const [hy, hh] of [[.86, .7], [-.35, 1.1]]) {   // puertas
+      const puerta = new THREE.Mesh(new THREE.BoxGeometry(.88, hh, .07), acero); puerta.position.set(0, hy, .42); puerta.castShadow = true; m.add(puerta);
+      const manilla = new THREE.Mesh(new THREE.BoxGeometry(.07, hh * .62, .07), oscuro); manilla.position.set(.31, hy, .5); m.add(manilla);
+      for (const my of [hy + hh * .31 - .04, hy - hh * .31 + .04]) { const sop = new THREE.Mesh(new THREE.BoxGeometry(.05, .05, .1), oscuro); sop.position.set(.31, my, .46); m.add(sop); }
+    }
+    const disp = new THREE.Mesh(new THREE.BoxGeometry(.34, .42, .06), oscuro); disp.position.set(-.18, .86, .47); m.add(disp);   // dispensador de hielo
+    const luzDisp = new THREE.Mesh(new THREE.BoxGeometry(.24, .1, .03), new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: .7 }));
+    luzDisp.position.set(-.18, 1.02, .5); m.add(luzDisp);
+    for (const [ix, iy, c] of [[.2, -.1, 0xef4444], [.3, -.32, 0xfacc15], [.12, -.45, 0x22c55e]]) {   // imanes de colores
+      const iman = new THREE.Mesh(new THREE.BoxGeometry(.11, .11, .03), mat(c)); iman.position.set(ix, iy, .47); m.add(iman);
+    }
+    for (const sx of [-.34, .34]) for (const sz of [-.3, .3]) {   // pies
+      const pie = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, .1), oscuro); pie.position.set(sx, -.95, sz); m.add(pie);
+    }
   }
   if (key === 'lamp') {
     const light = new THREE.PointLight(0xfff1a8, 0, 11, 1.6); light.position.set(m.position.x, 2.6 + by, m.position.z); scene.add(light); obj.light = light;
@@ -10549,6 +10635,7 @@ const touch = { moveX: 0, moveY: 0, run: false, crouch: false, jump: false, jump
 function tryInteract() {
   if (tryAlleyInteract()) return;
   if (tryJobInteract()) return;   // recados: calmar al perro / abrir el cajón
+  if (tryDoor()) return;          // abrir / cerrar la puerta de tu casa
   if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract()) { tryCollectGolden(); tryRob(); sellHouse(); }
 }
 addEventListener('keydown', e => {
@@ -12478,7 +12565,7 @@ function saveGame() {
       houseTier: houseTier, inv: state.inv,
       px: state.inRuins && state.ruinsReturn ? state.ruinsReturn.x : state.inCastle && state.castleReturn ? state.castleReturn.x : state.inArena && state.coliReturn ? state.coliReturn.x : player.position.x,   // en ruinas/castillo/coliseo guardamos el punto de salida (no la zona lejana)
       pz: state.inRuins && state.ruinsReturn ? state.ruinsReturn.z : state.inCastle && state.castleReturn ? state.castleReturn.z : state.inArena && state.coliReturn ? state.coliReturn.z : player.position.z,
-      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, mountY: o.mountY || 0, scale: o.scale || null, country:o.country||null, rot: o.mesh.rotation.y, hp: o.hp, paint: o.paint != null ? o.paint : null })),
+      placed: placed.map(o => ({ key: o.key, variant: o.variant || null, x: o.mesh.position.x, z: o.mesh.position.z, baseY: o.baseY || 0, mountY: o.mountY || 0, scale: o.scale || null, country:o.country||null, rot: o.mesh.rotation.y, hp: o.hp, paint: o.paint != null ? o.paint : null, open: !!o.open })),
       vehicles: vehicles.map(v => ({ x: v.group.position.x, y: v.group.position.y, z: v.group.position.z, heading: v.heading, hp: v.hp, fuel: v.fuel, moto: !!v.moto, helicopter: !!v.helicopter })),
       boat: boat ? { x: boat.group.position.x, z: boat.group.position.z, heading: boat.heading, hp: boat.hp } : null, boatCrew: state.boatCrew || 0, voyageDays: state.voyageDays || 0, islandDiscovered: !!state.islandDiscovered,
       car: car ? { x: car.group.position.x, y: car.group.position.y, z: car.group.position.z, heading: car.heading, hp: car.hp, fuel: car.fuel, moto: !!car.moto, helicopter: !!car.helicopter } : null,   // compatibilidad con versiones antiguas
@@ -13299,6 +13386,7 @@ function loadGame() {
   (d.placed || []).forEach(o => {
     const obj = spawnPlaced(o.key, o.x, o.z, o.rot || 0, o.hp, o.variant, o.baseY, o.mountY, o.country || null, o.scale || null);
     if (o.paint != null) { obj.paint = o.paint; obj.mesh.material = mat(o.paint); }   // la pintura de la casa se conserva
+    if (o.key === 'door' && o.open) setDoorOpen(obj, true);   // la puerta queda como la dejaste
   });
   if (state.planet !== 'platus') {
     const savedVehicles = Array.isArray(d.vehicles) ? d.vehicles : (d.car ? [d.car] : []);
@@ -17159,7 +17247,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -17682,6 +17770,7 @@ function updateContextPrompt() {
       else if (sitOn && sitOn.flightSeat) action = { key: 'E', touch: '🤝', text: 'Levantarte · la peli sigue en las pantallas' };
       else action = { key: 'E · F5', touch: '🎬', text: 'E asiento = peli · pasillo hasta la puerta 👨‍✈️ · F5 ves las alas' };
     }
+    else if (nearestDoor()) { const d = nearestDoor(); action = { key: 'E', touch: '🚪', text: d.open ? 'Cerrar la puerta' : 'Abrir la puerta' }; }
     else if (job && jobDog && job.id === 'dog' && !job.calm && dist2D(player.position, jobDog.position) < 3) action = { key: 'E', touch: '🐕', text: 'Calmar al perro perdido' };
     else if (job && jobCrate && job.id === 'crates' && dist2D(player.position, jobCrate.position) < 3) action = { key: 'E', touch: '📦', text: 'Abrir el cajón de Tito' };
     else {

@@ -301,6 +301,16 @@ vidrio con tiradores, felpudo, carritos, piso de cerámica con juntas, lámparas
 reales por tienda, solo fuera de modo rendimiento), mostrador con caja registradora y góndolas con
 tapa, repisa y cintillo de precios.
 
+**Puerta que se abre**: la hoja cuelga de un grupo-bisagra (`obj.hinge`) con paneles, manilla de
+latón, cerradura y bisagras; tiene caja de choque (`obj.aabb`) mientras está CERRADA. `tryDoor()`
+(enganchada en `tryInteract`, tecla E) llama a `setDoorOpen`, que gira la hoja y quita/pone el
+obstáculo. El estado se guarda (`open` en `placed`).
+
+**Heladera**: dos puertas con manillas largas, junta, dispensador de hielo con luz, imanes de
+colores y pies. **Planta**: macetero de terracota con borde, tierra, tallo, 7 hojas abiertas y
+cogollo. **Cuadro**: marco dorado con moldura, paspartú y un paisaje pintado (cielo, sol, cerros y
+campo).
+
 **Cama**: patas torneadas, marco de madera, colchón con sábana, plumón que cubre la mitad de abajo
 con doblez y pliegues, dos almohadas inclinadas, cabecera con postes y piecera (en `spawnPlaced`,
 rama `key === 'cama'`). El color comprado tiñe el plumón.

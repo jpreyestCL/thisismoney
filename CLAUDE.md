@@ -358,6 +358,12 @@ de iluminación con 6 focos cada una y arco de entrada con el nombre. El públic
 gradas (muslos a 90°, `userData.seated` para que `swingLimbs` no lo haga caminar) y mirando al centro
 de la cancha. Solo básquet y tenis son `addNoGrassZone`: la cancha de fútbol SÍ lleva pasto 3D.
 
+**Energía del láser**: `state.laserEnergy` (0-100) con barra `#laserBar` abajo al centro (solo cuando
+llevas el láser). Cada tiro gasta `LASER_SHOT = 9` (11 tiros con la barra llena); al agotarse entra
+en `laserCooling` y tarda `LASER_RELOAD = 20` s en volver al 100% (la barra se va llenando y avisa
+los segundos que faltan). Si dejas de disparar 2,5 s se recupera solita a 7%/s. `laserSpendShot()`
+se llama al principio de `attack`/`attackNPC`: sin energía no hay rayo ni daño.
+
 **Rayo láser** (`spawnLaserBeam` + `updateLaserShots`): haz CÓNICO (grueso en el cañón, fino en el
 blanco) con núcleo blanco, halo de color y resplandor aditivo que titila, tres anillos de energía
 que viajan hacia el objetivo, fogonazo en el cañón y estallido con anillo en el impacto; se apaga en

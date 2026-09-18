@@ -50,6 +50,16 @@
   #bowcharge.show { display: block; }
   #bowcharge i { display: block; height: 8px; width: 0; background: linear-gradient(90deg, #b45309, #facc15, #fff7ed); border: 1px solid #fde047; border-radius: 6px; box-sizing: border-box; }
   #bowdmg { display: block; margin-top: 5px; font-size: 11px; font-weight: 700; color: #fde047; text-shadow: 0 1px 3px #000, 0 0 8px #000; line-height: 1.25; white-space: nowrap; }
+  #laserBar { position:absolute; left:50%; bottom:118px; width:230px; margin-left:-115px; z-index:8; display:none; pointer-events:none; text-align:center; }
+  #laserBar.show { display:block; }
+  #laserBar .lb-track { height:11px; background:rgba(8,14,26,.85); border:2px solid rgba(34,211,238,.6); border-radius:7px; overflow:hidden; box-sizing:border-box; }
+  #laserBar .lb-fill { height:100%; width:100%; background:linear-gradient(90deg,#0e7490,#22d3ee,#a5f3fc); transition:width .08s linear; }
+  #laserBar.cargando .lb-track { border-color:rgba(248,113,113,.75); }
+  #laserBar.cargando .lb-fill { background:linear-gradient(90deg,#7f1d1d,#ef4444,#fca5a5); }
+  #laserBar .lb-txt { margin-top:4px; font-size:11px; font-weight:800; color:#a5f3fc; text-shadow:0 1px 3px #000, 0 0 8px #000; letter-spacing:.3px; }
+  #laserBar.cargando .lb-txt { color:#fca5a5; }
+  body.touch #laserBar { bottom:86px; width:180px; margin-left:-90px; }
+  body.cine #laserBar { display:none !important; }
   body.cine #bowcharge { display: none !important; }
   /* Avisos del juego: a un LADO, nunca tapando el centro / la mira */
   #toast { position: absolute; top: auto; left: auto; right: 14px; bottom: 26%; transform: none; z-index: 8;
@@ -579,6 +589,7 @@
   <div id="objective">Objetivo</div>
   <div id="crosshair"></div>
   <div id="bowcharge"><i></i><span id="bowdmg"></span></div>
+  <div id="laserBar" role="status" aria-label="Energía del láser"><div class="lb-track"><div class="lb-fill" id="laserFill"></div></div><div class="lb-txt" id="laserTxt">LÁSER</div></div>
   <div id="contextPrompt" role="status" aria-live="polite"><span id="contextKey">E</span><span id="contextText">Interactuar</span></div>
   <div id="toastStack"></div>
   <div id="toast"></div>
@@ -10325,6 +10336,7 @@ const state = {
   underground: false, groundY: 0, shelterHole: null,   // refugio subterráneo (cavar hondo con la pala)
   hasJetpack: false, jetOn: false,                     // tecnología alien de Platus: jetpack (volar)
   laserGun: false, hasShield: false, shieldHp: 0, shieldMax: 60, shieldCd: 0,   // pistola láser + escudo de energía
+  laserEnergy: 100, laserCooling: false, laserCoolLeft: 0, laserIdle: 0, laserWarned: false,   // barra del láser: 20 s de recarga al agotarse
   guns: {}, gun: null, ammo: 0, clip: 0, reloadT: 0, gadgetCharges: {}, handGadget: null,   // armas de fuego: cargador de 20, balas de reserva y bombas de mano
   planetSky: 0xd98c5f, planetHazard: 'cold', planetGrav: 1, planetCreature: 'yeti', inRuins: false, ruinsCleared: false,   // rasgos del planeta actual + ruinas
   contract: null,   // contrato activo del vendedor alien
@@ -15704,6 +15716,7 @@ function updateUfoBoss(e, dt) {
 function attack(multiplier = 1) {
   if (state.buildMode) return;
   if (state.handGadget) { throwHandGadget(); return; }   // llevas una bomba: el clic la usa
+  if (laserEquipped() && !laserSpendShot()) return;      // el láser gasta energía de su barra
   vmSwing = 1; beep(320, 0.05, 0.03);
   if (state.inCastle) { attackCastleFoe(); return; }   // en el castillo, el golpe pega a los aliens malos
   if (state.inArena) { hitArenaFoe(); return; }        // en el coliseo, el golpe pega a los enemigos de la oleada
@@ -15824,6 +15837,54 @@ function updateSmoke(dt) {
   }
 }
 function clearSmoke() { smokeClouds.forEach(c => scene.remove(c.g)); smokeClouds.length = 0; }
+// ===================================================================
+//  ENERGÍA DE LA PISTOLA LÁSER — barra que se gasta y tarda 20 s en volver
+// ===================================================================
+const LASER_MAX = 100, LASER_SHOT = 9, LASER_RELOAD = 20, LASER_REGEN = 7;
+function laserReady() { return !state.laserCooling; }
+function laserSpendShot() {   // ¿alcanza la energía para este disparo?
+  if (state.laserEnergy == null) state.laserEnergy = LASER_MAX;
+  if (state.laserCooling) {
+    if (!state.laserWarned) { state.laserWarned = true; toast('🔋 El láser se quedó sin energía · vuelve en ' + Math.ceil(state.laserCoolLeft) + ' s'); beep(110, .18, .05); }
+    return false;
+  }
+  if (state.laserEnergy < LASER_SHOT) {   // último tiro: se apaga y arranca la recarga larga
+    state.laserEnergy = 0; state.laserCooling = true; state.laserCoolLeft = LASER_RELOAD; state.laserWarned = true;
+    toast('🔋 ¡Láser agotado! Tarda ' + LASER_RELOAD + ' segundos en recargarse');
+    beep(140, .3, .06); setTimeout(() => beep(90, .3, .05), 200);
+    return false;
+  }
+  state.laserEnergy -= LASER_SHOT; state.laserIdle = 0; state.laserWarned = false;
+  if (state.laserEnergy <= 0) {   // justo se vació: arranca la recarga
+    state.laserEnergy = 0; state.laserCooling = true; state.laserCoolLeft = LASER_RELOAD;
+    toast('🔋 ¡Láser agotado! Tarda ' + LASER_RELOAD + ' segundos en recargarse'); beep(140, .3, .06);
+  }
+  return true;
+}
+function updateLaserEnergy(dt) {
+  if (state.laserEnergy == null) state.laserEnergy = LASER_MAX;
+  if (state.laserCooling) {
+    state.laserCoolLeft = Math.max(0, (state.laserCoolLeft || 0) - dt);
+    state.laserEnergy = LASER_MAX * (1 - state.laserCoolLeft / LASER_RELOAD);   // la barra se va llenando sola
+    if (state.laserCoolLeft <= 0) {
+      state.laserCooling = false; state.laserEnergy = LASER_MAX; state.laserWarned = false;
+      if (state.laserGun) { toast('🔋 Láser cargado al 100%'); beep(680, .1, .05); setTimeout(() => beep(900, .1, .05), 110); }
+    }
+  } else if (state.laserEnergy < LASER_MAX) {
+    state.laserIdle = (state.laserIdle || 0) + dt;
+    if (state.laserIdle > 2.5) state.laserEnergy = Math.min(LASER_MAX, state.laserEnergy + LASER_REGEN * dt);   // si dejas de disparar se recupera de a poco
+  }
+  const bar = ui('laserBar'); if (!bar) return;
+  const mostrar = state.running && !state.paused && laserEquipped();
+  bar.classList.toggle('show', !!mostrar);
+  if (!mostrar) return;
+  bar.classList.toggle('cargando', !!state.laserCooling);
+  const fill = ui('laserFill'); if (fill) fill.style.width = Math.max(0, Math.min(100, state.laserEnergy)) + '%';
+  const txt = ui('laserTxt');
+  if (txt) setTextIfChanged(txt, state.laserCooling
+    ? '🔋 RECARGANDO · ' + Math.ceil(state.laserCoolLeft) + ' s'
+    : '🔋 LÁSER ' + Math.round(state.laserEnergy) + '% · ' + Math.floor(state.laserEnergy / LASER_SHOT) + ' tiros');
+}
 // ===================================================================
 //  ARMAS DE FUEGO — balas que se ven, disparo a la cabeza y recarga
 //  Cargador de 20 balas (GUN_CLIP). Al vaciarlo tarda 5 s en recargar:
@@ -16060,6 +16121,7 @@ function clearLaserShots() { laserShots.forEach(s => killMesh(s.g)); laserShots.
 function attackNPC() {
   if (state.buildMode) return;
   if (state.handGadget) { throwHandGadget(); return; }
+  if (laserEquipped() && !laserSpendShot()) return;      // sin energía el láser no dispara
   const gunNPC = currentGunSpec();
   if (gunNPC) { fireGun(gunNPC); return; }   // de día el arma de fuego también dispara (a los monstruos de suciedad)
   if (state.inCastle) { vmSwing = 1; beep(320, 0.05, 0.03); attackCastleFoe(); return; }   // en el castillo (de día también) el golpe pega a los aliens malos
@@ -16777,6 +16839,7 @@ function loop() {
     updateBullets(dt);                     // balas que vuelan, casquillos, gatillo y recarga
     updateAim(dt);                         // mira telescópica (mantener clic) + punto rojo
     updateLaserShots(dt);                  // rayos láser que se apagan
+    updateLaserEnergy(dt);                 // barra de energía del láser
     updateSmoke(dt);                       // nubes de las bombas de humo
     updateThrownBombs(dt);                 // bombas de humo en el aire
     updateConfetti(dt);                    // papelitos del tubo de confeti
@@ -17504,7 +17567,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,

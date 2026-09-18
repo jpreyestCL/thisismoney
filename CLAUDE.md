@@ -289,6 +289,18 @@ con nombre de pistola" y ahora son armas de verdad.
 
 ## Gráficos
 
+**Árboles**: `buildTrees` usa 4 InstancedMesh (tronco cónico con corteza + copa de 3 pisos) con
+altura, giro y verde distintos por árbol (`setColorAt`, `worldTreeSizes`).
+
+**Armas**: `makeVoxelSword` (hoja que se afina, canal brillante, punta en cono, cruz con quillones,
+empuñadura de cuero enrollado y pomo redondo) y `makeVoxelShovel` (palo torneado con anillos, mango
+en D, cuello metálico y cuchara curva con filo) usan materiales metálicos de verdad.
+
+**Supermercado** (`makeStore`): rótulo con marco, toldo a rayas con pilares, vitrinas y puertas de
+vidrio con tiradores, felpudo, carritos, piso de cerámica con juntas, lámparas colgantes (2 luces
+reales por tienda, solo fuera de modo rendimiento), mostrador con caja registradora y góndolas con
+tapa, repisa y cintillo de precios.
+
 **Pasto**: el suelo usa una textura en grises generada por canvas (`makeGroundDetailTexture`, con
 parches, briznas y tierrita) para que el color del planeta la siga tiñendo, más un normal map
 procedural (`makeGroundNormalTexture`) que le da relieve (se salta en modo rendimiento).

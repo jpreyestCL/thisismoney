@@ -289,6 +289,15 @@ con nombre de pistola" y ahora son armas de verdad.
 
 ## Gráficos
 
+**Casas**: las piezas de TU casa llevan detalle propio (`addWallDetail` / `addRoofDetail`, llamados
+en `spawnPlaced`): la madera tiene tablas y vigas, la piedra sillares irregulares, el metal chapas y
+remaches, y todas un zócalo abajo; el techo lleva hileras de tejas, alero y caballete. Los materiales
+de pared/techo usan `flatShading` con su propia rugosidad/metalicidad (`objMaterial`).
+Las casas de la ciudad (`makeCityHouse`) suman cimiento, marco y pomo de puerta, escalón, marcos +
+alféizar + cruz en las ventanas, alero y chimenea; todo lo fino se salta si `preferLowPerf`
+(celulares) para no disparar las mallas.
+
+
 `renderer` con `ACESFilmicToneMapping` (exposición 1.15, 1 en modo rendimiento), sombras suaves
 `PCFSoftShadowMap` con mapa de 2048 (512 en rendimiento), `pixelRatio` hasta 2 y luces nuevas:
 hemisférica azulada 1.15, sol cálido 2.1 con `normalBias` y un relleno frío (`rim`) del lado

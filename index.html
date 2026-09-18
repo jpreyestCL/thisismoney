@@ -2366,15 +2366,48 @@ function makeCityHouse(x, z, golden) {
     return g;   // sin obstáculo: entras caminando por la puerta y cobras el oro con E
   }
   const body = new THREE.Mesh(new THREE.BoxGeometry(w, h1, w), mat(col)); body.position.y = h1 / 2; body.castShadow = true; body.receiveShadow = true; g.add(body);
+  const zocalo = new THREE.Mesh(new THREE.BoxGeometry(w + .18, .42, w + .18), mat(0x8d8577));   // cimiento de piedra
+  zocalo.position.y = .21; zocalo.receiveShadow = true; g.add(zocalo);
+  const detalle = !preferLowPerf;   // en celular/equipos lentos la casa va simple (si no, son miles de piezas)
+  if (detalle) {
+    const marcoP = new THREE.Mesh(new THREE.BoxGeometry(1.42, 2.12, .08), mat(0xf4efe6));        // marco de la puerta
+    marcoP.position.set(0, .96, w / 2 + .03); g.add(marcoP);
+  }
   const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.8, 0.1), mat(0x5b3a1a)); door.position.set(0, 0.9, w / 2 + 0.05); g.add(door);
-  [-w / 4, w / 4].forEach(wx => { const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.1), mat(0x93c5fd)); win.position.set(wx, h1 * 0.6, w / 2 + 0.05); g.add(win); });
+  if (detalle) {
+    const pomo = new THREE.Mesh(new THREE.SphereGeometry(.07, 8, 6), new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: .8, roughness: .3 }));
+    pomo.position.set(.38, .95, w / 2 + .12); g.add(pomo);
+    const peldano = new THREE.Mesh(new THREE.BoxGeometry(1.7, .16, .7), mat(0xa8a29e));          // escalón
+    peldano.position.set(0, .08, w / 2 + .35); peldano.receiveShadow = true; g.add(peldano);
+  }
+  [-w / 4, w / 4].forEach(wx => {
+    if (detalle) {
+      const marco = new THREE.Mesh(new THREE.BoxGeometry(1.02, 1.02, .08), mat(0xf4efe6));       // marco blanco
+      marco.position.set(wx, h1 * 0.6, w / 2 + 0.03); g.add(marco);
+    }
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.1), new THREE.MeshStandardMaterial({ color: 0x93c5fd, roughness: .12, metalness: .2, emissive: 0x1e3a5f, emissiveIntensity: .22 }));
+    win.position.set(wx, h1 * 0.6, w / 2 + 0.06); g.add(win);
+    if (detalle) {
+      const repisa = new THREE.Mesh(new THREE.BoxGeometry(1.12, .1, .26), mat(0xf4efe6));        // alféizar
+      repisa.position.set(wx, h1 * 0.6 - .56, w / 2 + .12); g.add(repisa);
+      const cruz = new THREE.Mesh(new THREE.BoxGeometry(.07, .84, .04), mat(0xf4efe6)); cruz.position.set(wx, h1 * 0.6, w / 2 + 0.12); g.add(cruz);
+    }
+  });
   let topY = h1;
   if (Math.random() < 0.4) {   // segundo piso (cualquier casa)
     const h2 = 2.5 + Math.random();
     const f2 = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, h2, w * 0.8), mat(col)); f2.position.y = h1 + h2 / 2; f2.castShadow = true; g.add(f2); topY = h1 + h2;
   }
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.8, 2.2, 4), mat([0x8b3a3a, 0x475569, 0x713f12][Math.floor(Math.random() * 3)]));
-  roof.position.y = topY + 1.1; roof.rotation.y = Math.PI / 4; roof.castShadow = true; g.add(roof);
+  const roofCol = [0x8b3a3a, 0x475569, 0x713f12][Math.floor(Math.random() * 3)];
+  const alero = new THREE.Mesh(new THREE.BoxGeometry(w * 1.12, .2, w * 1.12), mat(roofCol));   // alero que sobresale
+  alero.position.y = topY + .1; alero.castShadow = true; g.add(alero);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.8, 2.2, 4), mat(roofCol));
+  roof.position.y = topY + 1.2; roof.rotation.y = Math.PI / 4; roof.castShadow = true; g.add(roof);
+  if (detalle && Math.random() < .55) {   // chimenea con su remate
+    const ch = new THREE.Mesh(new THREE.BoxGeometry(.6, 1.5, .6), mat(0x9a6b53));
+    ch.position.set(w * .22, topY + 1.5, -w * .22); ch.castShadow = true; g.add(ch);
+    const tapa = new THREE.Mesh(new THREE.BoxGeometry(.78, .14, .78), mat(0x6b7280)); tapa.position.set(ch.position.x, topY + 2.3, ch.position.z); g.add(tapa);
+  }
   g.position.set(x, 0, z); scene.add(g);
   // pista secreta: la del tesoro es la ÚNICA en la que puedes entrar (las demás te bloquean)
   if (!golden) addObstacle(x, z, w, w);
@@ -7238,8 +7271,53 @@ const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, la
   computador_gamer: 0.66, pc_gamer: 0.6, silla_gamer: 0.5, luces_gamer: 1.8, teclado_gamer: 0.08, parlante_gamer: 0.65, alexa: 0.38, mesa_gamer: 0.8 };
 function objY(key) { return OBJ_Y[key] != null ? OBJ_Y[key] : 1.5; }
 // Material del objeto: la ventana y el cristal son transparentes (se ve a través); la planta tiene maceta café
+// ---- Detalle de las paredes y del techo de TU casa (se ven como madera, piedra o chapa) ----
+const WALL_SEAM_GEO = new THREE.BoxGeometry(3.94, .06, .44);
+const WALL_STONE_GEO = new THREE.BoxGeometry(1.18, .62, .44);
+const WALL_RIVET_GEO = new THREE.SphereGeometry(.055, 6, 5);
+const WALL_BASE_GEO = new THREE.BoxGeometry(4.04, .3, .48);
+const ROOF_TILE_GEO = new THREE.BoxGeometry(5.1, .12, .92);
+function addWallDetail(m, key, variant) {
+  const vid = variant && variant.id;
+  if (key === 'wallWood') {
+    if (vid === 'troncos') return;                      // los troncos ya traen sus líneas
+    const tabla = new THREE.MeshStandardMaterial({ color: 0x5a3a1e, roughness: .95, flatShading: true });
+    for (const y of [-1.05, -.35, .35, 1.05]) { const l = new THREE.Mesh(WALL_SEAM_GEO, tabla); l.position.y = y; m.add(l); }
+    const viga = new THREE.Mesh(new THREE.BoxGeometry(.18, 3, .46), tabla); viga.position.x = -1.9; m.add(viga);
+    const viga2 = viga.clone(); viga2.position.x = 1.9; m.add(viga2);
+  } else if (key === 'wallRock') {
+    const junta = new THREE.MeshStandardMaterial({ color: 0x6f6a63, roughness: 1, flatShading: true });
+    for (let i = 0; i < 6; i++) {
+      const p = new THREE.Mesh(WALL_STONE_GEO, junta);
+      p.position.set(-1.45 + (i % 3) * 1.45 + (i > 2 ? .35 : 0), i > 2 ? .62 : -.62, 0);
+      p.scale.set(.86 + Math.random() * .2, .82 + Math.random() * .25, 1.02);
+      m.add(p);
+    }
+  } else if (key === 'wallMetal') {
+    const chapa = new THREE.MeshStandardMaterial({ color: 0x8c96a3, roughness: .34, metalness: .82, flatShading: true });
+    for (const y of [-.75, .75]) { const l = new THREE.Mesh(WALL_SEAM_GEO, chapa); l.position.y = y; l.scale.y = 1.6; m.add(l); }
+    for (const x of [-1.7, 1.7]) for (const y of [-1.2, 0, 1.2]) { const r = new THREE.Mesh(WALL_RIVET_GEO, chapa); r.position.set(x, y, .23); m.add(r); }
+  }
+  const zocalo = new THREE.Mesh(WALL_BASE_GEO, new THREE.MeshStandardMaterial({ color: 0x57534e, roughness: 1 }));
+  zocalo.position.y = -1.42; m.add(zocalo);                // zócalo de piedra: la pared "se apoya" en el suelo
+}
+function addRoofDetail(m, color) {
+  const teja = new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(.78), roughness: .92, flatShading: true });
+  for (let i = 0; i < 4; i++) {                            // hileras de tejas
+    const t = new THREE.Mesh(ROOF_TILE_GEO, teja);
+    t.position.set(0, .22, -1.85 + i * 1.25); t.castShadow = true; m.add(t);
+  }
+  const borde = new THREE.Mesh(new THREE.BoxGeometry(5.3, .16, 5.3), teja);   // alero que sobresale
+  borde.position.y = -.16; borde.castShadow = true; m.add(borde);
+  const cumbre = new THREE.Mesh(new THREE.BoxGeometry(5.2, .18, .34), teja);  // caballete
+  cumbre.position.y = .34; m.add(cumbre);
+}
 function objMaterial(key, variantId) {
   if (key === 'window') return new THREE.MeshStandardMaterial({ color: objColor(key, variantId), transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.15, emissive: 0x2a4a6a, emissiveIntensity: 0.25, side: THREE.DoubleSide });
+  if (key === 'wallWood') return new THREE.MeshStandardMaterial({ color: objColor(key, variantId), roughness: .92, metalness: .02, flatShading: true });
+  if (key === 'wallRock') return new THREE.MeshStandardMaterial({ color: objColor(key, variantId), roughness: 1, metalness: .02, flatShading: true });
+  if (key === 'wallMetal') return new THREE.MeshStandardMaterial({ color: objColor(key, variantId), roughness: .32, metalness: .85, flatShading: true });
+  if (key === 'roof') return new THREE.MeshStandardMaterial({ color: objColor(key, variantId), roughness: .88, metalness: .04, flatShading: true });
   if (key === 'planta') return mat(0x8b5e34);
   if (key === 'espejo') return new THREE.MeshStandardMaterial({ color: 0xcfe6ff, roughness: 0.08, metalness: 0.25, emissive: 0x8fb8dd, emissiveIntensity: 0.55 });   // luna del espejo: clara y brillante
   return mat(objColor(key, variantId));
@@ -7452,6 +7530,8 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     const bar = (w, h, x, y) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.22), fr); b.castShadow = true; b.position.set(x, y, 0); m.add(b); };
     bar(2.7, 0.22, 0, 1); bar(2.7, 0.22, 0, -1); bar(0.22, 2, -1.3, 0); bar(0.22, 2, 1.3, 0); bar(0.16, 2, 0, 0); bar(2.7, 0.16, 0, 0);
   }
+  if (key === 'wallWood' || key === 'wallRock' || key === 'wallMetal') addWallDetail(m, key, variant);   // tablas, piedras o chapas + zócalo
+  if (key === 'roof' && !(variant && variant.id === 'piramide')) addRoofDetail(m, objColor(key, variant && variant.id));
   if (key === 'wallWood' && variant && variant.id === 'troncos') {
     const seam = mat(0x3f2818);
     for (let y = -1.2; y <= 1.2; y += 0.48) { const line = new THREE.Mesh(new THREE.BoxGeometry(3.92, 0.07, 0.45), seam); line.position.y = y; m.add(line); }

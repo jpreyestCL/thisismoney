@@ -1802,10 +1802,31 @@ function makePerson(colorBody, colorHead) {
     facePiece(0.15, 0.04, 0x3b2b1f, sx, 2.21, 0.253);                 // ceja
   }
   facePiece(0.2, 0.05, 0x7f3a35, 0, 1.94, 0.253);                     // boca
+  facePiece(0.07, 0.09, 0xcf9b6d, 0, 2.02, 0.255);                    // nariz
+  for (const sx of [-0.26, 0.26]) addBox(0.06, 0.18, 0.16, colorHead, sx, 2.05, 0);   // orejas
+  // Pelo (gorro de pelo estilo voxel): tapa arriba y la nuca, y deja la cara libre
+  const pelo = 0x3b2b1f;
+  addBox(0.54, 0.12, 0.54, pelo, 0, 2.31, 0);                         // capa de arriba
+  addBox(0.54, 0.3, 0.1, pelo, 0, 2.14, -0.22);                       // nuca
+  for (const sx of [-0.25, 0.25]) addBox(0.06, 0.3, 0.5, pelo, sx, 2.12, 0);          // patillas
+  addBox(0.5, 0.1, 0.1, pelo, 0, 2.26, 0.22);                         // chasquilla
+  // Ropa: cuello, cinturón y hebilla
+  addBox(0.4, 0.1, 0.44, colorHead, 0, 1.84, 0);                      // cuello
+  addBox(0.78, 0.14, 0.45, 0x27303f, 0, 0.94, 0);                     // cinturón
+  addBox(0.18, 0.13, 0.05, 0xd4a017, 0, 0.94, 0.23);                  // hebilla
   const armL = limb(colorBody, 0.22, 0.8, 0.28, -0.5, 1.78);
   const armR = limb(colorBody, 0.22, 0.8, 0.28,  0.5, 1.78);
   const legL = limb(pants, 0.28, 0.85, 0.32, -0.2, 0.9);
   const legR = limb(pants, 0.28, 0.85, 0.32,  0.2, 0.9);
+  // Manos y zapatos (cuelgan de los miembros, así se mueven al caminar)
+  const parte = (pivot, w, h, d, col, y, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
+    m.position.set(0, y, z || 0); m.castShadow = true; pivot.add(m); return m;
+  };
+  parte(armL, 0.24, 0.2, 0.3, colorHead, -0.88);                      // mano izquierda
+  parte(armR, 0.24, 0.2, 0.3, colorHead, -0.88);                      // mano derecha
+  parte(legL, 0.3, 0.16, 0.44, 0x3f3f46, -0.9, 0.06);                 // zapato izquierdo
+  parte(legR, 0.3, 0.16, 0.44, 0x3f3f46, -0.9, 0.06);                 // zapato derecho
   g.userData.limbs = { armL, armR, legL, legR };
   return g;
 }
@@ -4390,13 +4411,37 @@ function tryIslandTempleChest(){for(let i=0;i<templeChests.length;i++){const c=t
 const CAR_COLORS = [0xef4444, 0x3b82f6, 0x22c55e, 0xf59e0b, 0x8b5cf6, 0xffffff, 0x0ea5e9, 0x111827];
 function makeCar(color) {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.7, 4.2), mat(color)); body.position.y = 0.85; body.castShadow = true; g.add(body);
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 2.1), mat(0x0b1220)); cabin.position.set(0, 1.45, -0.1); cabin.castShadow = true; g.add(cabin);
-  const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.35, 12), wheelMat = mat(0x111827);
+  const pintura = new THREE.MeshStandardMaterial({ color, roughness: .35, metalness: .45, flatShading: true });
+  const vidrio = new THREE.MeshStandardMaterial({ color: 0x9fd8ff, roughness: .08, metalness: .3, transparent: true, opacity: .55 });
+  const negro = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: .75, flatShading: true });
+  const cromo = new THREE.MeshStandardMaterial({ color: 0xd7dde5, roughness: .2, metalness: .9, flatShading: true });
+  const caja = (w, h, d, x, y, z, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
+  caja(2, .62, 4.2, 0, .82, 0, pintura);                               // carrocería
+  caja(1.94, .3, 3, 0, 1.22, -.15, pintura);                           // hombros del techo
+  caja(1.72, .62, 1.9, 0, 1.5, -.15, pintura);                         // techo
+  caja(1.76, .5, .1, 0, 1.46, .78, vidrio);                            // parabrisas
+  caja(1.76, .46, .1, 0, 1.46, -1.1, vidrio);                          // luneta trasera
+  for (const sx of [-.88, .88]) caja(.08, .42, 1.7, sx, 1.46, -.15, vidrio);   // ventanas laterales
+  caja(2.04, .16, .5, 0, .62, 2.08, cromo);                            // parachoques delantero
+  caja(2.04, .16, .5, 0, .62, -2.08, cromo);                           // parachoques trasero
+  caja(1.5, .2, .06, 0, .95, 2.14, negro);                             // parrilla
+  for (const sx of [-.6, .6]) {                                        // focos delanteros
+    const f = caja(.42, .26, .12, sx, .95, 2.14, new THREE.MeshStandardMaterial({ color: 0xfff7cc, emissive: 0xfde68a, emissiveIntensity: .55, roughness: .3 }));
+    f.userData.faro = true;
+  }
+  for (const sx of [-.62, .62]) caja(.36, .22, .1, sx, .95, -2.16, new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: .5, roughness: .4 }));   // luces traseras
+  for (const sx of [-1.03, 1.03]) caja(.1, .18, .34, sx, 1.42, .45, negro);   // espejos
+  for (const sx of [-1.01, 1.01]) caja(.06, .1, 1.6, sx, .95, -.1, cromo);    // molduras laterales
+  caja(.5, .06, .9, 0, 1.83, -.5, pintura);                            // pequeño alerón/portaequipaje
+  const wheelGeo = new THREE.CylinderGeometry(0.46, 0.46, 0.4, 14), wheelMat = negro;
+  const llantaGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.42, 10);
   [[-1.0, -1.4], [1.0, -1.4], [-1.0, 1.4], [1.0, 1.4]].forEach(([wx, wz]) => {
-    const w = new THREE.Mesh(wheelGeo, wheelMat); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.45, wz); g.add(w);
+    const w = new THREE.Mesh(wheelGeo, wheelMat); w.rotation.z = Math.PI / 2; w.position.set(wx, 0.46, wz); w.castShadow = true; g.add(w);
+    const ll = new THREE.Mesh(llantaGeo, cromo); ll.rotation.z = Math.PI / 2; ll.position.set(wx * 1.03, 0.46, wz); g.add(ll);   // llanta cromada
+    const guarda = new THREE.Mesh(new THREE.BoxGeometry(.14, .3, 1.15), negro); guarda.position.set(wx * 1.02, .82, wz); g.add(guarda);   // tapabarro
   });
-  [-0.6, 0.6].forEach(hx => { const h = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.1), mat(0xfef08a)); h.position.set(hx, 0.85, 2.12); g.add(h); });
+  const patente = caja(.6, .16, .05, 0, .72, 2.16, mat(0xf8fafc));     // patente
+  patente.castShadow = false;
   g.userData.isCar = true;
   return g;
 }
@@ -5580,16 +5625,46 @@ const airportPlanes = [];
 // ---- Un avión comercial de bloques ----
 function makePlane(color) {
   const g = new THREE.Group();
-  mcBox(g, 0, 4, 0, 4, 4, 22, 0xf1f5f9);                       // fuselaje
-  mcBox(g, 0, 4.6, -9, 3.2, 3.2, 4, 0xe2e8f0);                 // morro
-  for (let i = 0; i < 7; i++) mcBox(g, 1.6, 4.8, -6 + i * 2.2, 1.2, .9, 1.2, 0x93c5fd);   // ventanillas
-  for (let i = 0; i < 7; i++) mcBox(g, -1.6, 4.8, -6 + i * 2.2, 1.2, .9, 1.2, 0x93c5fd);
-  mcBox(g, 0, 3.4, 1, 26, .7, 4.4, color);                     // alas
-  for (const sx of [-6, 6]) { mcBox(g, sx, 2.4, 1, 2.6, 2.2, 3.4, 0x475569); }   // turbinas
-  mcBox(g, 0, 7.6, 9.5, .8, 5, 4, color);                      // cola
-  mcBox(g, 0, 4.2, 10, 9, .6, 2.6, color);
-  for (const sx of [-3.5, 3.5]) mcBox(g, sx, 1, 2, .5, 2, .5, 0x334155);   // tren de aterrizaje
-  mcBox(g, 0, 1.2, -6, .5, 2, .5, 0x334155);
+  const blanco = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: .38, metalness: .35, flatShading: true });
+  const franja = new THREE.MeshStandardMaterial({ color, roughness: .4, metalness: .3, flatShading: true });
+  const vidrio = new THREE.MeshStandardMaterial({ color: 0x1e3a5f, roughness: .1, metalness: .5, emissive: 0x0c4a6e, emissiveIntensity: .25 });
+  const gris = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: .5, metalness: .6, flatShading: true });
+  const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 22, 14), blanco);   // fuselaje redondo
+  cuerpo.rotation.x = Math.PI / 2; cuerpo.position.y = 4; cuerpo.castShadow = true; g.add(cuerpo);
+  const morro = new THREE.Mesh(new THREE.SphereGeometry(2, 14, 10), blanco);
+  morro.position.set(0, 4, -11); morro.scale.z = 1.5; morro.castShadow = true; g.add(morro);
+  const cono = new THREE.Mesh(new THREE.ConeGeometry(2, 3.2, 14), blanco);           // cola afinada
+  cono.rotation.x = -Math.PI / 2; cono.position.set(0, 4, 12.4); g.add(cono);
+  mcBox(g, 0, 4, 0, 4.1, .55, 22, color);                                            // franja de color
+  const parabrisas = new THREE.Mesh(new THREE.BoxGeometry(2.4, .7, .9), vidrio); parabrisas.position.set(0, 5, -11.6); g.add(parabrisas);
+  for (const sx of [-1.75, 1.75]) for (let i = 0; i < 9; i++) {                       // ventanillas
+    const v = new THREE.Mesh(new THREE.BoxGeometry(.5, .55, .55), vidrio); v.position.set(sx, 4.7, -7 + i * 1.9); g.add(v);
+  }
+  const ala = new THREE.Mesh(new THREE.BoxGeometry(26, .5, 4.2), blanco); ala.position.set(0, 3.5, 1); ala.castShadow = true; g.add(ala);
+  for (const sx of [-1, 1]) {                                                          // winglets levantados
+    const w = new THREE.Mesh(new THREE.BoxGeometry(.4, 1.8, 2.2), franja); w.position.set(sx * 12.9, 4.3, 1.4); w.rotation.z = sx * .12; g.add(w);
+  }
+  for (const sx of [-6.5, 6.5]) {                                                      // turbinas cilíndricas
+    const tur = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 3.6, 12), gris);
+    tur.rotation.x = Math.PI / 2; tur.position.set(sx, 2.5, .6); tur.castShadow = true; g.add(tur);
+    const boca = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, .3, 12), new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: .6 }));
+    boca.rotation.x = Math.PI / 2; boca.position.set(sx, 2.5, -1.2); g.add(boca);
+    const pilon = new THREE.Mesh(new THREE.BoxGeometry(.5, 1.2, 2), gris); pilon.position.set(sx, 3.2, .8); g.add(pilon);
+  }
+  const deriva = new THREE.Mesh(new THREE.BoxGeometry(.6, 5.2, 4), franja); deriva.position.set(0, 7.6, 10.4); deriva.castShadow = true; g.add(deriva);
+  mcBox(g, 0, 9.6, 11.4, .7, 1.4, 1.8, 0xf1f5f9);                                      // remate de la deriva
+  const estab = new THREE.Mesh(new THREE.BoxGeometry(9.5, .45, 2.6), blanco); estab.position.set(0, 4.4, 11.2); g.add(estab);
+  for (const [lx, lz] of [[-3.6, 2.2], [3.6, 2.2], [0, -8.5]]) {                       // tren de aterrizaje con ruedas
+    const pata = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, 2.1, 8), gris); pata.position.set(lx, 1.1, lz); g.add(pata);
+    for (const dx of [-.28, .28]) {
+      const rueda = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, .3, 12), new THREE.MeshStandardMaterial({ color: 0x111827, roughness: .9 }));
+      rueda.rotation.z = Math.PI / 2; rueda.position.set(lx + dx, .45, lz); g.add(rueda);
+    }
+  }
+  const luzRoja = new THREE.Mesh(new THREE.SphereGeometry(.22, 8, 6), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 1.2 }));
+  luzRoja.position.set(-13, 3.6, 1); g.add(luzRoja);
+  const luzVerde = luzRoja.clone(); luzVerde.material = new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.2 });
+  luzVerde.position.set(13, 3.6, 1); g.add(luzVerde);
   return g;
 }
 // Arma un aeropuerto completo (losa, pista, terminal con torre, mesón y aviones).
@@ -15764,8 +15839,7 @@ function gunRaycastEnemy(from, dir, range) {
   let best = null, bestT = range, bestHead = false, bestPoint = null;
   const rel = new THREE.Vector3();
   for (const e of enemies) {
-    if (e.userData.type === 'bull') continue;
-    rel.copy(e.position).sub(from);
+    rel.copy(e.position).sub(from);   // las embestidas (toros lanzados) también se pueden balear
     const t = rel.dot(dir);
     if (t < 0 || t > bestT) continue;
     const px = from.x + dir.x * t, py = from.y + dir.y * t, pz = from.z + dir.z * t;

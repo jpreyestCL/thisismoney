@@ -260,6 +260,7 @@ con nombre de pistola" y ahora son armas de verdad.
   `state.ammo` (reserva), `state.reloadT`, `state.gadgetCharges`, `state.handGadget`. Todo se guarda.
 - `makeHandGun(kind,color,scale,scope)` dibuja corredera, cachas, guardamonte, alza/punto de mira y
   la mira telescópica; se arma apuntando a +X y se gira para que el cañón mire al frente.
+- Las balas también le pegan a las EMBESTIDAS de los toros (`type: 'bull'`), que antes las ignoraban.
 - `fireGun()` gasta una bala, saca fogonazo (`muzzleFlash`), trazadora visible (`spawnTracer`),
   retroceso y hace `gunRaycastEnemy` (cilindro por bicho; el tercio de arriba = CABEZA → daño ×`head`).
 - Recarga: al vaciar el cargador (o tras 3,5 s sin disparar) arranca `startReload`: 5 s, caen 6
@@ -312,6 +313,17 @@ obstáculo. El estado se guarda (`open` en `placed`).
 colores y pies. **Planta**: macetero de terracota con borde, tierra, tallo, 7 hojas abiertas y
 cogollo. **Cuadro**: marco dorado con moldura, paspartú y un paisaje pintado (cielo, sol, cerros y
 campo).
+
+**Autos** (`makeCar`): carrocería con hombros y techo, parabrisas/luneta/ventanas de vidrio,
+parachoques y molduras cromadas, parrilla, focos emisivos, luces traseras rojas, espejos, tapabarros,
+llantas cromadas y patente. Pintura metálica.
+
+**Aviones** (`makePlane`): fuselaje cilíndrico con morro redondo y cola cónica, franja de color,
+parabrisas, 18 ventanillas, alas con winglets, turbinas cilíndricas con pilón, deriva con remate,
+estabilizadores, tren de aterrizaje con ruedas dobles y luces de posición roja/verde.
+
+**Personas** (`makePerson`): nariz, orejas, pelo (capa, nuca, patillas y chasquilla), cuello,
+cinturón con hebilla, manos colgando de los brazos y zapatos en las piernas (se mueven al caminar).
 
 **Cama**: patas torneadas, marco de madera, colchón con sábana, plumón que cubre la mitad de abajo
 con doblez y pliegues, dos almohadas inclinadas, cabecera con postes y piecera (en `spawnPlaced`,

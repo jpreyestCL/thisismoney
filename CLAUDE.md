@@ -464,6 +464,21 @@ Bugs detectados en un code review de la fusión (calles/tráfico + estrellas + r
 Verificado con Playwright (Chromium, viewport táctil 851×393): cargar + iniciar + conducir + abrir/cerrar
 tienda con Enter vacío → **cero errores** de consola y render correcto de la ciudad.
 
+## Menos teclas en PC (E contextual + menú de rueda)
+
+Las teclas viejas SIGUEN funcionando; esto solo agrega caminos más fáciles.
+
+- **E hace todo lo que tengas delante**: además de lo que ya hacía, ahora cubre el vendedor
+  (`tryVendorHere`, antes Y), llamar ayudante al lado de la mamá (`tryHelperHere`, antes H) y el
+  huerto (`tryGardenHere`: planta si llevas semillas, si no cava con la pala — antes K y T). Van al
+  FINAL de la cadena de `tryInteract`, así que solo saltan cuando no hay nada más cerca.
+  `tryCollectGolden`/`tryRob`/`sellHouse` ahora devuelven `true`/`false` para poder encadenarlas.
+- **Tab abre un menú en rueda** (`openWheel`/`wheelOptions`/`closeWheel`, `#wheelMenu`): modos del
+  papá (C/V/O), descansar (Z), armarlo (G), llamar ayudante (H), mates (U), empezar la noche (N),
+  misiones y ayuda (I). Cada opción muestra su tecla vieja como recordatorio. Esc o Tab lo cierran,
+  `algunRecuadroAbierto()` lo cuenta como recuadro abierto (el teclado del juego se congela).
+- Los carteles de contexto que decían Y o K ahora dicen **E**.
+
 ## Convenciones del código
 
 - Idioma: **español** en comentarios, textos de UI y nombres de funciones/variables de dominio

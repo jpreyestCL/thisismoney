@@ -271,6 +271,10 @@
 
   /* En móvil solo aparecen las acciones útiles para el contexto actual. */
   body.touch #touchBtns > .tbtn { display: none; }
+  body.touch #touchBtns > [data-act="wheel"] { display: flex; }
+  body.touch #touchBtns > [data-act="aim"] { display: none; }
+  body.touch.armado #touchBtns > [data-act="aim"] { display: flex; }
+  body.touch.building #touchBtns > [data-act="aim"], body.touch.building #touchBtns > [data-act="wheel"] { display: none; }
   body.touch #touchBtns > [data-act="hit"], body.touch #touchBtns > [data-act="interact"],
   body.touch #touchBtns > [data-act="build"], body.touch #touchBtns > [data-act="more"] { display: flex; }
   body.touch.building #touchBtns > [data-act="hit"], body.touch.building #touchBtns > [data-act="interact"] { display: none; }
@@ -468,7 +472,8 @@
   .wheel-item .wi { font-size:22px; line-height:1; }
   .wheel-item:hover, .wheel-item:focus { border-color:#facc15; background:rgba(30,41,59,.96); color:#fff; outline:none; }
   .wheel-item small { display:block; opacity:.6; font-size:9px; font-weight:700; }
-  body.touch .wheel-item { width:96px; min-height:64px; font-size:10px; }
+  body.touch .wheel-item, .wheel-item.chico { width:86px; min-height:58px; padding:6px 4px; font-size:10px; border-radius:11px; }
+  body.touch .wheel-item .wi, .wheel-item.chico .wi { font-size:18px; }
   #aimDot { position:fixed; top:50%; left:50%; width:9px; height:9px; margin:-4.5px 0 0 -4.5px; border-radius:50%;
     background:#ef4444; box-shadow:0 0 8px #ef4444, 0 0 2px #fff inset; z-index:9; pointer-events:none; display:none; }
   #scopeMask { position:fixed; inset:0; z-index:8; pointer-events:none; display:none;
@@ -751,6 +756,8 @@
   <div id="touchBtns">
     <button type="button" class="tbtn big" data-act="hit" aria-label="Acción principal">👊<small>acción</small></button>
     <button type="button" class="tbtn" data-act="interact" aria-label="Usar o hablar">🤝<small>usar</small></button>
+    <button type="button" class="tbtn" data-act="aim" aria-label="Poner o sacar la mira">🔭<small>mira</small></button>
+    <button type="button" class="tbtn" data-act="wheel" aria-label="Menú de acciones">🎯<small>acciones</small></button>
     <button type="button" class="tbtn" data-act="shop" aria-label="Abrir tienda">🛒<small>tienda</small></button>
     <button type="button" class="tbtn" data-act="eat" aria-label="Comer">🍖<small>comer</small></button>
     <button type="button" class="tbtn" data-act="night" aria-label="Empezar noche">🌙<small>noche</small></button>
@@ -4087,11 +4094,12 @@ function openWheel() {
   closeShopInput(); closeMathBox(); releaseLock();
   el.querySelectorAll('.wheel-item').forEach(b => b.remove());
   const ops = wheelOptions(), n = ops.length;
-  const R = Math.min(innerWidth, innerHeight) * .31;
+  const chico = document.body.classList.contains('touch') || innerHeight < 560;
+  const R = chico ? Math.min(innerWidth * .34, Math.max(innerHeight * .38, 118)) : Math.min(innerWidth, innerHeight) * .31;
   ops.forEach((op, i) => {
     const a = -Math.PI / 2 + (i / n) * Math.PI * 2;
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'wheel-item'; b.setAttribute('role', 'menuitem');
+    b.type = 'button'; b.className = 'wheel-item' + (chico ? ' chico' : ''); b.setAttribute('role', 'menuitem');
     b.style.left = (innerWidth / 2 + Math.cos(a) * R) + 'px';
     b.style.top = (innerHeight / 2 + Math.sin(a) * R * .92) + 'px';
     b.innerHTML = '<span class="wi">' + op.icon + '</span>' + op.label + (op.key ? '<small>tecla ' + op.key + '</small>' : '');
@@ -11735,6 +11743,8 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
     switch (act) {
       case 'hit': if (trySeatedGamerKeyboard()) break; if (sportAction()) break; if (state.driving) honk(); else if (bowEquipped()) startBowDraw('touch'); else if (tryGunShot()) break; else tryCombatStrike(); break;
       case 'interact': if (bowEquipped() && startBowDraw('key')) break; if (currentGunSpec() && !ctxWantsE) { toggleAim(); break; } tryInteract(); break;
+      case 'aim': if (!toggleAim()) toast('🔭 La mira es de las armas de fuego (cómpralas en el mercado negro)'); break;
+      case 'wheel': toggleWheel(); break;
       case 'shop': openShopInput(); break;
       case 'eat': if (!sportSecondaryAction()) eatFood(); break;
       case 'night': tryStartNight(); break;
@@ -18224,6 +18234,7 @@ function renderHUD() {
     speedometer.classList.toggle('turbo', state.sailing ? state.weather==='rain' : !!car.turbo);
   }
   document.body.classList.toggle('building', !!state.buildMode); document.body.classList.toggle('vehicle', !!(state.driving || state.sailing)); document.body.classList.toggle('sporting', !!state.sportGame);
+  document.body.classList.toggle('armado', !!currentGunSpec());   // con arma de fuego aparece el botón 🔭 mira
   const sportHud = ui('sportHud'), sportGame = state.sportGame;
   sportHud.style.display = sportGame ? 'block' : 'none';
   if (sportGame) {

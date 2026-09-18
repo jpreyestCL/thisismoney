@@ -484,6 +484,9 @@ Las teclas viejas SIGUEN funcionando; esto solo agrega caminos más fáciles.
   misiones y ayuda (I). Cada opción muestra su tecla vieja como recordatorio. Esc o Tab lo cierran,
   `algunRecuadroAbierto()` lo cuenta como recuadro abierto (el teclado del juego se congela).
 - Los carteles de contexto que decían Y o K ahora dicen **E**.
+- **En celular** todo esto tiene su botón: **🎯 acciones** abre la misma rueda (items más chicos con
+  la clase `chico`), **🔭 mira** pone/saca la mira y solo aparece con un arma de fuego en la mano
+  (clase `body.armado`, que `renderHUD` alterna), y el botón **🤝 usar** ya hacía de E contextual.
 
 ## Convenciones del código
 

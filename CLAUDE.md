@@ -289,6 +289,15 @@ con nombre de pistola" y ahora son armas de verdad.
 
 ## Gráficos
 
+**Pasto**: el suelo usa una textura en grises generada por canvas (`makeGroundDetailTexture`, con
+parches, briznas y tierrita) para que el color del planeta la siga tiñendo, más un normal map
+procedural (`makeGroundNormalTexture`) que le da relieve (se salta en modo rendimiento).
+Encima hay pasto 3D: `grassField`, un `InstancedMesh` (1 draw call) de matitas en cruz con textura
+de briznas y `alphaTest`, repartidas alrededor del jugador (`scatterGrass` + `fillGrassChunk`, de a
+220 por frame para no trabar) y meciéndose con el viento vía `onBeforeCompile` (el shader mueve la
+punta, 0 coste de CPU). 2.800 matitas en PC / 650 en celular; solo en la Tierra.
+
+
 **Casas**: las piezas de TU casa llevan detalle propio (`addWallDetail` / `addRoofDetail`, llamados
 en `spawnPlaced`): la madera tiene tablas y vigas, la piedra sillares irregulares, el metal chapas y
 remaches, y todas un zócalo abajo; el techo lleva hileras de tejas, alero y caballete. Los materiales

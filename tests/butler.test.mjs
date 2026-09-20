@@ -9,6 +9,8 @@ let answer = '', message = '';
 const context = vm.createContext({ butler, state, player:{position:{x:0,y:0,z:0}}, platusKeepers:[{x:40,z:-31}], countryKeepers:[], effectivePrice:i=>i.price, typing:false, BUTLER_HOME:{x:0,z:0}, BUTLER_SUPER:{x:40,z:-31}, butlerSpaceTaps:[], mountainHeightAt:()=>0, releaseLock(){}, prompt:()=>answer, toast:t=>{message=t;}, saveGame(){}, tone(){}, setTimeout(){}, swingLimbs(){}, dist2D:(a,b)=>Math.hypot(a.x-b.x,a.z-b.z), moveToward(e,t,step){const d=Math.hypot(t.x-e.position.x,t.z-e.position.z);e.position.x+=(t.x-e.position.x)*step/d;e.position.z+=(t.z-e.position.z)*step/d;} });
 vm.runInContext(html.slice(html.indexOf('const STORE_A ='),html.indexOf('// Mayordomo:')), context);
 vm.runInContext(html.slice(html.indexOf('const STORE_B'),html.indexOf('// Dibuja un producto')), context);
+const gunStart = html.indexOf('const GUN_CLIP = 20');
+vm.runInContext(html.slice(gunStart, html.indexOf('function gunSpecByName', gunStart)), context);   // buyItem consulta GUN_SPECS
 vm.runInContext(html.slice(html.indexOf('function normalizeButlerText'),html.indexOf('function payButlerWeeklyWage')), context);
 vm.runInContext(html.slice(html.indexOf('function buyItem(item)'),html.indexOf('function setWeaponColor')), context);
 const run = code => vm.runInContext(code,context);

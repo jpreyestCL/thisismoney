@@ -17,7 +17,7 @@ assert.match(html, /if \(onEarth\) updateOceanExpedition/);
 assert.match(html, /if \(onPlatus\) \{/);
 assert.match(html, /preferLowPerf/);
 assert.match(html, /antialias: !preferLowPerf/);
-assert.match(html, /sun\.shadow\.mapSize\.set\(preferLowPerf \? 512 : 1024/);
+assert.match(html, /sun\.shadow\.mapSize\.set\(preferLowPerf \? 512 : 2048/);
 assert.match(html, /const CELL = o\.cell \|\| \(o\.ski \? 4\.2 : 2\.8\)/);
 assert.match(html, /im\.castShadow = false/);
 assert.match(html, /oceanFxGroup/);
@@ -25,6 +25,6 @@ assert.match(html, /fps < 28/);
 assert.match(html, /if \(fpsLento < 2\) return/);
 assert.match(html, /light\.visible = false/);
 assert.match(html, /shaftLight\.visible = false/);
-assert.match(sw, /tim-v49/);
+assert.match(sw, /tim-v50/);
 
 console.log('perf lod and startup: ok');

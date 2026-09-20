@@ -55,7 +55,7 @@ assert.match(html, /function laserShopItem\(/);
 assert.match(html, /slot1TapAt/);
 assert.match(html, /slot1DupAt/);
 assert.match(html, /now - slot1DupAt < 35/);
-assert.match(html, /1 dos toques = arco/);
+assert.match(html, /dos toques seguidos = arco/);
 assert.match(html, /selectSlot\(1, 'wheel'\)/);
 assert.match(html, /meleeName: state\.meleeName/);
 assert.match(html, /lastNonBow: state\.lastNonBow/);
@@ -64,6 +64,6 @@ assert.match(html, /if \(state\.laserGun\) return equipHandWeapon\('gun'\)/);
 assert.match(html, /if \(item\.key === 'laserpistol'\)/);
 assert.match(html, /if \(bowEquipped\(\) \|\| laserEquipped\(\)\) \{/);
 assert.match(html, /sanitizeWeaponPockets\(\)/);
-assert.match(sw, /tim-v49/);
+assert.match(sw, /tim-v50/);
 
 console.log('bow and arrow: ok');

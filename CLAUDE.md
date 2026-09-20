@@ -586,6 +586,39 @@ la casa se levanta en un **lote comprado**.
   (27.5, 130)); la mamá aparece en la explanada común.
 - `makeSign` ahora **achica la letra hasta que el texto entra** en el cartel (antes se cortaba).
 
+## El banco y la cárcel (edificios en los que se ENTRA)
+
+Los dos eran una caja de 8×5 y ahora son edificios grandes, con interior recorrible y gente
+adentro. Comparten tres helpers: `edifCaja` (caja + colisión opcional, agrupada para que
+`auditCity` no la cuente encimada), `edifRejas` (fila de barrotes con travesaños) y
+`sentarPersona` (deja a un `makePerson` sentado y marcado `seated`).
+Las dos se construyen con `buildBank()` / `buildJail()` **junto al condominio** (después de
+`buildAirport()`): usan `mcFloor`/`mcBench`/`mcTree`, que dependen de `parkMatCache` y no
+existen todavía en la línea donde se declaran `BANK_POS`/`JAIL_POS`.
+
+- **🏦 Banco Central** (`BANK`, 20×11×6.4 en `LUGARES.banco` = (19,-15); el súper se corrió a
+  (28,-35) para dejarle el frente de la manzana). Por fuera: seis columnas acanaladas, frontón
+  escalonado con reloj, puerta doble de bronce, ventanales enrejados, torre con cúpula, mástiles,
+  jardineras y **dos cajeros automáticos** en la fachada. Por dentro: mármol, mesón de tres
+  ventanillas (la del centro va ABIERTA para ver a la cajera), bóveda acorazada con rueda, sala
+  de espera, cordón de la fila y dos luces reales (se saltan en modo rendimiento).
+  - **La cajera** (`bankTeller`) está sentada a su escritorio. `bankDeskNear()` dice si estás
+    frente a ella (<4,2) o en un cajero (<2,6), y `tryBank()` abre el `#bankbox` de siempre
+    (la cajera además te saluda con `say`). Ya NO basta con acercarse al edificio.
+- **🚔 Penal La Roca** (`JAIL`, 37×35 en la manzana `carcel`): muro perimetral con rollos de
+  alambre de púas, cuatro torres de vigilancia con foco, portón con dintel y reja corrida,
+  patio con dos canchas de básquet, bancas y mesa, y el **Pabellón A** (29×14) con pasillo,
+  cinco celdas enrejadas (litera, váter, luz) y ventanucos.
+  - **Presos y guardias**: `makePrisoner` (buzo naranja con rayas, gorro y número) y `makeGuard`
+    (uniforme azul, gorra con visera, placa y luma). Cinco presos en las celdas, tres en el patio
+    y tres guardias. `updateJailFolk(dt)` (en el bucle) los pasea dentro de su radio; solo corre
+    en la Tierra y a menos de 90 del penal.
+  - Los policías salen por `JAIL_GATE` (fuera del muro), no dentro del recinto.
+- Bug de fondo arreglado: `makeStore` tenía 3 filas fijas de góndolas y el súper trae 26
+  productos, así que los dos últimos ("cohete" y "trajes") terminaban **en medio de la avenida**.
+  Ahora las filas se calculan con `Math.ceil(items.length / cols.length)`.
+- Debug: `__tim().jailFolk`, `__tim().bankTeller()`, `__tim().bankDeskNear()`, `__tim().JAIL`.
+
 ## Convenciones del código
 
 - Idioma: **español** en comentarios, textos de UI y nombres de funciones/variables de dominio

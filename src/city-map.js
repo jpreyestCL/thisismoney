@@ -103,8 +103,8 @@ export const LUGARES = Object.freeze({
   spawn: Object.freeze({ x: 10, z: 16, distrito: 'casa' }),
   spawnPapa: Object.freeze({ x: 12, z: 13, distrito: 'casa' }),
   spawnMama: Object.freeze({ x: 15.5, z: 18.5, distrito: 'casa' }),   // en la explanada común del condominio
-  super: Object.freeze({ x: 28, z: -30, distrito: 'comercial' }),
-  banco: Object.freeze({ x: 12, z: -15, distrito: 'comercial' }),
+  super: Object.freeze({ x: 28, z: -35, distrito: 'comercial' }),   // al fondo de la manzana: el banco ocupa el frente
+  banco: Object.freeze({ x: 19, z: -15, distrito: 'comercial' }),
   entregaAutos: Object.freeze({ x: 42, z: -44, distrito: 'comercial' }),
   armeria: Object.freeze({ x: -82, z: -86, distrito: 'armeria' }),
   gasolinera: Object.freeze({ x: -33, z: 18, distrito: 'plaza' }),

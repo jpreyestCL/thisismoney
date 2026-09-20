@@ -1210,7 +1210,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
-import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=2';
+import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=3';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=4';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -2594,7 +2594,11 @@ function makeStore(cx, cz, items, title, roofColor) {
     carro.position.set(cx - hw + 2 + i * 1.05, 0, frente + 2.6); carro.rotation.y = .12 * i; scene.add(carro);
   }
   const cols = [cx - 8.4, cx - 6, cx - 3.6, cx - 1.2, cx + 1.2, cx + 3.6, cx + 6, cx + 8.4];
-  const rows = [cz - 6, cz, cz + 6];
+  // Tantas filas de góndolas como hagan falta: con las 3 fijas de antes, los
+  // productos 25 y 26 del súper se quedaban sin fila y aparecían en la calle.
+  const filas = Math.max(1, Math.ceil(items.length / cols.length));
+  const pasoFila = filas > 3 ? 4.6 : 6;
+  const rows = Array.from({ length: filas }, (_, i) => cz - 6 + i * pasoFila);
   items.forEach((item, idx) => {
     const x = cols[idx % cols.length], z = rows[Math.floor(idx / cols.length)];
     item.pos = new THREE.Vector3(x, 0, z);
@@ -3958,26 +3962,347 @@ function finishSportGame(abandoned) {
   state.sportGame = null;
 }
 
-// ---- BANCO (educativo): ahorra y gana 5% de interés por noche; préstamos al 10% ----
-const BANK_POS = new THREE.Vector3(LUGARES.banco.x, 0, LUGARES.banco.z);
-(function buildBank() {
-  const b = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 6), mat(0xd9c58b)); b.position.set(BANK_POS.x, 2.5, BANK_POS.z); b.castShadow = true; b.receiveShadow = true; scene.add(b);
-  const roofB = new THREE.Mesh(new THREE.BoxGeometry(9, 0.5, 7), mat(0x8a744a)); roofB.position.set(BANK_POS.x, 5.2, BANK_POS.z); scene.add(roofB);
-  for (const sx of [-2.6, 0, 2.6]) { const col = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4.6, 10), mat(0xf5ecd7)); col.position.set(BANK_POS.x + sx, 2.3, BANK_POS.z + 3.1); scene.add(col); }
-  const sign = makeSign('BANCO (E)', 0xfacc15); sign.position.set(BANK_POS.x, 6.4, BANK_POS.z); scene.add(sign);
-  addObstacle(BANK_POS.x, BANK_POS.z, 8, 6);
-})();
-
-// La cárcel (edificio con rejas)
-const JAIL_POS = new THREE.Vector3(LUGARES.carcel.x, 0, LUGARES.carcel.z);   // la cárcel: de aquí salen los policías
-function buildJail() {
-  const cx = JAIL_POS.x, cz = JAIL_POS.z;
-  const body = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 8), mat(0x9ca3af)); body.position.set(cx, 2.5, cz); body.castShadow = true; body.receiveShadow = true; scene.add(body);
-  for (let i = -2; i <= 2; i++) { const bar = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3, 0.15), mat(0x334155)); bar.position.set(cx + i * 0.8, 2.5, cz + 4.05); scene.add(bar); }
-  const sign = makeSign('CARCEL', 0x94a3b8); sign.position.set(cx, 6.2, cz); scene.add(sign);
-  addObstacle(cx, cz, 10, 8);
+// ===================================================================
+//  PIEZAS COMPARTIDAS del banco y la cárcel (los dos son edificios en
+//  los que se ENTRA: paredes huecas, techo y gente adentro).
+// ===================================================================
+// Caja sencilla: devuelve la malla y, si se pide, deja su caja de choque.
+function edifCaja(x, y, z, w, h, d, color, grupo, choca, opts) {
+  const o = opts || {};
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), o.material || mat(color));
+  m.position.set(x, y, z); m.castShadow = o.sombra !== false; m.receiveShadow = true; scene.add(m);
+  if (choca) addObstacle(x, z, w, d, y + h / 2, grupo);
+  return m;
 }
-buildJail();
+// Barrote / reja: una fila de barras verticales (celdas, ventanas, portones).
+function edifRejas(x, y, z, ancho, alto, n, color, horizontal) {
+  const g = new THREE.Group(); scene.add(g);
+  const paso = ancho / (n - 1);
+  for (let i = 0; i < n; i++) {
+    const off = -ancho / 2 + paso * i;
+    const b = new THREE.Mesh(new THREE.BoxGeometry(.12, alto, .12), mat(color));
+    b.position.set(x + (horizontal ? off : 0), y, z + (horizontal ? 0 : off));
+    b.castShadow = true; g.add(b);
+  }
+  for (const sy of [-alto / 2 + .1, alto / 2 - .1]) {   // travesaños arriba y abajo
+    const t = new THREE.Mesh(new THREE.BoxGeometry(horizontal ? ancho : .14, .16, horizontal ? .14 : ancho), mat(color));
+    t.position.set(x, y + sy, z); g.add(t);
+  }
+  return g;
+}
+// Persona sentada mirando hacia `haciaY` (la cajera del banco, los presos del patio…)
+function sentarPersona(p, x, y, z, haciaY) {
+  p.position.set(x, y - .9, z); p.rotation.y = haciaY;
+  const l = p.userData.limbs;
+  if (l) {
+    l.legL.rotation.x = -Math.PI / 2; l.legR.rotation.x = -Math.PI / 2;
+    l.armL.rotation.x = -.5; l.armR.rotation.x = -.5;
+    p.userData.seated = true;   // que swingLimbs no lo haga caminar
+  }
+  return p;
+}
+
+// ===================================================================
+//  BANCO CENTRAL: edificio neoclásico (columnas, frontón, reloj y
+//  bóveda) al que se ENTRA. Adentro, la cajera atiende detrás del
+//  mesón: acércate y pulsa E para abrir la libreta de siempre.
+// ===================================================================
+const BANK_POS = new THREE.Vector3(LUGARES.banco.x, 0, LUGARES.banco.z);
+const BANK = { x: LUGARES.banco.x, z: LUGARES.banco.z, w: 20, d: 11, h: 6.4, t: .6 };
+BANK.frente = BANK.z + BANK.d / 2;   // la puerta mira al norte, hacia la avenida
+let bankTeller = null;
+const bankAtms = [];
+function buildBank() {
+  const { x: cx, z: cz, w, d, h, t } = BANK, frente = BANK.frente, fondo = cz - d / 2;
+  const piedra = 0xe9e1cb, piedraOsc = 0xcfc4a6, bronce = 0x8a6a2f, marmol = 0xf1efe6;
+  // Explanada y piso de mármol (con una alfombra de mármol oscuro al centro)
+  mcFloor(scene, cx, cz - .4, w + 2.5, d + 4, 0xbfc3c7, .03);   // sin pisar la vereda ni la avenida
+  mcFloor(scene, cx, cz, w - t * 2, d - t * 2, marmol, .06);
+  mcFloor(scene, cx, cz, w - 8, d - 5, 0xd8d2c2, .07);
+  addNoGrassZone(cx, cz - .4, w + 2.5, d + 4);
+  // Muros: atrás, los dos costados y el frente partido en dos (hueco de puerta de 4)
+  edifCaja(cx, h / 2, fondo, w, h, t, piedra, 'banco', true);
+  for (const sx of [-1, 1]) edifCaja(cx + sx * (w / 2 - t / 2), h / 2, cz, t, h, d, piedra, 'banco', true);
+  for (const sx of [-1, 1]) edifCaja(cx + sx * (w / 4 + 1), h / 2, frente, w / 2 - 2, h, t, piedra, 'banco', true);
+  edifCaja(cx, h - .55, frente, 4, 1.1, t, piedra, 'banco', false);   // dintel sobre la puerta
+  // Zócalo y cornisa que recorren el edificio
+  edifCaja(cx, .35, cz, w + .8, .7, d + .8, piedraOsc, 'banco', false);
+  edifCaja(cx, h + .35, cz, w + 1.2, .7, d + 1.2, piedraOsc, 'banco', false);
+  const techo = edifCaja(cx, h + .95, cz, w + .4, .5, d + .4, 0xb9ad91, 'banco', false);
+  addLandingSurface(cx, cz, w + .4, d + .4, h + 1.2, techo);   // se puede aterrizar en el techo
+  // Frontón escalonado con el reloj (estilo bloques, como el resto del juego)
+  [[w + 1.2, 0], [w - 4, .75], [w - 9, 1.5], [w - 14, 2.25]].forEach(([ancho, dy]) =>
+    edifCaja(cx, h + 1.55 + dy, frente + .5, ancho, .75, 2.2, piedra, 'banco', false));
+  const reloj = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, .22, 20), mat(0xfdfbf3));
+  reloj.rotation.x = Math.PI / 2; reloj.position.set(cx, h + 2.4, frente + 1.7); scene.add(reloj);
+  for (const [largo, ang, alto] of [[.75, -.9, .07], [.5, 2.1, .09]]) {   // manecillas
+    const mano = new THREE.Mesh(new THREE.BoxGeometry(.1, largo, .08), mat(0x1f2937));
+    mano.position.set(cx + Math.sin(ang) * largo / 2, h + 2.4 + Math.cos(ang) * largo / 2, frente + 1.8 + alto);
+    mano.rotation.z = -ang; scene.add(mano);
+  }
+  // Columnas acanaladas del pórtico (tres a cada lado de la puerta)
+  for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const px = cx + sx * (3.2 + i * 3.1);
+    const fuste = new THREE.Mesh(new THREE.CylinderGeometry(.48, .54, h - .8, 12), mat(piedra));
+    fuste.position.set(px, (h - .8) / 2 + .6, frente + 1.2); fuste.castShadow = true; scene.add(fuste);
+    edifCaja(px, .3, frente + 1.2, 1.5, .6, 1.5, piedraOsc, 'banco', false);          // basa
+    edifCaja(px, h - .1, frente + 1.2, 1.6, .5, 1.6, piedraOsc, 'banco', false);      // capitel
+    addObstacle(px, frente + 1.2, 1.2, 1.2, h, 'banco');
+  }
+  // Puerta doble de bronce (abierta hacia adentro) y su marco
+  for (const sx of [-1, 1]) {
+    const hoja = edifCaja(cx + sx * 2.35, 1.75, frente - .55, .18, 3.5, 1.7, bronce, 'banco', false);
+    hoja.rotation.y = sx * .5;
+    edifCaja(cx + sx * 2.1, 1.85, frente, .35, 3.7, t + .2, bronce, 'banco', false);
+  }
+  const cartel = makeSign('BANCO CENTRAL', 0xfacc15);
+  cartel.scale.set(.9, .9, .9); cartel.position.set(cx, h + .95, frente + 1.9); scene.add(cartel);
+  // Ventanales enrejados en los costados
+  for (const sx of [-1, 1]) for (const dz of [-2.6, 1.4]) {
+    edifCaja(cx + sx * (w / 2 - t / 2), 3.4, cz + dz, .2, 2.4, 2, 0x9fd0ff, 'banco', false, { sombra: false });
+    edifRejas(cx + sx * (w / 2 - .35), 3.4, cz + dz, 2, 2.4, 5, 0x6b7280, false);
+  }
+  // Cajeros automáticos en la fachada (por si no quieres entrar) y jardineras
+  for (const sx of [-1, 1]) {
+    const ax = cx + sx * 7.4, az = frente + .55;
+    edifCaja(ax, 1.15, az, 1.3, 2.3, .55, 0x334155, 'banco', false);
+    edifCaja(ax, 1.55, az + .3, .95, .75, .1, 0x22d3ee, 'banco', false, { sombra: false });
+    edifCaja(ax, 2.55, az, 1.5, .25, .7, 0xfacc15, 'banco', false);
+    bankAtms.push({ x: ax, z: az + 1 });
+    mcFlowers(scene, cx + sx * 9.4, frente - 1.4, 1.1);
+  }
+  // Mástiles con banderín a los lados del pórtico
+  for (const sx of [-1, 1]) {
+    const mx = cx + sx * 10.4;
+    edifCaja(mx, 3.5, frente + 1.8, .18, 7, .18, 0xcbd5e1, 'banco', false);
+    edifCaja(mx + sx * .8, 6.4, frente + 1.8, 1.6, 1, .06, 0xfacc15, 'banco', false, { sombra: false });
+  }
+  // Torre del reloj sobre el techo, para que se vea desde lejos
+  edifCaja(cx, h + 3.6, cz - 1, 5, 4.8, 5, piedra, 'banco', false);
+  edifCaja(cx, h + 6.2, cz - 1, 6, .6, 6, piedraOsc, 'banco', false);
+  const cupula = new THREE.Mesh(new THREE.SphereGeometry(2.6, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x3f8f7a));
+  cupula.position.set(cx, h + 6.5, cz - 1); cupula.castShadow = true; scene.add(cupula);
+  edifCaja(cx, h + 9.8, cz - 1, .2, 2, .2, 0xd4a017, 'banco', false);
+  // ---- ADENTRO ----
+  // Mesón de atención con mampara de vidrio y tres ventanillas
+  const mesonZ = fondo + 2.8;
+  edifCaja(cx, .55, mesonZ, 14, 1.1, 1.2, 0x7a5a36, 'banco', true);
+  edifCaja(cx, 1.16, mesonZ, 14.4, .12, 1.5, 0x3f2d1a, 'banco', false);
+  for (const sx of [-4.6, 4.6]) {   // la ventanilla del centro queda ABIERTA: ahí se ve a la cajera
+    edifCaja(cx + sx, 1.95, mesonZ - .2, 3.6, 1.5, .1, 0xbfe6ff, 'banco', false, { sombra: false });
+    edifCaja(cx + sx, 1.2, mesonZ - .2, 3.6, .12, .3, 0x94a3b8, 'banco', false);
+  }
+  edifCaja(cx, 2.62, mesonZ - .2, 3.6, .16, .3, 0x7a5a36, 'banco', false);   // dintel de la ventanilla abierta
+  for (const sx of [-2.4, 2.4]) edifCaja(cx + sx, 1.95, mesonZ - .2, .16, 1.6, .3, 0x7a5a36, 'banco', false);
+  // Escritorio de la cajera, detrás del mesón, con su computador y el cartel CAJA
+  const desk = { x: cx, z: fondo + 1.6 };
+  edifCaja(desk.x, .72, desk.z, 4.4, .14, 1.5, 0x6b4a2a, 'banco', false);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) edifCaja(desk.x + sx * 2, .36, desk.z + sz * .6, .16, .72, .16, 0x4b3520, 'banco', false);
+  edifCaja(desk.x - 1.4, 1.05, desk.z, .9, .54, .08, 0x1f2937, 'banco', false, { sombra: false });
+  edifCaja(desk.x - 1.4, 1.05, desk.z + .04, .78, .44, .04, 0x60a5fa, 'banco', false, { sombra: false });
+  edifCaja(desk.x + 1.5, .84, desk.z, .7, .1, .45, 0xe5e7eb, 'banco', false);
+  const placa = makeSign('CAJA', 0xfde68a); placa.scale.set(.3, .3, .3);
+  placa.position.set(desk.x, 3.3, mesonZ - .3); scene.add(placa);
+  // LA SEÑORA DE LA CAJA: sentada en su silla, mirando al mesón
+  edifCaja(desk.x, .5, desk.z - .95, .9, .1, .9, 0x3f3f46, 'banco', false);          // asiento
+  edifCaja(desk.x, .95, desk.z - 1.35, .9, .9, .12, 0x3f3f46, 'banco', false);       // respaldo
+  bankTeller = makePerson(0x7c3aed, 0xe8b88a);
+  sentarPersona(bankTeller, desk.x, 1.05, desk.z - .95, 0);
+  const pelo = new THREE.Mesh(new THREE.BoxGeometry(.6, .42, .6), mat(0x4b2e1e));   // moño de la cajera
+  pelo.position.set(0, 2.28, -.04); bankTeller.add(pelo);
+  scene.add(bankTeller);
+  const globo = makeSign('CAJERA · E', 0xa7f3d0); globo.scale.set(.32, .32, .32);
+  globo.position.set(desk.x, 3.05, desk.z - .95); scene.add(globo);
+  // Bóveda acorazada en la pared del oeste
+  const bvx = cx - w / 2 + .9;
+  edifCaja(bvx, 1.9, cz - 2.6, .5, 3.8, 4, 0x64748b, 'banco', false);
+  const puertaB = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, .5, 20), mat(0x94a3b8));
+  puertaB.rotation.z = Math.PI / 2; puertaB.position.set(bvx + .45, 1.9, cz - 2.6); puertaB.castShadow = true; scene.add(puertaB);
+  const rueda = new THREE.Mesh(new THREE.TorusGeometry(.55, .1, 8, 16), mat(0xfacc15));
+  rueda.rotation.y = Math.PI / 2; rueda.position.set(bvx + .78, 1.9, cz - 2.6); scene.add(rueda);
+  const cartelB = makeSign('BOVEDA', 0xcbd5e1); cartelB.scale.set(.28, .28, .28);
+  cartelB.position.set(bvx + .9, 4.2, cz - 2.6); scene.add(cartelB);
+  // Sala de espera: sillas, cordón de la fila y una planta
+  for (let i = 0; i < 4; i++) {
+    const sx = cx + w / 2 - 2.2, sz = cz - 2.4 + i * 1.5;
+    edifCaja(sx, .48, sz, 1, .12, .9, 0x475569, 'banco', false);
+    edifCaja(sx + .55, .85, sz, .1, .85, .9, 0x475569, 'banco', false);
+  }
+  for (let i = 0; i < 3; i++) {
+    const px = cx - 3 + i * 3;
+    edifCaja(px, .5, frente - 3, .16, 1, .16, 0xfacc15, 'banco', false);
+    edifCaja(px, .9, frente - 3, .1, .1, .12, 0xfacc15, 'banco', false);
+    if (i < 2) edifCaja(px + 1.5, .95, frente - 3, 3, .07, .07, 0xdc2626, 'banco', false, { sombra: false });
+  }
+  mcTree(scene, cx - w / 2 + 2.4, frente - 2.2, 2.6, 0x2f7d32);
+  // Lámparas del cielo: dos luces reales (como en el súper) y el resto emisivo
+  for (const sx of [-5, 5]) {
+    edifCaja(cx + sx, h - .5, cz, .12, 1, .12, 0x9ca3af, 'banco', false);
+    edifCaja(cx + sx, h - 1.1, cz, 1.6, .25, 1.6, 0xfff3c4, 'banco', false,
+      { material: new THREE.MeshStandardMaterial({ color: 0xfff3c4, emissive: 0xfde68a, emissiveIntensity: .8 }), sombra: false });
+    if (!preferLowPerf) { const pl = new THREE.PointLight(0xfff4cf, .6, 18, 2); pl.position.set(cx + sx, h - 1.5, cz); scene.add(pl); }
+  }
+}
+
+// ===================================================================
+//  PENAL LA ROCA: muro con alambre de púas, torres de vigilancia,
+//  patio y pabellón de celdas. Se ENTRA por el portón: adentro hay
+//  presos con uniforme naranja y guardias con uniforme de policía.
+// ===================================================================
+const JAIL_POS = new THREE.Vector3(LUGARES.carcel.x, 0, LUGARES.carcel.z);
+const JAIL = { x: LUGARES.carcel.x, z: LUGARES.carcel.z, w: 37, d: 35, muro: 4.6 };
+JAIL.porton = { x: JAIL.x, z: JAIL.z + JAIL.d / 2 };                  // el portón mira a la avenida del norte
+const JAIL_GATE = new THREE.Vector3(JAIL.porton.x, 0, JAIL.porton.z + 4);   // de aquí salen los policías
+const jailFolk = [];   // presos y guardias que se mueven solos
+function makePrisoner(idx) {
+  const p = makePerson(0xf97316, 0xd9a06a);
+  for (let i = 0; i < 3; i++) {   // rayas blancas del uniforme
+    const raya = new THREE.Mesh(new THREE.BoxGeometry(.78, .1, .45), mat(0xf8fafc));
+    raya.position.set(0, 1.12 + i * .28, 0); p.add(raya);
+  }
+  const numero = makeSign('#' + (401 + idx), 0xfed7aa); numero.scale.set(.18, .18, .18);
+  numero.position.set(0, 1.45, .24); p.add(numero);
+  const gorro = new THREE.Mesh(new THREE.BoxGeometry(.54, .16, .54), mat(0xea580c));
+  gorro.position.y = 2.38; p.add(gorro);
+  return p;
+}
+function makeGuard() {
+  const g = makePerson(0x1e3a8a, 0xf1c27d);
+  const gorra = new THREE.Mesh(new THREE.BoxGeometry(.54, .2, .54), mat(0x1e40af)); gorra.position.y = 2.36; g.add(gorra);
+  const visera = new THREE.Mesh(new THREE.BoxGeometry(.5, .07, .2), mat(0x172554)); visera.position.set(0, 2.28, .34); g.add(visera);
+  const placa = new THREE.Mesh(new THREE.BoxGeometry(.18, .18, .05), mat(0xfacc15)); placa.position.set(.22, 1.6, .23); g.add(placa);
+  const luma = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, .8), mat(0x1f2937));   // luma al cinto
+  luma.rotation.x = .35; luma.position.set(.42, 1.1, -.12); g.add(luma);
+  const tag = makeSign('GUARDIA', 0x60a5fa); tag.scale.set(.34, .34, .34); tag.position.set(0, 3, 0); g.add(tag);
+  return g;
+}
+function buildJail() {
+  const cx = JAIL.x, cz = JAIL.z, hw = JAIL.w / 2, hd = JAIL.d / 2, hm = JAIL.muro;
+  const hormigon = 0x9aa3ad, hormigonOsc = 0x6b7280, patioCol = 0x5f6670;
+  mcFloor(scene, cx, cz, JAIL.w, JAIL.d, patioCol, .04);
+  addNoGrassZone(cx, cz, JAIL.w + 2, JAIL.d + 2);
+  // ---- Muro perimetral con alambre de púas; el frente se parte para el portón ----
+  const tramo = (x, z, w, d) => {
+    edifCaja(x, hm / 2, z, w, hm, d, hormigon, 'carcel', true);
+    edifCaja(x, hm + .2, z, w + .3, .4, d + .3, hormigonOsc, 'carcel', false);
+    const pasos = Math.max(2, Math.round((w > d ? w : d) / 2.4));   // rollos de alambre arriba
+    for (let i = 0; i < pasos; i++) {
+      const f = (i + .5) / pasos - .5;
+      const aro = new THREE.Mesh(new THREE.TorusGeometry(.34, .06, 6, 12), mat(0xd1d5db));
+      aro.position.set(x + (w > d ? f * w : 0), hm + .75, z + (w > d ? 0 : f * d));
+      aro.rotation.y = w > d ? 0 : Math.PI / 2; scene.add(aro);
+    }
+  };
+  tramo(cx, cz - hd, JAIL.w, .9);                                   // muro del fondo
+  for (const sx of [-1, 1]) tramo(cx + sx * hw, cz, .9, JAIL.d);    // muros laterales
+  for (const sx of [-1, 1]) tramo(cx + sx * (hw / 2 + 2.2), cz + hd, JAIL.w / 2 - 4.4, .9);   // frente partido
+  // Portón: pilares, dintel con el nombre y reja corrediza abierta
+  for (const sx of [-1, 1]) edifCaja(cx + sx * 4.4, 3.2, cz + hd, 1.6, 6.4, 1.6, hormigonOsc, 'carcel', true);
+  edifCaja(cx, 6.9, cz + hd, 11, 1, 1.6, hormigonOsc, 'carcel', false);
+  const nombre = makeSign('PENAL LA ROCA', 0xfca5a5);
+  nombre.scale.set(.75, .75, .75); nombre.position.set(cx, 8.4, cz + hd + 1); scene.add(nombre);
+  edifRejas(cx - 5.6, 1.9, cz + hd, 2.4, 3.8, 5, 0x475569, true);   // la reja corrida a un lado
+  // Cuatro torres de vigilancia con cabina, foco y guardia asomado
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const tx = cx + sx * (hw - .8), tz = cz + sz * (hd - .8);
+    edifCaja(tx, 4, tz, 2.6, 8, 2.6, hormigonOsc, 'carcel', true);
+    edifCaja(tx, 8.6, tz, 4.2, 1.2, 4.2, 0x94a3b8, 'carcel', false);
+    edifCaja(tx, 9.9, tz, 4.6, 1.4, 4.6, 0x8a3b32, 'carcel', false);
+    for (const dx of [-1, 1]) for (const dz of [-1, 1]) edifCaja(tx + dx * 1.9, 9.25, tz + dz * 1.9, .3, 1.3, .3, 0x475569, 'carcel', false);
+    const foco = new THREE.Mesh(new THREE.CylinderGeometry(.5, .35, .8, 10), new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xfde68a, emissiveIntensity: .9 }));
+    foco.rotation.z = Math.PI / 2; foco.position.set(tx - sx * 1.9, 9.1, tz); scene.add(foco);
+  }
+  // ---- Patio: cancha, bancas, mesa y pista de trote ----
+  mcFloor(scene, cx, cz + 8.5, 26, 13, 0x4a515b, .06);
+  for (const sx of [-1, 1]) {   // dos tableros de básquet
+    edifCaja(cx + sx * 10, 1.6, cz + 8.5, .25, 3.2, .25, 0x64748b, 'carcel', false);
+    edifCaja(cx + sx * 10, 3.5, cz + 8.5, .16, 1.2, 1.8, 0xe2e8f0, 'carcel', false);
+    const aro = new THREE.Mesh(new THREE.TorusGeometry(.45, .07, 8, 14), mat(0xf97316));
+    aro.rotation.x = Math.PI / 2; aro.position.set(cx + sx * 9.4, 3.1, cz + 8.5); scene.add(aro);
+  }
+  for (const sx of [-1, 1]) mcBench(scene, cx + sx * 13, cz + 3.5, 0);
+  edifCaja(cx - 12, .75, cz + 13.5, 2.6, .18, 2.6, 0x6b7280, 'carcel', false);   // mesa del patio
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) edifCaja(cx - 12 + sx * 1, .37, cz + 13.5 + sz * 1, .18, .74, .18, 0x52525b, 'carcel', false);
+  // ---- Pabellón de celdas: se entra por el norte y adentro hay un pasillo con 5 celdas ----
+  const pw = 29, pd = 14, ph = 5.4, pt = .6, pz = cz - 8.5, pFrente = pz + pd / 2, pFondo = pz - pd / 2;
+  mcFloor(scene, cx, pz, pw - pt * 2, pd - pt * 2, 0xb9bec6, .07);
+  edifCaja(cx, ph / 2, pFondo, pw, ph, pt, hormigon, 'carcel', true);
+  for (const sx of [-1, 1]) edifCaja(cx + sx * (pw / 2 - pt / 2), ph / 2, pz, pt, ph, pd, hormigon, 'carcel', true);
+  for (const sx of [-1, 1]) edifCaja(cx + sx * (pw / 4 + .75), ph / 2, pFrente, pw / 2 - 1.5, ph, pt, hormigon, 'carcel', true);
+  edifCaja(cx, ph - .5, pFrente, 3, 1, pt, hormigon, 'carcel', false);   // dintel de la puerta
+  const techoP = edifCaja(cx, ph + .35, pz, pw + .6, .7, pd + .6, hormigonOsc, 'carcel', false);
+  addLandingSurface(cx, pz, pw + .6, pd + .6, ph + .7, techoP);
+  const rotulo = makeSign('PABELLON A', 0xe2e8f0);
+  rotulo.scale.set(.5, .5, .5); rotulo.position.set(cx, ph + 1.4, pFrente + .6); scene.add(rotulo);
+  for (const sx of [-1, 1]) for (const dx of [2.6, 7.4, 12.2]) {   // ventanucos enrejados de la fachada
+    edifCaja(cx + sx * dx, 3.9, pFrente, 1.4, 1.2, .2, 0x1f2937, 'carcel', false, { sombra: false });
+    edifRejas(cx + sx * dx, 3.9, pFrente + .2, 1.4, 1.2, 4, 0x374151, true);
+  }
+  // Cinco celdas al fondo del pasillo, con reja al frente, litera, váter y un preso adentro
+  const celdaD = 5.2, celdaZ = pFondo + celdaD / 2 + pt / 2, anchoCelda = (pw - pt * 2) / 5;
+  for (let i = 0; i < 5; i++) {
+    const ex = cx - (pw - pt * 2) / 2 + anchoCelda * (i + .5);
+    if (i) edifCaja(ex - anchoCelda / 2, 2.4, celdaZ, .35, 4.8, celdaD, 0xa7aeb8, 'carcel', true);   // tabique entre celdas
+    edifRejas(ex, 2.1, celdaZ + celdaD / 2, anchoCelda - .5, 4.2, 9, 0x3f4854, true);
+    edifCaja(ex - anchoCelda / 2 + .6, 2.1, celdaZ + celdaD / 2, .7, 4.2, .3, 0x3f4854, 'carcel', false);   // puerta de la celda
+    addObstacle(ex, celdaZ + celdaD / 2, anchoCelda, .4, 4.2, 'carcel');   // la reja no se atraviesa
+    edifCaja(ex - 1, .75, celdaZ - 1.4, 2, .3, 2.2, 0x8a6b4a, 'carcel', false);    // litera de abajo
+    edifCaja(ex - 1, 2.05, celdaZ - 1.4, 2, .3, 2.2, 0x8a6b4a, 'carcel', false);   // litera de arriba
+    for (const sz of [-1, 1]) edifCaja(ex - 1.9, 1.4, celdaZ - 1.4 + sz, .14, 2.6, .14, 0x6b7280, 'carcel', false);
+    edifCaja(ex + 1.5, .95, celdaZ - 1.9, .1, 1.9, .1, 0x94a3b8, 'carcel', false);   // váter y lavamanos
+    edifCaja(ex + 1.5, .35, celdaZ - 1.9, .7, .7, .7, 0xe5e7eb, 'carcel', false);
+    const preso = makePrisoner(i);
+    if (i % 2) {   // uno de cada dos está sentado en la litera; los demás, de pie mirando la reja
+      sentarPersona(preso, ex - 1, 1.05, celdaZ - .5, 0);
+    } else {
+      preso.position.set(ex, 0, celdaZ + celdaD / 2 - 1.2); preso.rotation.y = 0;
+      preso.userData.jail = { tipo: 'celda', ox: ex, oz: celdaZ, r: 1.2, heading: Math.random() * 6.28, wait: Math.random() * 2 };
+      jailFolk.push(preso);
+    }
+    scene.add(preso);
+  }
+  // Tubos fluorescentes del pasillo (dos luces reales, como en el súper) y focos en las celdas
+  for (const sx of [-8, 8]) {
+    edifCaja(cx + sx, ph - .45, pz + 3.2, 3.4, .2, .5, 0xfff8e1, 'carcel', false,
+      { material: new THREE.MeshStandardMaterial({ color: 0xfff8e1, emissive: 0xfef3c7, emissiveIntensity: .95 }), sombra: false });
+    if (!preferLowPerf) { const pl = new THREE.PointLight(0xfff4cf, .75, 22, 2); pl.position.set(cx + sx, ph - 1.2, pz + 2); scene.add(pl); }
+  }
+  for (let i = 0; i < 5; i++) {
+    const ex = cx - (pw - pt * 2) / 2 + anchoCelda * (i + .5);
+    edifCaja(ex, ph - .5, celdaZ, 1, .18, 1, 0xfff8e1, 'carcel', false,
+      { material: new THREE.MeshStandardMaterial({ color: 0xfff8e1, emissive: 0xfde68a, emissiveIntensity: 1.1 }), sombra: false });
+  }
+  // Un guardia recorriendo el pasillo y dos vigilando el patio
+  [[cx - 6, pz + 4.4, 'pasillo', 9], [cx + 8, cz + 5, 'patio', 6], [cx - 4, cz + 12, 'patio', 7]].forEach(([gx, gz, tipo, r]) => {
+    const g = makeGuard(); g.position.set(gx, 0, gz);
+    g.userData.jail = { tipo, ox: gx, oz: gz, r, heading: Math.random() * 6.28, wait: Math.random() * 2 };
+    scene.add(g); jailFolk.push(g);
+  });
+  // Tres presos paseando por el patio
+  [[cx - 7, cz + 7], [cx + 4, cz + 11], [cx + 11, cz + 4]].forEach(([px, pz2], i) => {
+    const p = makePrisoner(5 + i); p.position.set(px, 0, pz2);
+    p.userData.jail = { tipo: 'patio', ox: px, oz: pz2, r: 5.5, heading: Math.random() * 6.28, wait: Math.random() * 2 };
+    scene.add(p); jailFolk.push(p);
+  });
+}
+// buildBank() y buildJail() se llaman más abajo, junto al condominio: los dos usan
+// los helpers de parques (mcFloor, mcBench…), que todavía no existen en esta línea.
+// Presos y guardias dando vueltas dentro de su zona (barato: solo si estás cerca)
+function updateJailFolk(dt) {
+  if (state.planet !== 'tierra' || state.country) return;
+  if (dist2D(player.position, JAIL_POS) > 90) return;
+  for (const p of jailFolk) {
+    if (!p.visible) continue;
+    const ud = p.userData.jail;
+    ud.wait -= dt;
+    if (ud.wait <= 0) { ud.heading += Math.random() * 2.2 - 1.1; ud.wait = 1.5 + Math.random() * 3; }
+    const nx = p.position.x + Math.sin(ud.heading) * 1.1 * dt, nz = p.position.z + Math.cos(ud.heading) * 1.1 * dt;
+    if (Math.hypot(nx - ud.ox, nz - ud.oz) < ud.r) { p.position.x = nx; p.position.z = nz; }
+    else { ud.heading += Math.PI; ud.wait = .6; }
+    p.rotation.y = ud.heading;
+    swingLimbs(p, dt);
+  }
+}
 
 // Policías: aparecen cuando estás "buscado" y te persiguen
 const police = [];
@@ -3986,8 +4311,8 @@ function spawnPolice(n) {
     const p = makePerson(0x1e3a8a, 0xf1c27d);
     const helm = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.22, 0.52), mat(0x1e40af)); helm.position.y = 2.35; p.add(helm);
     const tag = makeSign('POLICIA', 0x60a5fa); tag.scale.set(.5, .5, .5); tag.position.set(0, 3, 0); p.add(tag);
-    // salen desde la PUERTA DE LA CÁRCEL (no de cualquier parte), con un poco de dispersión
-    p.position.set(JAIL_POS.x + (Math.random() * 8 - 4), 0, JAIL_POS.z + 5 + Math.random() * 3);
+    // salen por el PORTÓN de la cárcel (no de cualquier parte), con un poco de dispersión
+    p.position.set(JAIL_GATE.x + (Math.random() * 8 - 4), 0, JAIL_GATE.z + Math.random() * 3);
     scene.add(p); police.push(p);
   }
 }
@@ -6558,6 +6883,8 @@ function updateCountryNPCs(dt) {
 }
 
 buildAirport();
+buildBank();
+buildJail();
 
 // ===================================================================
 //  EL CONDOMINIO DONDE VIVES  (manzana `casa`, trazado en src/city-map.js)
@@ -13509,9 +13836,17 @@ function openBank() {
   beep(600, 0.1, 0.04);
 }
 function closeBank() { ui('bankbox').style.display = 'none'; typing = algunRecuadroAbierto(); }
+// Atiende la CAJERA (adentro del banco) o el cajero automático de la fachada.
+function bankDeskNear() {
+  if (state.planet !== 'tierra' || state.country) return null;
+  if (bankTeller && dist2D(player.position, bankTeller.position) < 4.2) return 'cajera';
+  for (const a of bankAtms) if (dist2D(player.position, a) < 2.6) return 'cajero';
+  return null;
+}
 function tryBank() {
-  if (state.planet !== 'tierra') return false;
-  if (dist2D(player.position, BANK_POS) > 7) return false;
+  const donde = bankDeskNear();
+  if (!donde) return false;
+  if (donde === 'cajera') say('🏦 Cajera', ['Buenos días, ¿en qué le puedo ayudar?', 'Bienvenido al Banco Central.', '¿Depósito, retiro o un préstamo?'][Math.floor(Math.random() * 3)]);
   openBank(); storyProgress('bank'); return true;
 }
 function bankAction(a) {
@@ -17283,6 +17618,7 @@ function loop() {
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateAlley(dt);                     // Tito, callejón y luces que parpadean
     updateEarthBulls(dt);                  // cinco toros del pasto, separados
+    updateJailFolk(dt);                    // presos y guardias del penal
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (onEarth) updateOceanExpedition(dt);
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -17978,7 +18314,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -18641,7 +18977,9 @@ function updateContextPrompt() {
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
       else if (nearKeeper()) action = { key: 'E', touch: '🛒', text: 'Hablar con el vendedor y comprar' };
-      else if (state.planet === 'tierra' && dist2D(player.position, BANK_POS) < 7) action = { key: 'E', touch: '🤝', text: 'Entrar al banco' };
+      else if (bankDeskNear() === 'cajera') action = { key: 'E', touch: '🏦', text: 'Hablar con la cajera · depósitos, retiros y préstamos' };
+      else if (bankDeskNear() === 'cajero') action = { key: 'E', touch: '🏧', text: 'Usar el cajero automático' };
+      else if (state.planet === 'tierra' && !state.country && dist2D(player.position, BANK_POS) < 14) action = { key: '🚪', touch: '🏦', text: 'Entra al banco y habla con la cajera del mesón' };
       else if (state.mission === 'alley' && alley.contact && dist2D(player.position, alley.contact.position) < 4.8) action = { key: 'E', touch: '🕶️', text: alley.following ? 'Siguiendo a Tito…' : (alley.open ? 'Hablar con Tito' : 'Tito te lleva por el callejón') };
       else if (state.mission === 'alley' && alley.open && (Math.abs(player.position.x - ALLEY.doorX) < 2.4 && Math.abs(player.position.z - ALLEY.z) < 2.4 || inBlackMarket(player.position.x, player.position.z))) action = { key: 'E', touch: '🕯️', text: 'Entrar · pistolas sobre las mesas' };
       else if (state.mission === 'alley' && !alley.following && player.position.x > ALLEY.x0 + 0.35) action = { key: 'E', touch: '🏠', text: 'Volver al mapa' };

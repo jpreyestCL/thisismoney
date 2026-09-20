@@ -1210,7 +1210,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
-import { AVENIDAS, CALLE, CERROS, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, manzanasLibres, rectCalle, rectDistrito, seCruzan } from './src/city-map.js?v=1';
+import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=2';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=4';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -2024,8 +2024,10 @@ function makeSign(text, color) {
   const ctx = cv.getContext('2d');
   ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
   ctx.fillRect(0, 0, 512, 128);
-  ctx.fillStyle = '#000'; ctx.font = 'bold 64px sans-serif';
+  ctx.fillStyle = '#000';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  let px = 64;   // si el letrero es largo, la letra se achica hasta que entra (antes se cortaba)
+  do { ctx.font = 'bold ' + px + 'px sans-serif'; px -= 2; } while (px > 16 && ctx.measureText(text).width > 480);
   ctx.fillText(text, 256, 64);
   const tex = new THREE.CanvasTexture(cv);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
@@ -2696,12 +2698,12 @@ const CITIZEN_NAMES = ['Sofía', 'Mateo', 'Valentina', 'Benjamín', 'Emma', 'Luc
 const CITIZEN_JOBS = ['panadera', 'carpintero', 'hortelana', 'mecánico', 'enfermera', 'entrenador'];
 let citizenSerial = 0;
 let goldenHouse = null, goldenCollectedToday = false;
-function makeCityHouse(x, z, golden, rot = 0) {
+function makeCityHouse(x, z, golden, rot = 0, anchoMax = 7) {
   const g = new THREE.Group();
   g.rotation.y = rot;   // la puerta mira a la calle de su manzana
   // La casa del tesoro se ve IGUAL que las demás (sin color ni cartel): es un secreto
   const col = [0xcba37a, 0xb0c4de, 0xd8a7b1, 0xa7c4bc, 0xe0c097, 0xc4b5a0][Math.floor(Math.random() * 6)];
-  const w = 4 + Math.random() * 3;
+  const w = Math.min(anchoMax, 4 + Math.random() * 3);   // en los lotes angostos del condominio la casa es más chica
   const h1 = 3.5 + Math.random() * 1.5;
   if (golden) {
     // CASA SECRETA: hueca, con puerta abierta para ENTRAR y un cofre de oro adentro
@@ -4951,11 +4953,11 @@ function mcBush(parent, x, z, r) {   // arbusto redondeado
   }
   return g;
 }
-function mcFence(parent, cx, cz, w, d, color, gapW) {   // reja baja (decorativa, no bloquea)
+function mcFence(parent, cx, cz, w, d, color, gapW, gapNorte) {   // reja baja (decorativa, no bloquea)
   const step = 2, g = new THREE.Group(); parent.add(g);
-  for (let x = -w / 2; x <= w / 2; x += step) {
-    if (Math.abs(x) > gapW / 2) mcBox(g, cx + x, .6, cz - d / 2, .25, 1.2, .25, color);
-    mcBox(g, cx + x, .6, cz + d / 2, .25, 1.2, .25, color);
+  for (let x = -w / 2; x <= w / 2; x += step) {   // gapNorte deja la entrada por el lado +z
+    if (gapNorte || Math.abs(x) > gapW / 2) mcBox(g, cx + x, .6, cz - d / 2, .25, 1.2, .25, color);
+    if (!gapNorte || Math.abs(x) > gapW / 2) mcBox(g, cx + x, .6, cz + d / 2, .25, 1.2, .25, color);
   }
   for (let z = -d / 2; z <= d / 2; z += step) {
     mcBox(g, cx - w / 2, .6, cz + z, .25, 1.2, .25, color);
@@ -6557,6 +6559,93 @@ function updateCountryNPCs(dt) {
 
 buildAirport();
 
+// ===================================================================
+//  EL CONDOMINIO DONDE VIVES  (manzana `casa`, trazado en src/city-map.js)
+//  Una reja, un portón, un pasaje interior y siete lotes: casi todos con
+//  vecino y dos EN VENTA. Para levantar tu casa hay que comprar uno ($1000).
+// ===================================================================
+const PRECIO_TERRENO = 1000;
+const condoLotes = {};   // id -> { lote, cartel, buzon, reja, vecino }
+function buildCondominio() {
+  const g = new THREE.Group(); scene.add(g);
+  const manzana = DISTRITOS.find(d => d.id === CONDOMINIO.distrito);
+  const r = rectDistrito(manzana), cx = manzana.x, cz = manzana.z;
+  const pas = CONDOMINIO.pasaje, largoPasaje = pas.hasta - pas.desde;
+  const centroPasaje = (pas.desde + pas.hasta) / 2;
+
+  // Pasaje interior de hormigón, con su línea y la vereda a los lados.
+  mcFloor(g, centroPasaje, pas.z, largoPasaje, pas.ancho + 2.4, 0xb7bcc4, .03);
+  mcFloor(g, centroPasaje, pas.z, largoPasaje, pas.ancho, 0x6f757e, .05);
+  mcFloor(g, centroPasaje, pas.z, largoPasaje, .3, 0xe8e4d4, .07);
+  addNoGrassZone(centroPasaje, pas.z, largoPasaje, pas.ancho + 2.4);
+
+  // Reja perimetral y portón al pasaje (mira a la avenida del oeste).
+  mcFence(g, cx, cz, manzana.w - 1.4, manzana.d - 1.4, 0x7c8798, 0);
+  const porton = CONDOMINIO.porton;
+  for (const sz of [-1, 1]) {   // pilares del portón
+    mcBox(g, porton.x, 1.9, porton.z + sz * (pas.ancho / 2 + .9), 1.2, 3.8, 1.2, 0xb9a88a);
+    addObstacle(porton.x, porton.z + sz * (pas.ancho / 2 + .9), 1.2, 1.2, 3.8, 'porton');
+  }
+  mcBox(g, porton.x, 4.1, porton.z, 1.2, .8, pas.ancho + 3, 0xb9a88a);   // dintel del portón
+  mcSign(g, porton.x, 5.6, porton.z, CONDOMINIO.nombre.toUpperCase(), 0xfde68a).scale.set(.8, .8, .8);
+
+  // Conserjería: caseta con ventanal, junto al portón.
+  const con = { x: porton.x + 4.6, z: pas.z - pas.ancho / 2 - 2.6 };
+  mcBox(g, con.x, 1.4, con.z, 3.4, 2.8, 3, 0xe4dccb);
+  mcBox(g, con.x, 2.95, con.z, 4, .4, 3.6, 0x8a6b4a);
+  mcBox(g, con.x, 1.7, con.z + 1.55, 2.2, 1.2, .12, 0x9fd0ff);
+  mcSign(g, con.x, 4.1, con.z, 'CONSERJERIA', 0xbae6fd).scale.set(.45, .45, .45);
+  addObstacle(con.x, con.z, 3.4, 3, 2.8, 'conserjeria');
+  addNoGrassZone(con.x, con.z, 4, 3.6);
+
+  // Explanada común: pasto cortado, un par de árboles y bancas (aquí queda el cohete).
+  const comun = CONDOMINIO.comun;
+  mcFloor(g, comun.x, comun.z, comun.w, comun.d, 0x4f9c3a, .02);
+  addNoGrassZone(comun.x, comun.z, comun.w, comun.d);
+  mcTree(g, comun.x - 2.4, comun.z + 5.4, 4.6);
+  mcTree(g, comun.x + 2.8, comun.z - 5.2, 4.2);
+  mcBench(g, comun.x, comun.z + 1.6, 0);
+  mcFlowers(g, comun.x - 2.6, comun.z - 1.8, 1.3);
+
+  // Los lotes: reja bajita, número en el buzón y, si hay vecino, su casa.
+  CONDOMINIO.lotes.forEach((l, i) => {
+    const norte = l.z > pas.z;
+    const frente = norte ? l.z - l.d / 2 : l.z + l.d / 2;        // el lado que da al pasaje
+    mcFloor(g, l.x, l.z, l.w - .6, l.d - .6, 0x55a63f, .015);    // pasto del lote
+    mcFence(g, l.x, l.z, l.w - .4, l.d - .4, 0xa9b0ba, 3, !norte);   // la entrada del lote mira al pasaje
+    mcFloor(g, l.x, (frente + l.z) / 2, 2.2, Math.abs(l.z - frente), 0xcfc7b4, .04);   // sendero de entrada
+    const buzon = new THREE.Group();
+    mcBox(buzon, 0, .55, 0, .14, 1.1, .14, 0x6b7280);
+    mcBox(buzon, 0, 1.28, 0, .5, .42, .34, l.venta ? 0x16a34a : 0xdc2626);
+    buzon.position.set(l.x - l.w / 2 + .9, 0, frente + (norte ? -1 : 1) * .6);
+    g.add(buzon);
+    // Los lotes en venta llevan los tres carteles listos (venta / tuyo / vendido)
+    // y solo se prende el que toca: así no se rehace la textura en cada partida.
+    const ponerCartel = (texto, color) => {
+      const s = makeSign(texto, color);
+      s.scale.set(.42, .42, .42);
+      s.position.set(l.x, 2.5, frente + (norte ? -1.4 : 1.4));
+      s.userData.billboard = true;
+      g.add(s);
+      return s;
+    };
+    // Los lotes ocupados no llevan cartel: así los verdes de "SE VENDE" saltan a la vista.
+    const carteles = l.venta ? {
+      venta: ponerCartel('SE VENDE · $' + PRECIO_TERRENO + ' · E', 0x4ade80),
+      mio: ponerCartel('TU TERRENO · CONSTRUYE AQUI', 0x4ade80),
+      vendido: ponerCartel('VENDIDO', 0x94a3b8),
+    } : null;
+    let vecino = null;
+    if (!l.venta) {   // el vecino ya construyó: su casa mira al pasaje
+      vecino = makeCityHouse(l.x, l.z + (norte ? 1.2 : -1.2), false, norte ? Math.PI : 0, l.w - .9);
+      mcLamp(g, l.x + l.w / 2 - .8, frente + (norte ? -1 : 1) * 1.2, 0xfff0b0);
+    }
+    condoLotes[l.id] = { lote: l, carteles, vecino, frente };
+  });
+  return g;
+}
+buildCondominio();
+
 // ---- Cierre del "mundo de la Tierra": todo lo agregado desde el marcador es terrestre ----
 scene.children.forEach(o => { if (!_preEarthChildren.has(o)) earthMeshes.push(o); });
 obstacles.slice(_preEarthObsN).forEach(o => earthObstacles.push(o));
@@ -7841,6 +7930,119 @@ const plotBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 60, 10), 
 plotBeam.position.y = 30; homePlot.add(plotBeam);   // línea verde que apunta al cielo
 const plotSign = makeSign('CONSTRUYE TU CASA AQUI', 0x4ade80); plotSign.scale.set(.55, .55, .55); plotSign.position.y = 3.4; plotSign.userData.billboard = true; homePlot.add(plotSign);
 homePlot.position.set(HOUSE.x, 0, HOUSE.z); scene.add(homePlot);
+// El círculo verde cubre el lote entero, no un redondel fijo: así se ve dónde cabe la casa.
+function ajustarMarcadorAlLote(l) {
+  const radio = Math.min(l.w, l.d) / 2;
+  plotPad.scale.setScalar(radio / 4.2);
+  plotRing.scale.setScalar(radio / 4.1);
+}
+
+// ===================================================================
+//  TU TERRENO: sin lote comprado no hay casa que valga
+// ===================================================================
+// Al comprar un lote, TU CASA pasa a ser ese lote: se mueve el marcador verde,
+// el punto de referencia (HOUSE) y la esquina donde espera el mayordomo.
+function loteMio() { return state.plot ? lotePorId(state.plot) : null; }
+function mudarseAlLote(l, silencioso) {
+  if (!l) return;
+  state.plot = l.id;
+  HOUSE.set(l.x, 0, l.z);
+  BUTLER_HOME.set(l.x + Math.min(3, l.w / 2 - 1), 0, l.z + Math.min(2, l.d / 2 - 1));
+  homePlot.position.set(l.x, 0, l.z);
+  ajustarMarcadorAlLote(l);
+  mostrarCarteles(l.id);
+  updateHouseAnchor();
+  if (!silencioso) {
+    toast('🏡 ¡El terreno es TUYO! Construye tu casa DENTRO del lote (B para construir)');
+    phaseText('TERRENO COMPRADO');
+    beep(680, .18, .05);
+  }
+}
+// mio = id del lote comprado (o null): prende el cartel que corresponde en cada lote.
+function mostrarCarteles(mio) {
+  for (const id in condoLotes) {
+    const c = condoLotes[id];
+    if (!c.lote.venta) continue;
+    c.carteles.venta.visible = !mio;
+    c.carteles.mio.visible = mio === id;
+    c.carteles.vendido.visible = !!mio && mio !== id;
+  }
+}
+// Vuelve el condominio a su estado inicial (partida nueva o al cargar otra).
+function resetPlots() {
+  state.plot = null;
+  HOUSE.set(LUGARES.casa.x, 0, LUGARES.casa.z);
+  BUTLER_HOME.set(HOUSE.x + 3, 0, HOUSE.z + 2);
+  homePlot.position.set(HOUSE.x, 0, HOUSE.z);
+  plotPad.scale.setScalar(1); plotRing.scale.setScalar(1);
+  mostrarCarteles(null);
+  updateHouseAnchor();
+}
+// El lote en venta más cercano (para la flecha guía y el aviso de la E).
+function loteEnVentaCerca(radio) {
+  let best = null, bd = radio == null ? Infinity : radio;
+  for (const l of lotesEnVenta()) {
+    const d = dist2D(player.position, { x: l.x, z: l.z });
+    if (d < bd) { bd = d; best = l; }
+  }
+  return best;
+}
+function tryBuyPlot() {
+  if (state.planet !== 'tierra' || state.country) return false;
+  const aquí = loteEn(player.position.x, player.position.z, 1.5);
+  const l = aquí && aquí.venta ? aquí : loteEnVentaCerca(7);
+  if (!l) return false;
+  if (state.plot === l.id) { toast('🏡 Este terreno ya es tuyo · pulsa B y construye'); return true; }
+  if (state.plot) { toast('🏡 Ya tienes tu terreno (' + lotePorId(state.plot).nombre + ') · construye ahí'); return true; }
+  if (!state.creative && state.money < PRECIO_TERRENO) {
+    toast('💸 El terreno cuesta $' + PRECIO_TERRENO + ' y tienes $' + Math.floor(state.money));
+    return true;
+  }
+  if (!state.creative) addMoney(-PRECIO_TERRENO);
+  mudarseAlLote(l);
+  saveGame();
+  return true;
+}
+// ¿Puedo poner una pieza de casa aquí? (en la Tierra hay que tener terreno)
+const PIEZAS_DE_CASA = ['wallWood', 'wallRock', 'wallMetal', 'wallDoor', 'door', 'roof', 'pilar', 'piso2'];
+function puedeConstruirCasa(key, x, z, avisar) {
+  if (!PIEZAS_DE_CASA.includes(key)) return true;                 // muebles, defensas y huerto: libres
+  if (state.planet !== 'tierra' || state.country) return true;    // en los planetas y los países no se lotea
+  const mio = loteMio();
+  if (!mio) {
+    if (avisar) toast('🏡 Primero compra un TERRENO en el condominio · $' + PRECIO_TERRENO + ' (sigue la flecha)');
+    return false;
+  }
+  if (state.plotLegacy) return true;   // partidas viejas: la casa ya estaba hecha fuera de los lotes
+  const r = rectLote(mio, 1);
+  if (x < r.minX || x > r.maxX || z < r.minZ || z > r.maxZ) {
+    if (avisar) toast('🚧 Tu casa solo se puede construir DENTRO de tu terreno (' + mio.nombre + ')');
+    return false;
+  }
+  return true;
+}
+// Partidas de antes del condominio: ya tenían casa levantada donde quisieron, así que
+// se les regala el lote más cercano y se les deja seguir construyendo donde estaban.
+function migrarTerrenoAntiguo(d) {
+  state.plotLegacy = !!d.plotLegacy;
+  if (state.plot) return;
+  const piezas = placed.filter(o => !o.country && HOUSE_PIECES.includes(o.key));
+  if (!piezas.length) return;
+  let sx = 0, sz = 0;
+  for (const o of piezas) { sx += o.mesh.position.x; sz += o.mesh.position.z; }
+  const cx = sx / piezas.length, cz = sz / piezas.length;
+  const dentro = loteEn(cx, cz, 1);
+  let elegido = dentro, bd = Infinity;
+  if (!elegido) for (const l of CONDOMINIO.lotes) { const dd = dist2D({ x: cx, z: cz }, l); if (dd < bd) { bd = dd; elegido = l; } }
+  state.plotLegacy = !dentro;
+  mudarseAlLote(elegido, true);
+  if (state.plotLegacy) {   // la casa vieja manda: el centro sigue donde siempre estuvo
+    HOUSE.set(cx, 0, cz);
+    BUTLER_HOME.set(cx + 3, 0, cz + 2);
+    homePlot.position.set(cx, 0, cz);
+    updateHouseAnchor();
+  }
+}
 
 // ===================================================================
 //  CONSTRUCCIÓN LIBRE (colocar objetos donde quieras)
@@ -8573,6 +8775,7 @@ function placeObject() {
   const key = BUILD_KEYS[buildSel];
   if (state.inv[key] <= 0) { toast('No tienes ' + SHOP.find(s => s.key === key).name + ' (cómprala en el súper)'); return; }
   if (key === 'piscina' && ghost.position.y > .2) { toast('🏊 La piscina solamente se puede construir en el terreno'); return; }
+  if (!puedeConstruirCasa(key, ghost.position.x, ghost.position.z, true)) return;   // en la Tierra la casa va en TU lote
   if (key === 'piso2') {   // pieza especial: se arma sobre la construcción a la que apuntas
     const c = wallClusterAt(ghost.position.x, ghost.position.z);
     if (!c.n) { toast('🏠 Apunta a una construcción con paredes para ponerle el segundo piso'); return; }
@@ -8639,6 +8842,10 @@ function placeBlueprint() {
   const missing = blueprintMissing(bp);
   if (missing.length) { toast('📦 Faltan materiales: ' + missing.map(m => m.count + '× ' + (SHOP.find(s => s.key === m.key)?.name || m.key)).join(', ')); openBlueprintPanel(); return; }
   const c = Math.cos(buildRot), s = Math.sin(buildRot); let value = 0;
+  for (const p of bp.parts) {   // el plano entero tiene que caber en tu terreno
+    const x = blueprintGhost.position.x + p.x * c + p.z * s, z = blueprintGhost.position.z - p.x * s + p.z * c;
+    if (!puedeConstruirCasa(p.key, x, z, true)) return;
+  }
   for (const p of bp.parts) {
     const x = blueprintGhost.position.x + p.x * c + p.z * s, z = blueprintGhost.position.z - p.x * s + p.z * c;
     state.inv[p.key]--; spawnPlaced(p.key, x, z, buildRot + (p.rot || 0), null, p.variant, blueprintGhost.position.y);
@@ -8699,9 +8906,10 @@ function houseStats() {
   return { walls, enclosure, roofs, lamps, doors, ovens, ready, simple, full, mansion, counts, ...houseRatings(counts) };
 }
 const TUTORIAL_STEPS = [
+  { text: 'Compra tu terreno en el condominio · $' + PRECIO_TERRENO + ' (acércate al cartel y pulsa E)', test: () => !!state.plot },
   { text: 'Sigue la flecha hasta el supermercado', test: () => dist2D(player.position, SUPER_POS) < 11 },
   { text: 'Compra al menos una pieza de construcción', test: () => BUILD_KEYS.some(k => (state.inv[k] || 0) > 0) },
-  { text: 'Pulsa B y construye cuatro paredes cerca de casa', test: () => houseStats().ready },
+  { text: 'Pulsa B y construye cuatro paredes dentro de tu terreno', test: () => houseStats().ready },
   { text: 'Planta una semilla con K', test: () => plants.length > 0 },
   { text: 'Habla con papá acercándote y pulsando E', event: 'talkDad' },
   { text: 'Cuando estés preparado, inicia la primera noche con N', event: 'nightStarted' },
@@ -8818,8 +9026,8 @@ function makeBull(armored) {   // toro con 4 patas, pezuñas y cuernos grandes (
 }
 function makeBullArmored() { return makeBull(true); }
 const earthBulls = [];
-(function spawnEarthBullHerd() {   // cinco toros de la Tierra, bien separados alrededor de la casa
-  const spots = [[32, 36], [16, 44], [40, 16], [34, 44], [20, 34]];   // dentro de tu manzana, lejos de la calle
+(function spawnEarthBullHerd() {   // cinco toros de la Tierra, en el potrero del norte (manzana verde, sin calles)
+  const spots = [[16, 124], [30, 123], [40, 127], [21, 137], [36, 137]];   // manzana libre al norte de la ciudad
   spots.forEach(([x, z], i) => {
     const b = makeBull();
     b.position.set(x, 0, z); b.rotation.y = i * 1.15;
@@ -10468,7 +10676,7 @@ function dadWipe(dt) {
 // ===================================================================
 //  ESTADO
 // ===================================================================
-const START_MONEY = 1000;
+const START_MONEY = 2000;   // alcanza justo para el terreno ($1000) y las primeras compras
 const NIGHT_LENGTH = GAME_RULES.nightSeconds;
 const METEOR_AT = GAME_RULES.meteorAt;
 const MOM_AT = GAME_RULES.momAt;
@@ -10476,7 +10684,7 @@ function currentNightLength() { return nightDuration(state.night); }
 // Largo del día actual: el primero dura 5 min, del segundo en adelante 3 min
 function currentDayLength() { return dayDuration(state.night); }
 const state = {
-  phase: 'TITLE', money: 0, totalEarned: 0, stage: 1,
+  phase: 'TITLE', money: 0, totalEarned: 0, stage: 1, plot: null,   // plot = lote comprado en el condominio
   hp: 100, dadHp: 100,
   inv: freshInv(), driving: false, poison: 0, dadPoison: 0,
   weaponDmg: 5, weaponName: 'Puños', armorFactor: 1, dadArmor: 1, dadGun: false, hasRocket: false, hasShovel: false, hasBow: false,
@@ -11030,6 +11238,7 @@ function tryInteract() {
   if (tryAlleyInteract()) return;
   if (tryJobInteract()) return;   // recados: calmar al perro / abrir el cajón
   if (tryDoor()) return;          // abrir / cerrar la puerta de tu casa
+  if (tryBuyPlot()) return;       // comprar el terreno del condominio
   if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract() && !tryVendorHere() && !tryHelperHere()) { if (!tryCollectGolden() && !tryRob() && !sellHouse()) tryGardenHere(); }
 }
 addEventListener('keydown', e => {
@@ -12036,6 +12245,7 @@ function startGame() {
   state.cinematic = false; document.body.classList.remove('cine');
   abortFlight();
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
+  state.plotLegacy = false; resetPlots();   // el condominio vuelve a tener sus lotes en venta
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; state.hasBow = false; resetMeleeWeapon(); applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
@@ -12073,8 +12283,8 @@ function startGame() {
   scene.fog.far = 160;   // niebla normal de la Tierra
   resetWeather();
   syncFarWorld();
-  toast('Entra al SÚPER 🛒, compra y construye tu casa (B para construir)');
-  toast('📍 PRIMER PASO · Sigue la flecha hasta el súper');
+  toast('Empiezas con $' + START_MONEY + ': el terreno vale $' + PRECIO_TERRENO + ' y lo que sobre es para el súper 🛒');
+  toast('📍 PRIMER PASO · Sigue la flecha al cartel 🪧 TERRENO EN VENTA del condominio y pulsa E');
 }
 // Guardado / carga de la partida (localStorage)
 // ===================================================================
@@ -12977,7 +13187,7 @@ function saveGame() {
     const wc = weaponVisualColor;
     const data = {
       saveVersion: GAME_RULES.saveVersion,
-      money: state.money, totalEarned: state.totalEarned, stage: state.stage,
+      money: state.money, totalEarned: state.totalEarned, stage: state.stage, plot: state.plot || null, plotLegacy: !!state.plotLegacy,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
       phase: state.phase === 'NIGHT' ? 'NIGHT' : 'DAY', dayTime: state.dayTime || 0, nightTime: state.nightTime || 0, spawnTimer: state.spawnTimer || 0,
       hordeOn: !!state.hordeOn, bossNight: !!state.bossNight, nightDamage: !!state.nightDamage, pinataDone: !!state.pinataDone, coldWarned: !!state.coldWarned,
@@ -13805,6 +14015,8 @@ function loadGame() {
     streak: d.streak || 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   });
   lastHp = state.hp;
+  resetPlots();
+  if (lotePorId(d.plot)) mudarseAlLote(lotePorId(d.plot), true);
   state.inv = Object.assign(freshInv(), d.inv || {});
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
@@ -13818,8 +14030,9 @@ function loadGame() {
     const savedVehicles = Array.isArray(d.vehicles) ? d.vehicles : (d.car ? [d.car] : []);
     savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, fuel: v.fuel, moto: v.moto, helicopter: v.helicopter, restoring: true }));
   }
+  migrarTerrenoAntiguo(d);
   state.unlocked = d.unlocked || {};
-  state.tutorial = d.tutorial || { step: d.night > 0 ? 6 : 0, complete: d.night > 0 };
+  state.tutorial = d.tutorial || { step: d.night > 0 ? TUTORIAL_STEPS.length - 1 : 0, complete: d.night > 0 };
   state.chapter = d.chapter || 0; state.chapterFlags = d.chapterFlags || {};
   restoreButler(d.butlerState);
   state.parkBusiness = d.parkBusiness || null;
@@ -17204,6 +17417,7 @@ function drawMinimap() {
   }
   if (state.planet === 'tierra' && state.blueprints.treasureMap) for (const s of worldSecrets) if (s.visible) icon(s.position.x, s.position.z, '❓', 11);
   icon(houseAnchor.x, houseAnchor.z, '🏠', 15);
+  if (!state.plot && state.planet === 'tierra' && !state.country) for (const l of lotesEnVenta()) icon(l.x, l.z, '🪧', 13);   // terrenos en venta
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
   if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
   if (butler.visible) icon(butler.position.x, butler.position.z, '🤵', 12);
@@ -18096,18 +18310,20 @@ function netLeave() {
 
 function updateArrow() {
   const ready = houseStats().ready;
+  const sinTerreno = !state.plot && state.planet === 'tierra' && !state.country;
   let target = houseAnchor;
   if (job && jobMarker.visible) target = job.target;   // recado activo: la flecha apunta al marcador
   else if (state.worldEvent && state.worldEvent.id === 'search') target = state.worldEvent.target;
   else if (state.meteorTriggered && state.rocket) target = state.rocket.position;
   else if (state.phase === 'NIGHT') target = houseAnchor;
+  else if (sinTerreno) { const l = loteEnVentaCerca(); if (l) target = l; }   // lo primero es el terreno
   else if (!ready) target = SUPER_POS;
   arrow.position.copy(player.position);
   arrow.position.y = PLAYER_EYE + 2.2 + Math.sin(performance.now() / 300) * 0.15;
   arrow.rotation.y = Math.atan2(target.x - player.position.x, target.z - player.position.z);
   arrowCone.rotation.set(Math.PI / 2, 0, 0);
-  // marcador "construye tu casa aquí": solo de día, en la Tierra, hasta que ya construiste
-  homePlot.visible = !ready && state.phase === 'DAY' && state.planet !== 'platus';
+  // marcador "construye tu casa aquí": solo de día, en la Tierra, sobre TU lote y hasta que construyas
+  homePlot.visible = !ready && state.phase === 'DAY' && state.planet !== 'platus' && (!!state.plot || !!state.country);
 }
 
 function updateDayNight(dt) {
@@ -18431,6 +18647,7 @@ function updateContextPrompt() {
       else if (state.mission === 'alley' && !alley.following && player.position.x > ALLEY.x0 + 0.35) action = { key: 'E', touch: '🏠', text: 'Volver al mapa' };
       else if (state.rocket && dist2D(player.position, state.rocket.position) < 7) action = { key: 'E', touch: '🤝', text: 'Abrir los cajones del cohete' };
       else if (state.worldEvent && state.worldEvent.id === 'search' && dist2D(player.position, state.worldEvent.target) < 5) action = { key: 'E', touch: '🤝', text: 'Ayudar al vecino perdido' };
+      else if (!state.plot && state.planet === 'tierra' && !state.country && loteEnVentaCerca(7)) action = { key: 'E', touch: '🪧', text: 'Comprar este terreno · $' + PRECIO_TERRENO + ' · aquí construyes tu casa' };
       else if (nearestWorldSecret()) action = { key: 'E', touch: '🗺️', text: 'Descubrir secreto del mundo' };
       else if (nearestSport()) action = { key: 'E', touch: '🏟️', text: 'Unirte al partido · sesión de 45 segundos' };
       else if (dist2D(player.position, HOUSE) < 8 && houseStats().full) action = { key: 'E', touch: '🏪', text: state.business ? 'Administrar ' + BUSINESS_TYPES[state.business.type].name : 'Abrir un negocio familiar' };

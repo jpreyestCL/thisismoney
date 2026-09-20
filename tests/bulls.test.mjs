@@ -11,11 +11,11 @@ assert.match(html, /function makeBullArmored\(/);
 assert.match(html, /make: makeKnight,/);
 assert.match(html, /make: makeKnightArmored/);
 assert.match(html, /const earthBulls = \[\]/);
-assert.match(html, /spots = \[\[32, 36\], \[16, 44\], \[40, 16\], \[34, 44\], \[20, 34\]\]/);   // dentro de tu manzana
+assert.match(html, /spots = \[\[16, 124\], \[30, 123\], \[40, 127\], \[21, 137\], \[36, 137\]\]/);   // potrero del norte, fuera del condominio
 assert.match(html, /function updateEarthBulls\(/);
 assert.match(html, /for \(let i = 0; i < 3; i\+\+\)/);
 assert.match(html, /side = \(i - 1\) \* 3\.8/);
-assert.match(html, /hp: 18, maxhp: 18, speed: 7\.2/);
+assert.match(html, /hp: 18, maxhp: 18, speed: 4\.3/);
 assert.match(html, /ud\.bullCd = 16/);
 assert.match(html, /data\.bullCd = 12/);
 assert.match(html, /function resolveLivingWall\(/);
@@ -23,6 +23,6 @@ assert.match(html, /function obstacleAt\(/);
 assert.match(html, /function placedBarrierNear\(/);
 assert.doesNotMatch(html, /hp: 9999, speed: 16/);
 assert.match(html, /updateEarthBulls\(dt\)/);
-assert.match(sw, /tim-v48/);
+assert.match(sw, /tim-v49/);
 
 console.log('earth bulls: ok');

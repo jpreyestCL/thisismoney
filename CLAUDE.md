@@ -554,6 +554,38 @@ Las teclas viejas SIGUEN funcionando; esto solo agrega caminos más fáciles.
   la clase `chico`), **🔭 mira** pone/saca la mira y solo aparece con un arma de fuego en la mano
   (clase `body.armado`, que `renderHUD` alterna), y el botón **🤝 usar** ya hacía de E contextual.
 
+## El terreno y el condominio (para hacerte una casa hay que comprar el lote)
+
+Ya no se construye en cualquier parte: la manzana `casa` es el **Condominio Los Aromos** y
+la casa se levanta en un **lote comprado**.
+
+- **Empiezas con $2000** (`START_MONEY`) y el **terreno vale $1000** (`PRECIO_TERRENO`).
+- **Trazado en `src/city-map.js`** (`CONDOMINIO`): un `pasaje` interior (z 27.5, 6 de ancho),
+  el `porton` que da a la avenida del oeste, la explanada `comun` (donde quedan el cohete, la
+  conserjería y el punto de aparición) y **7 `lotes`**: 5 con vecino ya construido y **2 EN
+  VENTA** (`sur1` y `nor4`, de 14×14.5 — caben 3×3 paredes). Helpers: `lotesEnVenta`,
+  `lotePorId`, `loteEn`, `rectLote`, `enCondominio`. `validarMapa()` revisa que ningún lote
+  se pise con otro, con el pasaje, con la explanada ni con la calle.
+- **`buildCondominio()`** (en `index.html`, justo antes del cierre del mundo terrestre para que
+  se oculte al viajar a Platus) arma pasaje, reja perimetral, portón con dintel, conserjería,
+  explanada con árboles y bancas, y por cada lote: pasto, reja con la entrada hacia el pasaje,
+  sendero, buzón, cartel y —si tiene vecino— su casa (`makeCityHouse(..., anchoMax)`, nuevo
+  parámetro para que la casa quepa en los lotes angostos).
+- **Comprar**: `tryBuyPlot()` (enganchado en `tryInteract`, tecla **E** / botón 🤝) cobra los
+  $1000 estando dentro del lote o a menos de 7. `mudarseAlLote()` mueve `HOUSE`, `BUTLER_HOME`
+  y el marcador verde `homePlot` al lote, y cambia los carteles (`SE VENDE` → `TU TERRENO`,
+  el otro queda `VENDIDO`). `resetPlots()` lo deja todo de nuevo en venta.
+- **Construir**: `puedeConstruirCasa(key, x, z)` bloquea las `PIEZAS_DE_CASA` (paredes, puerta,
+  techo, pilar, piso 2) si no tienes lote o si apuntas fuera de él. Muebles, defensas y huerto
+  siguen libres. Se aplica en `placeObject` y en `placeBlueprint` (el plano entero tiene que caber).
+- **Saves viejos**: `migrarTerrenoAntiguo(d)` le regala el lote más cercano al que ya tenía casa
+  y marca `state.plotLegacy` para no obligarlo a mudarse (sigue construyendo donde estaba).
+- El **tutorial** parte con "Compra tu terreno" (8 pasos), la **flecha guía** apunta al lote en
+  venta mientras no tengas uno y el **minimapa** los marca con 🪧.
+- Los cinco **toros** se fueron del condominio al potrero verde del norte (manzana libre en
+  (27.5, 130)); la mamá aparece en la explanada común.
+- `makeSign` ahora **achica la letra hasta que el texto entra** en el cartel (antes se cortaba).
+
 ## Convenciones del código
 
 - Idioma: **español** en comentarios, textos de UI y nombres de funciones/variables de dominio

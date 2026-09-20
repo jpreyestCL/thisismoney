@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  AVENIDAS, CERROS, DISTRITOS, LUGARES, SEMAFOROS,
-  callesDelMapa, distritoEn, enCalle, manzanasLibres, rectCalle, rectDistrito, seCruzan, validarMapa,
+  AVENIDAS, CERROS, CONDOMINIO, DISTRITOS, LUGARES, SEMAFOROS,
+  callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta,
+  manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, validarMapa,
 } from '../src/city-map.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -78,6 +79,42 @@ test('la autopista del anillo está marcada y rodea la ciudad', () => {
   const anillo = callesDelMapa().filter(c => c.anillo);
   assert.equal(anillo.length, 4, 'el anillo son dos avenidas verticales y dos horizontales');
   assert.match(html, /r\.anillo \? 0 : /);   // en la autopista no se estaciona
+});
+
+test('el condominio tiene lotes en venta y vecinos, todos dentro de la manzana', () => {
+  const manzana = DISTRITOS.find(d => d.id === CONDOMINIO.distrito);
+  const limite = rectDistrito(manzana);
+  assert.ok(CONDOMINIO.lotes.length >= 6, 'el condominio tiene que tener hartas casas');
+  assert.equal(lotesEnVenta().length, 2, 'dos lotes a la venta para poder elegir');
+  const vecinos = CONDOMINIO.lotes.filter(l => !l.venta);
+  assert.ok(vecinos.length >= 4, 'los demás lotes ya tienen vecino');
+  for (const l of CONDOMINIO.lotes) {
+    const r = rectLote(l);
+    assert.ok(r.minX >= limite.minX && r.maxX <= limite.maxX, `${l.id} se sale de la manzana`);
+    assert.ok(r.minZ >= limite.minZ && r.maxZ <= limite.maxZ, `${l.id} se sale de la manzana`);
+    assert.ok(enCondominio(l.x, l.z), `${l.id} quedó fuera del condominio`);
+    assert.equal(lotePorId(l.id), l);
+    assert.equal(loteEn(l.x, l.z)?.id, l.id);
+  }
+  for (const l of lotesEnVenta()) {
+    assert.ok(l.w >= 12 && l.d >= 12, `en ${l.id} no cabe una casa de 3x3 paredes`);
+  }
+  assert.equal(loteEn(CONDOMINIO.pasaje.desde + 1, CONDOMINIO.pasaje.z), null, 'el pasaje no es un lote');
+  assert.equal(loteEn(LUGARES.cohete.x, LUGARES.cohete.z), null, 'el cohete no puede quedar dentro de un lote');
+  assert.equal(loteEn(LUGARES.spawn.x, LUGARES.spawn.z), null, 'no puedes aparecer dentro de un lote ajeno');
+  assert.ok(!enCondominio(16, 124), 'los toros pastan fuera del condominio');
+});
+
+test('index.html cobra el terreno antes de dejarte construir', () => {
+  assert.match(html, /const START_MONEY = 2000;/);
+  assert.match(html, /const PRECIO_TERRENO = 1000;/);
+  assert.match(html, /function buildCondominio\(/);
+  assert.match(html, /function tryBuyPlot\(/);
+  assert.match(html, /if \(tryBuyPlot\(\)\) return;/);
+  assert.match(html, /function puedeConstruirCasa\(/);
+  assert.match(html, /if \(!puedeConstruirCasa\(key, ghost\.position\.x, ghost\.position\.z, true\)\) return;/);
+  assert.match(html, /function migrarTerrenoAntiguo\(/);   // saves de antes del condominio
+  assert.match(html, /plot: state\.plot \|\| null/);        // el lote se guarda
 });
 
 test('index.html construye el mundo con el mapa compartido', () => {

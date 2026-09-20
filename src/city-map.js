@@ -102,7 +102,7 @@ export const LUGARES = Object.freeze({
   cohete: Object.freeze({ x: 12, z: 10, distrito: 'casa' }),
   spawn: Object.freeze({ x: 10, z: 16, distrito: 'casa' }),
   spawnPapa: Object.freeze({ x: 12, z: 13, distrito: 'casa' }),
-  spawnMama: Object.freeze({ x: 18, z: 26, distrito: 'casa' }),
+  spawnMama: Object.freeze({ x: 15.5, z: 18.5, distrito: 'casa' }),   // en la explanada común del condominio
   super: Object.freeze({ x: 28, z: -30, distrito: 'comercial' }),
   banco: Object.freeze({ x: 12, z: -15, distrito: 'comercial' }),
   entregaAutos: Object.freeze({ x: 42, z: -44, distrito: 'comercial' }),
@@ -123,6 +123,51 @@ export const LUGARES = Object.freeze({
   desiertoEste: Object.freeze({ x: 215, z: -80, distrito: 'desiertoEste' }),
   desiertoNoroeste: Object.freeze({ x: -215, z: 100, distrito: 'dunasNorte' }),
 });
+
+// ---- EL CONDOMINIO DONDE VIVES -------------------------------------
+// La manzana `casa` está loteada como un condominio cerrado: casi todos los
+// lotes ya tienen vecino y dos están EN VENTA. Para levantar tu casa hay que
+// comprar uno primero (el precio vive en index.html, PRECIO_TERRENO).
+// El pasaje parte en el portón que da a la avenida y recorre la manzana; al
+// sur del pasaje queda la explanada común, con el cohete y la conserjería.
+const LOTE_SUR = 16.75, LOTE_NORTE = 38.25, LOTE_FONDO = 14.5;
+export const CONDOMINIO = Object.freeze({
+  distrito: 'casa',
+  nombre: 'Condominio Los Aromos',
+  pasaje: Object.freeze({ z: 27.5, ancho: 6, desde: 8, hasta: 46 }),
+  porton: Object.freeze({ x: 9.5, z: 27.5 }),
+  comun: Object.freeze({ x: 12.5, z: 16.75, w: 9, d: 15 }),
+  lotes: Object.freeze([
+    { id: 'sur1', nombre: 'Lote 1', x: 25, z: LOTE_SUR, w: 14, d: LOTE_FONDO, venta: true },
+    { id: 'sur2', nombre: 'Lote 2', x: 35.5, z: LOTE_SUR, w: 6.5, d: LOTE_FONDO },
+    { id: 'sur3', nombre: 'Lote 3', x: 42.5, z: LOTE_SUR, w: 6.5, d: LOTE_FONDO },
+    { id: 'nor1', nombre: 'Lote 4', x: 12.5, z: LOTE_NORTE, w: 6.5, d: LOTE_FONDO },
+    { id: 'nor2', nombre: 'Lote 5', x: 19.5, z: LOTE_NORTE, w: 6.5, d: LOTE_FONDO },
+    { id: 'nor3', nombre: 'Lote 6', x: 26.5, z: LOTE_NORTE, w: 6.5, d: LOTE_FONDO },
+    { id: 'nor4', nombre: 'Lote 7', x: 38, z: LOTE_NORTE, w: 14, d: LOTE_FONDO, venta: true },
+  ].map(Object.freeze)),
+});
+
+export function lotesEnVenta() { return CONDOMINIO.lotes.filter(l => l.venta); }
+export function lotePorId(id) { return CONDOMINIO.lotes.find(l => l.id === id) || null; }
+export function loteEn(x, z, margen = 0) {
+  for (const l of CONDOMINIO.lotes) {
+    if (Math.abs(x - l.x) <= l.w / 2 + margen && Math.abs(z - l.z) <= l.d / 2 + margen) return l;
+  }
+  return null;
+}
+export function rectLote(l, margen = 0) {
+  return {
+    minX: l.x - l.w / 2 - margen, maxX: l.x + l.w / 2 + margen,
+    minZ: l.z - l.d / 2 - margen, maxZ: l.z + l.d / 2 + margen,
+  };
+}
+// ¿Estoy dentro del condominio? (la manzana `casa` completa)
+export function enCondominio(x, z, margen = 0) {
+  const d = DISTRITOS.find(o => o.id === CONDOMINIO.distrito);
+  const r = rectDistrito(d, margen);
+  return x > r.minX && x < r.maxX && z > r.minZ && z < r.maxZ;
+}
 
 // Los cerros quedan SIEMPRE fuera del anillo y de las afueras construidas.
 export const CERROS = Object.freeze([
@@ -231,6 +276,31 @@ export function validarMapa() {
     const r = rectDistrito(d, 30);
     const tieneCalle = AVENIDAS.some(av => seCruzan(rectCalle(av), r));
     if (!tieneCalle) problemas.push(`Al distrito ${d.id} no llega ninguna calle`);
+  }
+  // El condominio: los lotes no pueden pisarse entre ellos, ni el pasaje, ni la
+  // explanada común, ni salirse de la manzana.
+  const manzana = DISTRITOS.find(d => d.id === CONDOMINIO.distrito);
+  if (!manzana) problemas.push('El condominio apunta a una manzana que no existe');
+  else {
+    const limite = rectDistrito(manzana);
+    const pasaje = {
+      minX: CONDOMINIO.pasaje.desde, maxX: CONDOMINIO.pasaje.hasta,
+      minZ: CONDOMINIO.pasaje.z - CONDOMINIO.pasaje.ancho / 2, maxZ: CONDOMINIO.pasaje.z + CONDOMINIO.pasaje.ancho / 2,
+    };
+    const comun = rectLote(CONDOMINIO.comun);
+    if (!lotesEnVenta().length) problemas.push('El condominio no tiene ningún lote en venta');
+    for (let i = 0; i < CONDOMINIO.lotes.length; i++) {
+      const a = CONDOMINIO.lotes[i], ra = rectLote(a);
+      if (ra.minX < limite.minX || ra.maxX > limite.maxX || ra.minZ < limite.minZ || ra.maxZ > limite.maxZ) {
+        problemas.push(`El lote ${a.id} se sale de la manzana del condominio`);
+      }
+      if (seCruzan(ra, pasaje)) problemas.push(`El lote ${a.id} se come el pasaje`);
+      if (seCruzan(ra, comun)) problemas.push(`El lote ${a.id} se come la explanada común`);
+      if (AVENIDAS.some(av => seCruzan(rectCalle(av), ra))) problemas.push(`El lote ${a.id} da sobre la calle`);
+      for (let j = i + 1; j < CONDOMINIO.lotes.length; j++) {
+        if (seCruzan(ra, rectLote(CONDOMINIO.lotes[j]))) problemas.push(`El lote ${a.id} se cruza con ${CONDOMINIO.lotes[j].id}`);
+      }
+    }
   }
   return problemas;
 }

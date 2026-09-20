@@ -2702,16 +2702,112 @@ const CITIZEN_NAMES = ['Sofía', 'Mateo', 'Valentina', 'Benjamín', 'Emma', 'Luc
 const CITIZEN_JOBS = ['panadera', 'carpintero', 'hortelana', 'mecánico', 'enfermera', 'entrenador'];
 let citizenSerial = 0;
 let goldenHouse = null, goldenCollectedToday = false;
-function makeCityHouse(x, z, golden, rot = 0, anchoMax = 7) {
+// ---- PLANOS DE CASA: ninguna vecina es igual a la otra --------------
+// Antes de levantarla, cada casa saca un PLANO: forma, medidas, techo y
+// agregados (ala en L, garaje, pórtico…). Como el plano dice cuánto mide
+// ANTES de construirla, el barrio puede repartir la manzana casa por casa
+// y dejar pasillo entre una y otra: así NINGUNA se atraviesa con su vecina.
+const HOUSE_WALLS = [0xcba37a, 0xb0c4de, 0xd8a7b1, 0xa7c4bc, 0xe0c097, 0xc4b5a0, 0xd9cdb4, 0x9fb8cd, 0xe3b7a0];
+const HOUSE_ROOFS = [0x8b3a3a, 0x475569, 0x713f12, 0x4b5f52, 0x6b4423, 0x334155];
+const HOUSE_PLANS = [
+  // w/d = ancho y fondo (mínimo y máximo) · piso2 = probabilidad de segundo piso
+  { id: 'clasica', peso: 5, w: [5, 7.5], d: [5, 7.5], techo: 'piramide', piso2: .45 },
+  { id: 'chalet', peso: 4, w: [7, 9.5], d: [6, 8], techo: 'dosAguas', piso2: .35 },
+  { id: 'alargada', peso: 4, w: [9, 12.5], d: [5.5, 7], techo: 'dosAguas', piso2: .2 },
+  { id: 'angosta', peso: 3, w: [4.2, 5.4], d: [6.5, 9], techo: 'dosAguas', piso2: .8 },
+  { id: 'pareada', peso: 3, w: [4.6, 6], d: [6, 8.5], techo: 'plana', piso2: .85 },
+  { id: 'moderna', peso: 3, w: [6.5, 9], d: [6.5, 9], techo: 'plana', piso2: .8 },
+  { id: 'cabania', peso: 3, w: [4, 5.5], d: [4, 5.5], techo: 'piramide', piso2: 0 },
+  { id: 'casona', peso: 2, w: [11, 14], d: [8, 10.5], techo: 'escalonada', piso2: .9, portico: true },
+  { id: 'ele', peso: 3, w: [9, 12], d: [8, 10.5], techo: 'dosAguas', piso2: .3, ala: true },
+  { id: 'garaje', peso: 4, w: [8.5, 12], d: [6.5, 8.5], techo: 'piramide', piso2: .35, garaje: true },
+];
+// Saca un plano al azar que QUEPA en el espacio disponible (null si no cabe ninguno).
+function planDeCasa(maxW = 99, maxD = 99) {
+  const caben = HOUSE_PLANS.filter(p => p.w[0] <= maxW && p.d[0] <= maxD);
+  if (!caben.length) return null;
+  let r = Math.random() * caben.reduce((s, p) => s + p.peso, 0), tipo = caben[caben.length - 1];
+  for (const p of caben) { r -= p.peso; if (r <= 0) { tipo = p; break; } }
+  const medida = (a, b, tope) => Math.min(tope, a + Math.random() * (b - a));
+  return {
+    tipo: tipo.id, techo: tipo.techo, ala: !!tipo.ala, garaje: !!tipo.garaje, portico: !!tipo.portico,
+    w: medida(tipo.w[0], tipo.w[1], maxW), d: medida(tipo.d[0], tipo.d[1], maxD),
+    h1: 3.2 + Math.random() * 1.4,
+    piso2: Math.random() < tipo.piso2,
+    muro: HOUSE_WALLS[Math.floor(Math.random() * HOUSE_WALLS.length)],
+    tejas: HOUSE_ROOFS[Math.floor(Math.random() * HOUSE_ROOFS.length)],
+    chimenea: Math.random() < .5,
+  };
+}
+// Reparte una manzana en dos hileras (una a cada calle): va poniendo casa por
+// casa AL LADO de la anterior, con un pasillo de por medio. Como cada plano
+// avisa cuánto mide antes de construirse, ninguna casa se atraviesa con otra.
+function repartirManzana(r, fondoFila) {
+  const lotes = [];
+  // En una manzana chica no caben casonas: ninguna puede pasarse de la mitad
+  // de la hilera, si no quedaría una sola casa por calle.
+  const topeAncho = Math.min(14, Math.max(6, (r.maxX - r.minX) / 2.2));
+  for (const fila of [{ frente: r.maxZ, rot: 0 }, { frente: r.minZ, rot: Math.PI }]) {
+    let x = r.minX;
+    while (x < r.maxX - 4) {
+      const plan = planDeCasa(Math.min(topeAncho, r.maxX - x), fondoFila);
+      if (!plan) break;
+      lotes.push({
+        x: x + plan.w / 2,
+        z: fila.frente + (fila.rot ? plan.d / 2 : -plan.d / 2),   // la fachada queda contra la vereda
+        rot: fila.rot, plan,
+      });
+      x += plan.w + 1.6 + Math.random() * 2.4;   // sitio entre vecinos (pasillo, reja, árbol)
+    }
+  }
+  return lotes;
+}
+// Techos con personalidad: pirámide, dos aguas, terraza plana o mansarda.
+// Devuelve la altura a la que queda la cumbrera (para la chimenea).
+function techoCasa(g, tipo, cx, cz, w, d, y, color) {
+  const pieza = (px, py, pz, pw, ph, pd, c) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd), mat(c));
+    m.position.set(px, py, pz); m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+  };
+  pieza(cx, y + .11, cz, w * 1.1, .22, d * 1.1, color);   // alero que sobresale
+  if (tipo === 'plana') {
+    for (const [ox, oz, pw, pd] of [[0, d / 2, w * 1.08, .22], [0, -d / 2, w * 1.08, .22], [-w / 2, 0, .22, d * 1.08], [w / 2, 0, .22, d * 1.08]])
+      pieza(cx + ox, y + .62, cz + oz, pw, .8, pd, 0xdcd6c8);   // antepecho de la terraza
+    pieza(cx + w * .28, y + .85, cz - d * .28, 1, 1.1, 1, 0x94a3b8);   // estanque de agua
+    return y + 1.4;
+  }
+  if (tipo === 'dosAguas') {
+    const alto = 1.7 + Math.min(w, d) * .13, capas = 4, largoX = w >= d;
+    for (let i = 0; i < capas; i++) {
+      const f = 1 - i / capas;
+      pieza(cx, y + .22 + (i + .5) * (alto / capas), cz,
+        largoX ? w * 1.08 : w * 1.08 * f, alto / capas + .04, largoX ? d * 1.08 * f : d * 1.08, color);
+    }
+    return y + .22 + alto;
+  }
+  if (tipo === 'escalonada') {   // mansarda: cornisa gruesa y remate a cuatro aguas
+    pieza(cx, y + .55, cz, w * 1.04, .66, d * 1.04, color);
+    y += .66;
+  }
+  const alto = 1.7 + Math.min(w, d) * .15;
+  const geo = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4);
+  geo.rotateY(Math.PI / 4);   // la base queda cuadrada y alineada: así se puede estirar a w × d
+  const cono = new THREE.Mesh(geo, mat(color));
+  cono.scale.set(w * 1.06, alto, d * 1.06);
+  cono.position.set(cx, y + .22 + alto / 2, cz); cono.castShadow = true; g.add(cono);
+  return y + .22 + alto;
+}
+let houseSerial = 0;
+function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = null) {
+  plan = plan || planDeCasa(maxW, maxD) || planDeCasa(4, 4);
   const g = new THREE.Group();
   g.rotation.y = rot;   // la puerta mira a la calle de su manzana
   // La casa del tesoro se ve IGUAL que las demás (sin color ni cartel): es un secreto
-  const col = [0xcba37a, 0xb0c4de, 0xd8a7b1, 0xa7c4bc, 0xe0c097, 0xc4b5a0][Math.floor(Math.random() * 6)];
-  const w = Math.min(anchoMax, 4 + Math.random() * 3);   // en los lotes angostos del condominio la casa es más chica
-  const h1 = 3.5 + Math.random() * 1.5;
+  const col = plan.muro;
+  const w = plan.w, d = plan.d, h1 = plan.h1;
   if (golden) {
     // CASA SECRETA: hueca, con puerta abierta para ENTRAR y un cofre de oro adentro
-    const gw = 6, gh = 4, t = 0.25, wm = mat(col);
+    const gw = Math.max(5.2, Math.min(6.5, w, d)), gh = 4, t = 0.25, wm = mat(col);
     const floor = new THREE.Mesh(new THREE.BoxGeometry(gw, 0.2, gw), mat(0x6b4423)); floor.position.y = 0.1; floor.receiveShadow = true; g.add(floor);
     const back = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, t), wm); back.position.set(0, gh / 2, -gw / 2); g.add(back);
     [-gw / 2, gw / 2].forEach(sx => { const s = new THREE.Mesh(new THREE.BoxGeometry(t, gh, gw), wm); s.position.set(sx, gh / 2, 0); g.add(s); });
@@ -2724,52 +2820,109 @@ function makeCityHouse(x, z, golden, rot = 0, anchoMax = 7) {
     g.position.set(x, 0, z); scene.add(g);
     return g;   // sin obstáculo: entras caminando por la puerta y cobras el oro con E
   }
-  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h1, w), mat(col)); body.position.y = h1 / 2; body.castShadow = true; body.receiveShadow = true; g.add(body);
-  const zocalo = new THREE.Mesh(new THREE.BoxGeometry(w + .18, .42, w + .18), mat(0x8d8577));   // cimiento de piedra
-  zocalo.position.y = .21; zocalo.receiveShadow = true; g.add(zocalo);
   const detalle = !preferLowPerf;   // en celular/equipos lentos la casa va simple (si no, son miles de piezas)
-  if (detalle) {
-    const marcoP = new THREE.Mesh(new THREE.BoxGeometry(1.42, 2.12, .08), mat(0xf4efe6));        // marco de la puerta
-    marcoP.position.set(0, .96, w / 2 + .03); g.add(marcoP);
-  }
-  const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.8, 0.1), mat(0x5b3a1a)); door.position.set(0, 0.9, w / 2 + 0.05); g.add(door);
+  const cuerpos = [];               // los volúmenes que ocupan sitio (de ahí salen las colisiones)
+  const caja = (px, py, pz, pw, ph, pd, c, sombra = true) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd), mat(c));
+    m.position.set(px, py, pz); m.castShadow = sombra; m.receiveShadow = true; g.add(m); return m;
+  };
+  // El cuerpo principal no siempre ocupa toda la parcela: la casa en L y la del
+  // garaje le dejan sitio al ala de al lado, y la casona deja el frente al pórtico.
+  let bw = w, bd = d, bx = 0, bz = 0;
+  if (plan.ala) { bw = w * .58; bx = -(w - bw) / 2; }
+  if (plan.garaje) { bw = w - 3.6; bx = -(w - bw) / 2; }
+  if (plan.portico) { bd = d - 1.7; bz = -(d - bd) / 2; }
+  const frente = bz + bd / 2;
+  caja(bx, h1 / 2, bz, bw, h1, bd, col);
+  caja(bx, .21, bz, bw + .18, .42, bd + .18, 0x8d8577);   // cimiento de piedra
+  // Puerta y ventanas (la ventana se arma mirando a +z y se gira para los costados)
+  const ventana = (px, py, pz, ry = 0) => {
+    const v = new THREE.Group(); v.position.set(px, py, pz); v.rotation.y = ry; g.add(v);
+    const pon = (pw, ph, pd2, oy, oz, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd2), m); o.position.set(0, oy, oz); v.add(o); };
+    if (detalle) pon(1.02, 1.02, .08, 0, .03, mat(0xf4efe6));      // marco blanco
+    pon(.8, .8, .1, 0, .06, new THREE.MeshStandardMaterial({ color: 0x93c5fd, roughness: .12, metalness: .2, emissive: 0x1e3a5f, emissiveIntensity: .22 }));
+    if (detalle) { pon(1.12, .1, .26, -.56, .12, mat(0xf4efe6)); pon(.07, .84, .04, 0, .12, mat(0xf4efe6)); }   // alféizar y cruz
+  };
+  if (detalle) caja(bx, .96, frente + .03, 1.42, 2.12, .08, 0xf4efe6, false);   // marco de la puerta
+  caja(bx, .9, frente + .05, 1.1, 1.8, .1, 0x5b3a1a, false);
   if (detalle) {
     const pomo = new THREE.Mesh(new THREE.SphereGeometry(.07, 8, 6), new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: .8, roughness: .3 }));
-    pomo.position.set(.38, .95, w / 2 + .12); g.add(pomo);
-    const peldano = new THREE.Mesh(new THREE.BoxGeometry(1.7, .16, .7), mat(0xa8a29e));          // escalón
-    peldano.position.set(0, .08, w / 2 + .35); peldano.receiveShadow = true; g.add(peldano);
+    pomo.position.set(bx + .38, .95, frente + .12); g.add(pomo);
+    caja(bx, .08, frente + .35, 1.7, .16, .7, 0xa8a29e, false);   // escalón
   }
-  [-w / 4, w / 4].forEach(wx => {
-    if (detalle) {
-      const marco = new THREE.Mesh(new THREE.BoxGeometry(1.02, 1.02, .08), mat(0xf4efe6));       // marco blanco
-      marco.position.set(wx, h1 * 0.6, w / 2 + 0.03); g.add(marco);
+  const huecos = [];   // cuántas ventanas caben al frente sin pisar la puerta
+  for (let k = 1; k <= Math.floor((bw / 2 - 1.05) / 1.55); k++) huecos.push(-(.85 + k * 1.55), .85 + k * 1.55);
+  for (const hx of huecos) ventana(bx + hx, h1 * .6, frente);
+  for (const sx of [-1, 1]) ventana(bx + sx * (bw / 2), h1 * .6, bz + (bd > 7 ? sx * 1.6 : 0), sx * Math.PI / 2);
+  for (const hx of (huecos.length ? huecos : [0])) ventana(bx + hx, h1 * .6, bz - bd / 2, Math.PI);   // el patio de atrás también se ve
+  // Segundo piso: en las modernas y en las angostas ocupa toda la planta; en el
+  // resto se recoge y deja balcón sobre la puerta.
+  let topY = h1, topW = bw, topD = bd;
+  if (plan.piso2) {
+    const lleno = plan.techo === 'plana' || plan.tipo === 'angosta' || plan.tipo === 'casona';
+    const h2 = 2.4 + Math.random() * .9;
+    topW = lleno ? bw : bw * .82; topD = lleno ? bd : bd * .82;
+    caja(bx, h1 + h2 / 2, bz, topW, h2, topD, col);
+    if (detalle) caja(bx, h1 + .09, bz, topW + .3, .18, topD + .3, 0x8d8577, false);   // cornisa entre pisos
+    for (const hx of (huecos.length ? huecos : [0])) {
+      ventana(bx + hx * .78, h1 + h2 * .55, bz + topD / 2);
+      ventana(bx + hx * .78, h1 + h2 * .55, bz - topD / 2, Math.PI);
     }
-    const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.1), new THREE.MeshStandardMaterial({ color: 0x93c5fd, roughness: .12, metalness: .2, emissive: 0x1e3a5f, emissiveIntensity: .22 }));
-    win.position.set(wx, h1 * 0.6, w / 2 + 0.06); g.add(win);
-    if (detalle) {
-      const repisa = new THREE.Mesh(new THREE.BoxGeometry(1.12, .1, .26), mat(0xf4efe6));        // alféizar
-      repisa.position.set(wx, h1 * 0.6 - .56, w / 2 + .12); g.add(repisa);
-      const cruz = new THREE.Mesh(new THREE.BoxGeometry(.07, .84, .04), mat(0xf4efe6)); cruz.position.set(wx, h1 * 0.6, w / 2 + 0.12); g.add(cruz);
+    if (detalle && !lleno) {   // balcón corrido sobre la puerta
+      const balZ = bz + (topD + bd) / 4, balD = (bd - topD) / 2;
+      caja(bx, h1 + .2, balZ, topW, .16, balD, 0x9c8a72, false);
+      caja(bx, h1 + .62, balZ + balD / 2, topW, .6, .1, 0xcbbfa6, false);
+      for (const sx of [-1, 1]) caja(bx + sx * topW / 2, h1 + .62, balZ, .1, .6, balD, 0xcbbfa6, false);
     }
-  });
-  let topY = h1;
-  if (Math.random() < 0.4) {   // segundo piso (cualquier casa)
-    const h2 = 2.5 + Math.random();
-    const f2 = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, h2, w * 0.8), mat(col)); f2.position.y = h1 + h2 / 2; f2.castShadow = true; g.add(f2); topY = h1 + h2;
+    topY = h1 + h2;
   }
-  const roofCol = [0x8b3a3a, 0x475569, 0x713f12][Math.floor(Math.random() * 3)];
-  const alero = new THREE.Mesh(new THREE.BoxGeometry(w * 1.12, .2, w * 1.12), mat(roofCol));   // alero que sobresale
-  alero.position.y = topY + .1; alero.castShadow = true; g.add(alero);
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.8, 2.2, 4), mat(roofCol));
-  roof.position.y = topY + 1.2; roof.rotation.y = Math.PI / 4; roof.castShadow = true; g.add(roof);
-  if (detalle && Math.random() < .55) {   // chimenea con su remate
-    const ch = new THREE.Mesh(new THREE.BoxGeometry(.6, 1.5, .6), mat(0x9a6b53));
-    ch.position.set(w * .22, topY + 1.5, -w * .22); ch.castShadow = true; g.add(ch);
-    const tapa = new THREE.Mesh(new THREE.BoxGeometry(.78, .14, .78), mat(0x6b7280)); tapa.position.set(ch.position.x, topY + 2.3, ch.position.z); g.add(tapa);
+  const cumbrera = techoCasa(g, plan.techo, bx, bz, topW, topD, topY, plan.tejas);
+  if (detalle && plan.chimenea) {   // chimenea con su remate
+    const chx = bx + topW * .3, chz = bz - topD * .3;
+    caja(chx, cumbrera - .4, chz, .6, 1.8, .6, 0x9a6b53);
+    caja(chx, cumbrera + .55, chz, .78, .14, .78, 0x6b7280, false);
+  }
+  cuerpos.push({ x: bx, z: bz, w: bw, d: bd, top: topY });
+  if (plan.ala) {   // ala lateral más baja: la casa deja de ser un cubo y se ve en L
+    const aw = w - bw, ad = d * .62, ax = bx + bw / 2 + aw / 2, az = (d - ad) / 2, ah = h1 * .85;
+    caja(ax, ah / 2, az, aw, ah, ad, col);
+    caja(ax, .21, az, aw + .18, .42, ad + .18, 0x8d8577);
+    ventana(ax, ah * .58, az + ad / 2);
+    techoCasa(g, 'dosAguas', ax, az, aw, ad, ah, plan.tejas);
+    cuerpos.push({ x: ax, z: az, w: aw, d: ad, top: ah });
+  }
+  if (plan.garaje) {   // garaje pegado al costado, con portón y entrada de autos
+    const gw2 = 3.4, gd2 = d * .76, gx = bx + bw / 2 + 1.8, gz = (d - gd2) / 2, gh2 = 2.7;
+    caja(gx, gh2 / 2, gz, gw2, gh2, gd2, col);
+    caja(gx, gh2 + .15, gz, gw2 + .5, .3, gd2 + .5, plan.tejas);
+    caja(gx, 1.1, gz + gd2 / 2 + .07, gw2 - .7, 2.1, .14, 0x64748b, false);
+    if (detalle) for (let i = 0; i < 4; i++) caja(gx, .35 + i * .5, gz + gd2 / 2 + .16, gw2 - .8, .09, .04, 0x94a3b8, false);
+    caja(gx, .05, gz + gd2 / 2 + 1.2, gw2 + .3, .1, 2.2, 0xb8b2a6, false);
+    cuerpos.push({ x: gx, z: gz, w: gw2, d: gd2, top: gh2 });
+  }
+  if (plan.portico) {   // pórtico con columnas: la casona se ve señorial
+    const pz = frente + .85;
+    caja(bx, .12, pz, bw * .94, .24, 1.7, 0xd6cdbb, false);
+    for (const sx of [-1, 1]) for (const f of [.42, .16]) {
+      const cxp = bx + sx * bw * f;
+      const colu = new THREE.Mesh(new THREE.CylinderGeometry(.22, .26, h1 - .1, 10), mat(0xf2ece0));
+      colu.position.set(cxp, (h1 - .1) / 2 + .24, pz + .55); colu.castShadow = true; g.add(colu);
+    }
+    caja(bx, h1 + .1, pz, bw * .98, .34, 2.1, plan.tejas);
   }
   g.position.set(x, 0, z); scene.add(g);
   // pista secreta: la del tesoro es la ÚNICA en la que puedes entrar (las demás te bloquean)
-  if (!golden) { addObstacle(x, z, w, w, topY); addLandingSurface(x, z, w * 1.12, w * 1.12, topY + .2, g); }   // te puedes parar en el techo
+  if (!golden) {
+    const grupo = 'casa' + (++houseSerial);   // las piezas de UNA misma casa sí pueden tocarse
+    const cs = Math.cos(rot), sn = Math.sin(rot), girada = Math.abs(cs) < .5;
+    for (const c of cuerpos) {
+      const wx = x + c.x * cs + c.z * sn, wz = z - c.x * sn + c.z * cs;   // el grupo va rotado en Y
+      const cw = girada ? c.d : c.w, cd = girada ? c.w : c.d;
+      addObstacle(wx, wz, cw, cd, c.top, grupo);
+      addLandingSurface(wx, wz, cw * 1.08, cd * 1.08, c.top + .2, g);   // te puedes parar en el techo
+    }
+  }
+  g.userData.plan = plan;
   return g;
 }
 // Cada barrio llena SU manzana: dos hileras de casas mirando a la calle
@@ -2778,20 +2931,18 @@ function poblarBarrio(id, opciones = {}) {
   const distrito = DISTRITOS.find(o => o.id === id);
   if (!distrito) return;
   const r = rectDistrito(distrito, -2.5);          // antejardín contra la vereda
-  const ancho = r.maxX - r.minX;
-  const porFila = Math.max(2, Math.floor(ancho / 9.6));
-  const paso = ancho / porFila;
-  const filas = [{ z: r.maxZ - 4.4, rot: 0 }, { z: r.minZ + 4.4, rot: Math.PI }];
-  let n = 0;
-  for (const fila of filas) {
-    for (let i = 0; i < porFila; i++) {
-      const x = r.minX + paso * (i + .5) + (Math.random() * 1.4 - .7);
-      const dorada = opciones.dorada === n;
-      const casa = makeCityHouse(x, fila.z, dorada, fila.rot);
-      if (dorada) goldenHouse = casa;
-      n++;
-    }
+  const fondoFila = Math.min(10.5, (r.maxZ - r.minZ) / 2 - 2.5);   // lo que puede medir de fondo cada casa
+  const lotes = repartirManzana(r, fondoFila);
+  // Levantarlas. La del tesoro tiene que caer en una casa lo bastante grande.
+  let dorada = -1;
+  if (opciones.dorada != null) {
+    const grandes = lotes.map((l, i) => i).filter(i => lotes[i].plan.w >= 6 && lotes[i].plan.d >= 6);
+    if (grandes.length) dorada = grandes[Math.min(opciones.dorada, grandes.length - 1)];
   }
+  lotes.forEach((l, i) => {
+    const casa = makeCityHouse(l.x, l.z, i === dorada, l.rot, l.plan.w, l.plan.d, l.plan);
+    if (i === dorada) goldenHouse = casa;
+  });
   const centro = new THREE.Vector3(distrito.x, 0, distrito.z);
   for (let i = 0; i < (opciones.gente || 4); i++) {
     const vecino = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
@@ -6963,8 +7114,10 @@ function buildCondominio() {
       vendido: ponerCartel('VENDIDO', 0x94a3b8),
     } : null;
     let vecino = null;
-    if (!l.venta) {   // el vecino ya construyó: su casa mira al pasaje
-      vecino = makeCityHouse(l.x, l.z + (norte ? 1.2 : -1.2), false, norte ? Math.PI : 0, l.w - .9);
+    if (!l.venta) {   // el vecino ya construyó: su casa mira al pasaje y NINGUNA es igual a la de al lado
+      const plan = planDeCasa(l.w - 1.2, l.d - 5);
+      const casaZ = frente + (norte ? 1 : -1) * (plan.d / 2 + 1.6);   // antejardín contra el pasaje
+      vecino = makeCityHouse(l.x, casaZ, false, norte ? Math.PI : 0, plan.w, plan.d, plan);
       mcLamp(g, l.x + l.w / 2 - .8, frente + (norte ? -1 : 1) * 1.2, 0xfff0b0);
     }
     condoLotes[l.id] = { lote: l, carteles, vecino, frente };

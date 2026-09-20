@@ -331,6 +331,8 @@ huecos del patrón son plazoletas y ahí van los `.glb` (`edificio.glb` / `tiend
 
 **Barrios** (`poblarBarrio`): cada manzana de casas se llena con dos hileras que MIRAN a la calle
 (`makeCityHouse` recibe la rotación) y el patio común en el medio, más sus vecinos con rutina.
+El reparto lo hace `repartirManzana(r, fondoFila)`: NINGUNA casa es igual a la de al lado y
+NINGUNA se atraviesa con su vecina (ver "Casas distintas" más abajo).
 
 **Auditores en vivo** (con `?debug=1`):
 - `__tim.auditCity()` → `{sobreCalle, fuera, encimados}`. Revisa el rectángulo COMPLETO de cada
@@ -441,6 +443,39 @@ de pared/techo usan `flatShading` con su propia rugosidad/metalicidad (`objMater
 Las casas de la ciudad (`makeCityHouse`) suman cimiento, marco y pomo de puerta, escalón, marcos +
 alféizar + cruz en las ventanas, alero y chimenea; todo lo fino se salta si `preferLowPerf`
 (celulares) para no disparar las mallas.
+
+**Casas distintas (y que no se atraviesan)**: antes TODAS las casas de la ciudad eran el mismo cubo
+con techo de pirámide. Ahora cada una saca un **plano** (`HOUSE_PLANS` + `planDeCasa(maxW, maxD)`)
+antes de construirse:
+
+| Plano | Ancho | Fondo | Techo | Gracia |
+|---|---|---|---|---|
+| `clasica` | 5 – 7,5 | 5 – 7,5 | pirámide | la de toda la vida |
+| `chalet` | 7 – 9,5 | 6 – 8 | dos aguas | |
+| `alargada` | 9 – 12,5 | 5,5 – 7 | dos aguas | ancha y baja |
+| `angosta` | 4,2 – 5,4 | 6,5 – 9 | dos aguas | casi siempre de dos pisos |
+| `pareada` | 4,6 – 6 | 6 – 8,5 | plana | terraza con antepecho |
+| `moderna` | 6,5 – 9 | 6,5 – 9 | plana | terraza y estanque de agua |
+| `cabania` | 4 – 5,5 | 4 – 5,5 | pirámide | la más chica |
+| `casona` | 11 – 14 | 8 – 10,5 | mansarda | **pórtico con columnas** |
+| `ele` | 9 – 12 | 8 – 10,5 | dos aguas | **ala lateral** (planta en L) |
+| `garaje` | 8,5 – 12 | 6,5 – 8,5 | pirámide | **garaje con portón** |
+
+- `techoCasa(...)` dibuja los cuatro techos (pirámide estirada a w×d con `ConeGeometry` + `rotateY`
+  horneado en la geometría, dos aguas escalonado, terraza plana con antepecho y mansarda).
+- El segundo piso se recoge y deja **balcón** sobre la puerta (salvo en las de techo plano, la
+  `angosta` y la `casona`, donde ocupa toda la planta). Hay ventanas al frente, a los costados y
+  **atrás** (antes las casas eran un muro liso por el patio).
+- **Nada se atraviesa**: `repartirManzana(r, fondoFila)` va poniendo casa por casa AL LADO de la
+  anterior (`x += plan.w + 1,6 a 4`), con la fachada pegada a la vereda y el fondo limitado a la
+  mitad de la manzana. En manzanas chicas (las del anillo) ninguna casa puede pasar de la mitad de
+  la hilera, para que no quede una sola casa por calle. Cada casa registra sus volúmenes reales
+  (cuerpo + ala + garaje) como obstáculos con su propio `grupo` (`casa<N>`), así `auditCity()`
+  detecta de verdad si dos casas se montan.
+- Los vecinos del condominio usan el mismo sorteo con el hueco de su lote (`planDeCasa(l.w - 1.2,
+  l.d - 5)`) y la casa se planta con antejardín hacia el pasaje.
+- Pruebas: `tests/casas.test.mjs` corre el reparto real (sacado de `index.html` con `vm`) en 200
+  barrios sorteados y exige cero cruces, casas dentro de la manzana y variedad de formas.
 
 
 `renderer` con `ACESFilmicToneMapping` (exposición 1.15, 1 en modo rendimiento), sombras suaves
@@ -569,8 +604,8 @@ la casa se levanta en un **lote comprado**.
 - **`buildCondominio()`** (en `index.html`, justo antes del cierre del mundo terrestre para que
   se oculte al viajar a Platus) arma pasaje, reja perimetral, portón con dintel, conserjería,
   explanada con árboles y bancas, y por cada lote: pasto, reja con la entrada hacia el pasaje,
-  sendero, buzón, cartel y —si tiene vecino— su casa (`makeCityHouse(..., anchoMax)`, nuevo
-  parámetro para que la casa quepa en los lotes angostos).
+  sendero, buzón, cartel y —si tiene vecino— su casa (`planDeCasa(l.w - 1.2, l.d - 5)` sortea una
+  forma distinta para cada lote y garantiza que quepa dentro de la reja).
 - **Comprar**: `tryBuyPlot()` (enganchado en `tryInteract`, tecla **E** / botón 🤝) cobra los
   $1000 estando dentro del lote o a menos de 7. `mudarseAlLote()` mueve `HOUSE`, `BUTLER_HOME`
   y el marcador verde `homePlot` al lote, y cambia los carteles (`SE VENDE` → `TU TERRENO`,

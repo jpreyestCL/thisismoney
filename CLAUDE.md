@@ -288,6 +288,59 @@ con nombre de pistola" y ahora son armas de verdad.
   `updatePolice` tampoco: los pacos se quedan dando vueltas en `lostAt` (donde te vieron por última
   vez) y la marca de BUSCADO baja 2,5 veces más rápido.
 
+## La ciudad estilo GTA (`src/city-map.js`)
+
+El trazado de la Tierra dejó de estar repartido en coordenadas sueltas por `index.html`: ahora vive
+en **`src/city-map.js`**, que es la única fuente de la verdad y que el navegador y los tests importan
+igual. Convención: **+x este, −x oeste, +z norte, −z sur**.
+
+- **Cuadrícula**: avenidas en los ejes `[-150, -110, -55, 0, 55, 110, 150]`, verticales y
+  horizontales (`AVENIDAS`). Las de ±150 son la **autopista del anillo** (flag `anillo`), y de ahí
+  salen **ramales** cortos a cada lugar de las afueras (aeropuerto, acuático, diversiones, playa,
+  desiertos). Calzada de 9 con vereda de 2,6 a cada lado (`CALLE` / `MEDIA_CALLE`).
+- **Distritos** (`DISTRITOS`): 16 manzanas de 40×40 en el centro (tu casa, Plaza Central, centro
+  comercial, rascacielos, los tres estadios, cárcel, arcade, armería, oficinas y cuatro barrios),
+  4 manzanas de 25×25 en las esquinas del anillo, y 6 zonas de afueras (aeropuerto 150×110, parque
+  acuático, parque de diversiones, playa y dos desiertos). `manzanasLibres()` devuelve las manzanas
+  de la cuadrícula que no le tocaron a nadie: el juego les planta una arboleda para que no queden
+  potreros pelados entre avenidas.
+- **Lugares** (`LUGARES`): el punto exacto de cada cosa (súper, banco, armería, gasolinera, cárcel,
+  arcade, estadios, parques, playa, aeropuerto, cohete, spawns…), siempre dentro de su distrito.
+  `index.html` ya no tiene coordenadas a mano: todo sale de aquí.
+- **Cerros** (`CERROS`): la montaña de nieve y los demás cerros quedan SIEMPRE fuera del anillo.
+- `validarMapa()` comprueba que ningún distrito se cruce con otro, que ninguna calle pase por encima
+  de una manzana, que los cerros no tapen nada, que cada lugar caiga dentro de su distrito y fuera
+  del asfalto, y que a cada distrito llegue alguna calle. Lo corre `tests/city-map.test.mjs`.
+
+**Cómo se dibuja**: `callesDelMapa()` alimenta `makeRoad` (asfalto + veredas + línea central
+discontinua; las horizontales y las verticales van a alturas apenas distintas para que los cruces no
+peleen por z-fighting) y los **cruces peatonales** van en un solo `InstancedMesh` en los nueve
+semáforos (`SEMAFOROS`). `onRoadAt` delega en `enCalle`, así el pasto 3D y los árboles nunca brotan
+sobre la calzada ni sobre la vereda.
+
+**Tráfico**: `spawnCars` reparte 3 autos andando por avenida (4 en la autopista, 1-2 en celular) más
+2 estacionados por calle — en la autopista no se estaciona nadie. `stoppedByLight` frena en
+CUALQUIERA de los nueve cruces con semáforo y `tryTurn` hace que en cada esquina el auto decida si
+sigue derecho o dobla (30% de probabilidad), como el tráfico de verdad. Los peatones caminan por las
+veredas de los cruces.
+
+**Rascacielos** (`buildSkyline`): torres de 17 a 42 de alto en las manzanas `centro` y `oficinas`,
+con textura de ventanas generada por canvas (`makeWindowTexture`, unas encendidas y otras apagadas),
+remate, antena con baliza roja sobre los 26 de alto, colisión y azotea donde se puede aterrizar. Los
+huecos del patrón son plazoletas y ahí van los `.glb` (`edificio.glb` / `tienda.glb`).
+
+**Barrios** (`poblarBarrio`): cada manzana de casas se llena con dos hileras que MIRAN a la calle
+(`makeCityHouse` recibe la rotación) y el patio común en el medio, más sus vecinos con rutina.
+
+**Auditores en vivo** (con `?debug=1`):
+- `__tim.auditCity()` → `{sobreCalle, fuera, encimados}`. Revisa el rectángulo COMPLETO de cada
+  obstáculo grande: que no pise asfalto ni vereda, que esté dentro de alguna manzana y que no se
+  meta dentro de otro edificio. Las piezas de una misma construcción (alas y fuselaje del mismo
+  avión, torres del mismo castillo) se marcan con el parámetro `grupo` de `addObstacle` y no cuentan.
+- `__tim.auditTraffic(segundos)` → cuántos autos se movieron, cuántos doblaron y cuáles se salieron
+  del asfalto.
+- `__tim.perfInfo()` → objetos de la escena, llamadas de dibujo, triángulos y geometrías.
+
 ## Gráficos
 
 **Árboles**: `buildTrees` usa 4 InstancedMesh (tronco cónico con corteza + copa de 3 pisos) con

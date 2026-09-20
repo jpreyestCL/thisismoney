@@ -11,7 +11,7 @@ assert.match(html, /function makeBullArmored\(/);
 assert.match(html, /make: makeKnight,/);
 assert.match(html, /make: makeKnightArmored/);
 assert.match(html, /const earthBulls = \[\]/);
-assert.match(html, /spots = \[\[30, 36\], \[12, 48\], \[-8, 34\], \[38, 8\], \[52, 28\]\]/);
+assert.match(html, /spots = \[\[32, 36\], \[16, 44\], \[40, 16\], \[34, 44\], \[20, 34\]\]/);   // dentro de tu manzana
 assert.match(html, /function updateEarthBulls\(/);
 assert.match(html, /for \(let i = 0; i < 3; i\+\+\)/);
 assert.match(html, /side = \(i - 1\) \* 3\.8/);
@@ -23,6 +23,6 @@ assert.match(html, /function obstacleAt\(/);
 assert.match(html, /function placedBarrierNear\(/);
 assert.doesNotMatch(html, /hp: 9999, speed: 16/);
 assert.match(html, /updateEarthBulls\(dt\)/);
-assert.match(sw, /tim-v46/);
+assert.match(sw, /tim-v48/);
 
 console.log('earth bulls: ok');

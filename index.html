@@ -5493,6 +5493,7 @@ function resolveSkiPisteWalls() {
     if (into < 0) { skiVelX -= into * nx; skiVelZ -= into * nz; }   // no sigas metiéndote a través
   }
 }
+let skiRoadCurve = null;   // el trazado del camino al cerro (lo revisa __tim.auditSkiRoad)
 function buildSkiRoad() {
   // Sale de la autopista del anillo (150,130) y sube al cerro sin pasar por
   // el aeropuerto ni el parque acuático.
@@ -5502,6 +5503,7 @@ function buildSkiRoad() {
     new THREE.Vector3(SKI_RESORT.gate.x, .06, SKI_RESORT.gate.z),
     new THREE.Vector3(345, .06, 332), new THREE.Vector3(380, .06, 355),
   ]);
+  skiRoadCurve = curve;
   const road = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 4.1, 8, false), mat(0x293241));
   road.scale.y = .025; road.position.y = .02; road.receiveShadow = true; skiResortGroup.add(road);
   const line = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, .12, 5, false), mat(0xfde68a));
@@ -17838,6 +17840,18 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     });
     const andando = traffic.filter(c => c.userData.moving).length;
     return { andando, estacionados: traffic.length - andando, movidos, doblaron, fueraDelAsfalto };
+  };
+  // El camino al cerro nevado solo puede tocar la autopista del anillo (ahí empieza).
+  timDump.auditSkiRoad = () => {
+    const pisaDistrito = [], pisaCalle = [];
+    if (!skiRoadCurve) return { pisaDistrito, pisaCalle, nota: 'sin camino' };
+    for (const p of skiRoadCurve.getSpacedPoints(300)) {
+      const d = distritoEn(p.x, p.z, 4.1);
+      if (d) pisaDistrito.push({ id: d.id, x: +p.x.toFixed(1), z: +p.z.toFixed(1) });
+      const calle = AVENIDAS.find(av => !av.anillo && seCruzan(rectCalle(av), { minX: p.x - 4.1, maxX: p.x + 4.1, minZ: p.z - 4.1, maxZ: p.z + 4.1 }));
+      if (calle) pisaCalle.push({ id: calle.id, x: +p.x.toFixed(1), z: +p.z.toFixed(1) });
+    }
+    return { pisaDistrito, pisaCalle };
   };
   timDump.perfInfo = () => {
     renderer.render(scene, camera);

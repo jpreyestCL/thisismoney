@@ -90,6 +90,7 @@ test('index.html construye el mundo con el mapa compartido', () => {
   assert.match(html, /function tryTurn\(/);                 // los autos doblan en los cruces
   assert.match(html, /timDump\.auditCity = /);              // auditor de la ciudad (?debug=1)
   assert.match(html, /timDump\.auditTraffic = /);           // auditor del tráfico (?debug=1)
+  assert.match(html, /timDump\.auditSkiRoad = /);           // auditor del camino al cerro nevado
   assert.doesNotMatch(html, /makeStadium\(70, 25/);         // los estadios ya no están sueltos
 });
 

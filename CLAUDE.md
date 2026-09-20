@@ -339,6 +339,8 @@ huecos del patrón son plazoletas y ahí van los `.glb` (`edificio.glb` / `tiend
   avión, torres del mismo castillo) se marcan con el parámetro `grupo` de `addObstacle` y no cuentan.
 - `__tim.auditTraffic(segundos)` → cuántos autos se movieron, cuántos doblaron y cuáles se salieron
   del asfalto.
+- `__tim.auditSkiRoad()` → el camino al cerro nevado sale de la autopista del anillo en (150,130) y
+  no puede pisar ninguna manzana ni ninguna otra calle de la ciudad.
 - `__tim.perfInfo()` → objetos de la escena, llamadas de dibujo, triángulos y geometrías.
 
 ## Gráficos

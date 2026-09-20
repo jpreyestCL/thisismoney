@@ -1210,6 +1210,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
+import { AVENIDAS, CALLE, CERROS, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, manzanasLibres, rectCalle, rectDistrito, seCruzan } from './src/city-map.js?v=1';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=4';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -2089,9 +2090,9 @@ function makeSprite(frames, w, h) {
 }
 
 // El papá (usa tu imagen del señor mayor)
-const HOUSE = new THREE.Vector3(14, 0, 14);   // zona de la casa: pasto abierto ENTRE las avenidas (no sobre la calle)
+const HOUSE = new THREE.Vector3(LUGARES.casa.x, 0, LUGARES.casa.z);   // tu manzana: pasto abierto entre las avenidas
 const dad = new THREE.Group();
-dad.position.set(2, 0, 9);
+dad.position.set(LUGARES.spawnPapa.x, 0, LUGARES.spawnPapa.z);
 dad.userData = { mode: 'follow', armed: false, atkCd: 0 };
 scene.add(dad);
 const dadTag = makeSign('PAPÁ', 0x38bdf8);
@@ -2126,7 +2127,7 @@ momTag.scale.set(.5, .5, .5); momTag.position.set(0, 3, 0); mom.add(momTag); mom
 // ===================================================================
 //  EL SÚPER (con productos realistas y compra de mantener apretado)
 // ===================================================================
-const SUPER_POS = new THREE.Vector3(40, 0, -18);
+const SUPER_POS = new THREE.Vector3(LUGARES.super.x, 0, LUGARES.super.z + 13);   // la puerta del súper, en la vereda
 const obstacles = [];   // cajas que bloquean al jugador
 let poolPatch = null;      // tapa el hueco de la piscina fuera de la Tierra
 const noGrassZones = [];   // losas construidas (parques, canchas, plazas): ahí NO brota pasto 3D
@@ -2137,11 +2138,14 @@ function inNoGrassZone(x, z) {
 }
 const landingSurfaces = []; // superficies elevadas donde puedes aterrizar al caer
 
-function addObstacle(cx, cz, w, d, top) {
+function addObstacle(cx, cz, w, d, top, grupo) {
   // top = altura de la caja (opcional). Si tus pies están por encima, no te frena:
   // así en el SEGUNDO PISO no chocas con las paredes de abajo (paredes invisibles).
+  // grupo = nombre de la construcción a la que pertenece (alas y fuselaje del mismo
+  // avión, torres del mismo castillo…): __tim.auditCity no las cuenta como encimadas.
   const o = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 };
   if (top != null) o.top = top;
+  if (grupo) o.grupo = grupo;
   obstacles.push(o);
   return o;
 }
@@ -2201,7 +2205,7 @@ butlerTag.scale.set(.42, .42, .42); butlerTag.position.set(0, 3, 0); butler.add(
 butler.visible = false;
 scene.add(butler);
 const BUTLER_HOME = new THREE.Vector3(HOUSE.x + 3, 0, HOUSE.z + 2);
-const BUTLER_SUPER = new THREE.Vector3(40, 0, -31);
+const BUTLER_SUPER = new THREE.Vector3(LUGARES.super.x, 0, LUGARES.super.z - 9);   // junto al vendedor del súper
 let butlerSpaceTaps = [];
 
 function normalizeButlerText(value) {
@@ -2610,14 +2614,12 @@ function makeStore(cx, cz, items, title, roofColor) {
   const kt = makeSign('VENDEDOR (Y)', 0x34d399); kt.scale.set(.45, .45, .45); kt.position.set(cx, 3.2, cz - 9); scene.add(kt);
   return new THREE.Vector3(cx, 0, cz + hd);   // posición de la entrada
 }
-const SUPER_B_POS = makeStore(-2, -40, STORE_B, 'ARMERIA', 0x6d28d9);
-makeStore(40, -22, STORE_A, 'SUPER', 0xdc2626);
-// Explanada libre junto a la plaza principal: fuera de las avenidas centrales
-// (x=0 y z=0) y separada de casas, tiendas y otros obstáculos.
-const GAS_STATION_POS = new THREE.Vector3(-16, 0, 16);
-// Explanada abierta cerca de la plaza: fuera de las avenidas centrales y de
-// las casas/tiendas, con espacio alrededor para llegar sin atravesar nada.
-const ARCADE_POS = new THREE.Vector3(30, 0, -62);
+const SUPER_B_POS = makeStore(LUGARES.armeria.x, LUGARES.armeria.z, STORE_B, 'ARMERIA', 0x6d28d9);
+makeStore(LUGARES.super.x, LUGARES.super.z, STORE_A, 'SUPER', 0xdc2626);
+// Esquina de la Plaza Central: la bomba da a la avenida, con la manzana libre alrededor.
+const GAS_STATION_POS = new THREE.Vector3(LUGARES.gasolinera.x, 0, LUGARES.gasolinera.z);
+// Manzana del arcade, al sureste de la ciudad.
+const ARCADE_POS = new THREE.Vector3(LUGARES.arcade.x, 0, LUGARES.arcade.z);
 const ARCADE_REWARDS_POS = new THREE.Vector3(ARCADE_POS.x, 0, ARCADE_POS.z + 8);
 const ARCADE_MACHINES = [];
 const ARCADE_GAMES = [
@@ -2669,8 +2671,8 @@ function buildArcadeZone() {
   scene.add(g); arcadeZoneGroup = g;
 }
 buildGasStation(); buildArcadeZone();
-// Tabla mundial: está afuera, al costado oeste del súper principal.
-const LEADERBOARD_POS = new THREE.Vector3(25, 0, -22);
+// Tabla mundial: en la Plaza Central, junto a la fuente.
+const LEADERBOARD_POS = new THREE.Vector3(LUGARES.ranking.x, 0, LUGARES.ranking.z);
 const leaderboardBoard = new THREE.Group();
 {
   const panel = new THREE.Mesh(new THREE.BoxGeometry(6.4, 3.6, .28), mat(0x082f49));
@@ -2694,8 +2696,9 @@ const CITIZEN_NAMES = ['Sofía', 'Mateo', 'Valentina', 'Benjamín', 'Emma', 'Luc
 const CITIZEN_JOBS = ['panadera', 'carpintero', 'hortelana', 'mecánico', 'enfermera', 'entrenador'];
 let citizenSerial = 0;
 let goldenHouse = null, goldenCollectedToday = false;
-function makeCityHouse(x, z, golden) {
+function makeCityHouse(x, z, golden, rot = 0) {
   const g = new THREE.Group();
+  g.rotation.y = rot;   // la puerta mira a la calle de su manzana
   // La casa del tesoro se ve IGUAL que las demás (sin color ni cartel): es un secreto
   const col = [0xcba37a, 0xb0c4de, 0xd8a7b1, 0xa7c4bc, 0xe0c097, 0xc4b5a0][Math.floor(Math.random() * 6)];
   const w = 4 + Math.random() * 3;
@@ -2763,23 +2766,43 @@ function makeCityHouse(x, z, golden) {
   if (!golden) { addObstacle(x, z, w, w, topY); addLandingSurface(x, z, w * 1.12, w * 1.12, topY + .2, g); }   // te puedes parar en el techo
   return g;
 }
-function buildCity() {
-  // barrio al oeste/sur
-  let placed = 0;
-  for (let gx = -85; gx <= -35 && placed < 48; gx += 9) {
-    for (let gz = 24; gz <= 78 && placed < 48; gz += 9) {
-      const golden = (placed === 23);   // una sola casa dorada entre todas
-      const h = makeCityHouse(gx + (Math.random() * 2 - 1), gz + (Math.random() * 2 - 1), golden);
-      if (golden) { goldenHouse = h; }
-      placed++;
+// Cada barrio llena SU manzana: dos hileras de casas mirando a la calle
+// (como en una ciudad de verdad) y el patio común en el medio.
+function poblarBarrio(id, opciones = {}) {
+  const distrito = DISTRITOS.find(o => o.id === id);
+  if (!distrito) return;
+  const r = rectDistrito(distrito, -2.5);          // antejardín contra la vereda
+  const ancho = r.maxX - r.minX;
+  const porFila = Math.max(2, Math.floor(ancho / 9.6));
+  const paso = ancho / porFila;
+  const filas = [{ z: r.maxZ - 4.4, rot: 0 }, { z: r.minZ + 4.4, rot: Math.PI }];
+  let n = 0;
+  for (const fila of filas) {
+    for (let i = 0; i < porFila; i++) {
+      const x = r.minX + paso * (i + .5) + (Math.random() * 1.4 - .7);
+      const dorada = opciones.dorada === n;
+      const casa = makeCityHouse(x, fila.z, dorada, fila.rot);
+      if (dorada) goldenHouse = casa;
+      n++;
     }
   }
-  for (let i = 0; i < 14; i++) {
-    const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
-    n.position.set(-85 + Math.random() * 50, 0, 24 + Math.random() * 54);
-    initCitizenBrain(n, new THREE.Vector3(-60, 0, 51), 28);
-    scene.add(n); npcs.push(n);
+  const centro = new THREE.Vector3(distrito.x, 0, distrito.z);
+  for (let i = 0; i < (opciones.gente || 4); i++) {
+    const vecino = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
+    vecino.position.set(distrito.x + (Math.random() * 20 - 10), 0, distrito.z + (Math.random() * 20 - 10));
+    initCitizenBrain(vecino, centro, Math.min(18, distrito.w / 2));
+    scene.add(vecino); npcs.push(vecino);
   }
+}
+function buildCity() {
+  poblarBarrio('barrioOesteNorte', { gente: 5, dorada: 3 });   // la casa del tesoro se esconde acá
+  poblarBarrio('barrioOesteSur', { gente: 5 });
+  poblarBarrio('barrioEste', { gente: 5 });
+  poblarBarrio('barrioSur', { gente: 5 });
+  poblarBarrio('barrioNoreste', { gente: 3 });
+  poblarBarrio('barrioNoroeste', { gente: 3 });
+  poblarBarrio('barrioSureste', { gente: 3 });
+  poblarBarrio('barrioSuroeste', { gente: 3 });
 }
 buildCity();
 
@@ -3321,36 +3344,6 @@ function updateAlley(dt) {
   clampAlleyPlayer();
 }
 
-// Barrios extra (más ciudades, sin casa dorada) alrededor de un centro dado
-function buildNeighborhood(cx, cz, houses, npcCount) {
-  const cols = Math.ceil(Math.sqrt(houses));
-  let placed = 0;
-  for (let i = 0; i < cols && placed < houses; i++) {
-    for (let j = 0; j < cols && placed < houses; j++) {
-      const x = cx + (i - cols / 2) * 9 + (Math.random() * 2 - 1);
-      const z = cz + (j - cols / 2) * 9 + (Math.random() * 2 - 1);
-      makeCityHouse(x, z, false);
-      placed++;
-    }
-  }
-  for (let i = 0; i < npcCount; i++) {
-    const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
-    n.position.set(cx + (Math.random() * 36 - 18), 0, cz + (Math.random() * 36 - 18));
-    initCitizenBrain(n, new THREE.Vector3(cx, 0, cz), 20);
-    scene.add(n); npcs.push(n);
-  }
-}
-// 10 pueblos en total: la ciudad grande (buildCity) + estos 9 barrios repartidos por el mapa
-buildNeighborhood(90, 90, 12, 6);     // 2 noreste
-buildNeighborhood(-95, -90, 12, 6);   // 3 suroeste
-buildNeighborhood(95, -45, 9, 5);     // 4 este-sur
-buildNeighborhood(-95, 45, 9, 5);     // 5 oeste-norte
-buildNeighborhood(45, 95, 9, 5);      // 6 norte
-buildNeighborhood(-55, 92, 9, 5);     // 7 norte-oeste
-buildNeighborhood(95, 40, 9, 5);      // 8 este
-buildNeighborhood(-100, -25, 9, 5);   // 9 oeste-sur
-buildNeighborhood(18, -92, 9, 5);     // 10 sur
-
 // Edificios 3D reales de la ciudad (tienda y edificio que mandó el usuario)
 function loadBuilding(path, x, z, targetH) {
   gltfLoader.load(path, (gltf) => {
@@ -3373,10 +3366,11 @@ function loadBuilding(path, x, z, targetH) {
 // Los .glb se piden en el siguiente tick: si uno termina de cargar MIENTRAS el módulo
 // todavía se evalúa, su callback tocaría variables que aún no existen (ReferenceError).
 setTimeout(() => {
-  loadBuilding('assets/edificio.glb', -30, 40, 14);
-  loadBuilding('assets/edificio.glb', -30, 20, 12);
-  loadBuilding('assets/tienda.glb', -30, 58, 6);
-  loadBuilding('assets/tienda.glb', -52, 16, 6);
+  // Van en los huecos que deja buildSkyline: comparten manzana con los rascacielos.
+  loadBuilding('assets/edificio.glb', -27, -16, 22);   // plazoleta del centro, mirando al cruce
+  loadBuilding('assets/edificio.glb', -39, -27, 17);
+  loadBuilding('assets/tienda.glb', -14, 16, 6);       // negocio de la Plaza Central
+  loadBuilding('assets/tienda.glb', 16, -71, 6);       // negocio del barrio de oficinas
 }, 0);
 function initCitizenBrain(n, center, radius) {
   const id = citizenSerial++;
@@ -3845,16 +3839,16 @@ function updateTennis(dt) {
   }
 }
 function buildStadiums() {
-  makeStadium(70, 25, 0x2d6a4f, 'FUTBOL');
-  makeStadium(20, 58, 0xb45309, 'BASQUET');
-  makeStadium(-70, -10, 0x1d4ed8, 'TENIS');
+  makeStadium(LUGARES.estadioFutbol.x, LUGARES.estadioFutbol.z, 0x2d6a4f, 'FUTBOL');
+  makeStadium(LUGARES.estadioBasquet.x, LUGARES.estadioBasquet.z, 0xb45309, 'BASQUET');
+  makeStadium(LUGARES.estadioTenis.x, LUGARES.estadioTenis.z, 0x1d4ed8, 'TENIS');
 }
 buildStadiums();
 
 const SPORT_INFO = [
-  { type: 'futbol', name: 'Fútbol', center: new THREE.Vector3(70, 0, 25), ball: () => soccer.ball },
-  { type: 'basket', name: 'Básquet', center: new THREE.Vector3(20, 0, 58), ball: () => basketball.ball },
-  { type: 'tenis', name: 'Tenis', center: new THREE.Vector3(-70, 0, -10), ball: () => tennis.ball },
+  { type: 'futbol', name: 'Fútbol', center: new THREE.Vector3(LUGARES.estadioFutbol.x, 0, LUGARES.estadioFutbol.z), ball: () => soccer.ball },
+  { type: 'basket', name: 'Básquet', center: new THREE.Vector3(LUGARES.estadioBasquet.x, 0, LUGARES.estadioBasquet.z), ball: () => basketball.ball },
+  { type: 'tenis', name: 'Tenis', center: new THREE.Vector3(LUGARES.estadioTenis.x, 0, LUGARES.estadioTenis.z), ball: () => tennis.ball },
 ];
 const SPORT_LEVELS = [
   { name: 'BARRIO', ai: .88, time: 75, reward: 1 },
@@ -3963,7 +3957,7 @@ function finishSportGame(abandoned) {
 }
 
 // ---- BANCO (educativo): ahorra y gana 5% de interés por noche; préstamos al 10% ----
-const BANK_POS = new THREE.Vector3(58, 0, -24);
+const BANK_POS = new THREE.Vector3(LUGARES.banco.x, 0, LUGARES.banco.z);
 (function buildBank() {
   const b = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 6), mat(0xd9c58b)); b.position.set(BANK_POS.x, 2.5, BANK_POS.z); b.castShadow = true; b.receiveShadow = true; scene.add(b);
   const roofB = new THREE.Mesh(new THREE.BoxGeometry(9, 0.5, 7), mat(0x8a744a)); roofB.position.set(BANK_POS.x, 5.2, BANK_POS.z); scene.add(roofB);
@@ -3973,7 +3967,7 @@ const BANK_POS = new THREE.Vector3(58, 0, -24);
 })();
 
 // La cárcel (edificio con rejas)
-const JAIL_POS = new THREE.Vector3(55, 0, -8);   // la cárcel: de aquí salen los policías
+const JAIL_POS = new THREE.Vector3(LUGARES.carcel.x, 0, LUGARES.carcel.z);   // la cárcel: de aquí salen los policías
 function buildJail() {
   const cx = JAIL_POS.x, cz = JAIL_POS.z;
   const body = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 8), mat(0x9ca3af)); body.position.set(cx, 2.5, cz); body.castShadow = true; body.receiveShadow = true; scene.add(body);
@@ -4162,12 +4156,21 @@ function buildTrees() {   // árboles INSTANCIADOS: ~100 árboles en solo 2 draw
     const a = Math.random() * Math.PI * 2, r = r0 + Math.random() * (r1 - r0);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (x < -145 && z > -365 && z < 55) return;   // océano: nunca generar árboles sobre el agua
-    if ((Math.abs(x) < 14 && Math.abs(z) < 14) || (x > 25 && z < -8)) return;
-    if (Math.abs(x) < 6 || Math.abs(z) < 6) return;   // no sobre las avenidas centrales
+    if (enCalle(x, z, 2)) return;                 // ni sobre el asfalto ni sobre la vereda
+    if (distritoEn(x, z, 2)) return;              // los barrios y las canchas tienen su propio paisaje
     spots.push([x, z]);
   };
   for (let i = 0; i < 36; i++) plant(28, 88);     // anillo cercano (como antes)
   for (let i = 0; i < 70; i++) plant(95, 220);    // afueras: bosque del mapa agrandado
+  // Las manzanas que no le tocaron a ningún barrio son áreas verdes: arboleda
+  // repartida para que la ciudad no tenga potreros pelados entre avenidas.
+  for (const m of manzanasLibres()) {
+    for (let i = 0; i < 7; i++) {
+      const x = m.x + (Math.random() - .5) * m.w * .82, z = m.z + (Math.random() - .5) * m.d * .82;
+      if (enCalle(x, z, 2) || distritoEn(x, z, 2)) continue;
+      spots.push([x, z]);
+    }
+  }
   worldTreeSpots.push(...spots);
   // Tronco con corteza y copa de TRES pisos (la de arriba más chica): sigue siendo
   // instanciado, así que son pocos draw calls aunque haya cientos de árboles.
@@ -4218,11 +4221,11 @@ function buildDesert(cx, cz) {
     addObstacle(x, z, 0.7, 0.7);
   }
 }
-buildDesert(120, -60);
-buildDesert(-165, 140);   // segundo desierto en las afueras del mapa agrandado
+buildDesert(LUGARES.desiertoEste.x, LUGARES.desiertoEste.z);           // afueras del este
+buildDesert(LUGARES.desiertoNoroeste.x, LUGARES.desiertoNoroeste.z);   // dunas del noroeste, pasada la costa
 
 // Playa y mar voxel: costa de arena, agua profunda, fondo marino y algas de bloques.
-const BEACH = { cx: -165, cz: -155, waterW: 64, waterD: 48, surface: .48, bottom: -5 };
+const BEACH = { cx: LUGARES.playa.x, cz: LUGARES.playa.z, waterW: 64, waterD: 48, surface: .48, bottom: -5 };
 const OCEAN = { cx: -650, cz: -155, waterW: 1000, waterD: 420, surface: .48, bottom: -12 };
 // Zonas donde se puede NADAR (el mar y, más abajo, la piscina del parque acuático)
 const WATER_ZONES = [BEACH, OCEAN];
@@ -4424,7 +4427,7 @@ function makeBoat() {
 function addBoatSailor(index){const sailor=makePerson(0xd6b98c,0x1d4ed8);sailor.scale.set(.72,.72,.72);sailor.userData.pilot=index===0;sailor.position.set(index===0?0:(index%2?1:-1)*2.2,2.2,index===0?7:-5+index*3);sailor.userData.deckTarget=new THREE.Vector2(sailor.position.x,sailor.position.z);boat.group.add(sailor);boat.sailors.push(sailor);}
 function spawnBoat(restoring) {
   if (boat) return boat;
-  const group = makeBoat(); group.position.set(-195, OCEAN.surface, BEACH.cz); scene.add(group);
+  const group = makeBoat(); group.position.set(BEACH.cx - 12, OCEAN.surface, BEACH.cz); scene.add(group);
   boat = { group, hp: 100, maxHp: 100, heading: -Math.PI / 2, crew: state.boatCrew || 0, days: state.voyageDays || 0, sailing: false, sailors:[], deckPos:new THREE.Vector2(0,-6), throttle:0 }; group.rotation.y = boat.heading;
   for(let i=0;i<(state.boatCrew||0);i++)addBoatSailor(i);
   if (!restoring) toast('⛵ Barco entregado en la costa · contrata tripulación y pulsa E para navegar'); return boat;
@@ -4462,7 +4465,7 @@ function updateOceanExpedition(dt) {
   state.voyageDays=(state.voyageDays||0)+Math.abs(throttle)*dt/6; boat.days=state.voyageDays;
   oceanStormT-=dt; if(oceanStormT<=0){oceanStormT=35+Math.random()*45;if(Math.random()<.6){state.weather='rain';state.weatherLeft=28;ensureRain().visible=true;toast('⛈️ ¡TORMENTA EN ALTA MAR! Mantén el rumbo');}}
   if(storm){boat.hp-=Math.max(0,4-(state.boatCrew||0))*.12*dt;if(Math.random()<dt*.35)cameraShake=Math.max(cameraShake,.16);}
-  if(boat.hp<=0){scene.remove(boat.group);boat=null;state.sailing=false;state.hp=Math.max(20,state.hp-35);player.position.set(-195,PLAYER_EYE,-145);toast('🌊 La tormenta derribó el barco. La tripulación te rescató en la costa');}
+  if(boat.hp<=0){scene.remove(boat.group);boat=null;state.sailing=false;state.hp=Math.max(20,state.hp-35);player.position.set(BEACH.cx + 20, PLAYER_EYE, BEACH.cz);toast('🌊 La tormenta derribó el barco. La tripulación te rescató en la costa');}
   else if(inTreasureIsland(boat.group.position.x,boat.group.position.z)&&!state.islandDiscovered){state.islandDiscovered=true;toast('🏝️ ¡Tras '+Math.max(1,Math.floor(state.voyageDays))+' días encontraron la ISLA DEL TESORO!');phaseText('ISLA DESCUBIERTA');}
 }
 function tryMineIslandOre(){if(!state.underground||!state.shelterHole||!state.shelterHole.islandMine)return false;let best=null,bd=5;for(const o of islandOres){if(!o.visible||o.userData.mineHole!==state.shelterHole)continue;const d=player.position.distanceTo(o.position);if(d<bd){best=o;bd=d;}}if(!best)return false;best.userData.hp--;voxelImpact(best.position,best.userData.diamond?0x22d3ee:0xfacc15,7);if(best.userData.hp<=0){best.visible=false;const reward=best.userData.diamond?2500:1200;addMoney(reward);toast((best.userData.diamond?'💎 Diamante':'🪙 Oro')+' de la mina +$'+reward);}return true;}
@@ -4529,19 +4532,26 @@ function makeCar(color) {
   g.userData.isCar = true;
   return g;
 }
-// ---- Calles ----
+// ---- Calles: la cuadrícula de la ciudad (el trazado vive en src/city-map.js) ----
 const roadMat = new THREE.MeshStandardMaterial({ color: 0x34383f, roughness: 1 });
 const lineMat = new THREE.MeshStandardMaterial({ color: 0xd9dee6, roughness: 1 });
+const veredaMat = new THREE.MeshStandardMaterial({ color: 0xb2b8c0, roughness: .96 });
 const roadMeshes = [];
-function makeRoad(cx, cz, len, horizontal) {
-  const w = 9;
+// Las horizontales y las verticales van a alturas apenas distintas para que el
+// asfalto de un cruce no pelee con el de la otra calle (z-fighting).
+function makeRoad(cx, cz, len, horizontal, ramal) {
+  const w = CALLE.ancho, wv = w + CALLE.vereda * 2, y = horizontal ? 0 : .004;
+  const acera = new THREE.Mesh(horizontal ? new THREE.PlaneGeometry(len, wv) : new THREE.PlaneGeometry(wv, len), veredaMat);
+  acera.rotation.x = -Math.PI / 2; acera.position.set(cx, .012 + y, cz); acera.receiveShadow = true;
+  scene.add(acera); roadMeshes.push(acera);
   const r = new THREE.Mesh(horizontal ? new THREE.PlaneGeometry(len, w) : new THREE.PlaneGeometry(w, len), roadMat);
-  r.rotation.x = -Math.PI / 2; r.position.set(cx, 0.02, cz); r.receiveShadow = true; scene.add(r); roadMeshes.push(r);
+  r.rotation.x = -Math.PI / 2; r.position.set(cx, .026 + y, cz); r.receiveShadow = true; scene.add(r); roadMeshes.push(r);
+  if (ramal) return;   // los ramales cortos a las afueras van sin línea central
   const dashN = Math.floor(len / 6);
   for (let i = 0; i < dashN; i++) {
     const d = new THREE.Mesh(new THREE.PlaneGeometry(horizontal ? 2 : 0.28, horizontal ? 0.28 : 2), lineMat);
     d.rotation.x = -Math.PI / 2; const off = (i - dashN / 2) * 6 + 3;
-    d.position.set(cx + (horizontal ? off : 0), 0.03, cz + (horizontal ? 0 : off)); scene.add(d); roadMeshes.push(d);
+    d.position.set(cx + (horizontal ? off : 0), .036 + y, cz + (horizontal ? 0 : off)); scene.add(d); roadMeshes.push(d);
   }
 }
 // Mostrar/ocultar toda la ciudad (calles, tráfico, autos estacionados, semáforos): en Platus no hay ciudad
@@ -4551,23 +4561,32 @@ function setCityVisible(v) {
   parkedCars.forEach(c => c.visible = v);
   trafficLights.forEach(t => t.visible = v);
 }
-const roads = [
-  { cx: 0, cz: 0, len: 290, horizontal: true },     // termina antes de la costa: dentro del mar no hay calles
-  { cx: 0, cz: 0, len: 460, horizontal: false },    // avenida central norte-sur (llega al borde del mapa)
-  { cx: -55, cz: 50, len: 120, horizontal: true },  // ciudad
-  { cx: -30, cz: 50, len: 116, horizontal: false }, // ciudad
-  { cx: 40, cz: -18, len: 130, horizontal: true },  // hacia el súper
-];
-roads.forEach(r => makeRoad(r.cx, r.cz, r.len, r.horizontal));
-// ¿ese punto cae sobre el asfalto? (para que el pasto no crezca en medio de la calle)
-function onRoadAt(x, z, margen = 1.2) {
-  const w = 9 / 2 + margen;
-  for (const r of roads) {
-    const half = r.len / 2 + margen;
-    if (r.horizontal) { if (Math.abs(z - r.cz) <= w && Math.abs(x - r.cx) <= half) return true; }
-    else if (Math.abs(x - r.cx) <= w && Math.abs(z - r.cz) <= half) return true;
+const roads = callesDelMapa();
+roads.forEach(r => makeRoad(r.cx, r.cz, r.len, r.horizontal, r.ramal));
+// Cruces peatonales pintados en cada esquina del centro: son todos iguales,
+// así que van en UN solo InstancedMesh (una sola llamada de dibujo).
+(function pintarCruces() {
+  const franja = new THREE.PlaneGeometry(.7, CALLE.ancho - 1.4);
+  const total = SEMAFOROS.length * 4 * 5;
+  const cebra = new THREE.InstancedMesh(franja, lineMat, total);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), esc = new THREE.Vector3(1, 1, 1);
+  const plano = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  const girado = plano.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2));
+  let i = 0;
+  for (const cruce of SEMAFOROS) {
+    for (const lado of [-1, 1]) {
+      for (let k = 0; k < 5; k++) {
+        const off = (k - 2) * 1.5, borde = lado * (CALLE.ancho / 2 + 1.3);
+        q.copy(girado); pos.set(cruce.x + off, .04, cruce.z + borde); m4.compose(pos, q, esc); cebra.setMatrixAt(i++, m4);
+        q.copy(plano); pos.set(cruce.x + borde, .042, cruce.z + off); m4.compose(pos, q, esc); cebra.setMatrixAt(i++, m4);
+      }
+    }
   }
-  return false;
+  cebra.count = i; scene.add(cebra); roadMeshes.push(cebra);
+})();
+// ¿ese punto cae sobre el asfalto o la vereda? (el pasto no crece en la calle)
+function onRoadAt(x, z, margen = 0) {
+  return enCalle(x, z, margen);
 }
 
 const traffic = [], parkedCars = [];
@@ -4577,7 +4596,8 @@ let playerStructureZones = [];
 // Zonas por las que nunca debe circular el tráfico. El margen incluye el largo
 // del auto para que la carrocería tampoco atraviese las paredes del súper.
 const trafficExclusionZones = [
-  { minX: 40 - 13.5, maxX: 40 + 13.5, minZ: -22 - 13.5, maxZ: -22 + 13.5 },
+  { minX: LUGARES.super.x - 13.5, maxX: LUGARES.super.x + 13.5, minZ: LUGARES.super.z - 13.5, maxZ: LUGARES.super.z + 13.5 },
+  { minX: LUGARES.armeria.x - 13.5, maxX: LUGARES.armeria.x + 13.5, minZ: LUGARES.armeria.z - 13.5, maxZ: LUGARES.armeria.z + 13.5 },
 ];
 function insideTrafficExclusion(x, z) {
   return trafficExclusionZones.some(o => x > o.minX && x < o.maxX && z > o.minZ && z < o.maxZ) ||
@@ -4590,7 +4610,11 @@ function placeOnRoad(car, r, t, laneOff, dir) {
 }
 function spawnCars() {
   roads.forEach(r => {
-    for (let i = 0; i < 3; i++) {   // autos ANDANDO
+    if (r.ramal) return;            // los ramales cortos a las afueras quedan sin tráfico
+    // La autopista del anillo lleva MÁS autos andando y ninguno estacionado.
+    const andando = preferLowPerf ? (r.anillo ? 2 : 1) : (r.anillo ? 4 : 3);
+    const estacionados = r.anillo ? 0 : (preferLowPerf ? 1 : 2);
+    for (let i = 0; i < andando; i++) {   // autos ANDANDO
       const car = makeCar(CAR_COLORS[(Math.random() * CAR_COLORS.length) | 0]);
       const dir = Math.random() < 0.5 ? 1 : -1;
       placeOnRoad(car, r, Math.random(), dir > 0 ? 2.2 : -2.2, dir);
@@ -4602,7 +4626,7 @@ function spawnCars() {
       car.userData.moving = true; car.userData.speed = 6 + Math.random() * 5;
       scene.add(car); traffic.push(car);
     }
-    for (let i = 0; i < 2; i++) {   // autos ESTACIONADOS (sólidos: tienen colisión)
+    for (let i = 0; i < estacionados; i++) {   // autos ESTACIONADOS (sólidos: tienen colisión)
       const car = makeCar(CAR_COLORS[(Math.random() * CAR_COLORS.length) | 0]);
       placeOnRoad(car, r, 0.25 + i * 0.5, 4.4, 1);
       car.userData.moving = false; car.userData.speed = 0;
@@ -4614,7 +4638,7 @@ function spawnCars() {
 }
 spawnCars();
 
-// ===== SEMÁFOROS en el cruce central (avenidas 0,0) =====
+// ===== SEMÁFOROS en los nueve cruces del centro =====
 const trafficLights = [];
 function makeTrafficLight(x, z, faceY, axis) {
   const g = new THREE.Group();
@@ -4631,10 +4655,16 @@ function makeTrafficLight(x, z, faceY, axis) {
   g.position.set(x, 0, z); g.rotation.y = faceY; scene.add(g);
   trafficLights.push({ lamps, axis });
 }
-makeTrafficLight(-6, -6, 0,             'h');
-makeTrafficLight( 6,  6, Math.PI,       'h');
-makeTrafficLight( 6, -6, -Math.PI / 2,  'v');
-makeTrafficLight(-6,  6, Math.PI / 2,   'v');
+const ESQUINA = CALLE.ancho / 2 + 1.5;
+for (const cruce of SEMAFOROS) {
+  const central = cruce.x === 0 && cruce.z === 0;
+  makeTrafficLight(cruce.x - ESQUINA, cruce.z - ESQUINA, 0, 'h');
+  makeTrafficLight(cruce.x + ESQUINA, cruce.z - ESQUINA, -Math.PI / 2, 'v');
+  if (central) {   // el cruce de las avenidas centrales lleva los cuatro
+    makeTrafficLight(cruce.x + ESQUINA, cruce.z + ESQUINA, Math.PI, 'h');
+    makeTrafficLight(cruce.x - ESQUINA, cruce.z + ESQUINA, Math.PI / 2, 'v');
+  }
+}
 
 let lightT = 0;   // reloj del semáforo (ciclo de 20s)
 function lightState() {
@@ -4652,15 +4682,52 @@ function updateTrafficLights(dt) {
     tl.lamps.forEach((m, i) => m.emissiveIntensity = (i === on) ? 1.2 : 0.12);
   }
 }
+// Frena en CUALQUIERA de los nueve cruces con semáforo, no solo en el del centro.
 function stoppedByLight(car) {
   const r = car.userData.road;
-  if (r.cx !== 0 || r.cz !== 0) return false;
   const val = r.horizontal ? lightState().h : lightState().v;
   if (val === 2) return false;
   const dir = car.userData.dir, STOP = 6.5, ZONE = 11;
   const pos = r.horizontal ? car.position.x : car.position.z;
-  const gap = dir > 0 ? (-STOP - pos) : (pos - STOP);
-  return gap > 0 && gap < ZONE;
+  for (const cruce of SEMAFOROS) {
+    if (r.horizontal) { if (Math.abs(cruce.z - r.cz) > 1) continue; }
+    else if (Math.abs(cruce.x - r.cx) > 1) continue;
+    const linea = (r.horizontal ? cruce.x : cruce.z) - dir * STOP;
+    const gap = dir > 0 ? linea - pos : pos - linea;
+    if (gap > 0 && gap < ZONE) return true;
+  }
+  return false;
+}
+// Esquinas de cada calle: dónde se cruza con las demás (para poder doblar).
+const cruces = new Map();
+for (const r of roads) {
+  if (r.ramal) continue;
+  const lista = [];
+  for (const otra of roads) {
+    if (otra === r || otra.ramal || otra.horizontal === r.horizontal) continue;
+    const x = r.horizontal ? otra.cx : r.cx, z = r.horizontal ? r.cz : otra.cz;
+    if (Math.abs(x - r.cx) > r.len / 2 || Math.abs(z - r.cz) > r.len / 2) continue;
+    if (Math.abs(x - otra.cx) > otra.len / 2 || Math.abs(z - otra.cz) > otra.len / 2) continue;
+    lista.push({ otra, x, z });
+  }
+  cruces.set(r, lista);
+}
+// En cada esquina el auto decide si sigue derecho o dobla (como el tráfico de verdad).
+function tryTurn(car, antes, despues) {
+  const r = car.userData.road, dir = car.userData.dir;
+  for (const cruce of cruces.get(r) || []) {
+    const p = r.horizontal ? cruce.x : cruce.z;
+    const paso = dir > 0 ? (antes < p && despues >= p) : (antes > p && despues <= p);
+    if (!paso || Math.random() > .3) continue;
+    const otra = cruce.otra, nuevoDir = Math.random() < .5 ? 1 : -1, carril = nuevoDir > 0 ? 2.2 : -2.2;
+    car.userData.road = otra; car.userData.dir = nuevoDir;
+    if (otra.horizontal) car.position.set(cruce.x, car.position.y, otra.cz + carril);
+    else car.position.set(otra.cx + carril, car.position.y, cruce.z);
+    car.userData.heading = otra.horizontal ? (nuevoDir > 0 ? Math.PI / 2 : -Math.PI / 2) : (nuevoDir > 0 ? 0 : Math.PI);
+    car.rotation.y = car.userData.heading;
+    return true;
+  }
+  return false;
 }
 function carAhead(car) {
   const r = car.userData.road, dir = car.userData.dir, brake = 10;
@@ -4705,6 +4772,9 @@ function updateTraffic(dt) {
       car.rotation.y = car.userData.heading;
       continue;
     }
+    const antes = r.horizontal ? car.position.x : car.position.z;
+    const despues = r.horizontal ? nx : nz;
+    if (tryTurn(car, antes, despues)) continue;   // dobló en la esquina
     if (r.horizontal) {
       car.position.x = nx;
       if (car.position.x > r.cx + r.len / 2) car.position.x = r.cx - r.len / 2;
@@ -4717,17 +4787,73 @@ function updateTraffic(dt) {
     if ((trafficTerrainFrame + carIndex) % 2 === 0) car.position.y = mountainHeightAt(car.position.x, car.position.z);   // reparte el cálculo entre cuadros
   }
 }
-// Peatones cerca de las avenidas centrales (para verlos al conducir)
+// Peatones caminando por las veredas de los cruces del centro
 function spawnPedestrians() {
-  const spots = [[6, 0], [-6, 20], [10, -18], [0, 10], [-6, -12], [8, 30], [-10, 8], [4, -30], [12, 12], [-4, 34]];
+  const vereda = CALLE.ancho / 2 + 1.4;
+  const spots = [];
+  for (const cruce of SEMAFOROS) {
+    spots.push([cruce.x + vereda, cruce.z + vereda + 6], [cruce.x - vereda, cruce.z - vereda - 6]);
+  }
   for (const [x, z] of spots) {
     const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][(Math.random() * 5) | 0], 0xf1c27d);
-    n.position.set(x + (Math.random() * 4 - 2), 0, z + (Math.random() * 4 - 2));
-    initCitizenBrain(n, n.position.clone(), 18);
+    n.position.set(x + (Math.random() * 3 - 1.5), 0, z + (Math.random() * 3 - 1.5));
+    initCitizenBrain(n, n.position.clone(), 14);
     scene.add(n); npcs.push(n);
   }
 }
 spawnPedestrians();
+
+// ===================================================================
+//  RASCACIELOS DEL CENTRO — el skyline de la ciudad
+//  Torres de vidrio y hormigón dentro de las manzanas del centro y de
+//  las oficinas del sur. Bloquean el paso y se puede aterrizar arriba.
+// ===================================================================
+function makeWindowTexture(color, luz) {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#' + new THREE.Color(color).getHexString(); g.fillRect(0, 0, 64, 64);
+  for (let fila = 0; fila < 8; fila++) for (let col = 0; col < 8; col++) {
+    const encendida = Math.random() < .35;
+    g.fillStyle = encendida ? '#' + new THREE.Color(luz).getHexString() : 'rgba(15,23,42,.72)';
+    g.fillRect(col * 8 + 2, fila * 8 + 2, 5, 5);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+const TORRE_COLORES = [[0x64748b, 0xfde68a], [0x475569, 0xbae6fd], [0x7c6f64, 0xfef3c7], [0x334155, 0xa5f3fc]];
+function buildSkyline(distritoId, alturas) {
+  const distrito = DISTRITOS.find(d => d.id === distritoId); if (!distrito) return;
+  const r = rectDistrito(distrito, -3);
+  const filas = 3, cols = 3;
+  const pasoX = (r.maxX - r.minX) / cols, pasoZ = (r.maxZ - r.minZ) / filas;
+  let i = 0;
+  for (let cx = 0; cx < cols; cx++) for (let cz = 0; cz < filas; cz++) {
+    const alto = alturas[i % alturas.length]; i++;
+    if (!alto) continue;                                   // hueco: plazoleta entre torres
+    const x = r.minX + pasoX * (cx + .5), z = r.minZ + pasoZ * (cz + .5);
+    const w = pasoX * .72, d = pasoZ * .72;
+    const [muro, luz] = TORRE_COLORES[(cx + cz) % TORRE_COLORES.length];
+    const tex = makeWindowTexture(muro, luz);
+    tex.repeat.set(Math.max(1, Math.round(w / 3)), Math.max(2, Math.round(alto / 3.4)));
+    const torre = new THREE.Mesh(new THREE.BoxGeometry(w, alto, d), new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: .72, metalness: .18 }));
+    torre.position.set(x, alto / 2, z); torre.castShadow = true; torre.receiveShadow = true; scene.add(torre);
+    const remate = new THREE.Mesh(new THREE.BoxGeometry(w + .8, .7, d + .8), mat(0x94a3b8));
+    remate.position.set(x, alto + .35, z); remate.castShadow = true; scene.add(remate);
+    if (alto > 26) {   // antena con luz roja para los aviones
+      const antena = new THREE.Mesh(new THREE.CylinderGeometry(.12, .18, 5, 6), mat(0x9ca3af));
+      antena.position.set(x, alto + 3.2, z); scene.add(antena);
+      const baliza = new THREE.Mesh(new THREE.SphereGeometry(.34, 8, 6), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xdc2626, emissiveIntensity: 1.1 }));
+      baliza.position.set(x, alto + 5.9, z); scene.add(baliza);
+    }
+    addObstacle(x, z, w, d, alto);
+    addLandingSurface(x, z, w + .8, d + .8, alto + .7, torre);   // se puede aterrizar en la azotea
+    addNoGrassZone(x, z, w + 2, d + 2);
+  }
+}
+buildSkyline('centro', [34, 0, 27, 21, 42, 0, 30, 24, 38]);
+buildSkyline('oficinas', [22, 18, 0, 26, 0, 20, 17, 24, 19]);
 
 // ===================================================================
 //  PARQUES ESTILO MINECRAFT: condominio · diversiones · acuático
@@ -4848,7 +4974,7 @@ function mcSign(parent, x, y, z, text, color) {
 }
 
 // ---------------- 1) PARQUE DEL CONDOMINIO (chico, de barrio) -------------
-const CONDO_PARK = new THREE.Vector3(-30, 0, -55);
+const CONDO_PARK = new THREE.Vector3(LUGARES.parqueCondominio.x, 0, LUGARES.parqueCondominio.z);
 function buildCondoPark() {
   const g = new THREE.Group(); scene.add(g);
   const cx = CONDO_PARK.x, cz = CONDO_PARK.z;
@@ -4915,7 +5041,7 @@ function buildCondoPark() {
 }
 
 // ---------------- 2) PARQUE DE DIVERSIONES (grande, tipo Disney) ----------
-const FUN_PARK = new THREE.Vector3(165, 0, 55);
+const FUN_PARK = new THREE.Vector3(LUGARES.parqueDiversiones.x, 0, LUGARES.parqueDiversiones.z);
 function buildFunPark() {
   const g = new THREE.Group(); scene.add(g);
   const cx = FUN_PARK.x, cz = FUN_PARK.z;
@@ -4961,8 +5087,8 @@ function buildFunPark() {
   };
   tower(-11, -4, 14, 0x2563eb); tower(11, -4, 14, 0x2563eb);
   tower(-8, 6, 18, 0x7c3aed); tower(8, 6, 18, 0x7c3aed); tower(0, 0, 22, 0xdb2777);
-  addObstacle(cx, cz + 26, 20, 12);
-  addObstacle(cx - 11, cz + 22, 5, 5); addObstacle(cx + 11, cz + 22, 5, 5);
+  addObstacle(cx, cz + 26, 20, 12, null, 'castillo');
+  addObstacle(cx - 11, cz + 22, 5, 5, null, 'castillo'); addObstacle(cx + 11, cz + 22, 5, 5, null, 'castillo');   // torres del mismo castillo
 
   // ---- Rueda de la fortuna (gira) ----
   const fw = new THREE.Group(); fw.position.set(cx - 32, 0, cz + 6); g.add(fw);
@@ -5087,8 +5213,8 @@ function buildFunPark() {
     addObstacle(kx, kz, 5, 4);
     parkStands.push({ name: txt.toLowerCase(), emoji, price, x: kx, z: kz - 2.6 });   // se atiende por el mesón
   };
-  kiosk(cx - 14, cz - 44, 0xef4444, 'HELADOS', '🍦', 120);
-  kiosk(cx + 14, cz - 44, 0x22c55e, 'PALOMITAS', '🍿', 90);
+  kiosk(cx - 20, cz - 44, 0xef4444, 'HELADOS', '🍦', 120);   // apartados de las boleterías (antes se encimaban)
+  kiosk(cx + 20, cz - 44, 0x22c55e, 'PALOMITAS', '🍿', 90);
   kiosk(cx - 20, cz + 16, 0x38bdf8, 'ALGODON', '🍬', 70);
   for (let i = 0; i < 8; i++) {   // globos (en la avenida de la entrada)
     const bx = cx - 40 + i * 11, bz = cz - 47 + (i % 2) * 3;
@@ -5102,7 +5228,7 @@ function buildFunPark() {
 }
 
 // ---------------- 3) PARQUE ACUÁTICO (se nada de verdad) -----------------
-const WATER_PARK = new THREE.Vector3(-160, 0, 55);
+const WATER_PARK = new THREE.Vector3(LUGARES.parqueAcuatico.x, 0, LUGARES.parqueAcuatico.z);
 // Piscina grande: es una ZONA DE AGUA (se puede nadar y bucear, como la playa)
 const POOL = { cx: WATER_PARK.x, cz: WATER_PARK.z + 6, waterW: 34, waterD: 22, surface: .5, bottom: -3.4 };
 function buildWaterPark() {
@@ -5313,14 +5439,8 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
 }
 function buildEarthMountains() {
   const g = new THREE.Group(); scene.add(g);
-  const CERROS = [
-    [-198, 118, 34, 40, 1],   // cordillera occidental, lejos del océano
-    [-168, 165, 26, 28, 2],
-    [196, -150, 32, 36, 3],   // pico del sureste
-    [70, 198, 30, 34, 4],     // cerro del norte
-    [-118, 196, 26, 26, 5],   // cerro del noroeste
-  ];
-  for (const [x, z, r, h, seed] of CERROS) mcMountain(g, x, z, r, h, 0x6b7280, 0xf8fafc, seed);   // roca gris con nieve arriba
+  // Los cerros viven fuera del anillo de la ciudad (ver src/city-map.js).
+  CERROS.forEach((cerro, i) => mcMountain(g, cerro.x, cerro.z, cerro.r, cerro.h, 0x6b7280, 0xf8fafc, i + 1));   // roca gris con nieve arriba
   return g;
 }
 
@@ -5374,11 +5494,13 @@ function resolveSkiPisteWalls() {
   }
 }
 function buildSkiRoad() {
+  // Sale de la autopista del anillo (150,130) y sube al cerro sin pasar por
+  // el aeropuerto ni el parque acuático.
   const curve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(8, .06, 112), new THREE.Vector3(88, .06, 150),
-    new THREE.Vector3(135, .06, 220), new THREE.Vector3(210, .06, 250),
-    new THREE.Vector3(270, .06, 300), new THREE.Vector3(325, .06, 340),
-    new THREE.Vector3(380, .06, 360),
+    new THREE.Vector3(150, .06, 130), new THREE.Vector3(200, .06, 170),
+    new THREE.Vector3(245, .06, 215), new THREE.Vector3(285, .06, 262),
+    new THREE.Vector3(SKI_RESORT.gate.x, .06, SKI_RESORT.gate.z),
+    new THREE.Vector3(345, .06, 332), new THREE.Vector3(380, .06, 355),
   ]);
   const road = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 4.1, 8, false), mat(0x293241));
   road.scale.y = .025; road.position.y = .02; road.receiveShadow = true; skiResortGroup.add(road);
@@ -5548,7 +5670,30 @@ function updateSkiVisitors(dt) {
 buildSkiResort();
 skiResortGroup.visible = false;
 
-buildCondoPark(); buildFunPark(); buildWaterPark(); buildEarthMountains();
+// La Plaza Central: el corazón de la ciudad, con la fuente y el ranking mundial.
+function buildPlazaCentral() {
+  const g = new THREE.Group(); scene.add(g);
+  const cx = -27.5, cz = 38;
+  mcFloor(g, cx, cz, 36, 17, 0xd6cdbb);                    // adoquín
+  mcFloor(g, cx, cz, 36, 3, 0xb9ae99, .09);                // paseo central
+  addNoGrassZone(cx, cz, 36, 17);
+  const fx = LUGARES.fuente.x, fz = LUGARES.fuente.z;
+  const taza = new THREE.Mesh(new THREE.CylinderGeometry(3.1, 3.4, .8, 16), mat(0xd4d4d8));
+  taza.position.set(fx, .4, fz); taza.castShadow = true; taza.receiveShadow = true; g.add(taza);
+  const agua = new THREE.Mesh(new THREE.CylinderGeometry(2.9, 2.9, .12, 16), new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: .75, roughness: .1, metalness: .3 }));
+  agua.position.set(fx, .78, fz); g.add(agua);
+  const pie = new THREE.Mesh(new THREE.CylinderGeometry(.3, .5, 1.8, 10), mat(0xe7e5e4)); pie.position.set(fx, 1.6, fz); g.add(pie);
+  const chorro = new THREE.Mesh(new THREE.CylinderGeometry(.1, .15, 1.4, 8), new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: .6, emissive: 0x38bdf8, emissiveIntensity: .3 }));
+  chorro.position.set(fx, 3.1, fz); g.add(chorro);
+  addObstacle(fx, fz, 6, 6);
+  for (const dx of [-13, 13]) { mcBench(g, cx + dx, cz + 5, 0); mcBench(g, cx + dx, cz - 5, Math.PI); }
+  for (const dx of [-16, -5, 6, 16]) mcLamp(g, cx + dx, cz + 7.6);
+  for (const [tx, tz] of [[-16, -6], [-6, -6.5], [6, -6.5], [16, -6]]) mcTree(g, cx + tx, cz + tz, 5);
+  for (const [fx2, fz2] of [[-10, 6.5], [10, 6.5], [0, -6.5]]) mcFlowers(g, cx + fx2, cz + fz2, 1.5);
+  mcSign(g, cx, 4.4, cz - 7.8, 'PLAZA CENTRAL', 0xbbf7d0);
+  return g;
+}
+buildPlazaCentral(); buildCondoPark(); buildFunPark(); buildWaterPark(); buildEarthMountains();
 WATER_ZONES.push(POOL);   // en la piscina grande se nada igual que en el mar
 
 // ----- SENTARSE en el baño, la silla, el sofá o la cama (E) -----
@@ -5681,7 +5826,7 @@ function updateParks(dt) {
 //  DENTRO del avión (pasillo, asientos y película). En cada país la gente
 //  te habla EN SU IDIOMA (inglés, chino, ruso, francés…).
 // ===================================================================
-const AIRPORT = new THREE.Vector3(120, 0, -150);   // pista larga al sureste
+const AIRPORT = new THREE.Vector3(LUGARES.aeropuerto.x, 0, LUGARES.aeropuerto.z);   // pista larga al norte, pasada la autopista
 const COUNTRIES = [
   { id: 'usa',    name: 'ESTADOS UNIDOS', flag: '🇺🇸', lang: 'inglés',  price: 1200, ground: 0x4f8a35, roof: 0xb91c1c, wall: 0xe2e8f0, sky: 0x87ceeb,
     city: 'NUEVA YORK', monu: 'la Estatua de la Libertad',
@@ -5757,7 +5902,7 @@ function buildAirportAt(g, cx, cz, o) {
   const wall = o.wall || 0xdbe3ea, roof = o.roof || 0x94a3b8, acento = o.acento || 0x38bdf8;
   const ancho = o.chico ? 90 : 130, largo = o.chico ? 64 : 90, nAviones = o.chico ? 3 : 4;
   const obs = [];
-  const bloquea = (x, z, w, d, top) => obs.push(addObstacle(x, z, w, d, top));
+  const bloquea = (x, z, w, d, top, grupo) => obs.push(addObstacle(x, z, w, d, top, grupo));
   mcFloor(g, cx, cz, ancho, largo, 0x9ca3af);                       // losa
   mcFloor(g, cx, cz + 26, ancho - 10, 22, 0x3f3f46, .1);            // pista
   for (let i = -5; i <= 5; i++) mcFloor(g, cx + i * 10, cz + 26, 6, 1.2, 0xfef3c7, .12);
@@ -5782,8 +5927,8 @@ function buildAirportAt(g, cx, cz, o) {
     const p = makePlane(colores[i % colores.length]);
     p.position.set(cx - (nAviones - 1) * 15 + i * 30, 0, cz + 6); p.rotation.y = Math.PI;
     g.add(p); airportPlanes.push(p);
-    bloquea(p.position.x, p.position.z, 6, 20, 6);
-    bloquea(p.position.x, p.position.z + 1, 26, 4.4, 3.75);
+    bloquea(p.position.x, p.position.z, 6, 20, 6, 'avion' + i);          // fuselaje
+    bloquea(p.position.x, p.position.z + 1, 26, 4.4, 3.75, 'avion' + i);  // alas del mismo avión
     addLandingSurface(p.position.x, p.position.z, 4, 20, 6, g);
     addLandingSurface(p.position.x, p.position.z + 1, 26, 4.4, 3.75, g);
   }
@@ -6466,7 +6611,6 @@ function buildPlatus() {
     // Como las de la Tierra (roca gris y nieve arriba), pero SIN NADA VERDE: en Platus
     // la falda es tierra seca del planeta y los árboles van pelados.
     mcMountain(cerros, mx, mz, mr, mh, 0x6b7280, 0xf8fafc, seed, 'platus', { dead: true, trees: 18, grass: 0x8a5230, soil: 0x6b3f28 });
-  obstacles.slice(antesObs).forEach(o => platusObstacles.push(o));   // (por si algún día agregan colisiones)
 
   // VENDEDOR ALIEN (nativo de Platus): cerca del punto de aterrizaje (10,16).
   // No ataca; vende lo mismo que el vendedor de la Tierra. Aspecto de los aliens del planeta.
@@ -6501,6 +6645,9 @@ function buildPlatus() {
   const pylons=[],beams=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2,p=new THREE.Group(),pole=new THREE.Mesh(new THREE.CylinderGeometry(.18,.28,7,7),mat(0x64748b));pole.position.y=3.5;p.add(pole);const lamp=new THREE.PointLight(0x22d3ee,1.7,35);lamp.position.y=7;p.add(lamp);p.position.set(Math.cos(a)*115,0,Math.sin(a)*115);scene.add(p);p.visible=false;platusStuff.push(p);pylons.push(p);addLandingSurface(p.position.x,p.position.z,1.2,1.2,7,p);addObstacle(p.position.x,p.position.z,1.2,1.2,7);const pts=[new THREE.Vector3(-58,8,-48),new THREE.Vector3(p.position.x,7,p.position.z)],line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x22d3ee,transparent:true,opacity:.45}));line.visible=false;scene.add(line);platusStuff.push(line);beams.push(line);}
   const guard=makePerson(0x4c1d95,0xa78bfa);guard.scale.set(1.15,1.2,1.15);guard.position.set(8,1.2,8);const helmet=new THREE.Mesh(new THREE.CylinderGeometry(.38,.48,.3,10),mat(0xfacc15));helmet.position.y=2.35;guard.add(helmet);const eye2=new THREE.Mesh(new THREE.SphereGeometry(.15,9,9),new THREE.MeshStandardMaterial({color:0x22d3ee,emissive:0x22d3ee,emissiveIntensity:1.2}));eye2.position.set(0,2.05,.36);guard.add(eye2);const tool=new THREE.Mesh(new THREE.BoxGeometry(.16,1.1,.16),mat(0x94a3b8));tool.position.set(.58,1.1,.15);tool.rotation.z=.35;guard.add(tool);nuclear.add(guard);
   const sign2=makeSign('⚛ CENTRAL NUCLEAR · ENERGÍA DE PLATUS',0x22d3ee);sign2.scale.set(.48,.48,.48);sign2.position.set(0,12,-5);nuclear.add(sign2);nuclear.visible=false;scene.add(nuclear);platusStuff.push(nuclear);platusNuclear={group:nuclear,core,rings,beams,guard};
+  // TODAS las colisiones de Platus (cerros, central nuclear, postes) quedan fichadas acá
+  // al FINAL: si se anota antes, lo que se construya después deja muros invisibles en la Tierra.
+  obstacles.slice(antesObs).forEach(o => platusObstacles.push(o));
 }
 buildPlatus();
 // Empiezas en la Tierra: las montañas de Platus todavía no deben bloquear el paso
@@ -8670,7 +8817,7 @@ function makeBull(armored) {   // toro con 4 patas, pezuñas y cuernos grandes (
 function makeBullArmored() { return makeBull(true); }
 const earthBulls = [];
 (function spawnEarthBullHerd() {   // cinco toros de la Tierra, bien separados alrededor de la casa
-  const spots = [[30, 36], [12, 48], [-8, 34], [38, 8], [52, 28]];
+  const spots = [[32, 36], [16, 44], [40, 16], [34, 44], [20, 34]];   // dentro de tu manzana, lejos de la calle
   spots.forEach(([x, z], i) => {
     const b = makeBull();
     b.position.set(x, 0, z); b.rotation.y = i * 1.15;
@@ -10508,7 +10655,7 @@ const WORLD_EVENTS = [
   { id: 'tournament', icon: '🏆', name: 'Torneo de la ciudad', text: 'Los partidos pagan el doble.', duration: 90 },
   { id: 'harvest', icon: '🌻', name: 'Festival de cosecha', text: 'Los cultivos y pedidos avanzan al doble.', duration: 80 },
   { id: 'blackout', icon: '🔦', name: 'Apagón', text: 'Las lámparas se apagaron. Mantente cerca de casa.', duration: 55 },
-  { id: 'search', icon: '🔎', name: 'Búsqueda vecinal', text: 'Encuentra al vecino cerca del parque y ayúdalo con E.', duration: 100, target: new THREE.Vector3(-18, 0, 28) },
+  { id: 'search', icon: '🔎', name: 'Búsqueda vecinal', text: 'Encuentra al vecino en la Plaza Central y ayúdalo con E.', duration: 100, target: new THREE.Vector3(LUGARES.fuente.x + 6, 0, LUGARES.fuente.z - 6) },
 ];
 function startWorldEvent() {
   const pool = WORLD_EVENTS.filter(e => !state.worldEvent || e.id !== state.worldEvent.id), event = pool[(Math.random() * pool.length) | 0];
@@ -10526,12 +10673,12 @@ function tryWorldEvent() {
 }
 
 const SECRET_DEFS = [
-  { id: 'station', name: 'Maleta de la estación', lore: 'Papá guardó aquí el primer plano de la familia.', x: -112, z: 68, reward: 450 },
-  { id: 'tunnel', name: 'Caja del túnel', lore: 'Los constructores dejaron marcas bajo la ciudad.', x: -38, z: -112, reward: 600 },
-  { id: 'grove', name: 'Santuario del bosque', lore: 'Una semilla antigua todavía conserva calor.', x: 118, z: 106, reward: 500 },
-  { id: 'coast', name: 'Cofre de la costa', lore: 'Alguien soñaba con cruzar el cielo desde aquí.', x: 142, z: -96, reward: 700 },
-  { id: 'hill', name: 'Radio de la colina', lore: 'La señal repite unas coordenadas desconocidas.', x: -142, z: -104, reward: 750 },
-  { id: 'park', name: 'Cápsula del parque', lore: 'La ciudad enterró recuerdos para el futuro.', x: -18, z: 34, reward: 400 },
+  { id: 'station', name: 'Maleta de la estación', lore: 'Papá guardó aquí el primer plano de la familia.', x: -130, z: 75, reward: 450 },
+  { id: 'tunnel', name: 'Caja del túnel', lore: 'Los constructores dejaron marcas bajo la ciudad.', x: -27, z: -130, reward: 600 },
+  { id: 'grove', name: 'Santuario del bosque', lore: 'Una semilla antigua todavía conserva calor.', x: 130, z: 75, reward: 500 },
+  { id: 'coast', name: 'Cofre de la costa', lore: 'Alguien soñaba con cruzar el cielo desde aquí.', x: -168, z: -60, reward: 700 },
+  { id: 'hill', name: 'Radio de la colina', lore: 'La señal repite unas coordenadas desconocidas.', x: 235, z: -140, reward: 750 },
+  { id: 'park', name: 'Cápsula del parque', lore: 'La ciudad enterró recuerdos para el futuro.', x: -82, z: 92, reward: 400 },
 ];
 const worldSecrets = [];
 function initWorldSecrets() {
@@ -11916,8 +12063,8 @@ function startGame() {
   if (alley.contact) { alley.contact.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z); alley.contact.rotation.y = -Math.PI / 2; }
   renderQuestBtn();
   checkDailyStreak();
-  player.position.set(10, PLAYER_EYE, 16); yaw = 0; pitch = 0;
-  dad.position.set(12, 0, 13); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
+  player.position.set(LUGARES.spawn.x, PLAYER_EYE, LUGARES.spawn.z); yaw = 0; pitch = 0;
+  dad.position.set(LUGARES.spawnPapa.x, 0, LUGARES.spawnPapa.z); dad.userData.mode = 'follow'; dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0;
   state.trips = 0; state.ngplus = false; state.bank = 0; state.debt = 0; state.cargo = {};
   state.planetName = 'Platus'; state.planetGround = 0x9c4a2a; state.planetHazard = 'cold'; state.planetGrav = 1; state.inRuins = false;
   if (ruinsRoom) ruinsRoom.visible = false;
@@ -13790,7 +13937,7 @@ function resetAll() {
   state.momUnlocked = false; state.momEventPending = false; state.planet = 'tierra'; state.meteorTriggered = false; state.escapeTimer = 0;
   if (ui('escape')) ui('escape').style.display = 'none';
   state.buildMode = false;
-  dad.position.set(12, 0, 13); dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0; dad.userData.armed = false; if (dad.userData.weapon) dad.userData.weapon.visible = false;
+  dad.position.set(LUGARES.spawnPapa.x, 0, LUGARES.spawnPapa.z); dad.visible = true; dad.userData.resting = false; dad.rotation.x = 0; dad.userData.armed = false; if (dad.userData.weapon) dad.userData.weapon.visible = false;
   mom.visible = false; momTag.visible = false;
   helpers.forEach(h => scene.remove(h)); helpers.length = 0;
   placed.slice().forEach(removePlaced); removeCar();
@@ -13840,7 +13987,7 @@ function updateBuying(dt) {
 // ===================================================================
 //  AUTO: cuerpo rectangular, ruedas redondas, manubrio; se sube y se conduce; tiene vida
 // ===================================================================
-const VEHICLE_DELIVERY_CENTER = new THREE.Vector3(40, 0, -5);   // vereda exterior, frente a la entrada del súper
+const VEHICLE_DELIVERY_CENTER = new THREE.Vector3(LUGARES.entregaAutos.x, 0, LUGARES.entregaAutos.z);   // playa de estacionamiento al costado del súper
 function vehicleSpawnIsClear(pos, radius, ignoreTraffic) {
   if (Math.abs(pos.x) > 225 || Math.abs(pos.z) > 225) return false;
   for (const o of obstacles) {
@@ -15391,8 +15538,8 @@ function dadGoesToParty() {
   toast('💃 El papá se fue a una fiesta… (no lo puedes parar)');
 }
 function dadReturnsWithMom() {
-  dad.visible = true; dad.position.set(2, 0, 9);
-  mom.visible = true; momTag.visible = true; mom.position.set(-2, 0, 9);
+  dad.visible = true; dad.position.set(LUGARES.spawnPapa.x, 0, LUGARES.spawnPapa.z);
+  mom.visible = true; momTag.visible = true; mom.position.set(LUGARES.spawnMama.x, 0, LUGARES.spawnMama.z);
   toast('❤️ El papá volvió… ¡con la MAMÁ! Ahora pulsa H para crear ayudantes ($300)');
 }
 
@@ -15443,10 +15590,10 @@ function meteorImpact() {
 }
 function spawnRocketMesh() {   // el cohete estacionado en (10,10) con su letrero (reutilizable)
   if (state.rocket) return;
-  const r = makeProductMesh('rocket', 0xf97316); r.scale.set(4, 4, 4); r.position.set(10, 0, 10); scene.add(r);
+  const r = makeProductMesh('rocket', 0xf97316); r.scale.set(4, 4, 4); r.position.set(LUGARES.cohete.x, 0, LUGARES.cohete.z); scene.add(r);
   const door = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.52, 0.05), mat(0x334155)); door.position.set(0, 0.5, 0.24); r.add(door);          // puerta (se entra con E / 🤝)
   const win = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14), new THREE.MeshStandardMaterial({ color: 0x9fd8ff, emissive: 0x2a4a6a, emissiveIntensity: .5 })); win.position.set(0, 0.72, 0.265); r.add(win);   // ventanilla
-  const s = makeSign('COHETE (E)', 0xf97316); s.position.set(10, 6, 10); scene.add(s); r.userData.sign = s;
+  const s = makeSign('COHETE (E)', 0xf97316); s.position.set(LUGARES.cohete.x, 6, LUGARES.cohete.z); scene.add(s); r.userData.sign = s;
   state.rocket = r;
 }
 function removeRocket() {
@@ -15662,8 +15809,8 @@ function goToPlanet() {
   applySpaceSuit(true);                                                      // trajes espaciales puestos (tú y el papá)
   applyPlanetLook(P);                                                        // árboles, lunas, cielo y niebla propios del planeta
   groundMat.color.set(P.ground); decor.forEach(t => t.visible = false);     // color propio del planeta
-  spawnRocketMesh(); state.rocket.position.set(10, 0, 10); if (state.rocket.userData.sign) state.rocket.userData.sign.position.set(10, 6, 10);   // el cohete queda estacionado (reutilizable)
-  player.position.set(10, PLAYER_EYE, 16); dad.position.set(12, 0, 13); dad.userData.resting = false; dad.rotation.x = 0;
+  spawnRocketMesh(); state.rocket.position.set(LUGARES.cohete.x, 0, LUGARES.cohete.z); if (state.rocket.userData.sign) state.rocket.userData.sign.position.set(LUGARES.cohete.x, 6, LUGARES.cohete.z);   // el cohete queda estacionado (reutilizable)
+  player.position.set(LUGARES.spawn.x, PLAYER_EYE, LUGARES.spawn.z); dad.position.set(LUGARES.spawnPapa.x, 0, LUGARES.spawnPapa.z); dad.userData.resting = false; dad.rotation.x = 0;
   state.phase = 'DAY'; state.dayTime = 0;
   newMissions();
   toast('🪐 Llegaste a ' + P.name + ' — ' + P.desc + '. Pica CRISTALES 💎 y CARBÓN ⚫, explora las RUINAS ALIEN 🏛️, compra tecnología al VENDEDOR 👽 (Y). Junta 10 de carbón para viajar al SIGUIENTE planeta (R).');
@@ -16204,7 +16351,8 @@ function awakenMineMoles(h, underground) {
   toast('🦣 ¡Al romper el bloque 10 despertaste ' + (n > 1 ? n + ' topos' : 'un topo') + '!');
   return true;
 }
-const ISLAND_MINE_SPOTS = [[-155, -55], [-80, 70], [80, 105], [145, -25], [25, -120], [-180, 150]];
+// Bocaminas repartidas por las afueras: siempre entre manzanas, nunca sobre una calle.
+const ISLAND_MINE_SPOTS = [[-130, -75], [-130, 45], [75, 130], [130, -25], [25, -130], [-75, 130]];
 const ISLAND_MINE_ROOM_H = 4.6;
 const ISLAND_MINE_ROOM_NAMES = ['SALA DE ORO', 'SALA DE GEMAS', 'CÁMARA OCULTA', 'POZO HONDO', 'SALA DEL REY', 'DEPÓSITO', 'CÁMARA RARA', 'CRUCE HONDO'];
 const mineStamp = new THREE.Object3D();
@@ -16691,7 +16839,7 @@ function goToJail() {
   const fine = Math.round(state.money * GAME_RULES.jailMoneyLoss);
   clearWaves(); state.money = Math.max(0, state.money - fine); state.hp = 100; state.phase = 'JAIL';
   ui('hud').style.display = 'none'; ui('jail').classList.remove('hidden');
-  const back = alien ? (state.rocket ? state.rocket.position : { x: 10, z: 10 }) : { x: 10, z: 16 };
+  const back = alien ? (state.rocket ? state.rocket.position : LUGARES.cohete) : LUGARES.spawn;
   setTimeout(() => { state.phase = 'DAY'; state.dayTime = 0; player.position.set(back.x, PLAYER_EYE, back.z + 3); }, 0);
 }
 function gameOver() {
@@ -16984,7 +17132,7 @@ function faintFromHunger() {
   if (state.inFlight) abortFlight();
   state.wanted = 0; state.wantedLevel = 0; clearPolice();   // al desmayarte se pierde la búsqueda
   if (state.phase === 'NIGHT') { clearWaves(); state.phase = 'DAY'; state.dayTime = 0; }
-  player.position.set(10, PLAYER_EYE, 16);
+  player.position.set(LUGARES.spawn.x, PLAYER_EYE, LUGARES.spawn.z);
   toast('😵 ¡Te desmayaste de hambre! Come algo en el súper 🍖');
   beep(90, 0.25, 0.06);
 }
@@ -17047,7 +17195,7 @@ function drawMinimap() {
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
-  if (state.planet !== 'platus') { icon(40, -22, '🛒', 13); icon(-2, -40, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); icon(SKI_RESORT.gate.x, SKI_RESORT.gate.z, '⛷️', 15); }   // súper / armería / banco / gasolinera / arcade / esquí
+  if (state.planet !== 'platus') { icon(LUGARES.super.x, LUGARES.super.z, '🛒', 13); icon(LUGARES.armeria.x, LUGARES.armeria.z, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); icon(LUGARES.carcel.x, LUGARES.carcel.z, '🚔', 12); icon(SKI_RESORT.gate.x, SKI_RESORT.gate.z, '⛷️', 15); }   // súper / armería / banco / gasolinera / arcade / cárcel / esquí
   if (state.planet !== 'platus') {   // los tres parques
     icon(CONDO_PARK.x, CONDO_PARK.z, '🌳', 13); icon(FUN_PARK.x, FUN_PARK.z, '🎡', 15); icon(WATER_PARK.x, WATER_PARK.z, '🏊', 14);
     icon(AIRPORT.x, AIRPORT.z, '✈️', 15);
@@ -17642,6 +17790,60 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     };
   };
   timDump.setFly = (v) => { creativeFlying = !!v; if (!v) grounded = false; };
+  // Revisa que ningún edificio haya quedado encima de una calle, fuera de su
+  // manzana, o metido dentro de otro edificio.
+  timDump.auditCity = () => {
+    const sobreCalle = [], fuera = [], encimados = [];
+    const donde = o => ({
+      x: +((o.minX + o.maxX) / 2).toFixed(1), z: +((o.minZ + o.maxZ) / 2).toFixed(1),
+      w: +(o.maxX - o.minX).toFixed(1), d: +(o.maxZ - o.minZ).toFixed(1),
+    });
+    const grandes = [];
+    for (const o of obstacles) {
+      if (o.country) continue;
+      const w = o.maxX - o.minX, d = o.maxZ - o.minZ;
+      if (w < 3 || d < 3) continue;                       // autos estacionados y postes: no cuentan
+      const cx = (o.minX + o.maxX) / 2, cz = (o.minZ + o.maxZ) / 2;
+      if (cx > 240 && cz > 240) continue;                       // centro de esquí: es su propia montaña
+      if (Math.abs(cx) > 300 || Math.abs(cz) > 300) continue;   // ruinas, coliseo: fuera de la ciudad
+      grandes.push(o);
+      // La caja ENTERA tiene que caber: no basta con que el centro esté bien puesto.
+      const caja = { minX: o.minX + .4, maxX: o.maxX - .4, minZ: o.minZ + .4, maxZ: o.maxZ - .4 };
+      if (AVENIDAS.some(av => seCruzan(rectCalle(av), caja))) sobreCalle.push(donde(o));
+      else if (!distritoEn(cx, cz)) fuera.push(donde(o));
+    }
+    for (let i = 0; i < grandes.length; i++) for (let j = i + 1; j < grandes.length; j++) {
+      const a = grandes[i], b = grandes[j];
+      if (a.grupo && a.grupo === b.grupo) continue;              // piezas de la misma construcción
+      const solapeX = Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX);
+      const solapeZ = Math.min(a.maxZ, b.maxZ) - Math.max(a.minZ, b.minZ);
+      if (solapeX <= .5 || solapeZ <= .5) continue;               // se tocan de canto: no es atravesarse
+      if (a.top != null && b.top != null && (a.top < .9 || b.top < .9)) continue;   // plataformas bajas (se camina encima)
+      encimados.push({ a: donde(a), b: donde(b), solape: +Math.min(solapeX, solapeZ).toFixed(1) });
+    }
+    return { total: obstacles.length, revisados: grandes.length, sobreCalle, fuera, encimados };
+  };
+  // ¿Todos los autos del tráfico van por el asfalto (y no cortando por el pasto)?
+  timDump.auditTraffic = (segundos) => {
+    const antes = traffic.map(c => ({ x: c.position.x, z: c.position.z, road: c.userData.road }));
+    const pasos = Math.round((segundos == null ? 6 : segundos) / .05);
+    for (let i = 0; i < pasos; i++) { updateTrafficLights(.05); updateTraffic(.05); }
+    let movidos = 0, doblaron = 0;
+    const fueraDelAsfalto = [];
+    traffic.forEach((c, i) => {
+      if (!c.userData.moving) return;
+      if (Math.hypot(c.position.x - antes[i].x, c.position.z - antes[i].z) > 1) movidos++;
+      if (c.userData.road !== antes[i].road) doblaron++;
+      if (!enCalle(c.position.x, c.position.z)) fueraDelAsfalto.push({ x: +c.position.x.toFixed(1), z: +c.position.z.toFixed(1) });
+    });
+    const andando = traffic.filter(c => c.userData.moving).length;
+    return { andando, estacionados: traffic.length - andando, movidos, doblaron, fueraDelAsfalto };
+  };
+  timDump.perfInfo = () => {
+    renderer.render(scene, camera);
+    let objetos = 0; scene.traverse(() => objetos++);
+    return { objetos, llamadas: renderer.info.render.calls, triangulos: renderer.info.render.triangles, texturas: renderer.info.memory.textures, geometrias: renderer.info.memory.geometries, trafico: traffic.length, estacionados: parkedCars.length };
+  };
   timDump.finishLift = (kind) => {
     state.skiPass = true; state.skiGear = 'skis'; state.skiGearWorn = true; state.skiing = false;
     state.skiLiftRide = { kind: kind || 'andarivel', t: 1 };

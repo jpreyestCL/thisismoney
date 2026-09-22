@@ -48,7 +48,7 @@ assert.match(html, /if \(target\.key === 'play_gamer' \|\| target\.key === 'tele
 assert.doesNotMatch(html, /arcadeMiniAction/);
 assert.match(html, /function trySeatedPlay\(\)/);
 const sw = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
-assert.match(sw, /tim-v52/);
+assert.match(sw, /tim-v53/);
 assert.match(html, /ARCADE_REWARDS_POS/);
 assert.match(html, /CANJE DE PREMIOS/);
 assert.match(html, /function tryArcadeRewards\(\)/);

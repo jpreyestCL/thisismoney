@@ -569,6 +569,7 @@
       <div class="stat"><b>ETAPA</b><span id="ui-stage">1</span></div>
       <div class="stat"><b>PLANETA</b><span id="ui-planet">Tierra</span></div>
       <div class="stat"><b>TIEMPO</b><span id="ui-time">--</span></div>
+      <div class="stat" id="fpsvisor" style="display:none"><b>FPS</b><span id="fpsvisorVal">--</span></div>
     </div>
     <div style="display:flex; gap:6px">
       <div class="stat"><b>TU VIDA</b><div class="bar hp"><div id="ui-hp" style="width:100%"></div></div></div>
@@ -666,6 +667,7 @@
         <button class="bankBtn" id="pauseCloud" style="grid-column:1 / span 2;">☁️ Guardar en la nube</button>
         <button class="bankBtn" id="pauseAccount" style="grid-column:1 / span 2;">👤 Mi cuenta</button>
         <button class="bankBtn" id="pauseWatch" style="grid-column:1 / span 2;">⌚ Modo reloj</button>
+        <button class="bankBtn" id="pauseFps" style="grid-column:1 / span 2;">🎞️ Fotogramas: OFF</button>
       </div>
       <div id="pauseCreativeRow" style="display:none; align-items:center; justify-content:center; gap:8px; margin-top:12px; padding:8px; background:rgba(168,85,247,.18); border-radius:10px;">
         <button class="bankBtn" id="pauseStageDown" style="width:44px;">➖</button>
@@ -13987,6 +13989,33 @@ function updateAutoPerf() {
   applyPerfMode();
   toast('🐢 El juego iba lento: bajé la calidad para que corra mejor (⚙️ pausa → Rendimiento)');
 }
+// Visor de fotogramas: apagado hasta que lo prendes a mano en la pausa.
+let fpsVisor = false;
+try { fpsVisor = localStorage.getItem('tim_fps') === '1'; } catch (e) {}
+let fpsVisorT = 0, fpsVisorN = 0, fpsVisorPrev = 0;
+function setFpsVisor(on) {
+  fpsVisor = !!on;
+  fpsVisorT = 0; fpsVisorN = 0; fpsVisorPrev = 0;
+  const caja = ui('fpsvisor');
+  if (caja) caja.style.display = fpsVisor ? '' : 'none';
+  const btn = ui('pauseFps');
+  if (btn) btn.textContent = fpsVisor ? '🎞️ Fotogramas: ON' : '🎞️ Fotogramas: OFF';
+  try { localStorage.setItem('tim_fps', fpsVisor ? '1' : '0'); } catch (e) {}
+}
+function updateFpsVisor() {
+  if (!fpsVisor) return;
+  const now = performance.now();
+  if (fpsVisorPrev) { fpsVisorT += now - fpsVisorPrev; fpsVisorN++; }
+  fpsVisorPrev = now;
+  if (fpsVisorT < 400 || !fpsVisorN) return;
+  const fps = fpsVisorN * 1000 / fpsVisorT, ms = fpsVisorT / fpsVisorN;
+  fpsVisorT = 0; fpsVisorN = 0;
+  const el = ui('fpsvisorVal');
+  if (!el) return;
+  el.textContent = Math.round(fps) + ' · ' + ms.toFixed(1) + ' ms';
+  el.style.color = fps >= 50 ? '#4ade80' : fps >= 30 ? '#facc15' : '#f87171';
+}
+setFpsVisor(fpsVisor);
 applyBtnScale(); if (perfMode) applyPerfMode();
 // Modo reloj: ahora que perfMode ya existe, aplicarlo (auto en pantallas diminutas) y engancharlo al botón + resize
 // El modo reloj NO se auto-activa (muchos celulares en horizontal miden ≤320 de alto y se activaba solo).
@@ -14005,6 +14034,7 @@ function togglePause(force) {
     ui('btnSlider').value = btnScale; ui('btnVal').textContent = btnScale.toFixed(1) + '×';
     ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO';
     ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF';
+    if (ui('pauseFps')) ui('pauseFps').textContent = fpsVisor ? '🎞️ Fotogramas: ON' : '🎞️ Fotogramas: OFF';
     if (ui('pauseCreativeRow')) { ui('pauseCreativeRow').style.display = state.creative ? 'flex' : 'none'; ui('pauseStageVal').textContent = state.stage; }   // control de etapa infinita (solo creativo)
     saveGame();   // pausar también guarda (por si acaso)
   }
@@ -14024,6 +14054,7 @@ ui('sensSlider').oninput = () => { lookMult = parseFloat(ui('sensSlider').value)
 ui('btnSlider').oninput = () => { btnScale = parseFloat(ui('btnSlider').value); ui('btnVal').textContent = btnScale.toFixed(1) + '×'; applyBtnScale(); try { localStorage.setItem('tim_btnsize', String(btnScale)); } catch (e) {} };
 ui('pauseSound').onclick = () => { toggleSound(); ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO'; };
 ui('pausePerf').onclick = () => { perfMode = !perfMode; perfExtra = false; autoPerfLock = true; applyPerfMode(); try { localStorage.setItem('tim_perf', perfMode ? '1' : '0'); } catch (e) {} ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF'; };   // si lo tocas a mano, el detector automático deja de meterse
+if (ui('pauseFps')) ui('pauseFps').onclick = () => setFpsVisor(!fpsVisor);
 ui('pauseFoto').onclick = () => { togglePause(false); setTimeout(takePhoto, 100); };
 ui('pauseHelp').onclick = () => { togglePause(false); toggleHelp(true); };
 ui('pauseExit').onclick = () => openSaveKeyBox({ after: () => { togglePause(false); saveAndExit(); } });
@@ -17739,6 +17770,7 @@ let billboardTick = 0, hudTick = 0, minimapTick = 0, lodTick = 0, titleSkip = 0;
 function loop() {
   requestAnimationFrame(loop);
   if (document.hidden) return;
+  updateFpsVisor();
   const dt = Math.min(clock.getDelta(), 0.05);
   updateAutoPerf();   // si el juego va lento un par de segundos, baja la calidad solo
   lodTick += dt; if (lodTick >= .25) { syncFarWorld(); lodTick = 0; }

@@ -21,10 +21,16 @@ assert.match(html, /sun\.shadow\.mapSize\.set\(preferLowPerf \? 512 : 2048/);
 assert.match(html, /const CELL = o\.cell \|\| \(o\.ski \? 4\.2 : 2\.8\)/);
 assert.match(html, /im\.castShadow = false/);
 assert.match(html, /oceanFxGroup/);
+assert.match(html, /function setFpsVisor\(/);
+assert.match(html, /function updateFpsVisor\(/);
+assert.match(html, /id="fpsvisor"/);
+assert.match(html, /id="pauseFps"/);
+assert.match(html, /updateFpsVisor\(\);/);
+assert.match(html, /localStorage\.getItem\('tim_fps'\)/);
 assert.match(html, /fps < 28/);
 assert.match(html, /if \(fpsLento < 2\) return/);
 assert.match(html, /light\.visible = false/);
 assert.match(html, /shaftLight\.visible = false/);
-assert.match(sw, /tim-v52/);
+assert.match(sw, /tim-v53/);
 
 console.log('perf lod and startup: ok');

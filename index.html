@@ -21,6 +21,7 @@
   .topbar { position: absolute; top: 12px; left: 12px; right: 12px;
     display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 6px; }
   .stat { background: rgba(0,0,0,.45); padding: 6px 12px; border-radius: 10px; backdrop-filter: blur(4px); }
+  button.stat { appearance: none; font: inherit; color: inherit; text-align: left; cursor: pointer; pointer-events: auto; position: relative; z-index: 4; }
   .stat b { font-size: 11px; opacity: .7; display: block; letter-spacing: 1px; }
   .stat span { font-size: 18px; font-weight: 700; }
   .money { color: #4ade80; }
@@ -569,7 +570,7 @@
       <div class="stat"><b>ETAPA</b><span id="ui-stage">1</span></div>
       <div class="stat"><b>PLANETA</b><span id="ui-planet">Tierra</span></div>
       <div class="stat"><b>HORA</b><span id="ui-time">--</span></div>
-      <div class="stat" id="fpsvisor" style="display:none"><b>FPS</b><span id="fpsvisorVal">--</span></div>
+      <button type="button" class="stat" id="fpsvisor" title="Clic o F8: libre, 60 o 30 fotogramas"><b>FPS</b><span id="fpsvisorVal">Libre</span></button>
     </div>
     <div style="display:flex; gap:6px">
       <div class="stat"><b>TU VIDA</b><div class="bar hp"><div id="ui-hp" style="width:100%"></div></div></div>
@@ -667,7 +668,7 @@
         <button class="bankBtn" id="pauseCloud" style="grid-column:1 / span 2;">☁️ Guardar en la nube</button>
         <button class="bankBtn" id="pauseAccount" style="grid-column:1 / span 2;">👤 Mi cuenta</button>
         <button class="bankBtn" id="pauseWatch" style="grid-column:1 / span 2;">⌚ Modo reloj</button>
-        <button class="bankBtn" id="pauseFps" style="grid-column:1 / span 2;">🎞️ Fotogramas: OFF</button>
+        <button class="bankBtn" id="pauseFps" style="grid-column:1 / span 2;">🎞️ Fotogramas: Libre</button>
       </div>
       <div id="pauseCreativeRow" style="display:none; align-items:center; justify-content:center; gap:8px; margin-top:12px; padding:8px; background:rgba(168,85,247,.18); border-radius:10px;">
         <button class="bankBtn" id="pauseStageDown" style="width:44px;">➖</button>
@@ -800,6 +801,7 @@
       <button type="button" class="tbtn" data-act="helper" aria-label="Llamar ayudante">🧒<small>hijo</small></button>
       <button type="button" class="tbtn" data-act="rocket" aria-label="Usar cohete">🚀<small>cohete</small></button>
       <button type="button" class="tbtn" data-act="chat" aria-label="Chat mundial">💬<small>chat</small></button>
+      <button type="button" class="tbtn" data-act="fps" aria-label="Cambiar fotogramas">🎞️<small>fps</small></button>
       <button type="button" class="tbtn" data-act="help" aria-label="Abrir ayuda">❓<small>ayuda</small></button>
     </span>
   </div>
@@ -1211,7 +1213,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   // decodifica los .glb comprimidos (meshopt)
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
-import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
+import { CHAPTERS, GAME_RULES, dayDuration, dayPart, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=11';
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=5';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=4';
 const ui = id => document.getElementById(id);
@@ -4577,6 +4579,7 @@ function wheelOptions() {
   o.push({ icon: '🧮', label: 'Desafío de mates', key: 'U', run: openMathBox });
   if (state.phase === 'DAY') o.push({ icon: '🌙', label: 'Empezar la noche', key: 'N', run: tryStartNight });
   o.push({ icon: '📋', label: 'Misiones', key: '', run: openQuestPanel });
+  o.push({ icon: '🎞️', label: 'Fotogramas · ' + fpsCapName(), key: 'F8', run: cycleFpsCap });
   o.push({ icon: '📖', label: 'Ayuda y guía', key: 'I', run: () => toggleHelp(true) });
   return o;
 }
@@ -11230,7 +11233,7 @@ const NIGHT_LENGTH = GAME_RULES.nightSeconds;
 const METEOR_AT = GAME_RULES.meteorAt;
 const MOM_AT = GAME_RULES.momAt;
 function currentNightLength() { return nightDuration(state.night); }
-// Largo del día actual: el primero dura 5 min, del segundo en adelante 3 min
+// Mañana 1 min + día 3 min + tarde 2,5 min. Después la noche dura 2 min.
 function currentDayLength() { return dayDuration(state.night); }
 const state = {
   phase: 'TITLE', money: 0, totalEarned: 0, stage: 1, plot: null,   // plot = lote comprado en el condominio
@@ -11811,6 +11814,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Tab' && state.running && !state.paused && (wheelOpen() || !algunRecuadroAbierto())) { e.preventDefault(); toggleWheel(); return; }   // Tab = menú de acciones
   if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
   if (e.code === 'F5' && state.running && !typing) { e.preventDefault(); cycleCameraMode(); return; }
+  if (e.code === 'F8' && state.running && !typing && !e.repeat) { e.preventDefault(); cycleFpsCap(); return; }
   if (e.code === 'F4' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugFlightCabin(); return; }
   if (e.code === 'F7' && new URLSearchParams(location.search).has('debug')) { e.preventDefault(); debugTreasureIsland(); return; }
   if (state.paused) return;   // en pausa el teclado no hace nada (solo Esc, arriba)
@@ -12714,6 +12718,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'chat': openChatReply(); break;
       case 'helper': spawnHelper(); break;
       case 'rocket': tryLaunchRocket(); break;
+      case 'fps': cycleFpsCap(); break;
       case 'help': toggleHelp(); break;
       case 'jump': touch.jump = true; break;
     }
@@ -14000,33 +14005,53 @@ function updateAutoPerf() {
   applyPerfMode();
   toast('🐢 El juego iba lento: bajé la calidad para que corra mejor (⚙️ pausa → Rendimiento)');
 }
-// Visor de fotogramas: apagado hasta que lo prendes a mano en la pausa.
+// Tope de fotogramas: se cambia en plena partida (clic en FPS, F8, rueda o ⋯).
+// 0 = libre (los que dé la pantalla), 60 o 30.
 let fpsVisor = false;
 try { fpsVisor = localStorage.getItem('tim_fps') === '1'; } catch (e) {}
+let fpsCap = 0, fpsCapDue = 0;
+try { const savedCap = +localStorage.getItem('tim_fpscap'); if (savedCap === 30 || savedCap === 60) fpsCap = savedCap; } catch (e) {}
 let fpsVisorT = 0, fpsVisorN = 0, fpsVisorPrev = 0;
+function fpsCapName() { return fpsCap ? String(fpsCap) : 'Libre'; }
+function paintFpsLabel(extra) {
+  const el = ui('fpsvisorVal');
+  if (el) {
+    el.textContent = extra ? (extra + ' · ' + fpsCapName()) : fpsCapName();
+    el.style.color = !extra ? '' : (parseFloat(extra) >= 50 ? '#4ade80' : parseFloat(extra) >= 30 ? '#facc15' : '#f87171');
+  }
+  const btn = ui('pauseFps');
+  if (btn) btn.textContent = '🎞️ Fotogramas: ' + fpsCapName();
+}
 function setFpsVisor(on) {
   fpsVisor = !!on;
   fpsVisorT = 0; fpsVisorN = 0; fpsVisorPrev = 0;
-  const caja = ui('fpsvisor');
-  if (caja) caja.style.display = fpsVisor ? '' : 'none';
-  const btn = ui('pauseFps');
-  if (btn) btn.textContent = fpsVisor ? '🎞️ Fotogramas: ON' : '🎞️ Fotogramas: OFF';
+  paintFpsLabel();
   try { localStorage.setItem('tim_fps', fpsVisor ? '1' : '0'); } catch (e) {}
 }
+function cycleFpsCap() {
+  fpsCap = fpsCap === 0 ? 60 : fpsCap === 60 ? 30 : 0;
+  fpsCapDue = 0;
+  setFpsVisor(true);
+  try { localStorage.setItem('tim_fpscap', String(fpsCap)); } catch (e) {}
+  toast(fpsCap ? ('🎞️ Tope de ' + fpsCap + ' fotogramas por segundo') : '🎞️ Fotogramas libres: los que dé la pantalla');
+}
 function updateFpsVisor() {
-  if (!fpsVisor) return;
+  if (!fpsVisor) { paintFpsLabel(); return; }
   const now = performance.now();
   if (fpsVisorPrev) { fpsVisorT += now - fpsVisorPrev; fpsVisorN++; }
   fpsVisorPrev = now;
   if (fpsVisorT < 400 || !fpsVisorN) return;
-  const fps = fpsVisorN * 1000 / fpsVisorT, ms = fpsVisorT / fpsVisorN;
+  const fps = fpsVisorN * 1000 / fpsVisorT;
   fpsVisorT = 0; fpsVisorN = 0;
-  const el = ui('fpsvisorVal');
-  if (!el) return;
-  el.textContent = Math.round(fps) + ' · ' + ms.toFixed(1) + ' ms';
-  el.style.color = fps >= 50 ? '#4ade80' : fps >= 30 ? '#facc15' : '#f87171';
+  paintFpsLabel(String(Math.round(fps)));
 }
 setFpsVisor(fpsVisor);
+if (fpsCap) setFpsVisor(true);
+const fpsBtn = ui('fpsvisor');
+if (fpsBtn) {
+  fpsBtn.addEventListener('pointerdown', e => e.stopPropagation());
+  fpsBtn.addEventListener('click', e => { e.stopPropagation(); cycleFpsCap(); });
+}
 applyBtnScale(); if (perfMode) applyPerfMode();
 // Modo reloj: ahora que perfMode ya existe, aplicarlo (auto en pantallas diminutas) y engancharlo al botón + resize
 // El modo reloj NO se auto-activa (muchos celulares en horizontal miden ≤320 de alto y se activaba solo).
@@ -14045,7 +14070,7 @@ function togglePause(force) {
     ui('btnSlider').value = btnScale; ui('btnVal').textContent = btnScale.toFixed(1) + '×';
     ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO';
     ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF';
-    if (ui('pauseFps')) ui('pauseFps').textContent = fpsVisor ? '🎞️ Fotogramas: ON' : '🎞️ Fotogramas: OFF';
+    paintFpsLabel();
     if (ui('pauseCreativeRow')) { ui('pauseCreativeRow').style.display = state.creative ? 'flex' : 'none'; ui('pauseStageVal').textContent = state.stage; }   // control de etapa infinita (solo creativo)
     saveGame();   // pausar también guarda (por si acaso)
   }
@@ -14065,7 +14090,7 @@ ui('sensSlider').oninput = () => { lookMult = parseFloat(ui('sensSlider').value)
 ui('btnSlider').oninput = () => { btnScale = parseFloat(ui('btnSlider').value); ui('btnVal').textContent = btnScale.toFixed(1) + '×'; applyBtnScale(); try { localStorage.setItem('tim_btnsize', String(btnScale)); } catch (e) {} };
 ui('pauseSound').onclick = () => { toggleSound(); ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO'; };
 ui('pausePerf').onclick = () => { perfMode = !perfMode; perfExtra = false; autoPerfLock = true; applyPerfMode(); try { localStorage.setItem('tim_perf', perfMode ? '1' : '0'); } catch (e) {} ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF'; };   // si lo tocas a mano, el detector automático deja de meterse
-if (ui('pauseFps')) ui('pauseFps').onclick = () => setFpsVisor(!fpsVisor);
+if (ui('pauseFps')) ui('pauseFps').onclick = () => cycleFpsCap();
 ui('pauseFoto').onclick = () => { togglePause(false); setTimeout(takePhoto, 100); };
 ui('pauseHelp').onclick = () => { togglePause(false); toggleHelp(true); };
 ui('pauseExit').onclick = () => openSaveKeyBox({ after: () => { togglePause(false); saveAndExit(); } });
@@ -17618,7 +17643,7 @@ function surviveNight() {
   const producedFood = Math.floor(hs.production / 20); if (producedFood > 0) { state.inv.food += producedFood; setTimeout(() => toast('🍲 La casa produjo ' + producedFood + ' comida'), 1800); }
   state.poison = 0; state.dadPoison = 0; state.blocking = false; state.stamina = 100;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
-  state.sunsetTold = false;                                 // el próximo atardecer vuelve a avisarse
+  state.sunsetTold = false; state.sunriseTold = false;      // mañana y tarde vuelven a avisarse
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
   newMissions();                                     // 3 misiones nuevas cada amanecer
   state.mathLeft = 5;                                // se renuevan los desafíos de mates
@@ -17786,6 +17811,11 @@ let billboardTick = 0, hudTick = 0, minimapTick = 0, lodTick = 0, titleSkip = 0;
 function loop() {
   requestAnimationFrame(loop);
   if (document.hidden) return;
+  if (fpsCap > 0) {   // tope elegido en plena partida: se saltan cuadros de más
+    const ahora = performance.now();
+    if (ahora < fpsCapDue) return;
+    fpsCapDue = ahora + 1000 / fpsCap;
+  }
   updateFpsVisor();
   const dt = Math.min(clock.getDelta(), 0.05);
   updateAutoPerf();   // si el juego va lento un par de segundos, baja la calidad solo
@@ -19083,36 +19113,33 @@ function playerInClosedRoom() {
   closedRoomResult = blocked.every(Boolean);
   return closedRoomResult;
 }
-// Reloj solar: el día de juego (mañana → tarde) y la noche (atardecer → amanecer)
-// se ven como un día de verdad. El sol sale por el este (+x) y se pone por el oeste (−x).
-const solarNow = { hour: 12.4, el: 1, az: 1.5, kind: 'day', u: 0.5, icon: '☀️', dark: false };
-function writeSolar(hour) {
-  const h = ((hour % 24) + 24) % 24;
-  let s;
-  if (h >= 6 && h < 19) s = (h - 6) / 13;          // 06:00 salida → 19:00 puesta
-  else if (h >= 19) s = 1 + (h - 19) / 11;         // la noche sigue bajo el horizonte
-  else s = 1 + (h + 5) / 11;                       // 00:00–06:00 es el tramo final de la noche
+// El sol sale por el este (+x) y se pone por el oeste (−x).
+// Mañana 1 min, día 3 min, tarde 2,5 min y noche 2 min: cada tramo mueve el sol a su ritmo.
+const solarNow = { hour: 13, el: 1, az: 1.5, kind: 'day', u: 0.5, icon: '☀️', name: 'Día', left: 180, dark: false };
+function paintSolar(s, part) {
   const ang = s * Math.PI;
-  solarNow.hour = h;
   solarNow.el = Math.sin(ang) * 1.05;
   solarNow.az = ang;
-  if (h >= 6 && h < 7.4) { solarNow.kind = 'sunrise'; solarNow.u = (h - 6) / 1.4; solarNow.icon = '🌅'; }
-  else if (h >= 7.4 && h < 17.2) { solarNow.kind = 'day'; solarNow.u = (h - 7.4) / 9.8; solarNow.icon = '☀️'; }
-  else if (h >= 17.2 && h < 19) { solarNow.kind = 'sunset'; solarNow.u = (h - 17.2) / 1.8; solarNow.icon = '🌇'; }
-  else if (h >= 19 && h < 20.6) { solarNow.kind = 'dusk'; solarNow.u = (h - 19) / 1.6; solarNow.icon = '🌆'; }
-  else if (h >= 4.2 && h < 6) { solarNow.kind = 'dawn'; solarNow.u = (h - 4.2) / 1.8; solarNow.icon = '🌄'; }
-  else { solarNow.kind = 'night'; solarNow.u = 0.5; solarNow.icon = '🌙'; }
+  solarNow.kind = part.id === 'morning' ? 'sunrise' : part.id === 'afternoon' ? 'sunset' : part.id === 'night' ? 'night' : 'day';
+  solarNow.icon = part.icon;
+  solarNow.name = part.name;
+  solarNow.left = Math.max(0, part.left);
+  solarNow.u = part.length ? Math.min(1, 1 - solarNow.left / part.length) : 0.5;
+  solarNow.hour = s < 1 ? 6 + s * 14 : 22;
   solarNow.dark = solarNow.el < 0.28;
   return solarNow;
 }
 function solarClock() {
-  if (state.inFlight || state.cinematic || (!state.running && state.phase !== 'NIGHT' && state.dayTime < 1)) return writeSolar(12.4);
-  if (state.phase === 'NIGHT') {
-    const t = Math.min(1, state.nightTime / Math.max(1, currentNightLength()));
-    return writeSolar(19 + t * 11);
+  if (state.inFlight || state.cinematic || (!state.running && state.phase !== 'NIGHT' && state.dayTime < 1)) {
+    return paintSolar(0.48, { id: 'midday', name: 'Día', icon: '☀️', left: GAME_RULES.daySeconds, length: GAME_RULES.daySeconds });
   }
-  const t = Math.min(1, state.dayTime / Math.max(1, currentDayLength()));
-  return writeSolar(6 + t * 13);
+  if (state.phase === 'NIGHT') {
+    const len = Math.max(1, currentNightLength());
+    const t = Math.min(1, state.nightTime / len);
+    return paintSolar(1 + t * 0.85, { id: 'night', name: 'Noche', icon: '🌙', left: Math.max(0, len - state.nightTime), length: len });
+  }
+  const part = dayPart(state.dayTime);
+  return paintSolar(part.sun, part);
 }
 function skyWantColor(sol) {
   let dayCol = _skyBase;
@@ -19165,17 +19192,13 @@ function placeSkyBodies(sol) {
 function noteSolarMoments() {
   if (!state.running || state.paused) return;
   const sol = solarClock();
-  if (sol.kind === 'sunrise' && sol.u > 0.25 && !state.sunriseTold && state.night === 0) {
+  if (sol.kind === 'sunrise' && !state.sunriseTold && state.night === 0) {
     state.sunriseTold = true;
-    toast('🌅 Amanece. El sol sale por el este.');
+    toast('🌅 Mañana. El sol sale: dura 1 minuto.');
   }
-  if (sol.kind === 'sunset' && sol.u > 0.15 && !state.sunsetTold) {
+  if (sol.kind === 'sunset' && !state.sunsetTold) {
     state.sunsetTold = true;
-    toast('🌇 Atardece. El sol se pone al oeste.');
-  }
-  if (sol.kind === 'dawn' && sol.u > 0.3 && !state.dawnTold) {
-    state.dawnTold = true;
-    toast('🌄 El cielo clarea: pronto sale el sol.');
+    toast('🌇 Tarde. El sol baja durante 2 minutos y medio.');
   }
 }
 function updateSky(dt) {
@@ -19389,7 +19412,8 @@ function renderHUD() {
   ui('ui-stamina-stat').style.display = combatIsActive() ? '' : 'none';
   ui('ui-stamina-label').textContent = state.blocking ? 'BLOQUEANDO' : (state.dodgeCd > 0 ? 'RECARGANDO' : 'RESISTENCIA');
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
-  ui('ui-time').textContent = (state.phase === 'DAY' || state.phase === 'NIGHT') ? (solarClock().icon + ' ' + fmtHour(solarClock().hour)) : '--';
+  if (state.phase === 'DAY' || state.phase === 'NIGHT') { const sol = solarClock(); ui('ui-time').textContent = sol.icon + ' ' + sol.name + ' ' + fmt(sol.left); }
+  else ui('ui-time').textContent = '--';
   const speedometer = ui('speedometer'), showingSpeed = !!((state.driving && car) || (state.sailing && boat));
   speedometer.style.display = showingSpeed ? 'flex' : 'none';
   const fuelWarning = ui('fuelWarning');
@@ -19526,8 +19550,8 @@ function renderHUD() {
   else if (state.phase === 'DAY') {
     if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);
     else if (!houseStats().ready) obj = '🛒 Compra en el súper (mantén E) y construye 4 paredes (B)';
-    else if (solarClock().kind === 'sunrise') obj = '🌅 Amanece. El sol sale por el este.';
-    else if (solarClock().kind === 'sunset') obj = '🌇 Atardece. La noche empieza cuando el sol se pone.';
+    else if (solarClock().kind === 'sunrise') obj = '🌅 Mañana · 1 minuto. El sol está saliendo.';
+    else if (solarClock().kind === 'sunset') obj = '🌇 Tarde · 2 minutos y medio. Después empieza la noche.';
     else obj = '⏩ Pulsa N: empieza la noche YA (+$100 por madrugar) · 🏆 casa dorada en la ciudad';
   } else if (state.phase === 'NIGHT') obj = (state.hordeOn ? '🚨 ¡HORDA FINAL! ' : (state.bossNight ? '⚔️ NOCHE JEFE (paga x3) · ' : '🗡️ ¡Defiende! ')) + 'Quedan ' + fmt(currentNightLength() - state.nightTime);
   if (state.wanted > 0) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';

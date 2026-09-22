@@ -1,9 +1,11 @@
 export const GAME_RULES = Object.freeze({
   saveVersion: 3,
-  firstDaySeconds: 300,
-  daySeconds: 270,
-  nightSeconds: 180,
-  firstNightSeconds: 90,
+  morningSeconds: 60,      // mañana: 1 minuto
+  daySeconds: 180,          // día (mediodía): 3 minutos
+  afternoonSeconds: 150,    // tarde: 2 minutos y medio
+  nightSeconds: 120,        // noche: 2 minutos
+  firstDaySeconds: 390,
+  firstNightSeconds: 120,
   finalHordeSeconds: 35,
   meteorAt: 1000000,   // el "millón": recién ahí cae el meteorito
   momAt: 20000,
@@ -51,13 +53,22 @@ export const HOUSE_VALUES = Object.freeze({
   laser: { protection: 15, energy: -5 }, torreta: { protection: 12 }, ballesta: { protection: 9 },
 });
 
-// El primer día dura 5 minutos (da tiempo a construir la casa); el resto, 4 minutos y medio.
-export function dayDuration(nightNumber) {
-  return nightNumber === 0 ? GAME_RULES.firstDaySeconds : GAME_RULES.daySeconds;
+// Mañana 1 min + día 3 min + tarde 2,5 min. Recién ahí cae la noche, que dura 2 min.
+export function dayDuration(_nightNumber) {
+  return GAME_RULES.morningSeconds + GAME_RULES.daySeconds + GAME_RULES.afternoonSeconds;
 }
 
-export function nightDuration(nightNumber) {
-  return nightNumber <= 1 ? GAME_RULES.firstNightSeconds : GAME_RULES.nightSeconds;
+export function nightDuration(_nightNumber) {
+  return GAME_RULES.nightSeconds;
+}
+
+export function dayPart(dayTime) {
+  const m = GAME_RULES.morningSeconds, d = GAME_RULES.daySeconds, a = GAME_RULES.afternoonSeconds;
+  const t = Math.max(0, dayTime || 0);
+  if (t < m) return { id: 'morning', name: 'Mañana', icon: '🌅', left: m - t, length: m, sun: (t / m) * 0.18 };
+  if (t < m + d) return { id: 'midday', name: 'Día', icon: '☀️', left: m + d - t, length: d, sun: 0.18 + ((t - m) / d) * 0.6 };
+  const u = Math.min(1, (t - m - d) / a);
+  return { id: 'afternoon', name: 'Tarde', icon: '🌇', left: Math.max(0, m + d + a - t), length: a, sun: 0.78 + u * 0.22 };
 }
 
 // Los monstruos dan monedas pequeñas: trabajar, construir y superar la noche son la economía principal.

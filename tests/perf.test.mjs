@@ -31,6 +31,13 @@ assert.match(html, /fps < 28/);
 assert.match(html, /if \(fpsLento < 2\) return/);
 assert.match(html, /light\.visible = false/);
 assert.match(html, /shaftLight\.visible = false/);
-assert.match(sw, /tim-v53/);
+assert.match(html, /function solarClock\(/);
+assert.match(html, /function placeSkyBodies\(/);
+assert.match(html, /SKY_SUNRISE/);
+assert.match(html, /SKY_SUNSET/);
+assert.match(html, /Amanece\. El sol sale por el este/);
+assert.match(html, /Atardece\. El sol se pone al oeste/);
+assert.match(html, /El cielo clarea/);
+assert.match(sw, /tim-v54/);
 
 console.log('perf lod and startup: ok');

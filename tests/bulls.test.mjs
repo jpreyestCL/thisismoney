@@ -23,6 +23,6 @@ assert.match(html, /function obstacleAt\(/);
 assert.match(html, /function placedBarrierNear\(/);
 assert.doesNotMatch(html, /hp: 9999, speed: 16/);
 assert.match(html, /updateEarthBulls\(dt\)/);
-assert.match(sw, /tim-v53/);
+assert.match(sw, /tim-v54/);
 
 console.log('earth bulls: ok');

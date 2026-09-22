@@ -568,7 +568,7 @@
       <div class="stat"><b>DINERO</b><span class="money" id="ui-money">$0</span></div>
       <div class="stat"><b>ETAPA</b><span id="ui-stage">1</span></div>
       <div class="stat"><b>PLANETA</b><span id="ui-planet">Tierra</span></div>
-      <div class="stat"><b>TIEMPO</b><span id="ui-time">--</span></div>
+      <div class="stat"><b>HORA</b><span id="ui-time">--</span></div>
       <div class="stat" id="fpsvisor" style="display:none"><b>FPS</b><span id="fpsvisorVal">--</span></div>
     </div>
     <div style="display:flex; gap:6px">
@@ -1257,7 +1257,10 @@ renderer.toneMappingExposure = 1.15;
 const scene = new THREE.Scene();
 const SKY_DAY = new THREE.Color(0x87ceeb);
 const SKY_NIGHT = new THREE.Color(0x0a1026);
-const SKY_RAIN = new THREE.Color(0x6b7f96), SKY_DUST = new THREE.Color(0xc06a2e), SKY_ECLIPSE = new THREE.Color(0x05060a), _skyBase = new THREE.Color();
+const SKY_SUNRISE = new THREE.Color(0xffb067);   // naranja del amanecer
+const SKY_SUNSET = new THREE.Color(0xff6a3c);    // naranja del atardecer
+const SKY_DUSK = new THREE.Color(0x3b2d62);      // violeta del crepúsculo
+const SKY_RAIN = new THREE.Color(0x6b7f96), SKY_DUST = new THREE.Color(0xc06a2e), SKY_ECLIPSE = new THREE.Color(0x05060a), _skyBase = new THREE.Color(), _skyWant = new THREE.Color();
 scene.background = SKY_DAY.clone();
 scene.fog = new THREE.Fog(SKY_DAY.getHex(), 40, 160);
 // Carteles y sprites que miran a cámara. Lista propia: recorrer TODA la escena cada frame laguea.
@@ -1299,6 +1302,14 @@ sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.02; sun.shadow.radius = 2.
 scene.add(sun);
 const rim = new THREE.DirectionalLight(0xcfe4ff, 0.35);   // relleno frío del lado opuesto: los bloques se ven redondos
 rim.position.set(-45, 30, -35); scene.add(rim);
+scene.add(sun.target);   // si el target no está en la escena, moverlo no gira la luz
+const _sunDir = new THREE.Vector3(), _lightDir = new THREE.Vector3(), _moonDir = new THREE.Vector3();
+const skySun = new THREE.Mesh(new THREE.SphereGeometry(9, 18, 14), new THREE.MeshBasicMaterial({ color: 0xfff6d0, fog: false }));
+const skyGlow = new THREE.Mesh(new THREE.SphereGeometry(22, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffb067, transparent: true, opacity: 0.28, fog: false, depthWrite: false }));
+const skyMoon = new THREE.Mesh(new THREE.SphereGeometry(6, 14, 10), new THREE.MeshBasicMaterial({ color: 0xf4f1e6, fog: false }));
+skySun.frustumCulled = skyGlow.frustumCulled = skyMoon.frustumCulled = false;
+skySun.userData.skyBody = 'sun'; skyMoon.userData.skyBody = 'moon';
+scene.add(skyGlow, skySun, skyMoon);
 // Saca un objeto de la escena Y libera geometría/material de la GPU de él y de todos sus hijos
 // (evita fugas de VRAM que laguean el móvil). Sirve para Mesh sueltos y para Group con hijos.
 // OJO: no usar con objetos que comparten geometría/material (p.ej. las marcas del rastro usan TRAIL_GEO).
@@ -14202,14 +14213,16 @@ function restoreNightEnemies(list) {
     if (s.ufoKill) e.userData.ufoKill = true;
   }
 }
-function snapSkyNow() {   // al cargar, el cielo queda de noche/tormenta/eclipse ya, no se ve un flash de día
-  const night = state.phase === 'NIGHT';
-  let col = night ? SKY_NIGHT : (state.weather === 'rain' ? SKY_RAIN : state.weather === 'dust' ? SKY_DUST : _skyBase);
-  if (state.eclipse > 0) col = SKY_ECLIPSE;
+function snapSkyNow() {   // al cargar, el cielo queda en la hora guardada (amanecer, día o noche), no se ve un flash
+  _skyBase.setHex(state.planet === 'platus' ? (state.planetSky || 0xd98c5f) : state.country ? (currentCountry()?.sky || SKY_DAY.getHex()) : SKY_DAY.getHex());
+  const sol = solarClock();
+  const col = state.eclipse > 0 ? SKY_ECLIPSE : skyWantColor(sol);
   scene.background.copy(col); scene.fog.color.copy(col);
+  const lit = solarLight(sol);
   const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1;
-  ambient.intensity = state.eclipse > 0 ? 0.18 : (night ? 0.25 : 1 * dim);
-  sun.intensity = state.eclipse > 0 ? 0.1 : (night ? 0.15 : 1 * dim);
+  ambient.intensity = state.eclipse > 0 ? 0.18 : lit.amb * dim;
+  sun.intensity = state.eclipse > 0 ? 0.1 : lit.sun * dim;
+  placeSkyBodies(sol);
 }
 function restoreWorldClock(d) {   // noche, clima y eclipse se quedan como al guardar y salir
   state.phase = d.phase === 'NIGHT' ? 'NIGHT' : 'DAY';
@@ -16629,6 +16642,7 @@ function startNight() {
   state.hordeOn = false;                                                    // horda final del último minuto
   state.nightDamage = false;                                                // si la casa termina sin daño, sube la RACHA
   state.coldWarned = false;                                                 // aviso de frío de Platus (una vez por noche)
+  state.dawnTold = false;                                                   // el aviso de amanecer sale una vez por noche
   state.bossNight = state.night % 5 === 0;                                  // cada 5 noches: NOCHE JEFE (paga x3)
   if (state.bossNight) {
     if (state.planet === 'platus') spawnUfoBoss();   // en Platus la noche jefe trae el OVNI nodriza
@@ -17455,6 +17469,7 @@ function updateMoles(dt) {
 
 function updateNight(dt) {
   state.nightTime += dt;
+  noteSolarMoments();
   const duration = currentNightLength();
   if (netGuest()) {   // en una sala online los monstruos los maneja el anfitrión
     if (state.chestAt && state.chestAt.length && state.nightTime >= state.chestAt[0]) { state.chestAt.shift(); spawnChest(); }
@@ -17603,6 +17618,7 @@ function surviveNight() {
   const producedFood = Math.floor(hs.production / 20); if (producedFood > 0) { state.inv.food += producedFood; setTimeout(() => toast('🍲 La casa produjo ' + producedFood + ' comida'), 1800); }
   state.poison = 0; state.dadPoison = 0; state.blocking = false; state.stamina = 100;
   state.phase = 'DAY'; state.dayTime = 0; goldenCollectedToday = false;
+  state.sunsetTold = false;                                 // el próximo atardecer vuelve a avisarse
   victims.forEach(v => v.userData.robbed = false);   // la gente vuelve al estadio cada día
   newMissions();                                     // 3 misiones nuevas cada amanecer
   state.mathLeft = 5;                                // se renuevan los desafíos de mates
@@ -18654,6 +18670,8 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     state.skiLiftRide = { kind: kind || 'andarivel', t: 1 };
     updateSkiLiftRide(.1);
   };
+  timDump.solar = () => { const s = solarClock(); return { hour: +s.hour.toFixed(2), kind: s.kind, el: +s.el.toFixed(2), icon: s.icon, bg: '#' + scene.background.getHexString(), sun: +sun.intensity.toFixed(2), sunY: +sun.position.y.toFixed(1) }; };
+  timDump.frame = () => { updateSky(0.2); renderHUD(); renderer.render(scene, camera); };
   timDump.tickNight = (n, dt) => {   // correr la noche a mano (sirve para probar sin requestAnimationFrame)
     const step = dt == null ? .05 : dt;
     for (let i = 0; i < (n || 1); i++) { updateNight(step); updateLivingWater(step); }
@@ -18908,6 +18926,7 @@ function updateDayNight(dt) {
   if (state.phase === 'DAY') {
     state.dayTime += dt;
     if (state.dayTime >= currentDayLength()) startNight();   // al acabarse el día SIEMPRE viene la noche
+    else noteSolarMoments();
   }
 }
 
@@ -19064,9 +19083,105 @@ function playerInClosedRoom() {
   closedRoomResult = blocked.every(Boolean);
   return closedRoomResult;
 }
+// Reloj solar: el día de juego (mañana → tarde) y la noche (atardecer → amanecer)
+// se ven como un día de verdad. El sol sale por el este (+x) y se pone por el oeste (−x).
+const solarNow = { hour: 12.4, el: 1, az: 1.5, kind: 'day', u: 0.5, icon: '☀️', dark: false };
+function writeSolar(hour) {
+  const h = ((hour % 24) + 24) % 24;
+  let s;
+  if (h >= 6 && h < 19) s = (h - 6) / 13;          // 06:00 salida → 19:00 puesta
+  else if (h >= 19) s = 1 + (h - 19) / 11;         // la noche sigue bajo el horizonte
+  else s = 1 + (h + 5) / 11;                       // 00:00–06:00 es el tramo final de la noche
+  const ang = s * Math.PI;
+  solarNow.hour = h;
+  solarNow.el = Math.sin(ang) * 1.05;
+  solarNow.az = ang;
+  if (h >= 6 && h < 7.4) { solarNow.kind = 'sunrise'; solarNow.u = (h - 6) / 1.4; solarNow.icon = '🌅'; }
+  else if (h >= 7.4 && h < 17.2) { solarNow.kind = 'day'; solarNow.u = (h - 7.4) / 9.8; solarNow.icon = '☀️'; }
+  else if (h >= 17.2 && h < 19) { solarNow.kind = 'sunset'; solarNow.u = (h - 17.2) / 1.8; solarNow.icon = '🌇'; }
+  else if (h >= 19 && h < 20.6) { solarNow.kind = 'dusk'; solarNow.u = (h - 19) / 1.6; solarNow.icon = '🌆'; }
+  else if (h >= 4.2 && h < 6) { solarNow.kind = 'dawn'; solarNow.u = (h - 4.2) / 1.8; solarNow.icon = '🌄'; }
+  else { solarNow.kind = 'night'; solarNow.u = 0.5; solarNow.icon = '🌙'; }
+  solarNow.dark = solarNow.el < 0.28;
+  return solarNow;
+}
+function solarClock() {
+  if (state.inFlight || state.cinematic || (!state.running && state.phase !== 'NIGHT' && state.dayTime < 1)) return writeSolar(12.4);
+  if (state.phase === 'NIGHT') {
+    const t = Math.min(1, state.nightTime / Math.max(1, currentNightLength()));
+    return writeSolar(19 + t * 11);
+  }
+  const t = Math.min(1, state.dayTime / Math.max(1, currentDayLength()));
+  return writeSolar(6 + t * 13);
+}
+function skyWantColor(sol) {
+  let dayCol = _skyBase;
+  if (state.weather === 'rain') dayCol = SKY_RAIN;
+  else if (state.weather === 'dust') dayCol = SKY_DUST;
+  const warm = (sol.hour >= 12 && sol.hour < 22) ? SKY_SUNSET : SKY_SUNRISE;
+  if (sol.el >= 0.72) return _skyWant.copy(dayCol);
+  if (sol.el >= 0) return _skyWant.copy(dayCol).lerp(warm, Math.min(1, (1 - sol.el / 0.72) * 0.95));
+  const depth = Math.min(1, -sol.el / 0.45);
+  _skyWant.copy(warm).lerp(SKY_DUSK, Math.min(1, depth * 1.4));
+  return _skyWant.lerp(SKY_NIGHT, Math.min(1, Math.max(0, depth - 0.25) / 0.75));
+}
+function solarLight(sol) {
+  const lift = Math.max(0, Math.min(1, sol.el / 0.55));   // la luz sube antes que el disco, para ver durante el amanecer
+  return { sun: 0.16 + lift * 0.92, amb: 0.26 + lift * 0.85 };
+}
+function dirFromAzEl(az, el, out) {
+  const ce = Math.cos(el);
+  out.set(Math.cos(az) * ce, Math.sin(el), -Math.sin(az) * ce);
+  if (out.lengthSq() < 1e-8) out.set(0, 1, 0);
+  else out.normalize();
+  return out;
+}
+function hideSkyDiscs() { skySun.visible = skyGlow.visible = skyMoon.visible = false; }
+function placeSkyBodies(sol) {
+  const anchor = player.position;
+  dirFromAzEl(sol.az, sol.el, _sunDir);
+  if (sol.el < 0.04) dirFromAzEl(sol.az + Math.PI, Math.max(0.35, -sol.el), _lightDir);
+  else dirFromAzEl(sol.az, Math.max(0.2, sol.el), _lightDir);
+  sun.position.set(anchor.x + _lightDir.x * 80, anchor.y + _lightDir.y * 80, anchor.z + _lightDir.z * 80);
+  sun.target.position.set(anchor.x, 0, anchor.z);
+  rim.position.set(anchor.x - _lightDir.x * 50, 28, anchor.z - _lightDir.z * 50);
+  const warm = (sol.hour >= 12 && sol.hour < 20) ? SKY_SUNSET : SKY_SUNRISE;
+  sun.color.setHex(sol.el < 0.05 ? 0xb9c7e6 : 0xfff6e0);
+  if (sol.el >= 0.05) sun.color.lerp(warm, Math.min(1, (1 - Math.min(sol.el, 0.5) / 0.5) * 0.8));
+  const dist = 210;
+  const horizon = Math.max(0, 1 - Math.abs(sol.el) / 0.45);
+  skySun.position.set(anchor.x + _sunDir.x * dist, anchor.y + Math.max(-8, _sunDir.y * dist) + 8, anchor.z + _sunDir.z * dist);
+  skyGlow.position.copy(skySun.position);
+  skySun.visible = skyGlow.visible = sol.el > -0.05;
+  skySun.scale.setScalar(1 + horizon * 0.35);
+  skyGlow.scale.setScalar(1 + horizon * 0.45);
+  skySun.material.color.setHex(0xfff6d0).lerp(warm, horizon * 0.85);
+  skyGlow.material.color.copy(skySun.material.color);
+  skyGlow.material.opacity = 0.1 + horizon * 0.45;
+  dirFromAzEl(sol.az + Math.PI, Math.max(0, -sol.el), _moonDir);
+  skyMoon.position.set(anchor.x + _moonDir.x * dist, anchor.y + _moonDir.y * dist + 8, anchor.z + _moonDir.z * dist);
+  skyMoon.visible = -sol.el > 0.05;
+}
+function noteSolarMoments() {
+  if (!state.running || state.paused) return;
+  const sol = solarClock();
+  if (sol.kind === 'sunrise' && sol.u > 0.25 && !state.sunriseTold && state.night === 0) {
+    state.sunriseTold = true;
+    toast('🌅 Amanece. El sol sale por el este.');
+  }
+  if (sol.kind === 'sunset' && sol.u > 0.15 && !state.sunsetTold) {
+    state.sunsetTold = true;
+    toast('🌇 Atardece. El sol se pone al oeste.');
+  }
+  if (sol.kind === 'dawn' && sol.u > 0.3 && !state.dawnTold) {
+    state.dawnTold = true;
+    toast('🌄 El cielo clarea: pronto sale el sol.');
+  }
+}
 function updateSky(dt) {
   if (state.mission === 'alley') {
     applyAlleySky();
+    hideSkyDiscs();
     return;
   }
   if (state.inFlight) {   // de día o de noche: el vuelo se ve cielo y nubes, nunca negro
@@ -19074,24 +19189,28 @@ function updateSky(dt) {
     scene.fog.near = 8; scene.fog.far = 90;
     ambient.intensity += (1.05 - ambient.intensity) * 0.12;
     sun.intensity += (0.85 - sun.intensity) * 0.12;
+    hideSkyDiscs();
     return;
   }
   if (state.cinematic) {
     scene.background.setHex(0x020617); scene.fog.color.setHex(0x020617); scene.fog.near=220; scene.fog.far=600;
+    hideSkyDiscs();
     return;
   }
   const night = state.phase === 'NIGHT';
+  const sol = solarClock();
   _skyBase.setHex(state.planet === 'platus' ? (state.planetSky || 0xd98c5f) : state.country ? (currentCountry()?.sky || SKY_DAY.getHex()) : SKY_DAY.getHex());
-  let base = _skyBase;
-  if (state.weather === 'rain') base = SKY_RAIN;
-  else if (state.weather === 'dust') base = SKY_DUST;
-  const target = night ? SKY_NIGHT : base;
-  scene.background.lerp(target, 0.04); scene.fog.color.copy(scene.background);
+  scene.background.lerp(skyWantColor(sol), 0.06); scene.fog.color.copy(scene.background);
   const dim = (state.planet === 'platus' && state.planetHazard === 'dark') ? 0.55 : 1.0;   // NEBULA: planeta oscuro y neblinoso
+  const lit = solarLight(sol);
   const enclosed = playerInClosedRoom();
   const onIsland = state.planet === 'tierra' && inTreasureIsland(player.position.x, player.position.z) && !state.underground;
-  ambient.intensity += ((enclosed ? 0.012 : (night ? 0.25 : 1.0 * dim)) - ambient.intensity) * 0.08;
-  sun.intensity += ((enclosed ? 0.015 : (night ? 0.15 : 1.0 * dim)) - sun.intensity) * 0.08;
+  ambient.intensity += ((enclosed ? 0.012 : lit.amb * dim) - ambient.intensity) * 0.08;
+  sun.intensity += ((enclosed ? 0.015 : lit.sun * dim) - sun.intensity) * 0.08;
+  placeSkyBodies(sol);
+  ambient.color.setHex(0xbfe3ff);
+  if (sol.el < 0.6) ambient.color.lerp((sol.hour >= 12 && sol.hour < 22) ? SKY_SUNSET : SKY_SUNRISE, sol.el > 0 ? (0.6 - sol.el) * 0.85 : 0.5);
+  if (sol.el < 0) ambient.color.lerp(SKY_DUSK, Math.min(1, -sol.el / 0.28));
   if (onIsland) { scene.fog.near += (40 - scene.fog.near) * 0.08; scene.fog.far += (800 - scene.fog.far) * 0.08; }
   else if (state.planet === 'tierra' && !state.country && inAlleyArea(player.position.x, player.position.z)) {
     const far = (state.gadgets && state.gadgets.gafas) ? 90 : 46;
@@ -19102,7 +19221,7 @@ function updateSky(dt) {
   } else if (night && state.gadgets && state.gadgets.gafas) {
     scene.fog.far += (240 - scene.fog.far) * 0.08;
   }
-  for (const o of placed) if (o.light) { const desired = state.worldEvent && state.worldEvent.id === 'blackout' ? 0 : ((night || enclosed) ? 4.5 : 0); o.light.intensity += (desired - o.light.intensity) * 0.08; }
+  for (const o of placed) if (o.light) { const desired = state.worldEvent && state.worldEvent.id === 'blackout' ? 0 : ((night || enclosed || sol.dark) ? 4.5 : 0); o.light.intensity += (desired - o.light.intensity) * 0.08; }
   if (state.eclipse > 0) {   // ECLIPSE: todo se oscurece de golpe
     scene.background.lerp(SKY_ECLIPSE, 0.12); scene.fog.color.copy(scene.background);
     ambient.intensity += (0.18 - ambient.intensity) * 0.1; sun.intensity += (0.1 - sun.intensity) * 0.1;
@@ -19120,6 +19239,7 @@ function updateTimers(dt) {
 }
 
 function fmt(t) { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+function fmtHour(h) { h = ((h % 24) + 24) % 24; const hh = Math.floor(h), mm = Math.min(59, Math.floor((h - hh) * 60)); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); }
 function setHTMLIfChanged(el, html) { if (el._renderHTML === html) return false; el._renderHTML = html; el.innerHTML = html; return true; }
 function setTextIfChanged(el, value) { if (el.textContent !== value) el.textContent = value; }
 let shownMoney = 0;   // el contador de dinero "rueda" hacia el valor real
@@ -19269,7 +19389,7 @@ function renderHUD() {
   ui('ui-stamina-stat').style.display = combatIsActive() ? '' : 'none';
   ui('ui-stamina-label').textContent = state.blocking ? 'BLOQUEANDO' : (state.dodgeCd > 0 ? 'RECARGANDO' : 'RESISTENCIA');
   ui('ui-dad').style.width = Math.max(0, state.dadHp) + '%';
-  ui('ui-time').textContent = state.phase === 'NIGHT' ? '🌙 ' + fmt(currentNightLength() - state.nightTime) : (state.phase === 'DAY' ? '☀️ ' + fmt(currentDayLength() - state.dayTime) : '--');
+  ui('ui-time').textContent = (state.phase === 'DAY' || state.phase === 'NIGHT') ? (solarClock().icon + ' ' + fmtHour(solarClock().hour)) : '--';
   const speedometer = ui('speedometer'), showingSpeed = !!((state.driving && car) || (state.sailing && boat));
   speedometer.style.display = showingSpeed ? 'flex' : 'none';
   const fuelWarning = ui('fuelWarning');
@@ -19406,6 +19526,8 @@ function renderHUD() {
   else if (state.phase === 'DAY') {
     if (state.meteorTriggered) obj = state.hasRocket ? '🚀 ¡Ve con tu PAPÁ al cohete y pulsa R! Quedan ' + fmt(state.escapeTimer) : '☄️ ¡Compra un COHETE y escapa! Quedan ' + fmt(state.escapeTimer);
     else if (!houseStats().ready) obj = '🛒 Compra en el súper (mantén E) y construye 4 paredes (B)';
+    else if (solarClock().kind === 'sunrise') obj = '🌅 Amanece. El sol sale por el este.';
+    else if (solarClock().kind === 'sunset') obj = '🌇 Atardece. La noche empieza cuando el sol se pone.';
     else obj = '⏩ Pulsa N: empieza la noche YA (+$100 por madrugar) · 🏆 casa dorada en la ciudad';
   } else if (state.phase === 'NIGHT') obj = (state.hordeOn ? '🚨 ¡HORDA FINAL! ' : (state.bossNight ? '⚔️ NOCHE JEFE (paga x3) · ' : '🗡️ ¡Defiende! ')) + 'Quedan ' + fmt(currentNightLength() - state.nightTime);
   if (state.wanted > 0) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';

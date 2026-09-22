@@ -54,7 +54,7 @@ test('en 200 barrios sorteados NINGUNA casa se atraviesa con otra', () => {
   for (let vuelta = 0; vuelta < 200; vuelta++) {
     for (const d of manzanas) {
       const r = rectDistrito(d, -2.5);
-      const fondoFila = Math.min(10.5, (r.maxZ - r.minZ) / 2 - 2.5);
+      const fondoFila = Math.min(8.2, (r.maxZ - r.minZ) / 2 - 3.2);   // igual que poblarBarrio: el medio es patio
       const lotes = repartirManzana(r, fondoFila);
       assert.ok(lotes.length >= 4, `la manzana ${d.id} quedó casi vacía (${lotes.length} casas)`);
       for (let i = 0; i < lotes.length; i++) {
@@ -80,19 +80,35 @@ test('un barrio tiene casas de varias formas y tamaños', () => {
   assert.ok(Math.max(...anchos) - Math.min(...anchos) > 4, 'todas las casas terminaron del mismo porte');
 });
 
-test('la casa del vecino cabe dentro de su lote del condominio', () => {
+test('la casa del vecino y su piscina caben dentro de su lote', () => {
+  const patio = CONDOMINIO.patio;
   for (const l of CONDOMINIO.lotes.filter(o => !o.venta)) {
     const reja = rectLote(l, -.2);
     for (let i = 0; i < 200; i++) {
-      const plan = planDeCasa(l.w - 1.2, l.d - 5);
+      const plan = planDeCasa(l.w - 1.2, l.d - patio.frente - patio.fondo);
       assert.ok(plan, `no cabe ninguna casa en el lote ${l.id}`);
       const norte = l.z > CONDOMINIO.pasaje.z;
+      const dir = norte ? 1 : -1;
       const frente = norte ? l.z - l.d / 2 : l.z + l.d / 2;
-      const z = frente + (norte ? 1 : -1) * (plan.d / 2 + 1.6);
+      const z = frente + dir * (plan.d / 2 + patio.frente);
       const casa = { minX: l.x - plan.w / 2, maxX: l.x + plan.w / 2, minZ: z - plan.d / 2, maxZ: z + plan.d / 2 };
+      const espalda = z + dir * (plan.d / 2);
+      const piscina = espalda + dir * (0.75 + 2.15);   // borde de la piscina, hacia el fondo del lote
       assert.ok(casa.minX >= reja.minX && casa.maxX <= reja.maxX, `la casa de ${l.id} pasa la reja de al lado`);
       assert.ok(casa.minZ >= reja.minZ && casa.maxZ <= reja.maxZ, `la casa de ${l.id} se sale al pasaje`);
+      assert.ok(piscina >= reja.minZ && piscina <= reja.maxZ, `la piscina de ${l.id} se sale del lote`);
     }
+  }
+});
+
+test('las casas salen blancas o grises', () => {
+  for (let i = 0; i < 80; i++) {
+    const plan = planDeCasa(14, 12);
+    for (const [canal, nombre] of [[plan.muro, 'muro'], [plan.tejas, 'techo']]) {
+      const r = (canal >> 16) & 255, g = (canal >> 8) & 255, b = canal & 255;
+      assert.ok(Math.max(r, g, b) - Math.min(r, g, b) < 32, `${nombre} tiene color #${canal.toString(16)}`);
+    }
+    assert.ok(((plan.muro >> 16) & 255) > 190, 'el muro no es blanco ni gris claro');
   }
 });
 
@@ -101,6 +117,6 @@ test('index.html usa los planos en el barrio y en el condominio', () => {
   assert.match(html, /function repartirManzana\(/);
   assert.match(html, /const lotes = repartirManzana\(r, fondoFila\)/);
   assert.match(html, /function techoCasa\(/);
-  assert.match(html, /const plan = planDeCasa\(l\.w - 1\.2, l\.d - 5\)/);   // vecinos del condominio
+  assert.match(html, /planDeCasa\(l\.w - 1\.2, l\.d - hueco\.frente - hueco\.fondo\)/);   // vecinos: antejardín y piscina
   assert.match(html, /const grupo = 'casa' \+ \(\+\+houseSerial\)/);        // cada casa tiene su propio grupo de choque
 });

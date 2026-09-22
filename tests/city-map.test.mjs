@@ -103,6 +103,13 @@ test('el condominio tiene lotes en venta y vecinos, todos dentro de la manzana',
   assert.equal(loteEn(LUGARES.cohete.x, LUGARES.cohete.z), null, 'el cohete no puede quedar dentro de un lote');
   assert.equal(loteEn(LUGARES.spawn.x, LUGARES.spawn.z), null, 'no puedes aparecer dentro de un lote ajeno');
   assert.ok(!enCondominio(16, 124), 'los toros pastan fuera del condominio');
+  assert.ok(CONDOMINIO.cancha.w >= 8 && CONDOMINIO.cancha.d >= 6, 'la cancha quedó muy chica');
+  assert.ok(CONDOMINIO.juegos.w >= 8 && CONDOMINIO.juegos.d >= 4, 'los juegos quedaron muy chicos');
+  for (const p of [LUGARES.spawn, LUGARES.cohete, LUGARES.spawnMama, LUGARES.spawnPapa]) {
+    assert.equal(loteEn(p.x, p.z), null, 'el punto de aparición quedó dentro de un lote');
+    const c = CONDOMINIO.comun;
+    assert.ok(Math.abs(p.x - c.x) <= c.w / 2 && Math.abs(p.z - c.z) <= c.d / 2, 'la entrada del condominio se movió de la explanada');
+  }
 });
 
 test('index.html cobra el terreno antes de dejarte construir', () => {

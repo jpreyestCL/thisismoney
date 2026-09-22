@@ -12,6 +12,6 @@ assert.match(html, /#phase \{ position: absolute; top: auto; left: auto; right: 
 assert.match(html, /#combo \{ position:absolute; top:auto; left:auto; right:14px/);
 assert.match(html, /#fuelWarning \{ position:absolute; left:auto; right:14px/);
 assert.match(html, /#escape \{ position:absolute; top:auto; left:auto; right:14px/);
-assert.match(sw, /tim-v51/);
+assert.match(sw, /tim-v52/);
 
 console.log('side toasts: ok');

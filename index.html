@@ -1210,7 +1210,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
-import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=4';
+import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=5';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=4';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -2707,8 +2707,8 @@ let goldenHouse = null, goldenCollectedToday = false;
 // agregados (ala en L, garaje, pórtico…). Como el plano dice cuánto mide
 // ANTES de construirla, el barrio puede repartir la manzana casa por casa
 // y dejar pasillo entre una y otra: así NINGUNA se atraviesa con su vecina.
-const HOUSE_WALLS = [0xcba37a, 0xb0c4de, 0xd8a7b1, 0xa7c4bc, 0xe0c097, 0xc4b5a0, 0xd9cdb4, 0x9fb8cd, 0xe3b7a0];
-const HOUSE_ROOFS = [0x8b3a3a, 0x475569, 0x713f12, 0x4b5f52, 0x6b4423, 0x334155];
+const HOUSE_WALLS = [0xfafafa, 0xf4f4f5, 0xe7e5e4, 0xe5e7eb, 0xf5f5f4, 0xd4d4d8, 0xd6d3d1, 0xe4e4e7];
+const HOUSE_ROOFS = [0x9ca3af, 0x6b7280, 0xa8a29e, 0x78716c, 0xd4d4d8, 0x57534e];
 const HOUSE_PLANS = [
   // w/d = ancho y fondo (mínimo y máximo) · piso2 = probabilidad de segundo piso
   { id: 'clasica', peso: 5, w: [5, 7.5], d: [5, 7.5], techo: 'piramide', piso2: .45 },
@@ -2813,10 +2813,14 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
     [-gw / 2, gw / 2].forEach(sx => { const s = new THREE.Mesh(new THREE.BoxGeometry(t, gh, gw), wm); s.position.set(sx, gh / 2, 0); g.add(s); });
     [-1, 1].forEach(sgn => { const fseg = new THREE.Mesh(new THREE.BoxGeometry(gw / 2 - 0.7, gh, t), wm); fseg.position.set(sgn * (gw / 4 + 0.35), gh / 2, gw / 2); g.add(fseg); });   // pared frontal con hueco-puerta
     const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, t), wm); lintel.position.set(0, gh - 0.6, gw / 2); g.add(lintel);
-    const roofG = new THREE.Mesh(new THREE.ConeGeometry(gw * 0.8, 2.2, 4), mat(0x713f12)); roofG.position.y = gh + 1.1; roofG.rotation.y = Math.PI / 4; roofG.castShadow = true; g.add(roofG);
+    const roofG = new THREE.Mesh(new THREE.ConeGeometry(gw * 0.8, 2.2, 4), mat(plan.tejas)); roofG.position.y = gh + 1.1; roofG.rotation.y = Math.PI / 4; roofG.castShadow = true; g.add(roofG);
     // TESORO adentro: cofre + monedas de oro brillantes
     const chest = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 0.9), mat(0x7c4a1e)); chest.position.set(0, 0.55, -1.3); chest.castShadow = true; g.add(chest);
     for (let i = 0; i < 8; i++) { const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.25 })); coin.position.set((Math.random() - 0.5) * 1.4, 0.18 + Math.random() * 0.4, -0.3 + (Math.random() - 0.5) * 1.2); coin.rotation.set(Math.random(), Math.random(), Math.random()); g.add(coin); }
+    const pz = -gw / 2 - 1.85;
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(2.7, .14, 2.65), mat(0xe7e5e4)); deck.position.set(0, .08, pz); g.add(deck);
+    const aguaG = new THREE.Mesh(new THREE.BoxGeometry(2.15, .1, 2.15), new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: .75, roughness: .06, metalness: .2 }));
+    aguaG.position.set(0, .16, pz); g.add(aguaG);
     g.position.set(x, 0, z); scene.add(g);
     return g;   // sin obstáculo: entras caminando por la puerta y cobras el oro con E
   }
@@ -2834,7 +2838,7 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
   if (plan.portico) { bd = d - 1.7; bz = -(d - bd) / 2; }
   const frente = bz + bd / 2;
   caja(bx, h1 / 2, bz, bw, h1, bd, col);
-  caja(bx, .21, bz, bw + .18, .42, bd + .18, 0x8d8577);   // cimiento de piedra
+  caja(bx, .21, bz, bw + .18, .42, bd + .18, 0xd4d4d8);   // cimiento gris
   // Puerta y ventanas (la ventana se arma mirando a +z y se gira para los costados)
   const ventana = (px, py, pz, ry = 0) => {
     const v = new THREE.Group(); v.position.set(px, py, pz); v.rotation.y = ry; g.add(v);
@@ -2844,7 +2848,7 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
     if (detalle) { pon(1.12, .1, .26, -.56, .12, mat(0xf4efe6)); pon(.07, .84, .04, 0, .12, mat(0xf4efe6)); }   // alféizar y cruz
   };
   if (detalle) caja(bx, .96, frente + .03, 1.42, 2.12, .08, 0xf4efe6, false);   // marco de la puerta
-  caja(bx, .9, frente + .05, 1.1, 1.8, .1, 0x5b3a1a, false);
+  caja(bx, .9, frente + .05, 1.1, 1.8, .1, 0x4b5563, false);
   if (detalle) {
     const pomo = new THREE.Mesh(new THREE.SphereGeometry(.07, 8, 6), new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: .8, roughness: .3 }));
     pomo.position.set(bx + .38, .95, frente + .12); g.add(pomo);
@@ -2863,30 +2867,30 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
     const h2 = 2.4 + Math.random() * .9;
     topW = lleno ? bw : bw * .82; topD = lleno ? bd : bd * .82;
     caja(bx, h1 + h2 / 2, bz, topW, h2, topD, col);
-    if (detalle) caja(bx, h1 + .09, bz, topW + .3, .18, topD + .3, 0x8d8577, false);   // cornisa entre pisos
+    if (detalle) caja(bx, h1 + .09, bz, topW + .3, .18, topD + .3, 0xd4d4d8, false);   // cornisa entre pisos
     for (const hx of (huecos.length ? huecos : [0])) {
       ventana(bx + hx * .78, h1 + h2 * .55, bz + topD / 2);
       ventana(bx + hx * .78, h1 + h2 * .55, bz - topD / 2, Math.PI);
     }
     if (detalle && !lleno) {   // balcón corrido sobre la puerta
       const balZ = bz + (topD + bd) / 4, balD = (bd - topD) / 2;
-      caja(bx, h1 + .2, balZ, topW, .16, balD, 0x9c8a72, false);
-      caja(bx, h1 + .62, balZ + balD / 2, topW, .6, .1, 0xcbbfa6, false);
-      for (const sx of [-1, 1]) caja(bx + sx * topW / 2, h1 + .62, balZ, .1, .6, balD, 0xcbbfa6, false);
+      caja(bx, h1 + .2, balZ, topW, .16, balD, 0xe5e7eb, false);
+      caja(bx, h1 + .62, balZ + balD / 2, topW, .6, .1, 0xf4f4f5, false);
+      for (const sx of [-1, 1]) caja(bx + sx * topW / 2, h1 + .62, balZ, .1, .6, balD, 0xf4f4f5, false);
     }
     topY = h1 + h2;
   }
   const cumbrera = techoCasa(g, plan.techo, bx, bz, topW, topD, topY, plan.tejas);
   if (detalle && plan.chimenea) {   // chimenea con su remate
     const chx = bx + topW * .3, chz = bz - topD * .3;
-    caja(chx, cumbrera - .4, chz, .6, 1.8, .6, 0x9a6b53);
+    caja(chx, cumbrera - .4, chz, .6, 1.8, .6, 0x9ca3af);
     caja(chx, cumbrera + .55, chz, .78, .14, .78, 0x6b7280, false);
   }
   cuerpos.push({ x: bx, z: bz, w: bw, d: bd, top: topY });
   if (plan.ala) {   // ala lateral más baja: la casa deja de ser un cubo y se ve en L
     const aw = w - bw, ad = d * .62, ax = bx + bw / 2 + aw / 2, az = (d - ad) / 2, ah = h1 * .85;
     caja(ax, ah / 2, az, aw, ah, ad, col);
-    caja(ax, .21, az, aw + .18, .42, ad + .18, 0x8d8577);
+    caja(ax, .21, az, aw + .18, .42, ad + .18, 0xd4d4d8);
     ventana(ax, ah * .58, az + ad / 2);
     techoCasa(g, 'dosAguas', ax, az, aw, ad, ah, plan.tejas);
     cuerpos.push({ x: ax, z: az, w: aw, d: ad, top: ah });
@@ -2895,10 +2899,20 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
     const gw2 = 3.4, gd2 = d * .76, gx = bx + bw / 2 + 1.8, gz = (d - gd2) / 2, gh2 = 2.7;
     caja(gx, gh2 / 2, gz, gw2, gh2, gd2, col);
     caja(gx, gh2 + .15, gz, gw2 + .5, .3, gd2 + .5, plan.tejas);
-    caja(gx, 1.1, gz + gd2 / 2 + .07, gw2 - .7, 2.1, .14, 0x64748b, false);
+    caja(gx, 1.1, gz + gd2 / 2 + .07, gw2 - .7, 2.1, .14, 0x9ca3af, false);
     if (detalle) for (let i = 0; i < 4; i++) caja(gx, .35 + i * .5, gz + gd2 / 2 + .16, gw2 - .8, .09, .04, 0x94a3b8, false);
     caja(gx, .05, gz + gd2 / 2 + 1.2, gw2 + .3, .1, 2.2, 0xb8b2a6, false);
     cuerpos.push({ x: gx, z: gz, w: gw2, d: gd2, top: gh2 });
+  }
+  // Patio de atrás, del lado opuesto a la puerta: deck gris y piscina.
+  {
+    const fondo = Math.min(...cuerpos.map(c => c.z - c.d / 2));
+    const largo = 2.15, ancho = Math.min(3.05, Math.max(2.1, bw * .58));
+    const pz = fondo - .75 - largo / 2;
+    caja(bx, .08, pz, ancho + .55, .14, largo + .5, 0xe7e5e4, false);
+    const agua = new THREE.Mesh(new THREE.BoxGeometry(ancho, .1, largo), new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: .75, roughness: .06, metalness: .2 }));
+    agua.position.set(bx, .16, pz); g.add(agua);
+    if (detalle) caja(bx, .22, pz + largo / 2 - .15, .7, .08, .35, 0xf8fafc, false);
   }
   if (plan.portico) {   // pórtico con columnas: la casona se ve señorial
     const pz = frente + .85;
@@ -2931,7 +2945,7 @@ function poblarBarrio(id, opciones = {}) {
   const distrito = DISTRITOS.find(o => o.id === id);
   if (!distrito) return;
   const r = rectDistrito(distrito, -2.5);          // antejardín contra la vereda
-  const fondoFila = Math.min(10.5, (r.maxZ - r.minZ) / 2 - 2.5);   // lo que puede medir de fondo cada casa
+  const fondoFila = Math.min(8.2, (r.maxZ - r.minZ) / 2 - 3.2);   // el medio queda de patio, con piscina atrás
   const lotes = repartirManzana(r, fondoFila);
   // Levantarlas. La del tesoro tiene que caer en una casa lo bastante grande.
   let dorada = -1;
@@ -7039,8 +7053,9 @@ buildJail();
 
 // ===================================================================
 //  EL CONDOMINIO DONDE VIVES  (manzana `casa`, trazado en src/city-map.js)
-//  Una reja, un portón, un pasaje interior y siete lotes: casi todos con
-//  vecino y dos EN VENTA. Para levantar tu casa hay que comprar uno ($1000).
+//  Reja, portón, pasaje, lotes (dos EN VENTA) y, al noroeste, cancha de
+//  fútbol y resbalines. La manzana ya topa con las avenidas, así que todo
+//  esto cabe adentro sin pisar la calle. Cada casa deja piscina atrás.
 // ===================================================================
 const PRECIO_TERRENO = 1000;
 const condoLotes = {};   // id -> { lote, cartel, buzon, reja, vecino }
@@ -7069,8 +7084,8 @@ function buildCondominio() {
 
   // Conserjería: caseta con ventanal, junto al portón.
   const con = { x: porton.x + 4.6, z: pas.z - pas.ancho / 2 - 2.6 };
-  mcBox(g, con.x, 1.4, con.z, 3.4, 2.8, 3, 0xe4dccb);
-  mcBox(g, con.x, 2.95, con.z, 4, .4, 3.6, 0x8a6b4a);
+  mcBox(g, con.x, 1.4, con.z, 3.4, 2.8, 3, 0xf4f4f5);
+  mcBox(g, con.x, 2.95, con.z, 4, .4, 3.6, 0x9ca3af);
   mcBox(g, con.x, 1.7, con.z + 1.55, 2.2, 1.2, .12, 0x9fd0ff);
   mcSign(g, con.x, 4.1, con.z, 'CONSERJERIA', 0xbae6fd).scale.set(.45, .45, .45);
   addObstacle(con.x, con.z, 3.4, 3, 2.8, 'conserjeria');
@@ -7084,6 +7099,46 @@ function buildCondominio() {
   mcTree(g, comun.x + 2.8, comun.z - 5.2, 4.2);
   mcBench(g, comun.x, comun.z + 1.6, 0);
   mcFlowers(g, comun.x - 2.6, comun.z - 1.8, 1.3);
+
+  // Cancha de fútbol y resbalines, al noroeste: no tapan el portón ni los lotes.
+  const cancha = CONDOMINIO.cancha, juegos = CONDOMINIO.juegos;
+  mcFloor(g, cancha.x, cancha.z, cancha.w, cancha.d, 0x3d8c45, .04);
+  addNoGrassZone(cancha.x, cancha.z, cancha.w, cancha.d);
+  mcFloor(g, cancha.x, cancha.z, .12, cancha.d - .8, 0xf8fafc, .08);                 // línea de mitad
+  mcFloor(g, cancha.x, cancha.z, 2.2, 2.2, 0xf8fafc, .07);                            // círculo central (mancha)
+  mcFloor(g, cancha.x, cancha.z, 1.5, 1.5, 0x3d8c45, .09);
+  for (const sx of [-1, 1]) {
+    const gx = cancha.x + sx * (cancha.w / 2 - .35);
+    mcBox(g, gx, .9, cancha.z - 1.15, .12, 1.8, .12, 0xf8fafc);
+    mcBox(g, gx, .9, cancha.z + 1.15, .12, 1.8, .12, 0xf8fafc);
+    mcBox(g, gx, 1.8, cancha.z, .12, .12, 2.4, 0xf8fafc);
+    addObstacle(gx, cancha.z, .4, 2.5, 1.8, 'cancha');
+  }
+  mcSign(g, cancha.x, 2.6, cancha.z, 'CANCHA', 0xbbf7d0).scale.set(.55, .55, .55);
+
+  mcFloor(g, juegos.x, juegos.z, juegos.w, juegos.d, 0xd6cdbb, .04);
+  addNoGrassZone(juegos.x, juegos.z, juegos.w, juegos.d);
+  // Resbalín: torre, rampa y barandas. La rampa baja hacia el pasaje.
+  mcBox(g, juegos.x - 2.2, 1.15, juegos.z + .2, 1.15, 2.3, 1.15, 0xf8fafc);
+  mcBox(g, juegos.x - 2.2, 2.35, juegos.z + .2, 1.4, .16, 1.4, 0xe5e7eb);
+  const rampa = new THREE.Mesh(new THREE.BoxGeometry(1.05, .12, 2.6), mcMat(0x38bdf8));
+  rampa.position.set(juegos.x - 2.2, 1.2, juegos.z - 1.15); rampa.rotation.x = .45; rampa.castShadow = true; g.add(rampa);
+  for (const sx of [-1, 1]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(.08, .12, 2.6), mcMat(0xf8fafc));
+    rail.position.set(juegos.x - 2.2 + sx * .5, 1.4, juegos.z - 1.15); rail.rotation.x = .45; g.add(rail);
+    mcBox(g, juegos.x - 2.2 + sx * .55, 1.15, juegos.z + .85, .1, 2.3, .1, 0x94a3b8);
+  }
+  for (let i = 0; i < 4; i++) mcBox(g, juegos.x - 2.2, .35 + i * .48, juegos.z + .95, .62, .08, .08, 0x94a3b8);
+  addObstacle(juegos.x - 2.2, juegos.z + .2, 1.3, 1.3, 2.4, 'juegos');
+  // Columpio al lado del resbalín.
+  for (const sx of [-1.1, 1.1]) mcBox(g, juegos.x + 2.1 + sx, 1.15, juegos.z, .14, 2.3, .14, 0x9ca3af);
+  mcBox(g, juegos.x + 2.1, 2.25, juegos.z, 2.4, .12, .14, 0x6b7280);
+  for (const sx of [-.55, .55]) {
+    mcBox(g, juegos.x + 2.1 + sx, 1.5, juegos.z, .04, 1.5, .04, 0xe5e7eb);
+    mcBox(g, juegos.x + 2.1 + sx, .72, juegos.z, .55, .08, .4, 0xfacc15);
+  }
+  addObstacle(juegos.x + 2.1, juegos.z, 2.5, .5, 2.3, 'juegos');
+  mcSign(g, juegos.x, 3.05, juegos.z, 'JUEGOS', 0xbae6fd).scale.set(.28, .28, .28);
 
   // Los lotes: reja bajita, número en el buzón y, si hay vecino, su casa.
   CONDOMINIO.lotes.forEach((l, i) => {
@@ -7115,7 +7170,8 @@ function buildCondominio() {
     } : null;
     let vecino = null;
     if (!l.venta) {   // el vecino ya construyó: su casa mira al pasaje y NINGUNA es igual a la de al lado
-      const plan = planDeCasa(l.w - 1.2, l.d - 5);
+      const hueco = CONDOMINIO.patio;
+      const plan = planDeCasa(l.w - 1.2, l.d - hueco.frente - hueco.fondo);
       const casaZ = frente + (norte ? 1 : -1) * (plan.d / 2 + 1.6);   // antejardín contra el pasaje
       vecino = makeCityHouse(l.x, casaZ, false, norte ? Math.PI : 0, plan.w, plan.d, plan);
       mcLamp(g, l.x + l.w / 2 - .8, frente + (norte ? -1 : 1) * 1.2, 0xfff0b0);

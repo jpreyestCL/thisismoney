@@ -136,23 +136,27 @@ export const LUGARES = Object.freeze({
 // La manzana `casa` está loteada como un condominio cerrado: casi todos los
 // lotes ya tienen vecino y dos están EN VENTA. Para levantar tu casa hay que
 // comprar uno primero (el precio vive en index.html, PRECIO_TERRENO).
-// El pasaje parte en el portón que da a la avenida y recorre la manzana; al
-// sur del pasaje queda la explanada común, con el cohete y la conserjería.
-const LOTE_SUR = 16.75, LOTE_NORTE = 38.25, LOTE_FONDO = 14.5;
+// La manzana ya llega hasta las avenidas: agrandarla pisaría la calle o el
+// estadio. El espacio de más se usa adentro: al noroeste, cancha y resbalines;
+// cada lote deja patio atrás para la piscina. El portón, el cohete y el
+// punto de aparición siguen en la explanada del suroeste.
+const LOTE_SUR = 16.4, LOTE_NORTE = 38.5, FONDO_SUR = 13, FONDO_NORTE = 13.2;
 export const CONDOMINIO = Object.freeze({
   distrito: 'casa',
   nombre: 'Condominio Los Aromos',
-  pasaje: Object.freeze({ z: 27.5, ancho: 6, desde: 8, hasta: 46 }),
+  pasaje: Object.freeze({ z: 27.5, ancho: 5.2, desde: 8, hasta: 46 }),
   porton: Object.freeze({ x: 9.5, z: 27.5 }),
-  comun: Object.freeze({ x: 12.5, z: 16.75, w: 9, d: 15 }),
+  comun: Object.freeze({ x: 12.4, z: 16.2, w: 9.2, d: 14.2 }),
+  patio: Object.freeze({ frente: 1.6, fondo: 4.6 }),   // antejardín al pasaje y piscina atrás
+  cancha: Object.freeze({ x: 14.4, z: 41.3, w: 10.4, d: 7.8 }),
+  juegos: Object.freeze({ x: 14.4, z: 34.3, w: 10.4, d: 4.8 }),
   lotes: Object.freeze([
-    { id: 'sur1', nombre: 'Lote 1', x: 25, z: LOTE_SUR, w: 14, d: LOTE_FONDO, venta: true },
-    { id: 'sur2', nombre: 'Lote 2', x: 35.5, z: LOTE_SUR, w: 6.5, d: LOTE_FONDO },
-    { id: 'sur3', nombre: 'Lote 3', x: 42.5, z: LOTE_SUR, w: 6.5, d: LOTE_FONDO },
-    { id: 'nor1', nombre: 'Lote 4', x: 12.5, z: LOTE_NORTE, w: 6.5, d: LOTE_FONDO },
-    { id: 'nor2', nombre: 'Lote 5', x: 19.5, z: LOTE_NORTE, w: 6.5, d: LOTE_FONDO },
-    { id: 'nor3', nombre: 'Lote 6', x: 26.5, z: LOTE_NORTE, w: 6.5, d: LOTE_FONDO },
-    { id: 'nor4', nombre: 'Lote 7', x: 38, z: LOTE_NORTE, w: 14, d: LOTE_FONDO, venta: true },
+    { id: 'sur1', nombre: 'Lote 1', x: 24.4, z: LOTE_SUR, w: 13.2, d: FONDO_SUR, venta: true },
+    { id: 'sur2', nombre: 'Lote 2', x: 35.4, z: LOTE_SUR, w: 7.4, d: FONDO_SUR },
+    { id: 'sur3', nombre: 'Lote 3', x: 43.3, z: LOTE_SUR, w: 7.2, d: FONDO_SUR },
+    { id: 'nor1', nombre: 'Lote 4', x: 23.2, z: LOTE_NORTE, w: 5.6, d: FONDO_NORTE },
+    { id: 'nor2', nombre: 'Lote 5', x: 29.2, z: LOTE_NORTE, w: 5.6, d: FONDO_NORTE },
+    { id: 'nor3', nombre: 'Lote 6', x: 39.6, z: LOTE_NORTE, w: 13, d: FONDO_NORTE, venta: true },
   ].map(Object.freeze)),
 });
 
@@ -296,14 +300,24 @@ export function validarMapa() {
       minZ: CONDOMINIO.pasaje.z - CONDOMINIO.pasaje.ancho / 2, maxZ: CONDOMINIO.pasaje.z + CONDOMINIO.pasaje.ancho / 2,
     };
     const comun = rectLote(CONDOMINIO.comun);
+    const zonas = [comun, rectLote(CONDOMINIO.cancha), rectLote(CONDOMINIO.juegos)];
     if (!lotesEnVenta().length) problemas.push('El condominio no tiene ningún lote en venta');
+    for (const [nombre, zona] of [['cancha', CONDOMINIO.cancha], ['juegos', CONDOMINIO.juegos], ['explanada', CONDOMINIO.comun]]) {
+      const rz = rectLote(zona);
+      if (rz.minX < limite.minX || rz.maxX > limite.maxX || rz.minZ < limite.minZ || rz.maxZ > limite.maxZ) {
+        problemas.push(`La ${nombre} del condominio se sale de la manzana`);
+      }
+      if (seCruzan(rz, pasaje)) problemas.push(`La ${nombre} del condominio se come el pasaje`);
+      if (AVENIDAS.some(av => seCruzan(rectCalle(av), rz))) problemas.push(`La ${nombre} del condominio da sobre la calle`);
+    }
+    if (seCruzan(rectLote(CONDOMINIO.cancha), rectLote(CONDOMINIO.juegos))) problemas.push('La cancha se cruza con los juegos');
     for (let i = 0; i < CONDOMINIO.lotes.length; i++) {
       const a = CONDOMINIO.lotes[i], ra = rectLote(a);
       if (ra.minX < limite.minX || ra.maxX > limite.maxX || ra.minZ < limite.minZ || ra.maxZ > limite.maxZ) {
         problemas.push(`El lote ${a.id} se sale de la manzana del condominio`);
       }
       if (seCruzan(ra, pasaje)) problemas.push(`El lote ${a.id} se come el pasaje`);
-      if (seCruzan(ra, comun)) problemas.push(`El lote ${a.id} se come la explanada común`);
+      if (zonas.some(z => seCruzan(ra, z))) problemas.push(`El lote ${a.id} se come la cancha, los juegos o la explanada`);
       if (AVENIDAS.some(av => seCruzan(rectCalle(av), ra))) problemas.push(`El lote ${a.id} da sobre la calle`);
       for (let j = i + 1; j < CONDOMINIO.lotes.length; j++) {
         if (seCruzan(ra, rectLote(CONDOMINIO.lotes[j]))) problemas.push(`El lote ${a.id} se cruza con ${CONDOMINIO.lotes[j].id}`);

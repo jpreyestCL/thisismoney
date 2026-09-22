@@ -16,7 +16,7 @@ const rect = (b, mx = 0, mz = mx) => ({
 });
 
 test('el banco y la cárcel caben en su manzana y no pisan la calle', () => {
-  for (const [nombre, edificio, distritoId] of [['banco', BANCO, 'comercial'], ['cárcel', CARCEL, 'carcel']]) {
+  for (const [nombre, edificio, distritoId] of [['banco', BANCO, 'banco'], ['cárcel', CARCEL, 'carcel']]) {
     const r = rect(edificio, 1, 2);   // margen: cornisa a los lados, columnas/portón al frente
     const limite = rectDistrito(DISTRITOS.find(d => d.id === distritoId));
     assert.ok(r.minX >= limite.minX && r.maxX <= limite.maxX, `el ${nombre} se sale de su manzana en x`);
@@ -30,7 +30,11 @@ test('el banco y la cárcel caben en su manzana y no pisan la calle', () => {
 test('el banco y el súper ya no se pisan', () => {
   const SUPER = { x: LUGARES.super.x, z: LUGARES.super.z, w: 23, d: 23 };   // makeStore: hw = hd = 11 + alero
   assert.ok(!seCruzan(rect(BANCO), rect(SUPER)), 'el banco quedó encima del súper');
+  // La puerta del súper mira al norte: el toldo y los carritos quedan delante.
+  const entrada = { x: LUGARES.super.x, z: LUGARES.super.z + 11 + 6, w: 24, d: 12 };
+  assert.ok(!seCruzan(rect(BANCO, 2, 3), rect(entrada)), 'el banco tapa la entrada del súper');
   assert.equal(distritoEn(LUGARES.super.x, LUGARES.super.z)?.id, 'comercial');
+  assert.equal(distritoEn(LUGARES.banco.x, LUGARES.banco.z)?.id, 'banco');
   assert.ok(!enCalle(LUGARES.banco.x, LUGARES.banco.z));
 });
 

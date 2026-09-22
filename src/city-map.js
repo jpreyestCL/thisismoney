@@ -86,11 +86,19 @@ const AFUERAS = [
   { id: 'dunasNorte', nombre: 'Dunas del Noroeste', icono: '🌵', x: -215, z: 100, w: 76, d: 76, tipo: 'natural' },
 ];
 
+// El banco tiene manzana propia, al este de la cárcel y pegado a la avenida
+// del norte. Antes compartía el centro comercial y su espalda tapaba la
+// puerta del súper. El resto de esa manzana sigue siendo área verde.
+const BANCO = Object.freeze({
+  id: 'banco', nombre: 'Banco Central', icono: '🏦', x: 130, z: -17, w: 24, d: 16, tipo: 'civico',
+});
+
 export const DISTRITOS = Object.freeze([
   ...CENTRO_URBANO.map(([id, nombre, icono, x, z, tipo]) =>
     Object.freeze({ id, nombre, icono, x, z, w: MANZANA, d: MANZANA, tipo })),
   ...ANILLO.map(([id, nombre, icono, x, z]) =>
     Object.freeze({ id, nombre, icono, x, z, w: BANDA, d: BANDA, tipo: 'casas' })),
+  BANCO,
   ...AFUERAS.map(Object.freeze),
 ]);
 
@@ -103,8 +111,8 @@ export const LUGARES = Object.freeze({
   spawn: Object.freeze({ x: 10, z: 16, distrito: 'casa' }),
   spawnPapa: Object.freeze({ x: 12, z: 13, distrito: 'casa' }),
   spawnMama: Object.freeze({ x: 15.5, z: 18.5, distrito: 'casa' }),   // en la explanada común del condominio
-  super: Object.freeze({ x: 28, z: -35, distrito: 'comercial' }),   // al fondo de la manzana: el banco ocupa el frente
-  banco: Object.freeze({ x: 19, z: -15, distrito: 'comercial' }),
+  super: Object.freeze({ x: 28, z: -35, distrito: 'comercial' }),   // al fondo de su manzana, con la puerta libre hacia el norte
+  banco: Object.freeze({ x: 130, z: -17, distrito: 'banco' }),      // manzana propia al este: no tapa el súper ni la calle
   entregaAutos: Object.freeze({ x: 42, z: -44, distrito: 'comercial' }),
   armeria: Object.freeze({ x: -82, z: -86, distrito: 'armeria' }),
   gasolinera: Object.freeze({ x: -33, z: 18, distrito: 'plaza' }),

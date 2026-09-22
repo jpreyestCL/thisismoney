@@ -1210,7 +1210,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
-import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=3';
+import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=4';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=4';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -3007,7 +3007,7 @@ const STORY_QUESTS = [
     steps: ['Encuentra el cajón 1 y ábrelo con E', 'Encuentra el cajón 2', 'Encuentra el cajón 3', 'Cargamento recuperado'] },
   { id: 'night', icon: '🌙', title: 'Aguanta la noche', need: 1, reward: 200, hint: 'Construye un techo y pulsa N cuando estés listo.', steps: ['Sobrevive una noche completa'] },
   { id: 'harvest', icon: '🌾', title: 'Cosecha del patio', need: 1, reward: 150, hint: 'Planta con K y cosecha con E cuando esté listo.', steps: ['Cosecha algo del huerto'] },
-  { id: 'bank', icon: '🏦', title: 'La plata trabaja', need: 1, reward: 180, hint: 'El banco está al este del súper. Entra con E.', steps: ['Entra al banco'] },
+  { id: 'bank', icon: '🏦', title: 'La plata trabaja', need: 1, reward: 180, hint: 'El banco está al este, pasada la cárcel, frente a la avenida. Entra con E.', steps: ['Entra al banco'] },
   { id: 'sport', icon: '🏅', title: 'Partido corto', need: 1, reward: 160, hint: 'Acércate a un estadio y juega un partido corto.', steps: ['Completa un partido'] },
 ];
 const alley = { root: null, contact: null, door: null, doorObs: null, obs: [], lights: [], steam: [], following: false, wp: 0, open: false, flicker: 0, radioCd: 0, returnTo: null, followIn: 0, skyWas: 0x87ceeb };
@@ -4160,7 +4160,7 @@ function sentarPersona(p, x, y, z, haciaY) {
 // ===================================================================
 const BANK_POS = new THREE.Vector3(LUGARES.banco.x, 0, LUGARES.banco.z);
 const BANK = { x: LUGARES.banco.x, z: LUGARES.banco.z, w: 20, d: 11, h: 6.4, t: .6 };
-BANK.frente = BANK.z + BANK.d / 2;   // la puerta mira al norte, hacia la avenida
+BANK.frente = BANK.z + BANK.d / 2;   // la puerta mira al norte, hacia la avenida de su manzana
 let bankTeller = null;
 const bankAtms = [];
 function buildBank() {

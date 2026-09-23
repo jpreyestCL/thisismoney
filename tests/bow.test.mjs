@@ -64,6 +64,6 @@ assert.match(html, /if \(state\.laserGun\) return equipHandWeapon\('gun'\)/);
 assert.match(html, /if \(item\.key === 'laserpistol'\)/);
 assert.match(html, /if \(bowEquipped\(\) \|\| laserEquipped\(\)\) \{/);
 assert.match(html, /sanitizeWeaponPockets\(\)/);
-assert.match(sw, /tim-v56/);
+assert.match(sw, /tim-v57/);
 
 console.log('bow and arrow: ok');

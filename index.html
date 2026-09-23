@@ -569,7 +569,7 @@
       <div class="stat"><b>ETAPA</b><span id="ui-stage">1</span></div>
       <div class="stat"><b>PLANETA</b><span id="ui-planet">Tierra</span></div>
       <div class="stat"><b>HORA</b><span id="ui-time">--</span></div>
-      <div class="stat" id="fpsvisor" role="button" tabindex="0" aria-label="Cambiar tope de fotogramas" style="display:none;pointer-events:auto;cursor:pointer;position:relative;z-index:5"><b>FPS</b><span id="fpsvisorVal">--</span></div>
+      <div class="stat" id="fpsvisor" role="button" tabindex="0" aria-label="Cambiar nivel de detalle" style="display:none;pointer-events:auto;cursor:pointer;position:relative;z-index:5"><b>FPS</b><span id="fpsvisorVal">--</span></div>
     </div>
     <div style="display:flex; gap:6px">
       <div class="stat"><b>TU VIDA</b><div class="bar hp"><div id="ui-hp" style="width:100%"></div></div></div>
@@ -659,7 +659,7 @@
       <input id="btnSlider" type="range" min="0.8" max="1.5" step="0.1" value="1" style="width:100%; pointer-events:all;">
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
         <button class="bankBtn" id="pauseSound">🔊 Sonido</button>
-        <button class="bankBtn" id="pausePerf">⚡ Rendimiento</button>
+        <button class="bankBtn" id="pausePerf">⚡ Detalle: ALTO</button>
         <button class="bankBtn" id="pauseFoto">📷 Foto</button>
         <button class="bankBtn" id="pauseHelp">📖 Ayuda</button>
         <button class="bankBtn" id="pauseCode">💾 Copiar código</button>
@@ -667,7 +667,7 @@
         <button class="bankBtn" id="pauseCloud" style="grid-column:1 / span 2;">☁️ Guardar en la nube</button>
         <button class="bankBtn" id="pauseAccount" style="grid-column:1 / span 2;">👤 Mi cuenta</button>
         <button class="bankBtn" id="pauseWatch" style="grid-column:1 / span 2;">⌚ Modo reloj</button>
-        <button class="bankBtn" id="pauseFps" style="grid-column:1 / span 2;">🎞️ Fotogramas: OFF</button>
+        <button class="bankBtn" id="pauseFps" style="grid-column:1 / span 2;">🎞️ Detalle: ALTO</button>
       </div>
       <div id="pauseCreativeRow" style="display:none; align-items:center; justify-content:center; gap:8px; margin-top:12px; padding:8px; background:rgba(168,85,247,.18); border-radius:10px;">
         <button class="bankBtn" id="pauseStageDown" style="width:44px;">➖</button>
@@ -800,7 +800,7 @@
       <button type="button" class="tbtn" data-act="helper" aria-label="Llamar ayudante">🧒<small>hijo</small></button>
       <button type="button" class="tbtn" data-act="rocket" aria-label="Usar cohete">🚀<small>cohete</small></button>
       <button type="button" class="tbtn" data-act="chat" aria-label="Chat mundial">💬<small>chat</small></button>
-      <button type="button" class="tbtn" data-act="fps" aria-label="Cambiar fotogramas">🎞️<small>fps</small></button>
+      <button type="button" class="tbtn" data-act="fps" aria-label="Cambiar nivel de detalle">🎞️<small>detalle</small></button>
       <button type="button" class="tbtn" data-act="help" aria-label="Abrir ayuda">❓<small>ayuda</small></button>
     </span>
   </div>
@@ -13977,16 +13977,33 @@ try {
 } catch (e) {}
 function applyBtnScale() { document.documentElement.style.setProperty('--btnscale', btnScale); }
 let perfExtra = false;       // 2ª etapa del detector de lag: aún menos resolución y distancia
-function applyPerfMode() {   // modo rendimiento: sin sombras, menos resolución y menos distancia de dibujo
-  sun.castShadow = !perfMode;
-  renderer.shadowMap.enabled = !perfMode;
-  sun.shadow.mapSize.set(perfMode ? 512 : 2048, perfMode ? 512 : 2048);
-  renderer.shadowMap.type = perfMode ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
-  renderer.toneMappingExposure = perfMode ? 1 : 1.15;
-  renderer.setPixelRatio(perfMode ? (perfExtra ? 0.75 : 1) : Math.min(devicePixelRatio, 2));
-  // la niebla tapa todo desde ~160: dibujar hasta 600 es puro gasto en equipos lentos
-  camera.far = perfMode ? (perfExtra ? 220 : 320) : 600; camera.updateProjectionMatrix();
+// Cuatro detalles para probar en partida. El número de fotogramas de arriba dice cuál va fluido.
+const DETAIL = [
+  { name: 'ALTO', shadows: true, map: 2048, soft: true, pixel: 2, far: 600, exposure: 1.15 },
+  { name: 'MEDIO', shadows: true, map: 1024, soft: false, pixel: 1.5, far: 420, exposure: 1.08 },
+  { name: 'BAJO', shadows: false, map: 512, soft: false, pixel: 1, far: 320, exposure: 1 },
+  { name: 'MÍNIMO', shadows: false, map: 512, soft: false, pixel: 0.75, far: 220, exposure: 1 },
+];
+let detailLevel = 0;
+function applyDetail(level) {
+  detailLevel = ((level % DETAIL.length) + DETAIL.length) % DETAIL.length;
+  const d = DETAIL[detailLevel];
+  perfMode = detailLevel >= 2;
+  perfExtra = detailLevel >= 3;
+  sun.castShadow = d.shadows;
+  renderer.shadowMap.enabled = d.shadows;
+  sun.shadow.mapSize.set(d.map, d.map);
+  if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+  renderer.shadowMap.type = d.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  renderer.toneMappingExposure = d.exposure;
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, d.pixel));
+  camera.far = d.far; camera.updateProjectionMatrix();
+  if (typeof resize === 'function') resize();
+  try { localStorage.setItem('tim_detail', String(detailLevel)); localStorage.setItem('tim_perf', perfMode ? '1' : '0'); } catch (e) {}
+  const titulo = ui('fpsvisor') && ui('fpsvisor').querySelector('b');
+  if (titulo) titulo.textContent = d.name;
 }
+function applyPerfMode() { applyDetail(perfExtra ? 3 : (perfMode ? 2 : (detailLevel === 1 ? 1 : 0))); }
 // ---- Detector de lag: si el juego va lento un par de segundos, baja la calidad solo ----
 let fpsMedT = 0, fpsMedN = 0, fpsLento = 0, autoPerfStage = 0, autoPerfLock = false, fpsPrev = 0;
 function updateAutoPerf() {
@@ -13998,52 +14015,33 @@ function updateAutoPerf() {
   const fps = fpsMedN * 1000 / fpsMedT; fpsMedT = 0; fpsMedN = 0;
   if (fps < 28) fpsLento++; else fpsLento = Math.max(0, fpsLento - 1);
   if (fpsLento < 2) return;                         // 2 s seguidos de lag → actuar
+  if (detailLevel >= 3) return;
   fpsLento = 0; autoPerfStage++;
-  if (!perfMode) { perfMode = true; try { localStorage.setItem('tim_perf', '1'); } catch (e) {} }
-  else perfExtra = true;                            // ya estaba en rendimiento: 2ª etapa
-  applyPerfMode();
-  toast('🐢 El juego iba lento: bajé la calidad para que corra mejor (⚙️ pausa → Rendimiento)');
+  applyDetail(detailLevel + 1);
+  toast('🐢 Iba lento: detalle ' + DETAIL[detailLevel].name + '. Con F3 lo subes si quieres.');
 }
-// Fotogramas en partida: OFF → ver → tope 60 → tope 30. El tope solo salta dibujos;
-// el reloj del día sigue en tiempo real, así el día (6 min 30 s) sigue más largo que la noche (2 min).
-const FPS_MODE_IDS = ['0', '1', '60', '30'];
-const FPS_MODE_NAMES = ['OFF', 'VER', 'MÁX 60', 'MÁX 30'];
-let fpsVisor = false, fpsMode = 0, fpsCap = 0, fpsNext = 0;
+// En partida: F3, el recuadro de fotogramas, la rueda o ⋯ → fps recorren ALTO → MEDIO → BAJO → MÍNIMO.
+let fpsVisor = false;
 let fpsVisorT = 0, fpsVisorN = 0, fpsVisorPrev = 0;
-function fpsModeName() { return FPS_MODE_NAMES[fpsMode] || 'OFF'; }
+function fpsModeName() { return DETAIL[detailLevel].name; }
 function setFpsVisor(on) {
   fpsVisor = !!on;
   fpsVisorT = 0; fpsVisorN = 0; fpsVisorPrev = 0;
   const caja = ui('fpsvisor');
   if (caja) caja.style.display = fpsVisor ? '' : 'none';
   const titulo = caja && caja.querySelector('b');
-  if (titulo) titulo.textContent = fpsCap ? ('MÁX ' + fpsCap) : 'FPS';
+  if (titulo) titulo.textContent = DETAIL[detailLevel].name;
+  try { localStorage.setItem('tim_fps', fpsVisor ? '1' : '0'); } catch (e) {}
 }
-function applyFpsMode(i, announce) {
-  fpsMode = ((i % FPS_MODE_IDS.length) + FPS_MODE_IDS.length) % FPS_MODE_IDS.length;
-  const id = FPS_MODE_IDS[fpsMode];
-  fpsCap = id === '60' ? 60 : id === '30' ? 30 : 0;
-  fpsNext = 0;
-  setFpsVisor(id !== '0');
-  const btn = ui('pauseFps');
-  if (btn) btn.textContent = '🎞️ Fotogramas: ' + fpsModeName();
-  try { localStorage.setItem('tim_fps', id); } catch (e) {}
-  if (announce) {
-    const msgs = [
-      '🎞️ Fotogramas ocultos',
-      '🎞️ Viendo fotogramas, sin tope',
-      '🎞️ Tope de 60 fotogramas. El día sigue más largo que la noche.',
-      '🎞️ Tope de 30 fotogramas. El día sigue más largo que la noche.',
-    ];
-    toast(msgs[fpsMode]);
-  }
+function cycleFpsMode() {
+  autoPerfLock = true;   // si lo eliges a mano, el detector automático no te lo cambia
+  applyDetail(detailLevel + 1);
+  setFpsVisor(true);
+  const name = DETAIL[detailLevel].name;
+  if (ui('pauseFps')) ui('pauseFps').textContent = '🎞️ Detalle: ' + name;
+  if (ui('pausePerf')) ui('pausePerf').textContent = '⚡ Detalle: ' + name;
+  toast('🎞️ Detalle ' + name + '. Mira los fotogramas arriba y pulsa otra vez para el siguiente.');
 }
-function cycleFpsMode() { applyFpsMode(fpsMode + 1, true); }
-try {
-  const savedFps = localStorage.getItem('tim_fps');
-  const savedIdx = FPS_MODE_IDS.indexOf(savedFps || '0');
-  fpsMode = savedIdx < 0 ? 0 : savedIdx;
-} catch (e) {}
 function updateFpsVisor() {
   if (!fpsVisor) return;
   const now = performance.now();
@@ -14054,11 +14052,19 @@ function updateFpsVisor() {
   fpsVisorT = 0; fpsVisorN = 0;
   const el = ui('fpsvisorVal');
   if (!el) return;
-  el.textContent = Math.round(fps) + ' · ' + ms.toFixed(1) + ' ms';
+  el.textContent = Math.round(fps) + ' · ' + DETAIL[detailLevel].name;
   el.style.color = fps >= 50 ? '#4ade80' : fps >= 30 ? '#facc15' : '#f87171';
 }
-setFpsVisor(fpsVisor);
-applyBtnScale(); if (perfMode) applyPerfMode();
+applyBtnScale();
+try {
+  const guardado = localStorage.getItem('tim_detail');
+  if (guardado != null && guardado !== '' && !isNaN(+guardado)) applyDetail(+guardado);
+  else if (localStorage.getItem('tim_perf') === '0') applyDetail(0);
+  else if (perfMode) applyDetail(2);
+  else applyDetail(0);
+  if (localStorage.getItem('tim_fps') === '1') setFpsVisor(true);
+} catch (e) { applyDetail(perfMode ? 2 : 0); }
+if (ui('fpsvisor')) ui('fpsvisor').onclick = () => cycleFpsMode();
 // Modo reloj: ahora que perfMode ya existe, aplicarlo (auto en pantallas diminutas) y engancharlo al botón + resize
 // El modo reloj NO se auto-activa (muchos celulares en horizontal miden ≤320 de alto y se activaba solo).
 // Solo se prende a mano con el botón ⌚ del menú de pausa; así el celular queda EXACTO como antes.
@@ -14075,8 +14081,8 @@ function togglePause(force) {
     ui('sensSlider').value = lookMult; ui('sensVal').textContent = lookMult.toFixed(1) + '×';
     ui('btnSlider').value = btnScale; ui('btnVal').textContent = btnScale.toFixed(1) + '×';
     ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO';
-    ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF';
-    if (ui('pauseFps')) ui('pauseFps').textContent = '🎞️ Fotogramas: ' + fpsModeName();
+    ui('pausePerf').textContent = '⚡ Detalle: ' + DETAIL[detailLevel].name;
+    if (ui('pauseFps')) ui('pauseFps').textContent = '🎞️ Detalle: ' + DETAIL[detailLevel].name;
     if (ui('pauseCreativeRow')) { ui('pauseCreativeRow').style.display = state.creative ? 'flex' : 'none'; ui('pauseStageVal').textContent = state.stage; }   // control de etapa infinita (solo creativo)
     saveGame();   // pausar también guarda (por si acaso)
   }
@@ -14095,7 +14101,7 @@ ui('pauseResume').onclick = () => togglePause(false);
 ui('sensSlider').oninput = () => { lookMult = parseFloat(ui('sensSlider').value); ui('sensVal').textContent = lookMult.toFixed(1) + '×'; try { localStorage.setItem('tim_sens', String(lookMult)); } catch (e) {} };
 ui('btnSlider').oninput = () => { btnScale = parseFloat(ui('btnSlider').value); ui('btnVal').textContent = btnScale.toFixed(1) + '×'; applyBtnScale(); try { localStorage.setItem('tim_btnsize', String(btnScale)); } catch (e) {} };
 ui('pauseSound').onclick = () => { toggleSound(); ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO'; };
-ui('pausePerf').onclick = () => { perfMode = !perfMode; perfExtra = false; autoPerfLock = true; applyPerfMode(); try { localStorage.setItem('tim_perf', perfMode ? '1' : '0'); } catch (e) {} ui('pausePerf').textContent = perfMode ? '⚡ Rendimiento: ON' : '⚡ Rendimiento: OFF'; };   // si lo tocas a mano, el detector automático deja de meterse
+ui('pausePerf').onclick = () => cycleFpsMode();   // el mismo recorrido de detalle, también desde la pausa
 if (ui('pauseFps')) ui('pauseFps').onclick = () => cycleFpsMode();
 ui('pauseFoto').onclick = () => { togglePause(false); setTimeout(takePhoto, 100); };
 ui('pauseHelp').onclick = () => { togglePause(false); toggleHelp(true); };
@@ -17817,11 +17823,6 @@ let billboardTick = 0, hudTick = 0, minimapTick = 0, lodTick = 0, titleSkip = 0;
 function loop() {
   requestAnimationFrame(loop);
   if (document.hidden) return;
-  if (fpsCap > 0) {   // tope de dibujo: el día y la noche siguen contando en tiempo real
-    const ahora = performance.now();
-    if (ahora < fpsNext) return;
-    fpsNext = ahora + 1000 / fpsCap;
-  }
   updateFpsVisor();
   const dt = Math.min(clock.getDelta(), 0.05);
   updateAutoPerf();   // si el juego va lento un par de segundos, baja la calidad solo

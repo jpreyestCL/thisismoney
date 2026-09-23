@@ -40,5 +40,5 @@ assert.match(html, /Caíste al vacío/);
 assert.match(html, /Pisa enemigos desde arriba/);
 assert.doesNotMatch(html, /Gemas ' \+ s\.gems \+ '\/3'/);
 
-assert.match(sw, /tim-v56/);
+assert.match(sw, /tim-v57/);
 console.log('play games football granprix and heroes: ok');

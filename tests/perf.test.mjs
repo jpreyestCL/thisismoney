@@ -21,6 +21,10 @@ assert.match(html, /sun\.shadow\.mapSize\.set\(preferLowPerf \? 512 : 2048/);
 assert.match(html, /const CELL = o\.cell \|\| \(o\.ski \? 4\.2 : 2\.8\)/);
 assert.match(html, /im\.castShadow = false/);
 assert.match(html, /oceanFxGroup/);
+assert.match(html, /function applyDetail\(/);
+assert.match(html, /function cycleFpsMode\(/);
+assert.match(html, /name: 'ALTO'/);
+assert.match(html, /name: 'MÍNIMO'/);
 assert.match(html, /function setFpsVisor\(/);
 assert.match(html, /function updateFpsVisor\(/);
 assert.match(html, /id="fpsvisor"/);
@@ -38,6 +42,6 @@ assert.match(html, /SKY_SUNSET/);
 assert.match(html, /Amanece\. El sol sale por el este/);
 assert.match(html, /Atardece\. El sol se pone al oeste/);
 assert.match(html, /El cielo clarea/);
-assert.match(sw, /tim-v54/);
+assert.match(sw, /tim-v57/);
 
 console.log('perf lod and startup: ok');

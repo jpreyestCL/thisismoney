@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHAT_BUBBLE_MS, CHAT_CUSTOM_PREFIX, CHAT_EMOJIS, CHAT_MAX_LEN, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, isJpegBase64, stickerFromText, stickerPayload } from '../src/chat.js';
+import crypto from 'node:crypto';
+import { CHAT_BUBBLE_MS, CHAT_CUSTOM_PREFIX, CHAT_EMOJIS, CHAT_MAX_LEN, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, isJpegBase64, stickerFromText, stickerPayload } from '../src/chat.js';
 
 // El globo del chat dura 7 segundos: es la promesa del juego, no un detalle suelto.
 assert.equal(CHAT_BUBBLE_MS, 7000);
@@ -74,6 +75,16 @@ assert.equal(accountNameKey('José'), accountNameKey('jose'));
 assert.equal(accountNameKey('José'), 'jose');
 assert.equal(accountNameKey('Jugador'), 'jugador');
 
+// La cuenta con clave tiene un solo id de ranking, igual en cualquier aparato.
+const joseId = accountRankingId('José');
+assert.equal(joseId, accountRankingId('jose'));
+assert.equal(joseId, accountRankingId('  JOSE  '));
+assert.match(joseId, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+assert.notEqual(accountRankingId('Ana'), joseId);
+assert.equal(accountRankingId('J'), null);
+const sha = crypto.createHash('sha1').update('thisismoney.rank.v1:jose').digest('hex');
+assert.equal(joseId.replace(/-/g, '').slice(0, 12), sha.slice(0, 12));
+
 // Anti spam: hay que esperar entre mensaje y mensaje.
 assert.equal(chatSendWait(0), 0, 'el primer mensaje sale al tiro');
 assert.ok(chatSendWait(1000, 1200) > 0, 'dos mensajes seguidos deben esperar');
@@ -96,7 +107,7 @@ assert.match(html, /function sendChatSticker\(/);
 assert.match(html, /function openStickerMake\(/);
 assert.match(html, /function sendCustomChatSticker\(/);
 assert.match(html, /stickerFromText/);
-assert.match(html, /src\/chat\.js\?v=4/);
+assert.match(html, /src\/chat\.js\?v=5/);
 assert.match(html, /stickerMake.*TYPING_BOXES|TYPING_BOXES = \[.*stickerMake/);
 assert.match(server, /CHAT_POST_MAX/);
 assert.match(schema, /char_length\(body\) between 1 and 14000/);

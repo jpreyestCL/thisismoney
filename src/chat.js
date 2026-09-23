@@ -170,6 +170,44 @@ export function accountNameKey(value) {
   return cleanAccountName(value).normalize('NFD').replace(/\p{Mn}/gu, '').toLowerCase();
 }
 
+// SHA-1 en hexadecimal. El navegador y el servidor calculan el mismo id de
+// ranking a partir del nombre, sin depender de crypto nativo.
+function sha1Hex(message) {
+  const rotl = (n, s) => (n << s) | (n >>> (32 - s));
+  const bytes = new TextEncoder().encode(message);
+  const padded = new Uint8Array(((bytes.length + 9 + 63) & ~63));
+  padded.set(bytes);
+  padded[bytes.length] = 0x80;
+  const view = new DataView(padded.buffer);
+  view.setUint32(padded.length - 4, bytes.length * 8, false);
+  let h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476, h4 = 0xc3d2e1f0;
+  const w = new Uint32Array(80);
+  for (let i = 0; i < padded.length; i += 64) {
+    for (let t = 0; t < 16; t++) w[t] = view.getUint32(i + t * 4, false);
+    for (let t = 16; t < 80; t++) w[t] = rotl(w[t - 3] ^ w[t - 8] ^ w[t - 14] ^ w[t - 16], 1);
+    let a = h0, b = h1, c = h2, d = h3, e = h4;
+    for (let t = 0; t < 80; t++) {
+      const f = t < 20 ? (b & c) | (~b & d) : t < 40 ? b ^ c ^ d : t < 60 ? (b & c) | (b & d) | (c & d) : b ^ c ^ d;
+      const k = t < 20 ? 0x5a827999 : t < 40 ? 0x6ed9eba1 : t < 60 ? 0x8f1bbcdc : 0xca62c1d6;
+      const temp = (rotl(a, 5) + f + e + k + w[t]) | 0;
+      e = d; d = c; c = rotl(b, 30); b = a; a = temp;
+    }
+    h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0; h4 = (h4 + e) | 0;
+  }
+  return [h0, h1, h2, h3, h4].map(h => (h >>> 0).toString(16).padStart(8, '0')).join('');
+}
+
+// El mismo usuario con clave, en cualquier celular, manda el mismo id al ranking.
+export function accountRankingId(name) {
+  const key = accountNameKey(name);
+  if (key.length < 2) return null;
+  const hex = sha1Hex('thisismoney.rank.v1:' + key).slice(0, 32).split('');
+  hex[12] = '5';
+  hex[16] = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  const h = hex.join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
 // Milisegundos que faltan para poder mandar otro mensaje (0 = puede escribir ya).
 export function chatSendWait(lastSentAt, now = Date.now()) {
   if (!lastSentAt) return 0;

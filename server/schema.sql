@@ -27,7 +27,7 @@ create index if not exists leaderboard_recent_idx
   on leaderboard_scores (quarter, updated_at desc);
 
 revoke all on leaderboard_scores from public;
-grant select, insert, update on leaderboard_scores to timleaderboard;
+grant select, insert, update, delete on leaderboard_scores to timleaderboard;
 
 -- CHAT MUNDIAL: el muro del inicio y los mensajes que aparecen jugando.
 create table if not exists chat_messages (

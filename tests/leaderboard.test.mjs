@@ -14,6 +14,9 @@ assert.doesNotMatch(server, /greatest\(leaderboard_scores\.best_money/);
 assert.doesNotMatch(server, /greatest\(leaderboard_scores\.best_stage/);
 
 assert.match(html, /function rankingIdFor\(/);
+assert.match(html, /function adoptCloudRankingId\(/);
+assert.match(html, /tim_cloud_ok_/);
+assert.match(html, /accountRankingId/);
 assert.match(html, /tim_rank_id_/);
 assert.match(html, /function submitAllLeaderboards\(/);
 assert.match(html, /function submitOneLeaderboard\(/);
@@ -23,6 +26,8 @@ assert.match(html, /rankingIdKey\(oldName\)/);
 assert.match(html, /limit=200/);
 assert.match(html, /tú/);
 assert.match(server, /Math\.min\(250,/);
-assert.match(sw, /tim-v57/);
+assert.match(server, /function collapseRankRows\(/);
+assert.match(server, /delete from leaderboard_scores where quarter = \$1 and player_id = any/);
+assert.match(sw, /tim-v58/);
 
 console.log('leaderboard current money: ok');

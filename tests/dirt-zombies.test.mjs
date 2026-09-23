@@ -14,6 +14,6 @@ assert.match(html, /tryCombatStrike\(power\)/);
 assert.match(html, /dirtZombiesAlive\(\)/);
 assert.match(html, /Pégale ya/);
 assert.match(html, /z\.userData\.attackCd = 0/);
-assert.match(sw, /tim-v57/);
+assert.match(sw, /tim-v58/);
 
 console.log('dirt zombies: ok');

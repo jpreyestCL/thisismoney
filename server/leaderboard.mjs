@@ -1,7 +1,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import pg from 'pg';
-import { CHAT_CUSTOM_PREFIX, CHAT_HISTORY, accountNameKey, cleanAccountName, cleanChatName, cleanChatText } from '../src/chat.js';
+import { CHAT_CUSTOM_PREFIX, CHAT_HISTORY, accountNameKey, accountRankingId, cleanAccountName, cleanChatName, cleanChatText } from '../src/chat.js';
 
 const { Pool } = pg;
 const PORT = Number(process.env.PORT || 8788);
@@ -53,16 +53,35 @@ async function readBody(req, maxBytes = 4096) {
   for await (const chunk of req) { raw += chunk; if (raw.length > maxBytes) throw new Error('body_too_large'); }
   return JSON.parse(raw || '{}');
 }
+function rankMoney(row) { return Number(row.best_money) || 0; }
+function rankStage(row) { return Number(row.best_stage) || 0; }
+// Una cuenta (José y jose) ocupa una sola fila: se queda la actualización más nueva.
+function collapseRankRows(rows) {
+  const byName = new Map();
+  for (const row of rows) {
+    const key = accountNameKey(row.display_name) || String(row.display_name || '').toLowerCase();
+    const prev = byName.get(key);
+    if (!prev || new Date(row.updated_at) >= new Date(prev.updated_at)) byName.set(key, row);
+  }
+  return [...byName.values()];
+}
 async function list(req, res, url) {
   const sort = ['money', 'stage', 'players'].includes(url.searchParams.get('sort')) ? url.searchParams.get('sort') : 'money';
   const limit = Math.min(250, Math.max(1, Number(url.searchParams.get('limit')) || 100));
-  const order = sort === 'stage' ? 'best_stage desc, best_money desc' : sort === 'players' ? 'updated_at desc' : 'best_money desc, best_stage desc';
   const q = quarter();
-  const [rows, count] = await Promise.all([
-    pool.query(`select display_name, best_money, best_stage, creative, updated_at from leaderboard_scores where quarter = $1 and creative = false order by ${order} limit $2`, [q, limit]),
-    pool.query('select count(*)::int as total from leaderboard_scores where quarter = $1 and creative = false', [q]),
-  ]);
-  json(res, 200, { quarter: q, totalPlayers: count.rows[0].total, sort, players: rows.rows });
+  const rows = await pool.query(
+    'select display_name, best_money, best_stage, creative, updated_at from leaderboard_scores where quarter = $1 and creative = false',
+    [q],
+  );
+  let players = collapseRankRows(rows.rows);
+  players.sort((a, b) => {
+    if (sort === 'stage') return rankStage(b) - rankStage(a) || rankMoney(b) - rankMoney(a);
+    if (sort === 'players') return new Date(b.updated_at) - new Date(a.updated_at);
+    return rankMoney(b) - rankMoney(a) || rankStage(b) - rankStage(a);
+  });
+  const totalPlayers = players.length;
+  players = players.slice(0, limit);
+  json(res, 200, { quarter: q, totalPlayers, sort, players });
 }
 async function submit(req, res) {
   // El ranking muestra la partida AHORA: si gastas o pierdes plata, baja tu puesto.
@@ -74,6 +93,8 @@ async function submit(req, res) {
   const stage = Math.min(10_000, Math.max(1, Math.floor(Number(body.stage) || 1)));
   const creative = body.creative === true;
   const fingerprint = crypto.createHash('sha256').update(clientKey(req)).digest('hex').slice(0, 24);
+  const name = cleanChatName(body.name);
+  const q = quarter();
   await pool.query(
     `insert into leaderboard_scores (quarter, player_id, display_name, best_money, best_stage, creative, source_hash)
      values ($1, $2::uuid, $3, $4, $5, $6, $7)
@@ -84,9 +105,23 @@ async function submit(req, res) {
        creative = excluded.creative,
        source_hash = excluded.source_hash,
        updated_at = now()`,
-    [quarter(), playerId, cleanChatName(body.name), money, stage, creative, fingerprint],
+    [q, playerId, name, money, stage, creative, fingerprint],
   );
-  json(res, 200, { ok: true, quarter: quarter() });
+  const stable = accountRankingId(name);
+  if (stable && playerId.toLowerCase() === stable) {
+    try {
+      const others = await pool.query(
+        'select player_id, display_name from leaderboard_scores where quarter = $1 and player_id <> $2::uuid',
+        [q, playerId],
+      );
+      const key = accountNameKey(name);
+      const drop = others.rows.filter(row => accountNameKey(row.display_name) === key).map(row => row.player_id);
+      if (drop.length) {
+        await pool.query('delete from leaderboard_scores where quarter = $1 and player_id = any($2::uuid[])', [q, drop]);
+      }
+    } catch (e) { /* la lista igual muestra una sola fila por cuenta */ }
+  }
+  json(res, 200, { ok: true, quarter: q });
 }
 
 // ---- CHAT MUNDIAL -------------------------------------------------

@@ -1214,7 +1214,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';                  
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=5';
-import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=4';
+import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -13108,8 +13108,8 @@ function ensureDavidWorld() {   // vuelve a crear el perfil David si se borró o
   applyLobbyLook();
 })();
 
-// Ranking mundial trimestral. Cada CUENTA (nombre de perfil) tiene su propio
-// id anónimo: si en el mismo celular juegan varios, no se pisan en la tabla.
+// Ranking mundial trimestral. Cada perfil de este aparato tiene su id.
+// Una cuenta abierta con clave usa SIEMPRE el mismo id, en cualquier celular.
 let leaderboardPlayerId = null, leaderboardSort = 'money';
 const leaderboardSentAt = Object.create(null);
 function randomUuid() {
@@ -13119,9 +13119,22 @@ function validRankingId(id) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ''));
 }
 function rankingIdKey(name) { return 'tim_rank_id_' + name; }
+function adoptCloudRankingId(name) {
+  const id = accountRankingId(name);
+  if (!id) return null;
+  try {
+    localStorage.setItem('tim_cloud_ok_' + name, '1');
+    localStorage.setItem(rankingIdKey(name), id);
+  } catch (e) {}
+  return id;
+}
 function rankingIdFor(name) {
   name = name || 'Jugador';
   try {
+    if (localStorage.getItem('tim_cloud_ok_' + name) === '1') {
+      const cloudId = adoptCloudRankingId(name);
+      if (cloudId) return cloudId;
+    }
     const stored = localStorage.getItem(rankingIdKey(name));
     if (validRankingId(stored)) return stored;
     const last = localStorage.getItem('tim_profile') || name;
@@ -13917,6 +13930,7 @@ async function submitCloudLogin() {
     ensureDavidWorld();
     setProfile('David');
     syncAccountNames('David');
+    adoptCloudRankingId('David');
     closeCloudLoginBox();
     ui('namebox').style.display = 'none';
     ui('profilebox').style.display = 'none';
@@ -13943,7 +13957,7 @@ async function submitCloudLogin() {
     syncAccountNames(usedName);
     localStorage.setItem(profileKey(usedName), JSON.stringify(d.save));
     cloudPass = pass;
-    try { localStorage.setItem('tim_cloud_ok_' + usedName, '1'); } catch (e) {}
+    adoptCloudRankingId(usedName);
     closeCloudLoginBox();
     ui('namebox').style.display = 'none';
     ui('profilebox').style.display = 'none';

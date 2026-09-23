@@ -42,6 +42,6 @@ assert.match(html, /SKY_SUNSET/);
 assert.match(html, /Amanece\. El sol sale por el este/);
 assert.match(html, /Atardece\. El sol se pone al oeste/);
 assert.match(html, /El cielo clarea/);
-assert.match(sw, /tim-v57/);
+assert.match(sw, /tim-v58/);
 
 console.log('perf lod and startup: ok');

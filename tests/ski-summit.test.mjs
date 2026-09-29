@@ -13,4 +13,10 @@ assert.doesNotMatch(html, /const zOut = \(base\.z - distance\) \+ 26/);
 assert.doesNotMatch(html, /toggleSkiing\(true, '🏔️ Zona plana · ya puedes bajar la pista/);
 assert.doesNotMatch(html, /No puedes subir con los esquís puestos · usa un andarivel o el arrastre'\);\s*\n\s*\}/);
 assert.match(html, /Largar \/ esquiar ahora/);
+// El cerro nevado se ve desde lejos: silueta sin niebla que cabe dentro de camera.far.
+assert.match(html, /function updateSkiFar\(\)/);
+assert.match(html, /fog: false, depthWrite: false/);
+assert.match(html, /camera\.far \* \.9 \/ \(dc \+ SKI_RESORT\.r \* 1\.9\)/);
+assert.match(html, /skiResortGroup\.visible = skiRealNear\(\)/);
+assert.match(html, /\n  updateSkiFar\(\);/);
 console.log('ski summit launch: ok');

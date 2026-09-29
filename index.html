@@ -4809,7 +4809,7 @@ function syncFarWorld() {
     if (oceanFxGroup) oceanFxGroup.visible = false;
     return;
   }
-  skiResortGroup.visible = nearSkiNow();
+  skiResortGroup.visible = skiRealNear();
   if (oceanFxGroup) oceanFxGroup.visible = !!(state.sailing || state.swimming || player.position.x < -160);
   const nearIsl = nearIslandNow(520);
   for (const h of holes) {
@@ -6179,6 +6179,50 @@ function updateSkiVisitors(dt) {
 }
 buildSkiResort();
 skiResortGroup.visible = false;
+
+// Silueta lejana del cerro nevado: una sola malla con el MISMO perfil que la
+// estación. Se acerca al jugador y se achica en la misma proporción (ocupa el
+// mismo trozo de cielo) para caber dentro de camera.far, y se dibuja primero y
+// sin escribir profundidad: así queda de fondo y nunca tapa la ciudad.
+const SKI_FAR_FOOT = { minX: SKI_RESORT.x - SKI_RESORT.r, maxX: SKI_RESORT.x + SKI_RESORT.r, minZ: SKI_RESORT.z - SKI_RESORT.r * 1.8, maxZ: SKI_RESORT.z + SKI_RESORT.r };
+const skiFar = (() => {
+  const W = SKI_FAR_FOOT.maxX - SKI_FAR_FOOT.minX, D = SKI_FAR_FOOT.maxZ - SKI_FAR_FOOT.minZ;
+  const geo = new THREE.PlaneGeometry(W, D, 40, 56);
+  geo.rotateX(-Math.PI / 2);
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i) + (SKI_FAR_FOOT.minX + SKI_FAR_FOOT.maxX) / 2, z = p.getZ(i) + (SKI_FAR_FOOT.minZ + SKI_FAR_FOOT.maxZ) / 2;
+    p.setXYZ(i, x, skiSlopeHeight(x, z), z);
+  }
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 1, metalness: 0, flatShading: true, fog: false, depthWrite: false }));
+  mesh.renderOrder = -1; mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; mesh.visible = false;
+  scene.add(mesh);
+  return mesh;
+})();
+const SKI_FAR_SNOW = new THREE.Color(0xf1f5f9);
+function skiFootDistance(x, z) {
+  const f = SKI_FAR_FOOT;
+  return Math.hypot(Math.max(0, f.minX - x, x - f.maxX), Math.max(0, f.minZ - z, z - f.maxZ));
+}
+function skiRealNear() {
+  return nearSkiNow() || skiFootDistance(player.position.x, player.position.z) < 150;
+}
+function updateSkiFar() {
+  const show = state.planet === 'tierra' && !state.country && !state.mission && !state.inFlight && !state.underground
+    && !state.cinematic && !skiResortGroup.visible && !skiRealNear();
+  skiFar.visible = show;
+  if (!show) return;
+  const e = camera.position;
+  const dc = Math.hypot(SKI_RESORT.x - e.x, SKI_RESORT.z - e.z);
+  const s = Math.min(1, camera.far * .9 / (dc + SKI_RESORT.r * 1.9));
+  skiFar.position.set(e.x * (1 - s), e.y * (1 - s), e.z * (1 - s));
+  skiFar.scale.setScalar(s);
+  skiFar.updateMatrix();
+  skiFar.material.color.copy(SKI_FAR_SNOW).lerp(scene.fog.color, .28);   // un poco de bruma de lejos
+  // La nieve refleja el cielo: aunque el sol le dé por detrás se ve blanca, y de noche se apaga.
+  skiFar.material.emissive.copy(skiFar.material.color).multiplyScalar(.55 * Math.min(1, ambient.intensity));
+}
 
 // La Plaza Central: el corazón de la ciudad, con la fuente y el ranking mundial.
 function buildPlazaCentral() {
@@ -17842,6 +17886,7 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.05);
   updateAutoPerf();   // si el juego va lento un par de segundos, baja la calidad solo
   lodTick += dt; if (lodTick >= .25) { syncFarWorld(); lodTick = 0; }
+  updateSkiFar();
   const onPlatus = state.planet === 'platus';
   const onEarth = state.planet === 'tierra';
   if (state.running && !state.paused && (state.phase === 'DAY' || state.phase === 'NIGHT')) {

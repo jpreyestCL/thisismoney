@@ -3,9 +3,9 @@ export const GAME_RULES = Object.freeze({
   morningSeconds: 120,     // mañana: 2 minutos
   daySeconds: 360,          // día (mediodía): 6 minutos
   afternoonSeconds: 300,    // tarde: 5 minutos
-  nightSeconds: 240,        // noche: 4 minutos
+  nightSeconds: 150,        // noche: 2 minutos y medio
   firstDaySeconds: 780,
-  firstNightSeconds: 240,
+  firstNightSeconds: 150,
   finalHordeSeconds: 35,
   meteorAt: 1000000,   // el "millón": recién ahí cae el meteorito
   momAt: 20000,
@@ -53,7 +53,7 @@ export const HOUSE_VALUES = Object.freeze({
   laser: { protection: 15, energy: -5 }, torreta: { protection: 12 }, ballesta: { protection: 9 },
 });
 
-// Mañana 2 min + día 6 min + tarde 5 min. Recién ahí cae la noche, que dura 4 min.
+// Mañana 2 min + día 6 min + tarde 5 min. Recién ahí cae la noche, que dura 2,5 min.
 export function dayDuration(_nightNumber) {
   return GAME_RULES.morningSeconds + GAME_RULES.daySeconds + GAME_RULES.afternoonSeconds;
 }

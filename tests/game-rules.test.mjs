@@ -4,8 +4,8 @@ import { CHAPTERS, GAME_RULES, dayDuration, dayPart, houseRatings, monsterKillRe
 assert.equal(GAME_RULES.morningSeconds, 120, 'la mañana dura 2 minutos');
 assert.equal(GAME_RULES.daySeconds, 360, 'el día dura 6 minutos');
 assert.equal(GAME_RULES.afternoonSeconds, 300, 'la tarde dura 5 minutos');
-assert.equal(nightDuration(1), 240, 'la noche dura 4 minutos');
-assert.equal(nightDuration(4), 240, 'todas las noches duran 4 minutos');
+assert.equal(nightDuration(1), 150, 'la noche dura 2 minutos y medio');
+assert.equal(nightDuration(4), 150, 'todas las noches duran 2 minutos y medio');
 assert.equal(dayDuration(0), 780, 'mañana + día + tarde');
 assert.equal(dayDuration(3), 780);
 assert.ok(dayDuration(2) > nightDuration(2), 'hay más tiempo de día que de noche');

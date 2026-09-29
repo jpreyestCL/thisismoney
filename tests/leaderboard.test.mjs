@@ -28,6 +28,6 @@ assert.match(html, /tú/);
 assert.match(server, /Math\.min\(250,/);
 assert.match(server, /function collapseRankRows\(/);
 assert.match(server, /delete from leaderboard_scores where quarter = \$1 and player_id = any/);
-assert.match(sw, /tim-v59/);
+assert.match(sw, /tim-v60/);
 
 console.log('leaderboard current money: ok');

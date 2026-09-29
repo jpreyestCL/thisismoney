@@ -1879,6 +1879,9 @@ function makePerson(colorBody, colorHead) {
 
 // Cuerpo visible del jugador para las dos cámaras externas.
 const playerAvatar = makePerson(0x3f6212, 0xe0ac69);
+// El muñeco tiene los ojos a 2,11 y la cámara va a PLAYER_EYE: se achica para que
+// el cuerpo que ves en tercera persona mida lo mismo que tú (~1,9) y quepa en las puertas.
+playerAvatar.scale.setScalar(PLAYER_EYE / 2.11);
 playerAvatar.visible = false;
 scene.add(playerAvatar);
 

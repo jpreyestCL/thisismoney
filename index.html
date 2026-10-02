@@ -5927,6 +5927,7 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
   });
   im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
   parent.add(im);
+  m.mesh = im;
   // Piedras sueltas repartidas por la ladera
   for (let i = 0; i < 10; i++) {
     const a = rand() * 6.28, d = r * (.2 + rand() * .7);
@@ -6187,15 +6188,19 @@ skiResortGroup.visible = false;
 // estación. Se acerca al jugador y se achica en la misma proporción (ocupa el
 // mismo trozo de cielo) para caber dentro de camera.far, y se dibuja primero y
 // sin escribir profundidad: así queda de fondo y nunca tapa la ciudad.
+// Está SIEMPRE detrás: cuando aparece el cerro de verdad, se dibuja encima, y
+// donde camera.far lo corta, sigue viéndose la silueta (no hay "pop").
 const SKI_FAR_FOOT = { minX: SKI_RESORT.x - SKI_RESORT.r, maxX: SKI_RESORT.x + SKI_RESORT.r, minZ: SKI_RESORT.z - SKI_RESORT.r * 1.8, maxZ: SKI_RESORT.z + SKI_RESORT.r };
 const skiFar = (() => {
   const W = SKI_FAR_FOOT.maxX - SKI_FAR_FOOT.minX, D = SKI_FAR_FOOT.maxZ - SKI_FAR_FOOT.minZ;
-  const geo = new THREE.PlaneGeometry(W, D, 40, 56);
+  const geo = new THREE.PlaneGeometry(W, D, 80, 112);
   geo.rotateX(-Math.PI / 2);
   const p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i) + (SKI_FAR_FOOT.minX + SKI_FAR_FOOT.maxX) / 2, z = p.getZ(i) + (SKI_FAR_FOOT.minZ + SKI_FAR_FOOT.maxZ) / 2;
-    p.setXYZ(i, x, skiSlopeHeight(x, z), z);
+    const y = skiSlopeHeight(x, z);
+    // Un poco por ENCIMA de los escalones del cerro real: donde camera.far lo corta, no quedan huecos de cielo.
+    p.setXYZ(i, x, y > .4 ? y + 3 : y, z);
   }
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 1, metalness: 0, flatShading: true, fog: false, depthWrite: false }));
@@ -6211,9 +6216,36 @@ function skiFootDistance(x, z) {
 function skiRealNear() {
   return nearSkiNow() || skiFootDistance(player.position.x, player.position.z) < 150;
 }
-function updateSkiFar() {
-  const show = state.planet === 'tierra' && !state.country && !state.mission && !state.inFlight && !state.underground
-    && !state.cinematic && !skiResortGroup.visible && !skiRealNear();
+// El cerro de verdad no usa la niebla común (a 160 m lo borraba entero): lleva
+// su propia bruma, la misma de la silueta, que depende de cuán lejos estés.
+const skiRealMountain = (mountains.find(m => m.ski) || {}).mesh || null;
+if (skiRealMountain) { skiRealMountain.material.fog = false; skiRealMountain.material.needsUpdate = true; }
+// Lo demás de la estación (árboles, piedras, pistas, andariveles) sí usa la niebla
+// común; lo que ya quedó tapado por ella se pintaba color cielo ENCIMA del cerro,
+// como hoyos. Eso se esconde: el cerro (y la silueta) quedan a la vista.
+let skiFogged = null, skiFogT = 0;
+function hideSkiFogged(dt) {
+  if ((skiFogT -= dt) > 0) return;
+  skiFogT = .25;
+  if (!skiFogged) {
+    const box = new THREE.Box3(), sph = new THREE.Sphere();
+    skiFogged = skiResortGroup.children.filter(o => o !== skiRealMountain).map(o => {
+      if (skiVisitors.includes(o)) return { o, c: null, r: 3 };
+      box.setFromObject(o).getBoundingSphere(sph);
+      return { o, c: sph.center.clone(), r: sph.radius };
+    });
+  }
+  const e = camera.position, lim = scene.fog.far;
+  for (const it of skiFogged) {
+    const c = it.c || it.o.position;
+    it.o.visible = Math.hypot(c.x - e.x, c.y - e.y, c.z - e.z) - it.r < lim;
+  }
+}
+function skiHaze(dist) {   // 0 = nítido (al pie del cerro) · 1 = pura bruma (al otro lado del mapa)
+  return THREE.MathUtils.clamp((dist - 40) / 650, 0, 1);
+}
+function updateSkiFar(dt) {
+  const show = state.planet === 'tierra' && !state.country && !state.mission && !state.inFlight && !state.underground && !state.cinematic;
   skiFar.visible = show;
   if (!show) return;
   const e = camera.position;
@@ -6222,9 +6254,18 @@ function updateSkiFar() {
   skiFar.position.set(e.x * (1 - s), e.y * (1 - s), e.z * (1 - s));
   skiFar.scale.setScalar(s);
   skiFar.updateMatrix();
-  skiFar.material.color.copy(SKI_FAR_SNOW).lerp(scene.fog.color, .28);   // un poco de bruma de lejos
+  // Lejos se ve como una sombra azulada en el horizonte; cerca, blanca y con detalle.
+  const haze = skiHaze(skiFootDistance(e.x, e.z));
+  const light = Math.min(1, ambient.intensity);
+  skiFar.material.color.copy(SKI_FAR_SNOW).lerp(scene.fog.color, .08 + haze * .3);
   // La nieve refleja el cielo: aunque el sol le dé por detrás se ve blanca, y de noche se apaga.
-  skiFar.material.emissive.copy(skiFar.material.color).multiplyScalar(.55 * Math.min(1, ambient.intensity));
+  skiFar.material.emissive.copy(skiFar.material.color).multiplyScalar(.55 * light);
+  if (skiRealMountain && skiResortGroup.visible) {
+    hideSkiFogged(dt);
+    const m = skiRealMountain.material;
+    m.color.setHex(0xffffff).lerp(scene.fog.color, haze * .3);
+    m.emissive.copy(m.color).multiplyScalar(.45 * light);
+  }
 }
 
 // La Plaza Central: el corazón de la ciudad, con la fuente y el ranking mundial.
@@ -17889,7 +17930,7 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.05);
   updateAutoPerf();   // si el juego va lento un par de segundos, baja la calidad solo
   lodTick += dt; if (lodTick >= .25) { syncFarWorld(); lodTick = 0; }
-  updateSkiFar();
+  updateSkiFar(dt);
   const onPlatus = state.planet === 'platus';
   const onEarth = state.planet === 'tierra';
   if (state.running && !state.paused && (state.phase === 'DAY' || state.phase === 'NIGHT')) {

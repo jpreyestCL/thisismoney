@@ -671,6 +671,11 @@ Manzana `torre` en `src/city-map.js` (`LUGARES.torre` = (-27.5, 130)); todo el c
  la tele, cocina con congelador, mesa con sillas y horno APOYADO en el piso, baño con espejo de
  verdad (Reflector, `alturaY` para no encender el de otro piso), váter, ducha y alfombra, y dormitorio
  con cama, tele con Play y ventanales. Tu puerta se abre/cierra con E (`setPuertaDepto`).
+- **Muebles que se usan con E** (`dep.objetos`, registrados al final de `amoblarDepto`; `torreQueHay`
+ devuelve `{tipo:'objeto'}` y `usarObjetoDepto` hace la acción): sillón (te sienta y prende la tele),
+ 4 sillas, váter y cama (asientos falsos para `trySit` con `salida`: `standUp` te deja en ese punto
+ libre), tele on/off, Play (`abrirMenuPlay`), congelador (+30 hambre, 40 s), horno (pizza +1 comida
+ en 4 s, 60 s), ducha (+15 vida, 30 s), lavamanos y lámpara. Esperas en `torreUsoT`.
 - Solo se dibujan los pisos vecinos al tuyo; una sola `PointLight` (`torreLuz`) te acompaña adentro.
 - Los rascacielos del centro (`makeWindowTexture`, `FACHADA_VENTANAS`) tienen ventanas de tamaño real
  (≈1,5 m × piso de 3,4 m) con antepecho, hall de vidrio con puerta y equipos en la azotea.

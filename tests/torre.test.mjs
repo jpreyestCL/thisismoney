@@ -60,3 +60,10 @@ test('bajo techo no llueve y en 1ª persona tu cuerpo solo sale en el espejo', (
 test('el horno se apoya en el piso (no flota)', () => {
   assert.match(html, /oven: 0\.7/);
 });
+
+test('los muebles del depto se usan con E', () => {
+  for (const t of ['tele', 'play', 'congelador', 'horno', 'lavamanos', 'ducha', 'lampara']) assert.match(html, new RegExp("objeto\\('" + t + "'"));
+  for (const k of ['sofa', 'silla', 'bano', 'cama']) assert.match(html, new RegExp("asiento\\('" + k + "'"));
+  assert.match(html, /if \(q\.tipo === 'objeto'\) return usarObjetoDepto\(q\.obj\)/);
+  assert.match(html, /salida = sitOn\.salida/);   // te paras en un punto libre, no dentro del muro
+});

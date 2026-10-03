@@ -6385,8 +6385,13 @@ function nearestSeat(maxD = 2.6) {
 }
 function standUp(silent) {
   if (!sitOn) return false;
-  const p = sitOn.mesh.position, era = sitOn.key, plane = sitOn.flightSeat;
+  const p = sitOn.mesh.position, era = sitOn.key, plane = sitOn.flightSeat, salida = sitOn.salida;
   sitOn = null;
+  if (salida) {   // muebles del depto: te paras en un punto libre (z+1.3 podía dejarte dentro del muro)
+    player.position.set(salida.x, salida.y + PLAYER_EYE, salida.z);
+    if (!silent) { state.hp = Math.min(100, state.hp + 8); toast('🚶 Te paraste · descansaste un poco (+8 de vida)'); beep(520, .08, .04); }
+    return true;
+  }
   if (plane) {
     player.position.set(FLIGHT.x, FLIGHT.y + PLAYER_EYE, plane.z);
     if (!silent) { toast('🚶 De vuelta al pasillo · camina o siéntate otra vez con E'); beep(520, .08, .04); }
@@ -7619,7 +7624,7 @@ function amoblarDepto(dep) {
   const hx = 5.56, hz = 6.6;
   tBox(f, hx, .46, hz, .66, .92, .76, torreAcero, true);
   tBox(f, 5.215, .44, hz, .03, .56, .7, 0x1f2937);
-  tBox(f, 5.2, .44, hz, .02, .34, .52, new THREE.MeshStandardMaterial({ color: 0x1c1917, emissive: 0xf97316, emissiveIntensity: .25, roughness: .1 }));
+  const vidrioHorno = tBox(f, 5.2, .44, hz, .02, .34, .52, new THREE.MeshStandardMaterial({ color: 0x1c1917, emissive: 0xf97316, emissiveIntensity: .25, roughness: .1 }));
   tBox(f, 5.15, .76, hz, .04, .04, .6, torreAcero); for (const dz of [-.27, .27]) tBox(f, 5.18, .76, hz + dz, .06, .04, .04, torreAcero);
   tBox(f, 5.215, .84, hz, .03, .1, .74, 0x111827);
   for (let i = 0; i < 4; i++) tCil(f, 5.19, .84, hz - .27 + i * .18, .03, .04, 0xe5e7eb, true);
@@ -7711,6 +7716,97 @@ function amoblarDepto(dep) {
   for (const dz of [-.12, .12]) tBox(f, 10.79, 1.1, 7.3 + dz, .03, .3, .03, 0x4b5563);
   obs(10.1, 10.8, 6.1, 8.5, 2.2);
   luzTecho(13, 6.5);
+  // ---------- COSAS QUE SE USAN CON E (x local, zp sin espejar; dx/dz = hacia dónde mira el asiento) ----------
+  const W = (x, zp) => ({ x: TORRE.x + x, z: TORRE.z + s * zp, y: y0 });
+  const objeto = (tipo, x, zp, radio, extra) => dep.objetos.push(Object.assign({ tipo, dep, radio, ...W(x, zp) }, extra));
+  const asiento = (key, x, zp, radio, seatY, dx, dzp, salida) => objeto('asiento', x, zp, radio, { key, seatY, dx, dz: s * dzp, salida: W(...salida) });
+  dep.objetos = [];
+  dep.tele = tele; dep.teleOn = false; tele.material = TORRE_TELE_APAGADA;
+  dep.lampara = pantalla; dep.lamparaOn = true; dep.vidrioHorno = vidrioHorno;
+  asiento('sofa', -3.6, 6, 1.6, .35, -1, 0, [-4.85, 6]);
+  for (const [sx, sz, dzp] of [[1.95, 6.25, 1], [2.85, 6.25, 1], [1.95, 7.75, -1], [2.85, 7.75, -1]]) asiento('silla', sx, sz, .75, .15, 0, dzp, [sx, dzp > 0 ? 5.4 : 8.6]);
+  asiento('bano', 9.25, 8.8, 1.1, .1, -1, 0, [8.4, 7.6]);
+  asiento('cama', 13, 8.5, 1.7, 0, 0, -1, [13, 6.8]);
+  objeto('tele', -8.1, 6, 1.8);
+  objeto('play', 13.8, 4.6, 1.5);
+  objeto('congelador', 4.75, 9.2, 1.3);
+  objeto('horno', 4.75, 6.6, 1.1);
+  objeto('lavamanos', 8.95, 6, 1);
+  objeto('ducha', 6.8, 7.75, 1.1);
+  objeto('lampara', -2.6, 8.4, 1.1);
+}
+const TORRE_TELE_APAGADA = new THREE.MeshBasicMaterial({ color: 0x0b0b0f });
+const torreUsoT = new Map();   // espera entre usos (congelador, horno, ducha) por depto
+function torreObjetoCerca(k) {
+  let best = null, bd = 1e9;
+  for (const dep of torreDeptos) {
+    if (dep.nivel !== k || !dep.objetos) continue;
+    for (const o of dep.objetos) {
+      const d = Math.hypot(player.position.x - o.x, player.position.z - o.z);
+      if (d < o.radio && d < bd) { bd = d; best = o; }
+    }
+  }
+  return best;
+}
+function torreObjetoTexto(o) {
+  if (o.tipo === 'asiento') return { sofa: 'Sentarte en el sillón a ver tele', silla: 'Sentarte a la mesa', bano: 'Sentarte en el baño', cama: 'Acostarte en la cama' }[o.key];
+  return {
+    tele: o.dep.teleOn ? 'Apagar la tele' : 'Prender la tele', play: 'Jugar en la Play',
+    congelador: 'Sacar algo del congelador (comer)', horno: 'Cocinar en el horno (+1 comida)',
+    lavamanos: 'Lavarte la cara', ducha: 'Ducharte (+vida)', lampara: o.dep.lamparaOn ? 'Apagar la lámpara' : 'Prender la lámpara',
+  }[o.tipo];
+}
+const TORRE_OBJ_ICONO = { asiento: '🪑', tele: '📺', play: '🎮', congelador: '🧊', horno: '🔥', lavamanos: '🚰', ducha: '🚿', lampara: '💡' };
+function setTeleDepto(dep, on) {
+  dep.teleOn = on;
+  if (dep.tele) dep.tele.material = on ? TORRE_TELE.living : TORRE_TELE_APAGADA;
+}
+function torreEspera(o, seg) {   // true si todavía no se puede volver a usar
+  const clave = o.dep.id + o.tipo, ahora = performance.now(), listo = torreUsoT.get(clave) || 0;
+  if (ahora < listo) { toast('⏳ Espera ' + Math.ceil((listo - ahora) / 1000) + ' s para volver a usarlo'); return true; }
+  torreUsoT.set(clave, ahora + seg * 1000);
+  return false;
+}
+function usarObjetoDepto(o) {
+  const dep = o.dep;
+  if (o.tipo === 'asiento') {
+    trySit({ key: o.key, torre: true, salida: o.salida, mesh: { position: new THREE.Vector3(o.x, o.y + o.seatY, o.z), rotation: { y: Math.atan2(o.dx, o.dz) } } });
+    yaw = Math.atan2(-o.dx, -o.dz); pitch = o.key === 'cama' ? .05 : -.05;
+    if (o.key === 'sofa' && !dep.teleOn) { setTeleDepto(dep, true); toast('📺 Prendiste la tele · ¡a ver el partido! · E para pararte'); }
+    return true;
+  }
+  if (o.tipo === 'tele') { setTeleDepto(dep, !dep.teleOn); beep(dep.teleOn ? 700 : 300, .06, .04); return true; }
+  if (o.tipo === 'play') return abrirMenuPlay();
+  if (o.tipo === 'lampara') {
+    dep.lamparaOn = !dep.lamparaOn; dep.lampara.material.emissiveIntensity = dep.lamparaOn ? .7 : 0;
+    beep(600, .04, .03); return true;
+  }
+  if (o.tipo === 'congelador') {
+    if (torreEspera(o, 40)) return true;
+    state.hunger = Math.min(100, state.hunger + 30);
+    toast(['🧊 Sacaste un helado del congelador · +30 de hambre', '🧊 Te comiste un yogur bien helado · +30 de hambre', '🧊 Sacaste una paleta de agua · +30 de hambre'][Math.floor(Math.random() * 3)]);
+    tone(520, .12, .04, 'triangle'); return true;
+  }
+  if (o.tipo === 'horno') {
+    if (torreEspera(o, 60)) return true;
+    dep.vidrioHorno.material.emissiveIntensity = 1.6;
+    toast('🔥 Prendiste el horno… la pizza estará lista en 4 segundos');
+    tone(300, .3, .04, 'sawtooth');
+    setTimeout(() => {
+      dep.vidrioHorno.material.emissiveIntensity = .25;
+      state.inv.food = (state.inv.food || 0) + 1;
+      toast('🍕 ¡Pizza lista! +1 comida (Q para comer)'); tone(880, .15, .05, 'triangle'); setTimeout(() => tone(1100, .2, .05, 'triangle'), 140);
+      saveGame();
+    }, 4000);
+    return true;
+  }
+  if (o.tipo === 'ducha') {
+    if (torreEspera(o, 30)) return true;
+    state.hp = Math.min(100, state.hp + 15);
+    toast('🚿 Te duchaste con agua calentita · +15 de vida'); beep(240, .4, .03); return true;
+  }
+  if (o.tipo === 'lavamanos') { state.hp = Math.min(100, state.hp + 3); toast('🚰 Te lavaste la cara · ¡qué fresco! (+3 de vida)'); beep(330, .15, .03); return true; }
+  return false;
 }
 // ---- Dónde estás: piso (0 = hall) y si estás dentro del edificio ----
 function torreLocal() { return { x: player.position.x - TORRE.x, z: player.position.z - TORRE.z }; }
@@ -7840,16 +7936,20 @@ function cerrarBotonera() { ui('liftbox').style.display = 'none'; document.body.
 // ---- La E dentro del edificio ----
 function torreQueHay() {
   if (!torreAdentro(4) || torreLift.rider || state.driving) return null;
+  if (sitOn) return sitOn.torre ? { tipo: 'levantarse' } : null;
   const p = torreLocal(), k = torreNivel();
   if (k === 0 && torreConserje && dist2D(player.position, torreConserje.position) < 3.6) return { tipo: 'conserje' };
   if (Math.hypot(p.x - TORRE_ASC.x, p.z - .6) < 2.2) return { tipo: 'ascensor', nivel: k };
   for (const dep of torreDeptos) if (dep.nivel === k && Math.hypot(p.x - dep.puertaX, p.z - dep.puertaZ) < 1.9) return { tipo: 'depto', dep };
-  return null;
+  const obj = torreObjetoCerca(k);
+  return obj ? { tipo: 'objeto', obj } : null;
 }
 function torreAccion() {
   const q = torreQueHay(); if (!q) return null;
   if (q.tipo === 'conserje') return { key: 'E', touch: '🛎️', text: 'Hablar con la conserje · deptos a $' + TORRE_PRECIO };
   if (q.tipo === 'ascensor') return { key: 'E', touch: '🛗', text: 'Llamar el ascensor' };
+  if (q.tipo === 'levantarse') return { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : sitOn.key === 'sofa' ? 'Viendo tele · E para pararte' : 'Pararte' };
+  if (q.tipo === 'objeto') return { key: 'E', touch: TORRE_OBJ_ICONO[q.obj.tipo], text: torreObjetoTexto(q.obj) };
   const dep = q.dep;
   if (state.depto === dep.id) return { key: 'E', touch: '🔑', text: (dep.abierta ? 'Cerrar' : 'Abrir') + ' tu depto ' + dep.id };
   return { key: 'E', touch: '🏢', text: 'Depto ' + dep.id + (state.depto ? ' · ocupado' : ' · en venta $' + TORRE_PRECIO) };
@@ -7862,6 +7962,8 @@ function tryTorre() {
     abrirDeptos(null); return true;
   }
   if (q.tipo === 'ascensor') { llamarAscensor(q.nivel); return true; }
+  if (q.tipo === 'levantarse') return standUp(false);
+  if (q.tipo === 'objeto') return usarObjetoDepto(q.obj);
   const dep = q.dep;
   if (state.depto === dep.id) { setPuertaDepto(dep, !dep.abierta); beep(dep.abierta ? 520 : 380, .1, .04); return true; }
   abrirDeptos(dep.id); return true;
@@ -16112,6 +16214,9 @@ function openPlayStation() {
   }
   if (!play) { toast('🔌 Acércate a la consola Play'); return false; }
   if (!playHasTv(play)) { toast('📺 Pon una tele en la mesa para jugar a la Play'); return false; }
+  return abrirMenuPlay();
+}
+function abrirMenuPlay() {
   releaseLock(); typing = true; for (const k in keys) keys[k] = false;
   arcadeMini = { kind: 'menu', source: 'play' };
   ui('arcadeGameTitle').textContent = '🎮 Play Station';

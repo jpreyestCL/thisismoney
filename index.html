@@ -516,6 +516,19 @@
   #contextPrompt.visible { display:flex; }
   body.cine #contextPrompt { display:none !important; }
   #contextKey { min-width:30px; padding:3px 6px; color:var(--action-ink); background:var(--action); border-radius:4px; font:900 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
+  #tvbar { position:absolute; left:50%; bottom:86px; transform:translateX(-50%); display:none; align-items:center; gap:8px; z-index:6; pointer-events:none; max-width:min(92vw, 420px); padding:6px 8px; background:rgba(6,10,20,.9); border:2px solid #38bdf8; border-radius:12px; }
+  #tvbar.visible { display:flex; }
+  #tvbar button { pointer-events:all; touch-action:manipulation; cursor:pointer; width:42px; height:42px; border-radius:10px; border:1px solid #0284c7; background:#0c4a6e; color:#e0f2fe; font-size:18px; font-weight:900; }
+  #tvbar button:hover { background:#0369a1; }
+  #tvNombre { min-width:9em; text-align:center; font-weight:800; font-size:14px; color:#f8fafc; }
+  #tvHint { display:block; font-size:10px; font-weight:600; color:#7dd3fc; }
+  body.touch #tvbar { bottom:132px; }
+  body.touch #tvbar button { width:48px; height:48px; }
+  body.touch #tvHint { display:none; }
+  #lavadofx { position:absolute; inset:0; pointer-events:none; opacity:0; z-index:3; transition:opacity .15s; }
+  #lavadofx.on { opacity:1; box-shadow:inset 0 0 90px 24px rgba(125,211,252,.42); }
+  #lavadofx i { position:absolute; width:16px; height:22px; border-radius:50%; background:rgba(186,230,253,.8); animation:gotaLavado .65s linear infinite; }
+  @keyframes gotaLavado { 0% { transform:translateY(-8px); opacity:.15 } 35% { opacity:.95 } 100% { transform:translateY(78px); opacity:0 } }
   #dadhud, #gearhud { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm); }
   #buildbar { bottom:14px; max-width:min(72vw, 720px); flex-wrap:nowrap; justify-content:flex-start; overflow-x:auto; overflow-y:hidden; padding:3px; scrollbar-width:none; scroll-snap-type:x proximity; }
   #buildbar::-webkit-scrollbar { display:none; }
@@ -609,6 +622,8 @@
   <div id="bowcharge"><i></i><span id="bowdmg"></span></div>
   <div id="laserBar" role="status" aria-label="Energía del láser"><div class="lb-track"><div class="lb-fill" id="laserFill"></div></div><div class="lb-txt" id="laserTxt">LÁSER</div></div>
   <div id="contextPrompt" role="status" aria-live="polite"><span id="contextKey">E</span><span id="contextText">Interactuar</span></div>
+  <div id="tvbar" role="group" aria-label="Programas de la tele"><button type="button" id="tvPrev" aria-label="Programa anterior">◀</button><span><span id="tvNombre">El partido</span><small id="tvHint">, y . cambian · flechas si estás sentado</small></span><button type="button" id="tvNext" aria-label="Programa siguiente">▶</button></div>
+  <div id="lavadofx" aria-hidden="true"><i style="left:42%;top:36%"></i><i style="left:49%;top:32%;animation-delay:.12s"></i><i style="left:57%;top:38%;animation-delay:.28s"></i><i style="left:37%;top:46%;animation-delay:.08s"></i><i style="left:63%;top:44%;animation-delay:.2s"></i><i style="left:51%;top:26%;animation-delay:.36s"></i></div>
   <div id="toastStack"></div>
   <div id="toast"></div>
   <div id="cineCaption" role="status" aria-live="polite"></div>
@@ -7480,26 +7495,172 @@ function tPiso(parent, x, z, w, d, tipo, y) {
   for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 2, uv.getY(i) * d / 2);
   const m = new THREE.Mesh(geo, TORRE_PISOS[tipo]); m.position.set(x, (y || 0) + .02, z); m.receiveShadow = true; parent.add(m); return m;
 }
-// Pantalla de tele: una escena de juego dibujada (sin letras, así se puede espejar).
-function torrePantalla(juego) {
-  const c = document.createElement('canvas'); c.width = 128; c.height = 72;
-  const g = c.getContext('2d');
-  const cielo = g.createLinearGradient(0, 0, 0, 72); cielo.addColorStop(0, juego ? '#4c1d95' : '#38bdf8'); cielo.addColorStop(1, juego ? '#db2777' : '#bae6fd');
-  g.fillStyle = cielo; g.fillRect(0, 0, 128, 72);
-  g.fillStyle = juego ? '#1e1b4b' : '#16a34a'; g.fillRect(0, 50, 128, 22);
-  if (juego) {
-    g.fillStyle = '#facc15'; for (let i = 0; i < 6; i++) g.fillRect(14 + i * 19, 40 - (i % 2) * 8, 6, 6);   // monedas
-    g.fillStyle = '#ef4444'; g.fillRect(24, 34, 9, 16); g.fillStyle = '#fde68a'; g.fillRect(25, 28, 7, 7);  // el personaje
-    g.fillStyle = '#22d3ee'; g.fillRect(4, 4, 30, 4); g.fillStyle = '#f472b6'; g.fillRect(96, 4, 28, 4);   // barras de vida
-  } else {
-    g.fillStyle = '#fff'; g.fillRect(62, 50, 2, 22); g.strokeStyle = '#fff'; g.beginPath(); g.arc(63, 61, 7, 0, 6.3); g.stroke();   // cancha de fútbol
-    g.fillStyle = '#f8fafc'; g.beginPath(); g.arc(80, 58, 2.5, 0, 6.3); g.fill();
-    g.fillStyle = '#1d4ed8'; g.fillRect(44, 50, 4, 9); g.fillStyle = '#dc2626'; g.fillRect(88, 52, 4, 9);
-  }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  return new THREE.MeshBasicMaterial({ map: t });
+// Programas de la tele: una sola emisión (canvas) para el depto y las teles colocables.
+// El nombre va en la imagen y en la barra; en el depto espejado se dan vuelta las UV para que se lea.
+const PROGRAMAS_TV = [
+  { id: 'noticias', nombre: 'Noticias del día' },
+  { id: 'dibujos', nombre: 'Dibujos animados' },
+  { id: 'partido', nombre: 'El partido' },
+  { id: 'cocina', nombre: 'Cocina en casa' },
+  { id: 'clima', nombre: 'El clima' },
+  { id: 'novela', nombre: 'La novela' },
+];
+const TORRE_TELE_APAGADA = new THREE.MeshBasicMaterial({ color: 0x0b0b0f });
+let tvCanal = 2, tvT = 0, tvTex = null, tvMat = null;
+const _tvPos = new THREE.Vector3();
+function programaActual() { return PROGRAMAS_TV[tvCanal]; }
+function asegurarTele() {
+  if (tvMat) return tvMat;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 144;
+  const ctx = cv.getContext('2d');
+  tvTex = new THREE.CanvasTexture(cv); tvTex.colorSpace = THREE.SRGBColorSpace;
+  tvTex.magFilter = THREE.LinearFilter; tvTex.minFilter = THREE.LinearFilter;
+  tvMat = new THREE.MeshBasicMaterial({ map: tvTex });
+  tvMat.userData.cv = cv; tvMat.userData.ctx = ctx;
+  dibujarPrograma(0);
+  return tvMat;
 }
-const TORRE_TELE = { living: null, juego: null };
+function mallaPantalla(w, h, espejo, encendida) {
+  const geo = new THREE.PlaneGeometry(w, h);
+  if (espejo) { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, 1 - uv.getX(i)); }
+  return new THREE.Mesh(geo, encendida ? asegurarTele() : TORRE_TELE_APAGADA);
+}
+function tvBanner(ctx, nombre) {
+  ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(0, 116, 256, 28);
+  ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(nombre, 8, 130);
+  ctx.fillStyle = '#facc15'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText('CANAL ' + (tvCanal + 1), 248, 130);
+}
+function dibujarPrograma(t) {
+  const mat = asegurarTele(), ctx = mat.userData.ctx, p = programaActual();
+  ctx.clearRect(0, 0, 256, 144);
+  if (p.id === 'noticias') {
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 256, 144);
+    ctx.fillStyle = '#1e3a8a'; ctx.fillRect(0, 78, 256, 38);
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(8, 8, 54, 16);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left'; ctx.fillText('EN VIVO', 14, 20);
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(78, 58, 16, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1d4ed8'; ctx.fillRect(62, 74, 32, 28);
+    ctx.fillStyle = '#94a3b8'; ctx.font = '12px sans-serif'; ctx.fillText('Última hora en la ciudad', 108, 96);
+    const x = ((t * 40) % 280) - 80; ctx.fillStyle = '#fef08a'; ctx.fillText('El banco abre · el partido es a las 8', x, 108);
+  } else if (p.id === 'dibujos') {
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 0, 256, 144);
+    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(210, 28, 16, 0, 7); ctx.fill();
+    ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 100, 256, 44);
+    const bob = Math.sin(t * 6) * 8, x = 70 + Math.sin(t * 1.4) * 36;
+    ctx.fillStyle = '#f472b6'; ctx.fillRect(x - 16, 62 + bob, 32, 28);
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(x, 48 + bob, 14, 0, 7); ctx.fill();
+    ctx.fillStyle = '#111827'; ctx.fillRect(x - 8, 44 + bob, 4, 4); ctx.fillRect(x + 4, 44 + bob, 4, 4);
+    ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x - 16, 74 + bob); ctx.lineTo(x - 28, 60 + bob + Math.sin(t * 8) * 8); ctx.stroke();
+  } else if (p.id === 'partido') {
+    const g = ctx.createLinearGradient(0, 0, 0, 144); g.addColorStop(0, '#38bdf8'); g.addColorStop(.42, '#7dd3fc'); g.addColorStop(.42, '#16a34a'); g.addColorStop(1, '#15803d');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 144);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(18, 70, 220, 40); ctx.beginPath(); ctx.moveTo(128, 70); ctx.lineTo(128, 110); ctx.stroke();
+    ctx.beginPath(); ctx.arc(128, 90, 8, 0, 7); ctx.stroke();
+    const bx = 40 + (t * 28) % 180, by = 86 + Math.sin(t * 5) * 10;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 4, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1d4ed8'; ctx.fillRect(bx - 28, 80, 6, 14);
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(bx + 16, 82, 6, 14);
+  } else if (p.id === 'cocina') {
+    ctx.fillStyle = '#7c2d12'; ctx.fillRect(0, 0, 256, 144);
+    ctx.fillStyle = '#fed7aa'; ctx.fillRect(0, 88, 256, 28);
+    ctx.fillStyle = '#44403c'; ctx.fillRect(150, 48, 46, 40);
+    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(173, 62, 6 + Math.sin(t * 8) * 2, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(168, 36 - (t * 12) % 20, 4, 0, 7); ctx.arc(180, 30 - (t * 10) % 18, 3, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(46, 40, 28, 10); ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(60, 62, 14, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(48, 74, 24, 22);
+  } else if (p.id === 'clima') {
+    const g = ctx.createLinearGradient(0, 0, 0, 144); g.addColorStop(0, '#0284c7'); g.addColorStop(1, '#bae6fd');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 144);
+    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(48 + Math.sin(t * .6) * 10, 40, 18, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(150, 48, 16, 0, 7); ctx.arc(170, 50, 18, 0, 7); ctx.arc(160, 38, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e0f2fe';
+    for (let i = 0; i < 8; i++) { const y = ((t * 50 + i * 18) % 90) + 20; ctx.fillRect(120 + (i % 4) * 16, y, 2, 8); }
+    ctx.fillStyle = '#0f172a'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'left'; ctx.fillText((18 + Math.floor(Math.sin(t) * 3)) + '°', 24, 100);
+  } else {
+    ctx.fillStyle = '#4c1d95'; ctx.fillRect(0, 0, 256, 144);
+    ctx.fillStyle = '#7c3aed'; ctx.fillRect(0, 0, 28, 116); ctx.fillRect(228, 0, 28, 116);
+    const cerca = 90 + Math.sin(t * 1.5) * 16;
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(cerca - 24, 62, 14, 0, 7); ctx.arc(cerca + 24, 62, 14, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1e1b4b'; ctx.fillRect(cerca - 36, 78, 24, 30); ctx.fillStyle = '#be185d'; ctx.fillRect(cerca + 12, 78, 24, 30);
+    const s = 1 + Math.sin(t * 4) * .15; ctx.fillStyle = '#fb7185'; ctx.save(); ctx.translate(cerca, 58); ctx.scale(s, s);
+    ctx.beginPath(); ctx.moveTo(0, 6); ctx.bezierCurveTo(10, -6, 16, 6, 0, 16); ctx.bezierCurveTo(-16, 6, -10, -6, 0, 6); ctx.fill(); ctx.restore();
+  }
+  tvBanner(ctx, p.nombre);
+  if (tvTex) tvTex.needsUpdate = true;
+}
+function cambiarPrograma(dir) {
+  tvCanal = (tvCanal + (dir || 1) + PROGRAMAS_TV.length) % PROGRAMAS_TV.length;
+  dibujarPrograma(tvT);
+  const nom = ui('tvNombre'); if (nom) nom.textContent = programaActual().nombre;
+  toast('📺 ' + programaActual().nombre);
+  beep(480 + tvCanal * 50, .05, .03);
+  return programaActual();
+}
+function teleCerca() {
+  if (sitOn && sitOn.torre && sitOn.key === 'sofa' && sitOn.dep && sitOn.dep.teleOn) return sitOn.dep;
+  if (torreAdentro(1)) {
+    const k = torreNivel();
+    for (const dep of torreDeptos) if (dep.nivel === k && dep.amoblado && deptoPantallaCerca(dep)) return dep;
+  }
+  for (const o of placed) {
+    if (!o.mesh || !o.mesh.visible || o.key !== 'tele' || !o.tvOn) continue;
+    if (dist2D(player.position, o.mesh.position) < 3.6) return o;
+  }
+  return null;
+}
+function deptoPantallaCerca(dep) {
+  const cercaDe = (mesh, radio) => {
+    if (!mesh) return false;
+    mesh.getWorldPosition(_tvPos);
+    return dist2D(player.position, _tvPos) < radio && Math.abs(player.position.y - _tvPos.y) < 2.6;
+  };
+  if (dep.teleOn && cercaDe(dep.tele, 3.4)) return true;
+  return cercaDe(dep.teleJuego, 2.5);
+}
+function viendoTele() {
+  return !!(teleCerca() && state.running && !state.paused && !typing && !state.cinematic && !state.driving);
+}
+function pintarBarraTele() {
+  const bar = ui('tvbar'); if (!bar) return;
+  const on = viendoTele();
+  bar.classList.toggle('visible', on);
+  if (on) { const nom = ui('tvNombre'); if (nom && nom.textContent !== programaActual().nombre) nom.textContent = programaActual().nombre; }
+}
+function algunaTelePrendida() {
+  if (teleCerca()) return true;
+  for (const dep of torreDeptos) {
+    if (!dep.amoblado || !dep.grupo || !dep.grupo.parent || !dep.grupo.parent.visible) continue;
+    if (dep.teleOn || dep.teleJuego) return true;
+  }
+  for (const o of placed) if (o.tvOn && o.mesh && o.mesh.visible && dist2D(player.position, o.mesh.position) < 28) return true;
+  return false;
+}
+function updateProgramas(dt) {
+  pintarBarraTele();
+  if (!tvMat || !algunaTelePrendida() || state.paused) return;
+  tvT += dt;
+  if (tvT - (updateProgramas.ult || 0) < 1 / 12) return;
+  updateProgramas.ult = tvT;
+  dibujarPrograma(tvT);
+}
+function encenderTeleMueble(o) {
+  if (!o || o.key !== 'tele' || o.tvOn) return false;
+  o.tvOn = true;
+  if (o.pantalla) o.pantalla.material = asegurarTele();
+  dibujarPrograma(tvT);
+  return true;
+}
+function alternarTeleMueble(o) {
+  if (!o || o.key !== 'tele') return false;
+  o.tvOn = !o.tvOn;
+  if (o.pantalla) o.pantalla.material = o.tvOn ? asegurarTele() : TORRE_TELE_APAGADA;
+  if (o.tvOn) dibujarPrograma(tvT);
+  beep(o.tvOn ? 700 : 300, .06, .04);
+  toast(o.tvOn ? '📺 ' + programaActual().nombre + ' · , y . cambian' : '📺 Apagaste la tele');
+  return true;
+}
 // Pantallita del ascensor (piso y flecha): una sola textura para todos los rellanos y la cabina.
 function pintarPantallaAscensor() {
   const L = torreLift, piso = Math.round(L.y / TORRE.H) + 1;
@@ -7777,8 +7938,7 @@ function amoblarDepto(dep) {
   tBox(f, -8.5, .3, 6, .55, .6, 2.6, 0x3f2d1a); obs(-8.85, -8.2, 4.7, 7.3, .6);                    // mueble de la tele
   for (const dz of [-.65, .65]) tBox(f, -8.22, .3, 6 + dz, .02, .45, 1.15, 0x2a1d10);
   tBox(f, -8.6, 1.3, 6, .08, 1.18, 2.08, 0x0b0b0f); tBox(f, -8.6, .65, 6, .3, .06, .5, 0x0b0b0f);
-  if (!TORRE_TELE.living) TORRE_TELE.living = torrePantalla(false);
-  const tele = new THREE.Mesh(new THREE.PlaneGeometry(1.95, 1.06), TORRE_TELE.living); tele.rotation.y = Math.PI / 2; tele.position.set(-8.55, 1.3, 6); f.add(tele);
+  const tele = mallaPantalla(1.95, 1.06, s < 0, false); tele.rotation.y = Math.PI / 2; tele.position.set(-8.55, 1.3, 6); f.add(tele);
   const sofa = 0x475569, coj = 0x64748b;
   tBox(f, -3.6, .25, 6, 1, .4, 2.7, sofa, true);
   for (const dz of [-.62, .62]) tBox(f, -3.68, .52, 6 + dz, .86, .16, 1.22, coj);
@@ -7883,8 +8043,7 @@ function amoblarDepto(dep) {
   // La tele con la Play (consola parada, con su luz azul, y el control encima del mueble)
   tBox(f, 13.8, .28, 4.0, 1.9, .56, .48, 0x1f2937, true); obs(12.85, 14.75, 3.7, 4.25, .56);
   tBox(f, 13.8, 1.38, 3.8, 1.55, .9, .06, 0x0b0b0f); tBox(f, 13.8, .64, 3.9, .3, .06, .3, 0x0b0b0f);
-  if (!TORRE_TELE.juego) TORRE_TELE.juego = torrePantalla(true);
-  const teleJ = new THREE.Mesh(new THREE.PlaneGeometry(1.44, .8), TORRE_TELE.juego); teleJ.position.set(13.8, 1.38, 3.835); f.add(teleJ);
+  const teleJ = mallaPantalla(1.44, .8, s < 0, true); teleJ.position.set(13.8, 1.38, 3.835); f.add(teleJ);
   tBox(f, 13.05, .58, 4.02, .1, .02, .26, 0x111827);
   tBox(f, 13.05, .8, 4.02, .07, .44, .26, 0x111827);
   for (const dx of [-.055, .055]) tBox(f, 13.05 + dx, .8, 4.02, .02, .46, .3, 0xf8fafc);
@@ -7904,7 +8063,7 @@ function amoblarDepto(dep) {
   const objeto = (tipo, x, zp, radio, extra) => dep.objetos.push(Object.assign({ tipo, dep, radio, ...W(x, zp) }, extra));
   const asiento = (key, x, zp, radio, seatY, dx, dzp, salida) => objeto('asiento', x, zp, radio, { key, seatY, dx, dz: s * dzp, salida: W(...salida) });
   dep.objetos = [];
-  dep.tele = tele; dep.teleOn = false; tele.material = TORRE_TELE_APAGADA;
+  dep.tele = tele; dep.teleJuego = teleJ; dep.teleOn = false; tele.material = TORRE_TELE_APAGADA;
   dep.lampara = pantalla; dep.lamparaOn = true; dep.vidrioHorno = vidrioHorno;
   // seatY = alto del cojín - .075: así la cadera del cuerpo queda justo sobre el asiento (ver poseJugador)
   asiento('sofa', -3.6, 6, 1.6, .525, -1, 0, [-4.85, 6]);
@@ -7928,7 +8087,6 @@ function amoblarDepto(dep) {
   objeto('ducha', 6.8, 7.75, 1.1);
   objeto('lampara', -2.6, 8.4, 1.1);
 }
-const TORRE_TELE_APAGADA = new THREE.MeshBasicMaterial({ color: 0x0b0b0f });
 // ---------- DUCHA: te metes, el agua cae desde la regadera y corre por tu cuerpo ----------
 const DUCHA_SEG = 7, DUCHA_GOTAS = preferLowPerf ? 70 : 160;
 let ducha = null;          // { d, t, gotas[], ruido } mientras te duchas
@@ -7964,6 +8122,7 @@ function ruidoDucha() {   // ruido blanco filtrado: suena a agua corriendo
 }
 function empezarDucha(d) {
   if (!duchaFx) duchaFx = crearDuchaFx();
+  if (lavado) terminarLavado(false);
   if (sitOn) standUp(true);
   ducha = { d, t: 0, gotas: [], ruido: ruidoDucha() };
   for (let i = 0; i < DUCHA_GOTAS; i++) { const g = {}; gotaNueva(g, d, true); ducha.gotas.push(g); }
@@ -8080,15 +8239,16 @@ function torreObjetoCerca(k) {
 function torreObjetoTexto(o) {
   if (o.tipo === 'asiento') return { sofa: 'Sentarte en el sillón a ver tele', silla: 'Sentarte a la mesa', bano: 'Sentarte en el baño', cama: 'Acostarte en la cama' }[o.key];
   return {
-    tele: o.dep.teleOn ? 'Apagar la tele' : 'Prender la tele', play: 'Jugar en la Play',
+    tele: o.dep.teleOn ? ('Apagar la tele · al aire: ' + programaActual().nombre) : 'Prender la tele', play: 'Jugar en la Play',
     congelador: 'Sacar algo del congelador (comer)', horno: 'Cocinar en el horno (+1 comida)',
-    lavamanos: 'Lavarte la cara', ducha: 'Ducharte (+vida)', lampara: o.dep.lamparaOn ? 'Apagar la lámpara' : 'Prender la lámpara',
+    lavamanos: lavado ? 'Dejar de lavarte la cara' : 'Lavarte la cara', ducha: 'Ducharte (+vida)', lampara: o.dep.lamparaOn ? 'Apagar la lámpara' : 'Prender la lámpara',
   }[o.tipo];
 }
 const TORRE_OBJ_ICONO = { asiento: '🪑', tele: '📺', play: '🎮', congelador: '🧊', horno: '🔥', lavamanos: '🚰', ducha: '🚿', lampara: '💡' };
 function setTeleDepto(dep, on) {
   dep.teleOn = on;
-  if (dep.tele) dep.tele.material = on ? TORRE_TELE.living : TORRE_TELE_APAGADA;
+  if (dep.tele) dep.tele.material = on ? asegurarTele() : TORRE_TELE_APAGADA;
+  if (on) dibujarPrograma(tvT);
 }
 function torreEspera(o, seg) {   // true si todavía no se puede volver a usar
   const clave = o.dep.id + o.tipo, ahora = performance.now(), listo = torreUsoT.get(clave) || 0;
@@ -8099,12 +8259,16 @@ function torreEspera(o, seg) {   // true si todavía no se puede volver a usar
 function usarObjetoDepto(o) {
   const dep = o.dep;
   if (o.tipo === 'asiento') {
-    trySit({ key: o.key, torre: true, salida: o.salida, acostado: o.acostado, mesh: { position: new THREE.Vector3(o.x, o.y + o.seatY, o.z), rotation: { y: Math.atan2(o.dx, o.dz) } } });
-    yaw = Math.atan2(-o.dx, -o.dz); pitch = o.acostado ? .55 : -.05;
-    if (o.key === 'sofa' && !dep.teleOn) { setTeleDepto(dep, true); toast('📺 Prendiste la tele · ¡a ver el partido! · E para pararte'); }
+    trySit({ key: o.key, torre: true, dep: o.dep, salida: o.salida, acostado: o.acostado, mesh: { position: new THREE.Vector3(o.x, o.y + o.seatY, o.z), rotation: { y: Math.atan2(o.dx, o.dz) } } });
+    yaw = Math.atan2(-o.dx, -o.dz); pitch = o.acostado ? .55 : o.key === 'sofa' ? -.22 : -.05;
+    if (o.key === 'sofa' && !dep.teleOn) { setTeleDepto(dep, true); toast('📺 ' + programaActual().nombre + ' · ◀▶ o , . cambian · E para pararte'); }
     return true;
   }
-  if (o.tipo === 'tele') { setTeleDepto(dep, !dep.teleOn); beep(dep.teleOn ? 700 : 300, .06, .04); return true; }
+  if (o.tipo === 'tele') {
+    setTeleDepto(dep, !dep.teleOn); beep(dep.teleOn ? 700 : 300, .06, .04);
+    if (dep.teleOn) toast('📺 ' + programaActual().nombre + ' · ◀▶ o , . cambian');
+    return true;
+  }
   if (o.tipo === 'play') return abrirMenuPlay();
   if (o.tipo === 'lampara') {
     dep.lamparaOn = !dep.lamparaOn; dep.lampara.material.emissiveIntensity = dep.lamparaOn ? .7 : 0;
@@ -8135,8 +8299,111 @@ function usarObjetoDepto(o) {
     empezarDucha(dep.ducha);
     return true;
   }
-  if (o.tipo === 'lavamanos') { state.hp = Math.min(100, state.hp + 3); toast('🚰 Te lavaste la cara · ¡qué fresco! (+3 de vida)'); beep(330, .15, .03); return true; }
+  if (o.tipo === 'lavamanos') {
+    if (lavado) { terminarLavado(false); return true; }
+    empezarLavado(o); return true;
+  }
   return false;
+}
+// Lavarse la cara: manos al rostro en primera persona, agua en el lavamanos, ~3 s. E o caminar lo corta.
+let lavado = null, lavadoManos = null;
+const LAVADO_SEG = 3.2;
+function asegurarManosLavado() {
+  if (lavadoManos) return lavadoManos;
+  const g = new THREE.Group();
+  const piel = new THREE.MeshStandardMaterial({ color: 0xe0ac69, roughness: .9 });
+  const manga = new THREE.MeshStandardMaterial({ color: 0x3f6212, roughness: .9 });
+  const agua = new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: .65, depthWrite: false });
+  const mano = (sx) => {
+    const h = new THREE.Group();
+    const brazo = new THREE.Mesh(new THREE.BoxGeometry(.2, .2, .5), manga); brazo.position.z = .16; h.add(brazo);
+    const palma = new THREE.Mesh(new THREE.BoxGeometry(.24, .1, .22), piel); palma.position.set(0, .02, -.16); h.add(palma);
+    for (let i = 0; i < 4; i++) {
+      const f = new THREE.Mesh(new THREE.BoxGeometry(.045, .04, .12), piel);
+      f.position.set(-.08 + i * .052, .03, -.3); h.add(f);
+    }
+    g.add(h); return h;
+  };
+  g.userData.izq = mano(-1); g.userData.der = mano(1);
+  const gotas = [];
+  for (let i = 0; i < 10; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(.018, 5, 4), agua); g.add(d); gotas.push(d); }
+  g.userData.gotas = gotas; g.visible = false; camera.add(g); lavadoManos = g; return g;
+}
+function crearChorroLavado(x, y, z) {
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: .85, depthWrite: false });
+  const chorro = new THREE.Mesh(new THREE.CylinderGeometry(.016, .03, .32, 7), mat); chorro.position.y = .18; g.add(chorro);
+  const gotas = [];
+  for (let i = 0; i < 16; i++) {
+    const d = new THREE.Mesh(new THREE.SphereGeometry(.022, 5, 4), mat);
+    d.userData.a = i / 16 * Math.PI * 2; g.add(d); gotas.push(d);
+  }
+  scene.add(g); return { g, gotas };
+}
+function limpiarLavado() {
+  if (!lavado) return;
+  if (lavado.chorro) scene.remove(lavado.chorro.g);
+  if (lavadoManos) lavadoManos.visible = false;
+  const fx = ui('lavadofx'); if (fx) fx.classList.remove('on');
+  const limbs = playerAvatar.userData.limbs;
+  if (limbs && !sitOn && !ducha) { limbs.armL.rotation.set(0, 0, 0); limbs.armR.rotation.set(0, 0, 0); }
+  lavado = null;
+}
+function empezarLavado(o) {
+  if (lavado || ducha) return;
+  const manos = asegurarManosLavado(); manos.visible = cameraMode === 0;
+  lavado = { t: 0, dur: LAVADO_SEG, ox: o.x, oz: o.z, chorro: crearChorroLavado(o.x + .55, o.y + .95, o.z) };
+  const fx = ui('lavadofx'); if (fx) fx.classList.add('on');
+  toast('🚰 Te estás lavando la cara…');
+  beep(330, .12, .03);
+}
+function terminarLavado(ok) {
+  if (!lavado) return;
+  limpiarLavado();
+  if (ok) {
+    state.hp = Math.min(100, state.hp + 3);
+    toast('🚰 Te lavaste la cara · ¡qué fresco! (+3 de vida)');
+    beep(520, .12, .04);
+  } else toast('🚰 Dejaste de lavarte la cara');
+}
+function updateLavado(dt) {
+  if (!lavado) return;
+  if (state.paused) return;
+  if (!state.running || state.driving || state.cinematic || state.inFlight) { terminarLavado(false); return; }
+  const lejos = Math.hypot(player.position.x - lavado.ox, player.position.z - lavado.oz) > 1.8;
+  const camina = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'] || keys['Space'] || Math.abs(touch.moveX) > .25 || Math.abs(touch.moveY) > .25;
+  if (lejos || camina) { terminarLavado(false); return; }
+  lavado.t += dt;
+  const t = lavado.t, k = Math.min(1, t / .4) * (t > lavado.dur - .4 ? Math.max(0, (lavado.dur - t) / .4) : 1);
+  const scrub = Math.sin(t * 10);
+  const manos = asegurarManosLavado();
+  const enPrimera = cameraMode === 0;
+  manos.visible = enPrimera;
+  if (enPrimera) viewmodel.visible = false;
+  const izq = manos.userData.izq, der = manos.userData.der;
+  izq.position.set(-.16 + scrub * .045 * k, -.24 + .18 * k, -.58 + .14 * k);
+  der.position.set(.17 - scrub * .045 * k, -.22 + .16 * k, -.54 + .12 * k);
+  izq.rotation.set(-.95 * k, .25, .45 + scrub * .4 * k);
+  der.rotation.set(-.9 * k, -.25, -.45 - scrub * .4 * k);
+  manos.userData.gotas.forEach((d, i) => {
+    const cae = (t * 1.3 + i * .17) % 1;
+    d.position.set(Math.sin(t * 6 + i) * .1, .05 - cae * .28, -.4);
+    d.visible = k > .25;
+  });
+  if (enPrimera) camera.rotation.x = pitch + Math.sin(t * 8) * .035 * k;
+  const limbs = playerAvatar.userData.limbs;
+  if (limbs) {
+    limbs.armL.rotation.x = -2.15; limbs.armR.rotation.x = -2.15;
+    limbs.armL.rotation.z = .4 + scrub * .28; limbs.armR.rotation.z = -.4 - scrub * .28;
+  }
+  const ch = lavado.chorro;
+  if (ch) ch.gotas.forEach((d, i) => {
+    const p = (t * 1.7 + i * .11) % 1, a = d.userData.a + t * 2.4;
+    d.position.set(Math.cos(a) * p * .18, .22 - p * .34, Math.sin(a) * p * .18);
+    d.scale.setScalar(.4 + (1 - p) * .8);
+  });
+  if (Math.floor(t / .4) !== Math.floor((t - dt) / .4)) tone(160 + Math.sin(t * 5) * 30, .07, .02, 'sine');
+  if (t >= lavado.dur) terminarLavado(true);
 }
 // ---- Dónde estás: piso (0 = hall) y si estás dentro del edificio ----
 function torreLocal() { return { x: player.position.x - TORRE.x, z: player.position.z - TORRE.z }; }
@@ -8289,7 +8556,10 @@ function torreAccion() {
   const q = torreQueHay(); if (!q) return null;
   if (q.tipo === 'conserje') return { key: 'E', touch: '🛎️', text: 'Hablar con la conserje · deptos a $' + TORRE_PRECIO };
   if (q.tipo === 'ascensor') return { key: 'E', touch: '🛗', text: 'Llamar el ascensor' };
-  if (q.tipo === 'levantarse') return { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : sitOn.key === 'sofa' ? 'Viendo tele · E para pararte' : 'Pararte' };
+  if (q.tipo === 'levantarse') {
+    const viendo = sitOn.key === 'sofa' && sitOn.dep && sitOn.dep.teleOn;
+    return { key: 'E', touch: '🤝', text: sitOn.key === 'cama' ? 'Levantarte de la cama' : sitOn.key === 'bano' ? 'Levantarte del baño' : viendo ? ('Viendo «' + programaActual().nombre + '» · , . cambian · E para pararte') : 'Pararte' };
+  }
   if (q.tipo === 'objeto') return { key: 'E', touch: TORRE_OBJ_ICONO[q.obj.tipo], text: torreObjetoTexto(q.obj) };
   const dep = q.dep;
   if (state.depto === dep.id) return { key: 'E', touch: '🔑', text: (dep.abierta ? 'Cerrar' : 'Abrir') + ' tu depto ' + dep.id };
@@ -8351,6 +8621,8 @@ function torreSilla(parent, x, z, rot) {
 buildTorre();
 document.querySelectorAll('[data-lift]').forEach(b => b.onclick = () => { const v = b.dataset.lift; elegirPiso(/^\d$/.test(v) ? +v : v); });
 document.getElementById('aptCloseBtn').onclick = cerrarDeptos;
+ui('tvPrev').onclick = (ev) => { ev.stopPropagation(); if (viendoTele()) cambiarPrograma(-1); };
+ui('tvNext').onclick = (ev) => { ev.stopPropagation(); if (viendoTele()) cambiarPrograma(1); };
 
 // ---- ENTRAR CON E: frente a la puerta te mete, adentro te saca a la calle ----
 // (los rascacielos los agrega buildSkyline: su "adentro" es el ascensor a la azotea)
@@ -10501,7 +10773,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     pieza(2.06, .3, .12, 0, -.05, .72, madera);
   }
   if (key === 'sofa') { const back = new THREE.Mesh(new THREE.BoxGeometry(2, 0.55, 0.2), mat(objColor(key))); back.position.set(0, 0.5, -0.35); m.add(back); for (const sx of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.9), mat(objColor(key))); arm.position.set(sx * 0.9, 0.2, 0); m.add(arm); } }
-  if (key === 'tele') { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.75), new THREE.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x0ea5e9, emissiveIntensity: 0.4 })); scr.position.z = 0.07; m.add(scr); const st = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.3), legMat); st.position.y = -0.55; m.add(st); }
+  if (key === 'tele') { const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.75), TORRE_TELE_APAGADA); scr.position.z = 0.07; m.add(scr); obj.pantalla = scr; obj.tvOn = false; const st = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.3), legMat); st.position.y = -0.55; m.add(st); }
   if (key === 'mesa_tele') {
     legs(.96, .26, .65);
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.92, .12, .58), mat(0x3f2a17)); shelf.position.y = -.36; m.add(shelf);
@@ -13057,7 +13329,8 @@ function aimedFurniture(maxD = 4.5) {
 function tryFocusedFurniture() {
   if (sitOn) {
     const seatedAim = aimedFurniture();
-    if (seatedAim && (seatedAim.key === 'play_gamer' || seatedAim.key === 'tele')) return openPlayStation();
+    if (seatedAim && seatedAim.key === 'play_gamer') return openPlayStation();
+    if (seatedAim && seatedAim.key === 'tele') return nearestPlayNear(seatedAim, 1.8) ? openPlayStation() : alternarTeleMueble(seatedAim);
     return standUp(false);   // levantarse gana, salvo que estés mirando la Play o la tele
   }
   const target = aimedFurniture(); if (!target) return false;
@@ -13065,7 +13338,8 @@ function tryFocusedFurniture() {
   if (target.key === 'parlante_gamer') return useGamerSpeaker(target);
   if (target.key === 'alexa') return useAlexa(target);
   if (target.key === 'computador_gamer') return pacOpen();
-  if (target.key === 'play_gamer' || target.key === 'tele') return openPlayStation();
+  if (target.key === 'play_gamer') return openPlayStation();
+  if (target.key === 'tele') return nearestPlayNear(target, 1.8) ? openPlayStation() : alternarTeleMueble(target);
   return trySit(target);
 }
 function trySeatedGamerKeyboard() {
@@ -13074,7 +13348,8 @@ function trySeatedGamerKeyboard() {
   if (!target) return trySeatedPlay();
   if (target.key === 'teclado_gamer') return useGamerKeyboard(target);
   if (target.key === 'computador_gamer') return pacOpen();
-  if (target.key === 'play_gamer' || target.key === 'tele') return openPlayStation();
+  if (target.key === 'play_gamer') return openPlayStation();
+  if (target.key === 'tele') return nearestPlayNear(target, 1.8) ? openPlayStation() : alternarTeleMueble(target);
   return trySeatedPlay();
 }
 function trySeatedPacman() {
@@ -13085,7 +13360,9 @@ function trySeatedPacman() {
 function trySeatedPlay() {
   if (!sitOn) return false;
   const aimed = aimedFurniture();
-  if ((aimed && (aimed.key === 'play_gamer' || aimed.key === 'tele')) || nearestPlay(3.8)) return openPlayStation();
+  if (aimed && aimed.key === 'play_gamer') return openPlayStation();
+  if (aimed && aimed.key === 'tele' && nearestPlayNear(aimed, 1.8)) return openPlayStation();
+  if (nearestPlay(3.8) && playHasTv(nearestPlay(3.8))) return openPlayStation();
   return false;
 }
 function toggleSound() {
@@ -13182,6 +13459,9 @@ addEventListener('keydown', e => {
     return;
   }
   if (typing) return;   // si está escribiendo en el vendedor (o resolviendo mates), el juego ignora el teclado
+  if (!e.repeat && state.running && viendoTele() && (e.code === 'Comma' || e.code === 'Period' || (sitOn && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')))) {
+    e.preventDefault(); cambiarPrograma((e.code === 'Comma' || e.code === 'ArrowLeft') ? -1 : 1); return;
+  }
   if (e.code === 'F3' && !e.repeat && state.running) { e.preventDefault(); cycleFpsMode(); return; }   // tope de fotogramas sin pausar
   if (e.code === 'Space' && !e.repeat && state.running) {
     const now = performance.now();
@@ -14174,7 +14454,7 @@ function startGame() {
   basketball.scoreRed = basketball.scoreBlue = 0; resetBasketball(0); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
   tennis.points = [0, 0]; tennis.games = [0, 0]; tennis.server = 0; tennis.serveIn = 1; drawTennisScore();
   state.creative = false;   // el botón 🎨 lo vuelve a activar después de llamar startGame
-  removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true);
+  removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); limpiarLavado();
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.guns = {}; state.gun = null; state.ammo = 0; state.clip = 0; state.reloadT = 0; state.gadgetCharges = {}; state.handGadget = null;   // tecnología alien: se compra de nuevo
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
@@ -16549,7 +16829,8 @@ function openPlayStation() {
   if (aimed && aimed.key === 'play_gamer') play = aimed;
   else if (aimed && aimed.key === 'tele') {
     play = nearestPlayNear(aimed, 1.8);
-    if (!play) { toast('🎮 Pon una Play en la mesa para jugar'); return false; }
+    if (!play) return alternarTeleMueble(aimed);
+    encenderTeleMueble(aimed);
   } else {
     play = nearestPlay(4.5);
   }
@@ -19320,6 +19601,8 @@ function loop() {
   }
   for (const e of enemies) swingLimbs(e, dt);
   updatePlayerCamera(dt);
+  updateProgramas(state.paused ? 0 : dt);
+  updateLavado(state.paused ? 0 : dt);
   billboardTick += dt; if (billboardTick >= .05) { updateBillboards(billboardTick); updateGamerRGB(); billboardTick = 0; }
   updateFloats(dt); updateCoins(dt); updateCombo(dt); updateImpactVoxels(dt);   // feedback de combate y recompensas
   updateSky(dt);
@@ -20164,6 +20447,12 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     renderer.render(scene, camera);
   };
   timDump.look = (y, p) => { yaw = y; pitch = p; camera.rotation.set(p, y, 0, 'YXZ'); renderer.render(scene, camera); };
+  timDump.tv = () => ({ canal: tvCanal, id: programaActual().id, nombre: programaActual().nombre, viendo: !!viendoTele(), cerca: !!teleCerca(), barra: ui('tvbar').classList.contains('visible') });
+  timDump.alternarTeleCerca = () => { const o = placed.find(p => p.mesh && p.mesh.visible && p.key === 'tele' && dist2D(player.position, p.mesh.position) < 4); return o ? alternarTeleMueble(o) : false; };
+  timDump.cambiarPrograma = cambiarPrograma;
+  timDump.pixelTv = () => { if (!tvMat) return null; const d = tvMat.userData.ctx.getImageData(20, 20, 1, 1).data; return { rgb: [d[0], d[1], d[2]], id: programaActual().id }; };
+  timDump.lavadoInfo = () => lavado ? { t: +lavado.t.toFixed(2), dur: lavado.dur } : null;
+  timDump.tickLavado = (n, dt) => { const step = dt == null ? .05 : dt; for (let i = 0; i < (n || 1); i++) updateLavado(step); updatePlayerCamera(0); if (lavado) updateLavado(0); return timDump.lavadoInfo(); };
   window.__tim = timDump;
 } } catch (e) {}
 function netAddConn(c) {
@@ -20786,7 +21075,7 @@ function updateContextPrompt() {
         : { key: 'E', touch: '📺', text: 'Pon una tele en la mesa para jugar' };
       else if (sitOn && aimed && aimed.key === 'tele') action = nearestPlayNear(aimed, 1.8)
         ? { key: 'E · I', touch: '🎮', text: 'E / I juega en la Play · Esc cierra' }
-        : { key: 'E', touch: '🎮', text: 'Pon una Play en la mesa para jugar' };
+        : { key: 'E', touch: '📺', text: aimed.tvOn ? ('Viendo «' + programaActual().nombre + '» · , . cambian · E apaga') : 'Prender la tele' };
       else if (sitOn && nearestPlay(3.8)) action = playHasTv(nearestPlay(3.8))
         ? { key: 'I · E', touch: '🎮', text: 'I juega en la Play · E para pararte' }
         : { key: 'E', touch: '📺', text: 'Pon una tele en la mesa para jugar' };
@@ -20800,7 +21089,7 @@ function updateContextPrompt() {
         : { key: 'E', touch: '📺', text: 'Pon una tele para jugar' };
       else if (furniture && furniture.key === 'tele') action = nearestPlayNear(furniture, 1.8)
         ? { key: 'E', touch: '🎮', text: 'Jugar en la Play' }
-        : { key: 'E', touch: '🎮', text: 'Pon una Play en la mesa para jugar' };
+        : { key: 'E', touch: '📺', text: furniture.tvOn ? ('«' + programaActual().nombre + '» · , . cambian · E apaga') : 'Prender la tele' };
       else if (asiento && !state.buildMode) action = { key: 'E', touch: '🪑', text: asiento.key === 'bano' ? 'Sentarte en el baño' : asiento.key === 'cama' ? 'Acostarte' : 'Sentarte' };
       else if (parkRide) action = { key: 'E', touch: '🤝', text: 'Bajarte de ' + att.name };
       else if (stand) action = { key: 'E', touch: '🍦', text: 'Comprar ' + stand.name + ' · $' + stand.price + ' (+1 comida)' };

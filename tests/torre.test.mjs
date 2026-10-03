@@ -82,3 +82,16 @@ test('los muebles del depto se usan con E', () => {
   assert.match(html, /if \(q\.tipo === 'objeto'\) return usarObjetoDepto\(q\.obj\)/);
   assert.match(html, /salida = sitOn\.salida/);   // te paras en un punto libre, no dentro del muro
 });
+
+test('la tele pasa programas y el lavamanos anima el lavado', () => {
+  assert.match(html, /const PROGRAMAS_TV = \[/);
+  assert.match(html, /function cambiarPrograma\(/);
+  assert.match(html, /function empezarLavado\(/);
+  assert.match(html, /function updateLavado\(/);
+  assert.match(html, /id="tvbar"/);
+  assert.match(html, /id="lavadofx"/);
+  assert.match(html, /if \(o\.tipo === 'play'\) return abrirMenuPlay\(\)/);
+  for (const nombre of ['Noticias del día', 'Dibujos animados', 'El partido', 'Cocina en casa', 'El clima', 'La novela']) {
+    assert.ok(html.includes("nombre: '" + nombre + "'"), nombre);
+  }
+});

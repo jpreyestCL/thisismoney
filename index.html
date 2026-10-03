@@ -7762,12 +7762,96 @@ function estadoPartido(t) {
   else { momento = 'gol'; k = (u - 0.82) / 0.18; }
   return { i, u, arco, momento, sub, k, equipo: arco === 'der' ? 'azul' : 'rojo' };
 }
-const TV_NOTICIAS = ['ciudad', 'clima', 'deporte', 'plata', 'transito', 'farandula', 'juego', 'incendio', 'asalto', 'politica', 'ciencia', 'salud', 'escuela', 'playa', 'aeropuerto', 'carcel', 'banco', 'mascota', 'extremo'];
+const ESTRENO_NOVELA = 'La novela';
+// Cada ficha es una temporada distinta: otro título y otras frases en pantalla.
+const TEMPORADAS_NOVELA = [
+  { titulo: 'El secreto del pasaje', lineas: [['Vera', '¿Te quedas?'], ['Lila', 'Esta noche sí'], ['Lila', '¡Escúchame!'], ['Vera', '¡¿Qué?!'], ['Lila', 'Me voy']] },
+  { titulo: 'Vera vuelve', lineas: [['Vera', 'Volví al pasaje'], ['Lila', 'Pensé que no volvías'], ['Lila', 'Siéntate conmigo'], ['Vera', 'Esta vez me quedo']] },
+  { titulo: 'La casa de Lila', lineas: [['Lila', 'Hay que subir la pared'], ['Vera', 'El techo, ahora'], ['Lila', 'Pinta la puerta'], ['Vera', 'Esta casa es nuestra']] },
+  { titulo: 'Cartas de Platus', lineas: [['Vera', 'Te escribo desde aquí'], ['Lila', 'El cohete sale hoy'], ['Vera', 'Llegó tu carta'], ['Lila', 'Te espero en Platus']] },
+  { titulo: 'El turno de noche', lineas: [['Vera', 'Ya es de noche'], ['Lila', 'No apagues la luz'], ['Vera', 'Quedémonos despiertos'], ['Lila', 'Pasó el turno']] },
+  { titulo: 'Hermanos del huerto', lineas: [['Vera', 'Entierra la semilla'], ['Lila', 'Échale agua'], ['Vera', 'Ya hay manzanas'], ['Lila', 'La cosecha es hoy']] },
+];
+const TV_NOTICIAS = ['ciudad', 'clima', 'deporte', 'plata', 'transito', 'farandula', 'juego', 'incendio', 'asalto', 'politica', 'ciencia', 'salud', 'escuela', 'playa', 'aeropuerto', 'carcel', 'banco', 'mascota', 'extremo', 'estreno', 'proximo'];
 const TV_NOTICIA_NOMBRE = {
   ciudad: 'CIUDAD', clima: 'CLIMA', deporte: 'DEPORTE', plata: 'PLATA', transito: 'TRÁNSITO', farandula: 'FARÁNDULA', juego: 'EL JUEGO',
   incendio: 'INCENDIO', asalto: 'ASALTO', politica: 'POLÍTICA', ciencia: 'CIENCIA', salud: 'SALUD', escuela: 'ESCUELA', playa: 'PLAYA',
   aeropuerto: 'AEROPUERTO', carcel: 'CÁRCEL', banco: 'BANCO', mascota: 'MASCOTA PERDIDA', extremo: 'CLIMA EXTREMO',
+  estreno: 'ESTRENO', proximo: 'PRÓXIMO ESTRENO',
 };
+function diaDePartida() {
+  // Día 0 es la mañana en que empieza la partida (night 0). Al anochecer night ya sumó 1,
+  // pero esa noche sigue siendo el mismo día. El día 10 (night 10 y de día) abre la temporada 2.
+  const n = Math.max(0, state.night | 0);
+  return state.phase === 'NIGHT' ? Math.max(0, n - 1) : n;
+}
+function fichaTemporada(n) {
+  const num = Math.max(1, n | 0);
+  const i = (num - 1) % TEMPORADAS_NOVELA.length;
+  const t = TEMPORADAS_NOVELA[i];
+  return { n: num, i, titulo: t.titulo, lineas: t.lineas };
+}
+function temporadaActual() {
+  const dia = diaDePartida();
+  const n = Math.floor(dia / 10) + 1;
+  return Object.assign(fichaTemporada(n), { dia, falta: 10 - (dia % 10) });
+}
+function proximoEstreno() {
+  const act = temporadaActual();
+  const sig = fichaTemporada(act.n + 1);
+  return { dia: act.dia, temporada: act.n, siguiente: sig.n, i: sig.i, titulo: sig.titulo, falta: act.falta };
+}
+function dibujarViñetaTemporada(ctx, i, lt) {
+  if (i === 0) {
+    ctx.fillStyle = '#312e81'; ctx.fillRect(0, 130, 512, 28);
+    ctx.fillStyle = '#fde68a'; ctx.fillRect(220, 48, 70, 90);
+    ctx.fillStyle = lt % 1 < .5 ? '#fef9c3' : '#854d0e'; ctx.fillRect(240, 68, 28, 22);
+  } else if (i === 1) {
+    ctx.fillStyle = '#44403c'; ctx.fillRect(0, 140, 512, 16);
+    ctx.fillStyle = '#e7e5e4'; ctx.fillRect(40, 70, 120, 70);
+    tvPersona(ctx, 300, 158, { s: .55, ropa: '#1e1b4b', fase: lt * 2, camina: true });
+    ctx.fillStyle = '#a16207'; ctx.fillRect(330, 132, 22, 16);
+  } else if (i === 2) {
+    ctx.fillStyle = '#fbcfe8'; ctx.fillRect(180, 90, 120, 60);
+    ctx.fillStyle = '#be185d'; ctx.beginPath(); ctx.moveTo(165, 90); ctx.lineTo(240, 48); ctx.lineTo(315, 90); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(226, 112, 22, 28);
+    tvPersona(ctx, 360, 158, { s: .55, ropa: '#f9a8d4', peloTipo: 'largo', fase: lt, boca: 'sonrisa' });
+  } else if (i === 3) {
+    ctx.fillStyle = '#fdba74'; ctx.beginPath(); ctx.arc(120, 80, 36, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff7ed'; ctx.fillRect(280, 70, 70, 50);
+    ctx.strokeStyle = '#7c2d12'; ctx.strokeRect(280, 70, 70, 50);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('✉', 315, 98);
+    const y = 40 + (lt * 20) % 30;
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(400, y); ctx.lineTo(460, y + 8); ctx.lineTo(400, y + 16); ctx.fill();
+  } else if (i === 4) {
+    ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(140, 90, 36, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(140, 90); ctx.lineTo(140, 68); ctx.moveTo(140, 90); ctx.lineTo(158, 98); ctx.stroke();
+    ctx.fillStyle = '#cbd5e1'; for (let x = 300; x < 470; x += 36) ctx.fillRect(x, 50, 14, 90);
+    tvPersona(ctx, 380, 158, { s: .5, ropa: '#1d4ed8', fase: lt, boca: 'habla' });
+  } else {
+    ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 120, 512, 40);
+    ctx.fillStyle = '#166534'; ctx.fillRect(150, 70, 16, 60);
+    ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(158, 60, 28, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(170, 48, 6, 0, 7); ctx.fill();
+    tvPersona(ctx, 250, 150, { s: .42, ropa: '#facc15', fase: lt * 3, camina: true });
+    tvPersona(ctx, 310, 154, { s: .42, ropa: '#38bdf8', fase: lt * 3 + 1, camina: true });
+  }
+}
+function rotuloTemporada(ctx, kicker, temp) {
+  ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(0, 150, 512, 82);
+  ctx.fillStyle = '#fde047'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(kicker, 16, 172);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('Temporada ' + temp.n + ' · ' + temp.titulo, 16, 206);
+}
+function dibujarProximoEstreno(ctx, lt) {
+  const p = proximoEstreno();
+  const fondos = ['#1e1b4b', '#7f1d1d', '#9d174d', '#9a3412', '#0f172a', '#14532d'];
+  ctx.fillStyle = fondos[p.i]; ctx.fillRect(0, 0, 512, 288);
+  dibujarViñetaTemporada(ctx, p.i, lt);
+  rotuloTemporada(ctx, 'PRÓXIMO ESTRENO', { n: p.siguiente, titulo: p.titulo });
+}
 function tvRotuloNoticia(ctx, tipo) {
   const txt = TV_NOTICIA_NOMBRE[tipo] || tipo;
   ctx.font = 'bold 18px sans-serif';
@@ -7925,6 +8009,16 @@ function dibujarNoticiaExtra(ctx, tipo, lt) {
     ctx.fillStyle = '#92400e'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('SE BUSCA', 256, 48);
     tvPersona(ctx, 400, 190, { s: .65, ropa: '#0ea5e9', fase: lt * 3, boca: 'habla', brazoL: -1.1, brazoR: -0.9 });
+    return true;
+  }
+  if (tipo === 'proximo') { dibujarProximoEstreno(ctx, lt); return true; }
+  if (tipo === 'estreno') {
+    const temp = temporadaActual();
+    const fondos = ['#172554', '#7f1d1d', '#9d174d', '#9a3412', '#0f172a', '#14532d'];
+    ctx.fillStyle = fondos[temp.i]; ctx.fillRect(0, 0, 512, 288);
+    dibujarViñetaTemporada(ctx, temp.i, lt);
+    tvPersona(ctx, 78, 148, { s: .62, ropa: '#1d4ed8', fase: lt * 3, boca: 'habla', brazoR: -0.35 });
+    rotuloTemporada(ctx, 'ESTRENO', temp);
     return true;
   }
   if (tipo === 'extremo') {
@@ -8151,49 +8245,190 @@ function dibujarCocina(ctx, t) {
   ctx.fillStyle = '#7c2d12'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(corta ? 'Picar la zanahoria' : echa ? 'A la olla' : revuelve ? 'Revolver el guiso' : 'Servir el plato', 16, 28);
 }
-function dibujarNovela(ctx, t) {
-  const ciclo = 16, u = (t % ciclo) / ciclo, escena = Math.floor(u * 4), lt = (u * 4) % 1;
+function faseNovela(t) {
+  const intro = 5, ciclo = 16, tt = t % (intro + ciclo);
+  if (tt < intro) return { intro: true, k: tt / intro, escena: -1, lt: 0 };
+  const u = (tt - intro) / ciclo;
+  return { intro: false, k: 1, escena: Math.floor(u * 4), lt: (u * 4) % 1 };
+}
+function lineaVisibleNovela(temp, escena, t) {
+  const L = temp.lineas;
+  if (temp.i === 0) {
+    if (escena === 0) return L[Math.sin(t * 6) > 0 ? 0 : 1];
+    if (escena === 1) return L[2];
+    if (escena === 2) return null;
+    return L[Math.sin(t * 3) > 0 ? 3 : 4];
+  }
+  return L[escena] || L[0];
+}
+function dibujarCartelEstreno(ctx, k, temp) {
+  temp = temp || temporadaActual();
+  const colores = ['#3b0764', '#7f1d1d', '#9d174d', '#9a3412', '#0f172a', '#14532d'];
+  const g = ctx.createLinearGradient(0, 0, 512, 236); g.addColorStop(0, colores[temp.i]); g.addColorStop(1, '#1e1b4b');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 6; ctx.strokeRect(36, 28, 440, 180);
+  ctx.globalAlpha = Math.min(1, k / 0.22);
+  ctx.fillStyle = '#fde047'; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('ESTRENO', 256, 64);
+  ctx.globalAlpha = Math.min(1, Math.max(0, (k - 0.18) / 0.25));
+  ctx.fillStyle = '#fde68a'; ctx.font = 'bold 28px sans-serif';
+  ctx.fillText('TEMPORADA ' + temp.n, 256, 108);
+  ctx.globalAlpha = Math.min(1, Math.max(0, (k - 0.4) / 0.25));
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 32px sans-serif';
+  ctx.fillText(temp.titulo, 256, 156);
+  ctx.globalAlpha = 1;
+  if (k > 0.62) {
+    tvPersona(ctx, 150, 214, { s: .5, ropa: '#1e1b4b', fase: 0.2, boca: 'sonrisa' });
+    tvPersona(ctx, 362, 214, { s: .5, ropa: '#be185d', peloTipo: 'largo', fase: 1, boca: 'sonrisa' });
+  }
+}
+function dibujarEscenaTemporadaUno(ctx, escena, lt, t) {
+  const hablaA = Math.sin(t * 6) > 0;
   if (escena === 0) {
     const g = ctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, '#4c1d95'); g.addColorStop(1, '#2e1065');
     ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
     ctx.fillStyle = '#312e81'; ctx.fillRect(0, 176, 512, 56);
     ctx.fillStyle = '#fde68a'; ctx.fillRect(40, 40, 70, 90);
+    tvPersona(ctx, 180, 210, { s: .95, ropa: '#1e1b4b', pelo: '#44403c', fase: t, boca: hablaA ? 'habla' : 'sonrisa', mira: 2, brazoR: hablaA ? -0.6 : 0.3, brazoL: 0.2 });
+    tvPersona(ctx, 330, 210, { s: .92, ropa: '#be185d', peloTipo: 'largo', pelo: '#111', fase: t + 1, boca: hablaA ? 'sonrisa' : 'habla', mira: -2, brazoL: hablaA ? 0.4 : -0.7 });
   } else if (escena === 1) {
     ctx.fillStyle = '#7f1d1d'; ctx.fillRect(0, 0, 512, 288);
     ctx.fillStyle = '#44403c'; tvCaja(ctx, 40, 150, 200, 36, 8); ctx.fill();
     ctx.fillStyle = '#292524'; ctx.fillRect(40, 138, 200, 16);
     ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.arc(430, 70, 16, 0, 7); ctx.fill();
+    tvPersona(ctx, 120, 188, { s: .9, ropa: '#be185d', peloTipo: 'largo', sentado: true, fase: t, boca: 'habla', brazoL: -0.2, brazoR: 0.6 });
+    tvPersona(ctx, 300, 206, { s: .95, ropa: '#1e1b4b', fase: t * 2, boca: 'sonrisa', brazoR: -1.15 + Math.sin(t * 4) * 0.25, brazoL: 0.3 });
   } else if (escena === 2) {
     ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, 512, 288);
     ctx.fillStyle = '#312e81'; ctx.fillRect(0, 180, 512, 52);
     ctx.fillStyle = '#94a3b8'; ctx.fillRect(230, 40, 54, 140);
     ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(257, 36, 8, 0, 7); ctx.fill();
-  } else {
-    ctx.fillStyle = '#3b0764'; ctx.fillRect(0, 0, 512, 288);
-    ctx.fillStyle = '#581c87'; ctx.fillRect(0, 170, 512, 62);
-    ctx.fillStyle = '#111827'; ctx.fillRect(360, 50, 80, 120);
-  }
-  const hablaA = Math.sin(t * 6) > 0;
-  if (escena === 0) {
-    tvPersona(ctx, 180, 210, { s: .95, ropa: '#1e1b4b', pelo: '#44403c', fase: t, boca: hablaA ? 'habla' : 'sonrisa', mira: 2, brazoR: hablaA ? -0.6 : 0.3, brazoL: 0.2 });
-    tvPersona(ctx, 330, 210, { s: .92, ropa: '#be185d', peloTipo: 'largo', pelo: '#111', fase: t + 1, boca: hablaA ? 'sonrisa' : 'habla', mira: -2, brazoL: hablaA ? 0.4 : -0.7 });
-    tvGlobo(ctx, hablaA ? 150 : 300, 70, hablaA ? '¿Te quedas?' : 'Esta noche sí');
-  } else if (escena === 1) {
-    tvPersona(ctx, 120, 188, { s: .9, ropa: '#be185d', peloTipo: 'largo', sentado: true, fase: t, boca: 'habla', brazoL: -0.2, brazoR: 0.6 });
-    tvPersona(ctx, 300, 206, { s: .95, ropa: '#1e1b4b', fase: t * 2, boca: 'sonrisa', brazoR: -1.15 + Math.sin(t * 4) * 0.25, brazoL: 0.3 });
-    tvGlobo(ctx, 250, 60, '¡Escúchame!');
-  } else if (escena === 2) {
     const ax = 80 + lt * 280, bx = 430 - lt * 280;
     tvPersona(ctx, ax, 208, { s: .9, ropa: '#1e1b4b', camina: true, fase: t * 8, mira: 2, boca: 'sonrisa' });
     tvPersona(ctx, bx, 208, { s: .88, ropa: '#be185d', peloTipo: 'largo', camina: true, fase: t * 8 + 1, mira: -2, boca: lt > 0.45 ? 'sorpresa' : 'sonrisa' });
   } else {
     const abre = Math.sin(t * 3) > 0;
+    ctx.fillStyle = '#3b0764'; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#581c87'; ctx.fillRect(0, 170, 512, 62);
+    ctx.fillStyle = '#111827'; ctx.fillRect(360, 50, 80, 120);
     const sep = 40 + lt * 30;
     tvPersona(ctx, 200 - sep * 0.2, 206, { s: .92, ropa: '#1e1b4b', fase: t, boca: 'sorpresa', brazoL: -1.2, brazoR: -0.9, bob: abre ? 3 : 0 });
     tvPersona(ctx, 320 + sep * 0.2, 206, { s: .9, ropa: '#be185d', peloTipo: 'largo', fase: t + 0.4, boca: abre ? 'sorpresa' : 'habla', brazoL: abre ? -1.3 : 0.8, brazoR: abre ? -1 : 0.2 });
-    if (abre) tvGlobo(ctx, 230, 58, '¡¿Qué?!');
-    else tvGlobo(ctx, 300, 64, 'Me voy');
   }
+}
+function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
+  const cielos = [
+    ['#57534e', '#44403c', '#14532d', '#451a03'],
+    ['#fbcfe8', '#f9a8d4', '#be185d', '#fce7f3'],
+    ['#fdba74', '#fb923c', '#fff7ed', '#9a3412'],
+    ['#020617', '#0f172a', '#1e293b', '#334155'],
+    ['#166534', '#14532d', '#4ade80', '#713f12'],
+  ][i - 1];
+  ctx.fillStyle = cielos[escena]; ctx.fillRect(0, 0, 512, 288);
+  if (i === 1 && escena === 0) {
+    ctx.fillStyle = '#292524'; ctx.fillRect(0, 168, 512, 18);
+    ctx.fillStyle = '#a16207'; ctx.fillRect(70, 140, 28, 18);
+    tvPersona(ctx, 40 + lt * 220, 200, { s: .9, ropa: '#1e1b4b', camina: true, fase: t * 6, boca: 'habla' });
+    tvPersona(ctx, 400, 200, { s: .88, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sorpresa' });
+  } else if (i === 1 && escena === 1) {
+    ctx.fillStyle = '#e7e5e4'; ctx.fillRect(180, 70, 140, 120);
+    ctx.fillStyle = '#44403c'; ctx.fillRect(230, 120, 40, 70);
+    tvPersona(ctx, 250, 188, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
+    tvPersona(ctx, 360, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'sonrisa' });
+  } else if (i === 1 && escena === 2) {
+    ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 170, 512, 50);
+    ctx.fillStyle = '#a16207'; ctx.fillRect(160, 150, 160, 16);
+    tvPersona(ctx, 190, 168, { s: .8, ropa: '#1e1b4b', sentado: true, fase: t, boca: 'habla' });
+    tvPersona(ctx, 290, 168, { s: .8, ropa: '#be185d', peloTipo: 'largo', sentado: true, fase: t + 1, boca: 'sonrisa' });
+  } else if (i === 1) {
+    ctx.fillStyle = '#78350f'; ctx.fillRect(0, 180, 512, 40);
+    tvPersona(ctx, 210, 206, { s: .95, ropa: '#1e1b4b', fase: t, boca: 'habla', brazoL: -0.8 });
+    tvPersona(ctx, 290, 206, { s: .92, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sonrisa', brazoR: 0.8 });
+  } else if (i === 2 && escena === 0) {
+    const h = 30 + lt * 70;
+    ctx.fillStyle = '#fde68a'; ctx.fillRect(180, 180 - h, 140, h);
+    ctx.strokeStyle = '#9a3412'; ctx.strokeRect(180, 180 - h, 140, h);
+    tvPersona(ctx, 120, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t * 3, boca: 'habla', brazoR: -1.1 });
+  } else if (i === 2 && escena === 1) {
+    ctx.fillStyle = '#be185d'; ctx.beginPath(); ctx.moveTo(160, 120); ctx.lineTo(250, 50); ctx.lineTo(340, 120); ctx.fill();
+    ctx.fillStyle = '#fbcfe8'; ctx.fillRect(175, 120, 150, 70);
+    tvPersona(ctx, 400, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'habla', brazoR: -1.2 });
+  } else if (i === 2 && escena === 2) {
+    ctx.fillStyle = '#fbcfe8'; ctx.fillRect(190, 80, 120, 110);
+    ctx.fillStyle = lt % 1 < .5 ? '#facc15' : '#be185d'; ctx.fillRect(228, 130, 36, 60);
+    tvPersona(ctx, 140, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
+  } else if (i === 2) {
+    ctx.fillStyle = '#f9a8d4'; ctx.fillRect(150, 90, 200, 90);
+    ctx.fillStyle = '#fff'; ctx.fillRect(230, 140, 30, 40);
+    tvPersona(ctx, 180, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'sonrisa' });
+    tvPersona(ctx, 340, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
+  } else if (i === 3 && escena === 0) {
+    ctx.fillStyle = '#fff7ed'; ctx.fillRect(160, 90, 110, 80);
+    ctx.strokeStyle = '#7c2d12'; ctx.strokeRect(160, 90, 110, 80);
+    ctx.fillStyle = '#44403c'; ctx.fillRect(176, 110, 78, 4); ctx.fillRect(176, 126, 60, 4);
+    tvPersona(ctx, 340, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'habla', brazoR: -0.4 });
+  } else if (i === 3 && escena === 1) {
+    ctx.fillStyle = '#fdba74'; ctx.beginPath(); ctx.arc(80, 60, 28, 0, 7); ctx.fill();
+    const y = 70 - lt * 30;
+    ctx.fillStyle = '#f8fafc'; ctx.fillRect(300, y, 16, 50);
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(292, y); ctx.lineTo(308, y - 18); ctx.lineTo(324, y); ctx.fill();
+    tvPersona(ctx, 180, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
+  } else if (i === 3 && escena === 2) {
+    ctx.fillStyle = '#fff'; ctx.fillRect(200, 80, 90, 70);
+    ctx.fillStyle = '#7c2d12'; ctx.fillRect(214, 96, 62, 3); ctx.fillRect(214, 110, 40, 3);
+    tvPersona(ctx, 160, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'habla' });
+    tvPersona(ctx, 360, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sonrisa' });
+  } else if (i === 3) {
+    ctx.fillStyle = '#fdba74'; ctx.beginPath(); ctx.arc(420, 50, 24, 0, 7); ctx.fill();
+    tvPersona(ctx, 200, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'habla' });
+    tvPersona(ctx, 300, 206, { s: .88, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sonrisa' });
+  } else if (i === 4 && escena === 0) {
+    ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(90, 70, 26, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(250, 90, 36, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(250, 90); ctx.lineTo(250, 70); ctx.moveTo(250, 90); ctx.lineTo(268, 98); ctx.stroke();
+    tvPersona(ctx, 380, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'habla' });
+  } else if (i === 4 && escena === 1) {
+    ctx.fillStyle = '#fde68a'; ctx.fillRect(200, 60, 80, 100);
+    ctx.fillStyle = lt % 1 < .5 ? '#fef9c3' : '#0f172a'; ctx.fillRect(214, 78, 52, 40);
+    tvPersona(ctx, 140, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
+  } else if (i === 4 && escena === 2) {
+    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(420, 48, 16, 0, 7); ctx.fill();
+    tvPersona(ctx, 200, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'habla' });
+    tvPersona(ctx, 300, 206, { s: .88, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sonrisa' });
+  } else if (i === 4) {
+    ctx.fillStyle = '#fde68a'; ctx.fillRect(0, 150, 512, 70);
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 0, 512, 150);
+    tvPersona(ctx, 220, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'sonrisa' });
+    tvPersona(ctx, 310, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
+  } else if (escena === 0) {
+    ctx.fillStyle = '#78350f'; ctx.fillRect(180, 160, 140, 24);
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(250, 156, 8, 0, 7); ctx.fill();
+    tvPersona(ctx, 120, 206, { s: .85, ropa: '#1e1b4b', fase: t * 2, boca: 'habla', brazoR: 1.1 });
+  } else if (escena === 1) {
+    ctx.fillStyle = '#22c55e'; ctx.fillRect(200, 150, 16, 40);
+    ctx.fillStyle = '#38bdf8';
+    for (let k = 0; k < 5; k++) ctx.fillRect(188 + k * 8, 130 + (lt * 20 + k * 7) % 30, 3, 10);
+    tvPersona(ctx, 280, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla', brazoL: -0.2 });
+  } else if (escena === 2) {
+    ctx.fillStyle = '#166534'; ctx.fillRect(230, 90, 18, 90);
+    ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(239, 80, 36, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(220, 70, 6, 0, 7); ctx.arc(250, 64, 6, 0, 7); ctx.fill();
+    tvPersona(ctx, 140, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'habla' });
+  } else {
+    ctx.fillStyle = '#a16207'; ctx.fillRect(300, 140, 70, 40);
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(320, 132, 8, 0, 7); ctx.arc(345, 128, 8, 0, 7); ctx.fill();
+    tvPersona(ctx, 160, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'sonrisa' });
+    tvPersona(ctx, 230, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
+  }
+}
+function dibujarNovela(ctx, t) {
+  const temp = temporadaActual(), fase = faseNovela(t);
+  if (fase.intro) { dibujarCartelEstreno(ctx, fase.k, temp); return; }
+  if (temp.i === 0) dibujarEscenaTemporadaUno(ctx, fase.escena, fase.lt, t);
+  else dibujarEscenaTemporadaNueva(ctx, temp.i, fase.escena, fase.lt, t);
+  const habla = lineaVisibleNovela(temp, fase.escena, t);
+  if (habla) tvGlobo(ctx, temp.i === 0 && fase.escena === 0 && Math.sin(t * 6) > 0 ? 150 : 250, 48, habla[1]);
 }
 function dibujarPartido(ctx, t) {
   const est = estadoPartido(t);
@@ -8279,11 +8514,13 @@ function dibujarPrograma(t) {
   if (tvTex) tvTex.needsUpdate = true;
 }
 function cambiarPrograma(dir) {
+  cortarVozTele();
   tvCanal = (tvCanal + (dir || 1) + PROGRAMAS_TV.length) % PROGRAMAS_TV.length;
   dibujarPrograma(tvT);
   const nom = ui('tvNombre'); if (nom) nom.textContent = programaActual().nombre;
   toast('📺 ' + programaActual().nombre);
   beep(480 + tvCanal * 50, .05, .03);
+  actualizarVozTele();
   return programaActual();
 }
 function teleCerca() {
@@ -8327,11 +8564,141 @@ function algunaTelePrendida() {
 }
 function updateProgramas(dt) {
   pintarBarraTele();
+  actualizarVozTele();
   if (!tvMat || !algunaTelePrendida() || state.paused) return;
   tvT += dt;
   if (tvT - (updateProgramas.ult || 0) < 1 / 12) return;
   updateProgramas.ult = tvT;
   dibujarPrograma(tvT);
+}
+let tvVoz = null, tvPendiente = null, tvVozTimer = 0, tvVozRota = false, tvVozElegida;
+const tvFrases = [];
+const TV_NOTICIA_VOZ = {
+  ciudad: 'Noticias de la ciudad. Hay obras en el centro.',
+  clima: 'El clima. Llega un frente frío, con doce grados.',
+  deporte: 'Deportes. Aromos le gana al Norte por dos a uno.',
+  plata: 'La plata. La ciudad gana plata.',
+  transito: 'Tránsito. Hay un choque en la avenida.',
+  farandula: 'Farándula. Esta noche hay un estreno en el escenario.',
+  juego: 'El juego. ¿Sobrevives esta noche?',
+  incendio: 'Incendio. Los bomberos combaten el fuego.',
+  asalto: 'Asalto. Persiguen a un ladrón por la calle.',
+  politica: 'Política. Sigue el discurso en la plaza.',
+  ciencia: 'Ciencia. Hay un hallazgo nuevo en el laboratorio.',
+  salud: 'Salud. El hospital atiende a los vecinos.',
+  escuela: 'La escuela. Hoy los niños aprenden a leer y a sumar.',
+  playa: 'La playa. Hay sol y olas en la costa.',
+  aeropuerto: 'Aeropuerto. Despega un avión esta tarde.',
+  carcel: 'La cárcel. Novedades desde el penal.',
+  banco: 'El banco. La bóveda sigue cerrada.',
+  mascota: 'Mascota perdida. Se busca un perro en el barrio.',
+  extremo: 'Clima extremo. Hay tormenta y rayos sobre la ciudad.',
+};
+function marcadorPartido(t) {
+  const est = estadoPartido(t);
+  let izq = 0, der = 0;
+  for (let k = 0; k < est.i; k++) { if (tvRand(k * 1.7 + 0.4) < 0.5) izq++; else der++; }
+  if (est.momento === 'gol') { if (est.arco === 'izq') izq++; else der++; }
+  return { est, izq, der };
+}
+function lineaPartido(t) {
+  const m = marcadorPartido(t), est = m.est, lado = est.equipo === 'azul' ? 'azules' : 'rojos';
+  const marca = 'El marcador va ' + m.izq + ' a ' + m.der + '.';
+  if (est.momento === 'pase') return { clave: 'partido:pase:' + est.i + ':' + est.sub, cortar: true, texto: 'Pase de los ' + lado + '. ' + marca };
+  if (est.momento === 'gol') {
+    const arco = est.arco === 'izq' ? 'izquierdo' : 'derecho';
+    return { clave: 'partido:gol:' + est.i + ':' + est.arco, cortar: true, texto: '¡Gol al arco ' + arco + '! ' + marca };
+  }
+  return null;
+}
+function lineaNovela(t) {
+  const temp = temporadaActual(), fase = faseNovela(t), vuelta = Math.floor(t / 21);
+  if (fase.intro) return { clave: 'novela:cartel:' + temp.n + ':' + vuelta, cortar: true, texto: 'Estreno. Temporada ' + temp.n + '. ' + temp.titulo + '.' };
+  const habla = lineaVisibleNovela(temp, fase.escena, t);
+  if (!habla) return null;
+  return { clave: 'novela:' + temp.n + ':' + vuelta + ':' + fase.escena + ':' + habla[1], cortar: false, texto: habla[0] + ' dice: ' + habla[1] };
+}
+function lineaNoticias(t) {
+  const seg = 5, idx = Math.floor(t / seg), tipo = TV_NOTICIAS[idx % TV_NOTICIAS.length];
+  let texto = TV_NOTICIA_VOZ[tipo] || '';
+  if (tipo === 'estreno') {
+    const temp = temporadaActual();
+    texto = 'Estreno. Ya está al aire la temporada ' + temp.n + ': ' + temp.titulo + '.';
+  } else if (tipo === 'proximo') {
+    const p = proximoEstreno();
+    texto = 'Próximo estreno. Se viene la temporada ' + p.siguiente + ': ' + p.titulo + '.';
+  }
+  return { clave: 'noticias:' + idx + ':' + tipo, cortar: true, texto };
+}
+function lineaDeLaTele(t) {
+  const id = programaActual().id;
+  if (id === 'partido') return lineaPartido(t);
+  if (id === 'novela') return lineaNovela(t);
+  if (id === 'noticias') return lineaNoticias(t);
+  return null;
+}
+function tvPuedeHablar() {
+  return !!(soundOn && viendoTele() && !tvVozRota);
+}
+function vozEspanol() {
+  if (tvVozElegida !== undefined && tvVozElegida !== null) return tvVozElegida;
+  try {
+    const lista = window.speechSynthesis.getVoices() || [];
+    const voz = lista.find(v => /es-CL/i.test(v.lang)) || lista.find(v => /es-ES/i.test(v.lang)) || lista.find(v => /^es/i.test(v.lang)) || null;
+    if (!lista.length) return null;
+    tvVozElegida = voz;
+    return voz;
+  } catch (e) { return null; }
+}
+function cortarVozTele() {
+  tvVoz = null;
+  tvPendiente = null;
+  if (tvVozTimer) { clearTimeout(tvVozTimer); tvVozTimer = 0; }
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+}
+function hablarAhora(linea) {
+  if (tvVozRota || !linea || !linea.texto || !soundOn) return;
+  try {
+    const syn = window.speechSynthesis;
+    if (!syn || typeof syn.speak !== 'function' || typeof SpeechSynthesisUtterance !== 'function') { tvVozRota = true; return; }
+    ensureAudio();
+    if (tvVozTimer) { clearTimeout(tvVozTimer); tvVozTimer = 0; }
+    tvVoz = { clave: linea.clave, texto: linea.texto };
+    tvPendiente = null;
+    const u = new SpeechSynthesisUtterance(linea.texto);
+    const voz = vozEspanol();
+    u.lang = (voz && voz.lang) || 'es-CL';
+    try { if (voz) u.voice = voz; } catch (e) {}
+    u.onend = () => {
+      if (!tvVoz || tvVoz.clave !== linea.clave) return;
+      tvVoz = null;
+      const sig = tvPendiente;
+      tvPendiente = null;
+      if (sig && tvPuedeHablar()) hablarAhora(sig);
+    };
+    const lanzar = () => {
+      tvVozTimer = 0;
+      if (!tvVoz || tvVoz.clave !== linea.clave || !tvPuedeHablar()) return;
+      try {
+        tvFrases.push(linea.texto);
+        if (tvFrases.length > 24) tvFrases.shift();
+        if (syn.resume) syn.resume();
+        syn.speak(u);
+      } catch (e) { tvVoz = null; }
+    };
+    try { syn.cancel(); } catch (e) {}
+    tvVozTimer = setTimeout(lanzar, 50);
+  } catch (e) { tvVoz = null; }
+}
+function actualizarVozTele() {
+  if (!tvPuedeHablar()) { if (tvVoz || tvVozTimer || tvPendiente) cortarVozTele(); return tvVoz; }
+  const linea = lineaDeLaTele(tvT);
+  if (!linea) return tvVoz;
+  if (tvVoz && tvVoz.clave === linea.clave) return tvVoz;
+  if (tvPendiente && tvPendiente.clave === linea.clave) return tvVoz;
+  if (tvVoz && !linea.cortar) { tvPendiente = linea; return tvVoz; }
+  hablarAhora(linea);
+  return tvVoz;
 }
 function encenderTeleMueble(o) {
   if (!o || o.key !== 'tele' || o.tvOn) return false;
@@ -8345,6 +8712,7 @@ function alternarTeleMueble(o) {
   o.tvOn = !o.tvOn;
   if (o.pantalla) o.pantalla.material = o.tvOn ? asegurarTele() : TORRE_TELE_APAGADA;
   if (o.tvOn) dibujarPrograma(tvT);
+  else cortarVozTele();
   beep(o.tvOn ? 700 : 300, .06, .04);
   toast(o.tvOn ? '📺 ' + programaActual().nombre + ' · , y . cambian' : '📺 Apagaste la tele');
   return true;
@@ -8954,6 +9322,7 @@ function setTeleDepto(dep, on) {
   dep.teleOn = on;
   if (dep.tele) dep.tele.material = on ? asegurarTele() : TORRE_TELE_APAGADA;
   if (on) dibujarPrograma(tvT);
+  else cortarVozTele();
 }
 function torreEspera(o, seg) {   // true si todavía no se puede volver a usar
   const clave = o.dep.id + o.tipo, ahora = performance.now(), listo = torreUsoT.get(clave) || 0;
@@ -14201,7 +14570,7 @@ function trySeatedPlay() {
 }
 function toggleSound() {
   soundOn = !soundOn;
-  if (!soundOn) { if (engineGain) engineGain.gain.value = 0; if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } if (speakerMusicTimer) { clearInterval(speakerMusicTimer); speakerMusicTimer = null; } }
+  if (!soundOn) { if (engineGain) engineGain.gain.value = 0; if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } if (speakerMusicTimer) { clearInterval(speakerMusicTimer); speakerMusicTimer = null; } cortarVozTele(); }
   else if (activeGamerSpeaker) startGamerSpeaker(activeGamerSpeaker, Number.isFinite(speakerMusicEndStep) ? Math.max(180, (speakerMusicEndStep - speakerMusicStep) * 180) : undefined, speakerMusicFinished); else startMusic();
   const b = ui('soundBtn'); if (b) b.textContent = soundOn ? '🔊' : '🔇';
   try { localStorage.setItem('tim_sound', soundOn ? '1' : '0'); } catch (e) {}
@@ -21315,8 +21684,12 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     const tiempo = t == null ? tvT : t;
     tvT = tiempo; dibujarPrograma(tiempo);
     const nom = ui('tvNombre'); if (nom) nom.textContent = programaActual().nombre;
-    return { id: programaActual().id, t: tiempo, partido: id === 'partido' ? estadoPartido(tiempo) : null };
+    return { id: programaActual().id, t: tiempo, partido: id === 'partido' ? estadoPartido(tiempo) : null, proximo: proximoEstreno(), temporada: temporadaActual() };
   };
+  timDump.temporada = temporadaActual;
+  timDump.lineaTele = (t) => lineaDeLaTele(t == null ? tvT : t);
+  timDump.frasesTele = () => tvFrases.slice();
+  timDump.actualizarVozTele = () => ({ voz: actualizarVozTele(), frases: tvFrases.slice(), viendo: !!viendoTele() });
   timDump.estadoPartido = (t) => estadoPartido(t == null ? tvT : t);
   timDump.tvCanvas = () => (tvMat && tvMat.userData.cv ? tvMat.userData.cv.toDataURL('image/png') : null);
   timDump.setCam = (m) => { cameraMode = m; };

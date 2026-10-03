@@ -114,11 +114,34 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /arco === 'der'/);
   assert.match(html, /momento === 'pase'/);
   assert.doesNotMatch(html, /Peppa|Barcelona|Real Madrid|Manchester/);
-  for (const tipo of ['incendio', 'asalto', 'politica', 'ciencia', 'salud', 'escuela', 'playa', 'aeropuerto', 'carcel', 'banco', 'mascota', 'extremo']) {
+  for (const tipo of ['incendio', 'asalto', 'politica', 'ciencia', 'salud', 'escuela', 'playa', 'aeropuerto', 'carcel', 'banco', 'mascota', 'extremo', 'estreno', 'proximo']) {
     assert.ok(html.includes("'" + tipo + "'"), tipo);
   }
   for (const nombre of ['INCENDIO', 'ASALTO', 'POLÍTICA', 'CIENCIA', 'SALUD', 'ESCUELA', 'PLAYA', 'AEROPUERTO', 'CÁRCEL', 'BANCO', 'MASCOTA PERDIDA', 'CLIMA EXTREMO']) {
     assert.ok(html.includes("'" + nombre + "'"), nombre);
   }
   assert.match(html, /tvRotuloNoticia\(ctx, tipo\)/);
+  assert.match(html, /const ESTRENO_NOVELA = 'La novela'/);
+  assert.match(html, /function dibujarCartelEstreno\(/);
+  assert.match(html, /if \(fase\.intro\) \{ dibujarCartelEstreno/);
+  assert.match(html, /function diaDePartida\(\)/);
+  assert.match(html, /function temporadaActual\(\)/);
+  assert.match(html, /function proximoEstreno\(\)/);
+  assert.match(html, /Math\.floor\(dia \/ 10\)/);
+  assert.match(html, /PRÓXIMO ESTRENO/);
+  assert.match(html, /TEMPORADA /);
+  assert.match(html, /speechSynthesis/);
+  assert.match(html, /es-CL/);
+  assert.match(html, /es-ES/);
+  assert.match(html, /Pase de los /);
+  assert.match(html, /arco izquierdo/);
+  assert.match(html, /arco derecho/);
+  assert.match(html, /function lineaDeLaTele\(/);
+  assert.match(html, /if \(!soundOn/);
+  for (const titulo of ['El secreto del pasaje', 'Vera vuelve', 'La casa de Lila', 'Cartas de Platus', 'El turno de noche', 'Hermanos del huerto']) {
+    assert.ok(html.includes("titulo: '" + titulo + "'"), titulo);
+  }
+  for (const frase of ['¿Te quedas?', 'Volví al pasaje', 'Hay que subir la pared', 'Te escribo desde aquí', 'Ya es de noche', 'Entierra la semilla']) {
+    assert.ok(html.includes("'" + frase + "'"), frase);
+  }
 });

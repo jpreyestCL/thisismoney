@@ -114,4 +114,11 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /arco === 'der'/);
   assert.match(html, /momento === 'pase'/);
   assert.doesNotMatch(html, /Peppa|Barcelona|Real Madrid|Manchester/);
+  for (const tipo of ['incendio', 'asalto', 'politica', 'ciencia', 'salud', 'escuela', 'playa', 'aeropuerto', 'carcel', 'banco', 'mascota', 'extremo']) {
+    assert.ok(html.includes("'" + tipo + "'"), tipo);
+  }
+  for (const nombre of ['INCENDIO', 'ASALTO', 'POLÍTICA', 'CIENCIA', 'SALUD', 'ESCUELA', 'PLAYA', 'AEROPUERTO', 'CÁRCEL', 'BANCO', 'MASCOTA PERDIDA', 'CLIMA EXTREMO']) {
+    assert.ok(html.includes("'" + nombre + "'"), nombre);
+  }
+  assert.match(html, /tvRotuloNoticia\(ctx, tipo\)/);
 });

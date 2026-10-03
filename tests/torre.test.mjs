@@ -61,6 +61,12 @@ test('el horno se apoya en el piso (no flota)', () => {
   assert.match(html, /oven: 0\.7/);
 });
 
+test('saltando en el depto no llegas al piso de arriba ni a otro depto', () => {
+  assert.match(html, /function torreTechoOjo\(eye, y\)/);
+  assert.match(html, /if \(player\.position\.y > techoTorre\)/);
+  assert.equal((html.match(/top <= techoTorre/g) || []).length, 2);   // ni en losas ni encima de muebles/muros
+});
+
 test('los muebles del depto se usan con E', () => {
   for (const t of ['tele', 'play', 'congelador', 'horno', 'lavamanos', 'ducha', 'lampara']) assert.match(html, new RegExp("objeto\\('" + t + "'"));
   for (const k of ['sofa', 'silla', 'bano', 'cama']) assert.match(html, new RegExp("asiento\\('" + k + "'"));

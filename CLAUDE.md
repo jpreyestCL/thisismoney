@@ -676,6 +676,10 @@ Manzana `torre` en `src/city-map.js` (`LUGARES.torre` = (-27.5, 130)); todo el c
  4 sillas, váter y cama (asientos falsos para `trySit` con `salida`: `standUp` te deja en ese punto
  libre), tele on/off, Play (`abrirMenuPlay`), congelador (+30 hambre, 40 s), horno (pizza +1 comida
  en 4 s, 60 s), ducha (+15 vida, 30 s), lavamanos y lámpara. Esperas en `torreUsoT`.
+- **Techo de cada piso** (`torreTechoOjo(eye, y)`): dentro del Mirador los ojos no suben de
+ `(k+1)*H - t - .15` (salvo en el hueco de la escalera y en la azotea), y no se aterriza en losas,
+ muebles ni muros cuyo tope quede sobre ese techo. Antes, saltando cama → clóset → muro, terminabas
+ en el piso de arriba o en el depto del lado.
 - Solo se dibujan los pisos vecinos al tuyo; una sola `PointLight` (`torreLuz`) te acompaña adentro.
 - Los rascacielos del centro (`makeWindowTexture`, `FACHADA_VENTANAS`) tienen ventanas de tamaño real
  (≈1,5 m × piso de 3,4 m) con antepecho, hall de vidrio con puerta y equipos en la azotea.

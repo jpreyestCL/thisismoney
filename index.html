@@ -7814,6 +7814,16 @@ function torreAdentro(margen) {
   const p = torreLocal(), m = margen || 0;
   return state.planet === 'tierra' && !state.country && Math.abs(p.x) < TORRE.w / 2 + m && Math.abs(p.z) < TORRE.d / 2 + m;
 }
+// Altura máxima de los ojos dentro de un piso del Mirador (bajo la losa de arriba). Sin esto, saltando
+// cama → clóset → muros llegabas encima de las paredes y aterrizabas en el piso de arriba o en otro depto.
+function torreTechoOjo(eye, y) {
+  if (torreLift.rider || !torreAdentro(0)) return Infinity;
+  const p = torreLocal(), m = .4;
+  if (p.x > TORRE_HUECO.minX - m && p.x < TORRE_HUECO.maxX + m && p.z > TORRE_HUECO.minZ - m && p.z < TORRE_HUECO.maxZ + m) return Infinity;   // la escalera sube por el hueco
+  const k = Math.floor((y - eye + .6) / TORRE.H);
+  if (k < 0 || k >= TORRE.N) return Infinity;   // en la azotea no hay techo
+  return (k + 1) * TORRE.H - TORRE.t - .15;
+}
 function torreNivel() {
   const pies = player.position.y - PLAYER_EYE;
   return THREE.MathUtils.clamp(Math.floor((pies + .6) / TORRE.H), 0, TORRE.N - 1);
@@ -19370,6 +19380,8 @@ function updateMovement(dt) {
   touch.jump = false;   // el salto (de piso) es de un solo toque
   const yAntesDeCaer = player.position.y;   // para saber si CRUZASTE un techo en este frame (si no, lo atravesabas cayendo rápido)
   vy -= grav * dt; player.position.y += vy * dt;
+  const techoTorre = torreTechoOjo(crouch ? CROUCH_EYE : PLAYER_EYE, yAntesDeCaer);
+  if (player.position.y > techoTorre) { player.position.y = techoTorre; if (vy > 0) vy = 0; }   // cabezazo con la losa de arriba
   // suelo efectivo: el piso normal o el TOPE de una isla flotante debajo (para pararte encima)
   let floorY = standY;
   if (state.planet === 'tierra' && !state.underground && inTreasureIsland(player.position.x, player.position.z)) {
@@ -19393,7 +19405,7 @@ function updateMovement(dt) {
     const top = s.top + (crouch ? CROUCH_EYE : PLAYER_EYE);
     if (Math.abs(player.position.x - s.x) > s.w / 2 || Math.abs(player.position.z - s.z) > s.d / 2) continue;
     const encima = player.position.y >= top - 0.7 || yAntesDeCaer >= top - .05;   // venías cayendo desde arriba
-    if (encima && top > floorY) floorY = top;
+    if (encima && top > floorY && top <= techoTorre) floorY = top;
   }
   // COPAS DE LOS ÁRBOLES: si dejas de volar encima de un árbol, te quedas sobre las hojas
   if (state.planet === 'tierra' && !state.underground && !state.inCastle && !state.inRuins && !state.inArena && !swimming && worldTreeSpots.length) {
@@ -19419,7 +19431,7 @@ function updateMovement(dt) {
       if (px < o.minX - .3 || px > o.maxX + .3 || pz < o.minZ - .3 || pz > o.maxZ + .3) continue;
       if (pies < o.top - .9 && (yAntesDeCaer - eye) < o.top - .05) continue;   // vas por debajo: es una pared, no un piso
       const top = o.top + eye;
-      if (top > floorY) floorY = top;
+      if (top > floorY && top <= techoTorre) floorY = top;   // en el Mirador no te subes arriba del clóset ni de las paredes
     }
   }
   const floor2Y = secondFloorSupportY(crouch ? CROUCH_EYE : PLAYER_EYE);

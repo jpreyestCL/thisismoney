@@ -7538,7 +7538,7 @@ buildJail();
 // ===================================================================
 const TORRE = { x: LUGARES.torre.x, z: LUGARES.torre.z, w: 32, d: 20, H: 4, N: 5, t: .3 };
 TORRE.alto = TORRE.H * TORRE.N;
-const TORRE_PRECIO = 3000;
+const TORRE_PRECIO = 10000;
 const TORRE_HUECO = { minX: -15.7, maxX: -13.5, minZ: -8.7, maxZ: -2.2 };   // escalera: sube hacia el frente
 const TORRE_ASC = { x: -14, z: 3.4, puertaZ: 1.7 };                          // ascensor: la puerta da al pasillo
 const torreDeptos = [];      // { id, nivel, s, puerta, obs, abierta, grupo, amoblado }
@@ -8535,6 +8535,126 @@ function torreNivel() {
   const pies = player.position.y - PLAYER_EYE;
   return THREE.MathUtils.clamp(Math.floor((pies + .6) / TORRE.H), 0, TORRE.N - 1);
 }
+// Interior del Mirador (hall, pasillos, deptos, escalera y ascensor). La calle queda afuera.
+function enInteriorMirador(x, z) {
+  if (state.planet !== 'tierra' || state.country || state.inFlight) return false;
+  return Math.abs(x - TORRE.x) < TORRE.w / 2 - .35 && Math.abs(z - TORRE.z) < TORRE.d / 2 - .35;
+}
+function deptoAlrededor(x, z, nivel) {
+  if (nivel < 1 || !enInteriorMirador(x, z)) return null;
+  const lz = z - TORRE.z;
+  if (Math.abs(lz) < 2.05) return null;   // el pasillo no es un depto
+  const s = lz >= 0 ? 1 : -1;
+  return torreDeptos.find(dp => dp.nivel === nivel && dp.s === s) || null;
+}
+function enHuecoEscalera(x, z) {
+  const lx = x - TORRE.x, lz = z - TORRE.z, h = TORRE_HUECO;
+  return lx > h.minX && lx < h.maxX && lz > h.minZ && lz < h.maxZ;
+}
+function sitioLibreMirador(x, z, pies) {
+  const cabe = (px, pz) => enInteriorMirador(px, pz) && !obstacleAt(px, pz, pies, .45);
+  for (let rad = .85; rad <= 7.5; rad += .5) {
+    const n = Math.max(8, Math.ceil(rad * 7));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + rad;
+      const px = x + Math.cos(a) * rad, pz = z + Math.sin(a) * rad;
+      if (cabe(px, pz)) return { x: px, z: pz };
+    }
+  }
+  const k = THREE.MathUtils.clamp(Math.floor((pies + .6) / TORRE.H), 0, TORRE.N - 1);
+  const cx = TORRE.x + (k === 0 ? 1.2 : -8), cz = TORRE.z + (k === 0 ? -5 : 0);
+  return { x: cx, z: cz };
+}
+function fijarPapa(x, z, pies, nivel) {
+  dad.position.set(x, pies, z);
+  dad.rotation.x = 0;
+  dad.userData.pisoTorre = nivel;
+  dad.userData.alturaMirador = pies;
+  dad.userData.enMirador = true;
+}
+function ponerPapaJunto(x, z, nivel) {
+  const pies = nivel * TORRE.H;
+  for (const dep of torreDeptos) if (dep.nivel === nivel && !dep.amoblado) amoblarDepto(dep);
+  const sitio = sitioLibreMirador(x, z, pies);
+  fijarPapa(sitio.x, sitio.z, pies, nivel);
+  dad.rotation.y = Math.atan2(x - sitio.x, z - sitio.z);
+}
+function levantarPapa() {
+  if (!dad.userData.resting && dad.userData.mode !== 'rest') return;
+  dad.userData.resting = false;
+  dad.rotation.x = 0;
+  if (dad.userData.mode === 'rest') dad.userData.mode = 'follow';
+}
+// La puerta del Mirador (fundido): entra y sale contigo, parado en un hueco libre.
+function trasladarPapaConLaEntrada(dest, entrando) {
+  if (!dad.visible) return;
+  levantarPapa();
+  if (!entrando) {
+    dad.userData.enMirador = false;
+    dad.userData.pisoTorre = null;
+    dad.userData.alturaMirador = 0;
+    let x = dest.x + 1.6, z = dest.z;
+    if (obstacleAt(x, z, 0, .5)) x = dest.x - 1.6;
+    if (obstacleAt(x, z, 0, .5)) { x = dest.x; z = dest.z - 1.4; }
+    dad.position.set(x, mountainHeightAt(x, z), z);
+    dad.rotation.set(0, dest.yaw || 0, 0);
+    return;
+  }
+  ponerPapaJunto(dest.x + 1.15, dest.z + .9, 0);
+}
+// Adentro: si cambias de piso queda en ese piso; en «seguir» camina contigo sin atravesar muros.
+function acompanarPapaMirador(dt) {
+  if (!dad.visible) return false;
+  const nivel = torreLift.rider ? torreLiftNivel() : torreNivel();
+  if (torreLift.rider) {
+    fijarPapa(player.position.x + .65, player.position.z + .4, torreLift.y, nivel);
+    dad.rotation.y = yaw;
+    return true;
+  }
+  if (enHuecoEscalera(player.position.x, player.position.z)) {
+    const pies = Math.max(0, player.position.y - PLAYER_EYE);
+    const lx = player.position.x - TORRE.x, lz = player.position.z - TORRE.z;
+    let puesto = false;
+    for (const [a, b] of [[lx, lz + .65], [lx + .45, lz], [lx - .45, lz], [lx, lz - .55]]) {
+      const wx = TORRE.x + a, wz = TORRE.z + b;
+      if (!enHuecoEscalera(wx, wz) || obstacleAt(wx, wz, pies, .35)) continue;
+      fijarPapa(wx, wz, pies, nivel);
+      puesto = true;
+      break;
+    }
+    if (!puesto) fijarPapa(player.position.x, player.position.z, pies, nivel);
+    dad.rotation.y = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z);
+    return true;
+  }
+  const seguir = dad.userData.mode === 'follow';
+  const afuera = !enInteriorMirador(dad.position.x, dad.position.z);
+  const piesPapa = (dad.userData.pisoTorre || 0) * TORRE.H;
+  const atravesado = !afuera && obstacleAt(dad.position.x, dad.position.z, piesPapa, .42);
+  const depJ = deptoAlrededor(player.position.x, player.position.z, nivel);
+  const depP = afuera ? null : deptoAlrededor(dad.position.x, dad.position.z, nivel);
+  const otraZona = seguir && !afuera && ((depJ && (!depP || depP.id !== depJ.id)) || (!depJ && depP));
+  const sinPiso = dad.userData.pisoTorre == null;
+  const cambioDePiso = !sinPiso && dad.userData.pisoTorre !== nivel;
+  if (atravesado || cambioDePiso || (seguir && (afuera || sinPiso || otraZona))) ponerPapaJunto(player.position.x, player.position.z, nivel);
+  if (dad.userData.mode === 'clean' && !atravesado && !cambioDePiso && !otraZona) return false;
+  if (seguir) {
+    if (dist2D(dad.position, player.position) > 1.8) {
+      moveToward(dad, player.position, 2.6 * dt);
+      dad.rotation.y = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z);
+    }
+    const pies = nivel * TORRE.H;
+    dad.position.y = pies;
+    dad.userData.alturaMirador = pies;
+    dad.userData.pisoTorre = nivel;
+    if (!enInteriorMirador(dad.position.x, dad.position.z) || obstacleAt(dad.position.x, dad.position.z, pies, .42)) ponerPapaJunto(player.position.x, player.position.z, nivel);
+    else dad.userData.enMirador = true;
+  } else {
+    const pies = (dad.userData.pisoTorre || 0) * TORRE.H;
+    dad.position.y = pies;
+    dad.userData.alturaMirador = pies;
+  }
+  return dad.userData.mode !== 'clean';
+}
 function deptoPorId(id) { return id == null ? null : torreDeptos.find(dp => dp.id === String(id)) || null; }
 function setPuertaDepto(dep, abierta) {
   dep.abierta = abierta;
@@ -8622,6 +8742,7 @@ function bajarAscensor() {
   const L = torreLift, k = torreLiftNivel();
   L.rider = false; L.llego = false; L.espera = 0;
   player.position.set(TORRE.x + TORRE_ASC.x, k * TORRE.H + PLAYER_EYE, TORRE.z + .3);
+  if (dad.visible) ponerPapaJunto(player.position.x + 1.1, player.position.z, k);
   vy = 0; grounded = true; yaw = 0;
   cameraMode = L.camPrev || 0;
   cerrarBotonera();
@@ -8766,6 +8887,7 @@ function tryEntrada() {
   setTimeout(() => {
     player.position.set(dest.x, dest.y + PLAYER_EYE, dest.z);
     vy = 0; grounded = true; yaw = dest.yaw; pitch = 0;
+    if (en.nombre === 'Edificio Mirador') trasladarPapaConLaEntrada(dest, !adentro);
     f.style.transition = 'opacity .45s'; f.style.opacity = '0';
     entrandoAhora = false;
     if (en.azotea) { tone(880, .18, .05, 'sine'); toast(adentro ? '🏙️ En la calle · E en la puerta te sube de nuevo' : '🏙️ ¡Azotea! · E en la puerta de la sala de máquinas para bajar'); }
@@ -11911,6 +12033,10 @@ function livingIgnoresWater(e) {
 function applyLivingY(e, dt) {
   if (!e) return;
   const ud = e.userData || (e.userData = {});
+  if (e === dad && ud.enMirador) {
+    if (enInteriorMirador(e.position.x, e.position.z)) { e.position.y = ud.alturaMirador || 0; return; }
+    ud.enMirador = false;
+  }
   if (ud.fly || ud.ufo) { e.position.y = flyerChaseY(e); return; }
   if (ud.mineHole || ud.resting) return;
   if (state.inFlight && (e === dad || e === pet || e === petAlien || helpers.includes(e))) return;
@@ -12899,8 +13025,9 @@ function updateDad(dt) {
   // el papá se cura de a poco (0.5/s); descansando en el sofá/la cama se cura 4 veces más rápido (2/s)
   if (state.dadHp > 0 && state.dadHp < 100) state.dadHp = Math.min(100, state.dadHp + (dad.userData.resting ? 2 : 0.5) * dt);
   if (dad.userData.resting) { dad.userData.guarding = false; dad.userData.protecting = false; if (dad.userData.shield) dad.userData.shield.visible = false; return; }   // descansando: no se mueve ni pelea
-  // Protector: prioriza al monstruo que amenaza al jugador, se interpone y atrae su atención.
-  if (dad.userData.armed && (state.phase === 'NIGHT' || dirtZombiesAlive())) {
+  if (enInteriorMirador(player.position.x, player.position.z)) {
+    if (acompanarPapaMirador(dt)) { swingLimbs(dad, dt); return; }
+  } else if (dad.userData.armed && (state.phase === 'NIGHT' || dirtZombiesAlive())) {
     dad.userData.atkCd -= dt;
     let near = null, nd = Infinity, playerThreat = Infinity, bestScore = Infinity;
     const protectRange = state.dadArmor < 1 ? (state.hp <= 45 ? 15 : 11) : 7;
@@ -13197,6 +13324,7 @@ function tryDiscoverSecret() {
 function syncWorldSecrets() { for (const s of worldSecrets) s.visible = state.planet === 'tierra' && !state.foundSecrets[s.userData.secret.id]; }
 
 function damagePlayer(amount, fromPos, fromAirFoe) {
+  if (enInteriorMirador(player.position.x, player.position.z)) return;   // en el Mirador los monstruos no te bajan la vida
   if (playerAirborne() && !fromAirFoe && !airAttackFrom(fromPos)) {   // en el aire los de tierra no llegan; un volador sí
     if (fromPos) airCombatMiss();
     return;
@@ -13248,6 +13376,7 @@ function updateShield(dt) {
   if (state.shieldHp < state.shieldMax) state.shieldHp = Math.min(state.shieldMax, state.shieldHp + 8 * dt);
 }
 function damageDad(amount, fromPos) {
+  if (enInteriorMirador(dad.position.x, dad.position.z)) return;   // ni al papá, mientras esté adentro
   const defended = state.dadArmor < 1, activeGuard = defended;
   dad.userData.defendAnim = .3; dad.userData.guarding = true; if (defended) ensureDadShield();
   voxelImpact(dad.position.clone().setY(1.35), defended ? 0x38bdf8 : 0xef4444, defended ? 6 : 8);
@@ -19724,12 +19853,23 @@ function loop() {
 
 // Veneno de la hormiga: envenena al jugador o al papá; hace 2 de daño por segundo durante 10s
 function applyPoison(who) {
-  if (who === 'dad') { if (!(state.dadPoison > 0)) toast('🟢 ¡El papá está envenenado!'); state.dadPoison = 10; }
-  else { if (!(state.poison > 0)) toast('🟢 ¡Te envenenó la hormiga! (-2/seg)'); state.poison = 10; }
+  if (who === 'dad') {
+    if (enInteriorMirador(dad.position.x, dad.position.z)) return;
+    if (!(state.dadPoison > 0)) toast('🟢 ¡El papá está envenenado!'); state.dadPoison = 10;
+  } else {
+    if (enInteriorMirador(player.position.x, player.position.z)) return;
+    if (!(state.poison > 0)) toast('🟢 ¡Te envenenó la hormiga! (-2/seg)'); state.poison = 10;
+  }
 }
 function updatePoison(dt) {
-  if (state.poison > 0) { state.poison = Math.max(0, state.poison - dt); state.hp -= 2 * dt; }   // la muerte la maneja el loop (hp<=0)
-  if (state.dadPoison > 0 && dad.visible) { state.dadPoison = Math.max(0, state.dadPoison - dt); state.dadHp -= 2 * dt; }
+  if (state.poison > 0) {
+    state.poison = Math.max(0, state.poison - dt);
+    if (!enInteriorMirador(player.position.x, player.position.z)) state.hp -= 2 * dt;   // la muerte la maneja el loop (hp<=0)
+  }
+  if (state.dadPoison > 0 && dad.visible) {
+    state.dadPoison = Math.max(0, state.dadPoison - dt);
+    if (!enInteriorMirador(dad.position.x, dad.position.z)) state.dadHp -= 2 * dt;
+  }
 }
 function updateWater(dt) {
   if (state.driving || state.riding || state.planet !== 'tierra') { state.inWater = state.underwater = false; }
@@ -20404,7 +20544,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, abrirDeptos, enInteriorMirador, updateDad, damagePlayer, damageDad, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -20574,6 +20714,10 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.pixelTv = () => { if (!tvMat) return null; const d = tvMat.userData.ctx.getImageData(20, 20, 1, 1).data; return { rgb: [d[0], d[1], d[2]], id: programaActual().id }; };
   timDump.lavadoInfo = () => lavado ? { t: +lavado.t.toFixed(2), dur: lavado.dur } : null;
   timDump.tickLavado = (n, dt) => { const step = dt == null ? .05 : dt; for (let i = 0; i < (n || 1); i++) updateLavado(step); updatePlayerCamera(0); if (lavado) updateLavado(0); return timDump.lavadoInfo(); };
+  timDump.setCam = (m) => { cameraMode = m; };
+  timDump.updateNight = updateNight;
+  timDump.applyPoison = applyPoison;
+  timDump.updatePoison = updatePoison;
   window.__tim = timDump;
 } } catch (e) {}
 function netAddConn(c) {

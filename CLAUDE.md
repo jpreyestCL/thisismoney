@@ -654,13 +654,13 @@ existen todavía en la línea donde se declaran `BANK_POS`/`JAIL_POS`.
   Ahora las filas se calculan con `Math.ceil(items.length / cols.length)`.
 - Debug: `__tim().jailFolk`, `__tim().bankTeller()`, `__tim().bankDeskNear()`, `__tim().JAIL`.
 
-## Edificio Mirador (deptos de $3000 con ascensor y escalera)
+## Edificio Mirador (deptos de $10000 con ascensor y escalera)
 
 Manzana `torre` en `src/city-map.js` (`LUGARES.torre` = (-27.5, 130)); todo el código está en
 `buildTorre()` y compañía, justo después de `buildJail()`. `TORRE` = 32×20, 5 pisos de 4 m.
 
 - **Hall**: conserje sentada (`torreConserje`) en su mesón; con E abre `#aptbox` (`abrirDeptos`).
- `comprarDepto(id)` cobra `TORRE_PRECIO` (3000, gratis en creativo), un depto por partida
+ `comprarDepto(id)` cobra `TORRE_PRECIO` (10000, gratis en creativo), un depto por partida
  (`state.depto`, se guarda). Hay 8 deptos (201…502), con número en la puerta.
 - **Ascensor** (`torreLift`): E frente a la puerta lo llama (`llamarAscensor`); al llegar te subes
  (`subirAscensor`, cámara en primera persona dentro de la cabina) y se abre la botonera

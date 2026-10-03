@@ -1,5 +1,5 @@
 // El Edificio Mirador: conserje en el hall, ascensor con botonera, escaleras y
-// departamentos numerados de $3000 con living, cocina, baño y pieza.
+// departamentos numerados de $10000 con living, cocina, baño y pieza.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -23,9 +23,10 @@ test('el edificio cabe en su manzana y no pisa la calle', () => {
   assert.deepEqual(validarMapa(), []);
 });
 
-test('el departamento cuesta $3000 y se compra con la conserje', () => {
-  assert.match(html, /const TORRE_PRECIO = 3000/);
+test('el departamento cuesta $10000 y se compra con la conserje', () => {
+  assert.match(html, /const TORRE_PRECIO = 10000/);
   assert.match(html, /function comprarDepto\(/);
+  assert.match(html, /if \(!state\.creative\) addMoney\(-TORRE_PRECIO\)/);
   assert.match(html, /torreConserje/);
 });
 
@@ -83,6 +84,16 @@ test('los muebles del depto se usan con E', () => {
   for (const k of ['sofa', 'silla', 'bano', 'cama']) assert.match(html, new RegExp("asiento\\('" + k + "'"));
   assert.match(html, /if \(q\.tipo === 'objeto'\) return usarObjetoDepto\(q\.obj\)/);
   assert.match(html, /salida = sitOn\.salida/);   // te paras en un punto libre, no dentro del muro
+});
+
+test('el papá entra al Mirador y adentro no hay daño de monstruos', () => {
+  assert.match(html, /function enInteriorMirador\(x, z\)/);
+  assert.match(html, /function trasladarPapaConLaEntrada\(dest, entrando\)/);
+  assert.match(html, /function acompanarPapaMirador\(dt\)/);
+  assert.match(html, /if \(en\.nombre === 'Edificio Mirador'\) trasladarPapaConLaEntrada\(dest, !adentro\)/);
+  assert.match(html, /if \(enInteriorMirador\(player\.position\.x, player\.position\.z\)\) return;/);
+  assert.match(html, /if \(enInteriorMirador\(dad\.position\.x, dad\.position\.z\)\) return;/);
+  assert.match(html, /const DUCHA_SEG = 28/);
 });
 
 test('la tele pasa programas y el lavamanos anima el lavado', () => {

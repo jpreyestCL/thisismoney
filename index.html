@@ -8767,12 +8767,7 @@ function hablarAhora(linea) {
       return;
     }
     const ficha = fichaVoz(linea.voz || 'periodista', linea.evitar);
-    if (!ficha.voz || !vozEsEspanol(ficha.voz)) {
-      avisarSinVozEspanol();
-      tvVoz = { clave: linea.clave, texto: linea.texto };
-      tvEsperandoVoces = null;
-      return;
-    }
+    const vozEs = !linea.sinVoz && ficha.voz && vozEsEspanol(ficha.voz) ? ficha.voz : null;
     if (tvVozTimer) { clearTimeout(tvVozTimer); tvVozTimer = 0; }
     tvVoz = { clave: linea.clave, texto: linea.texto };
     tvPendiente = null;
@@ -8781,35 +8776,32 @@ function hablarAhora(linea) {
     u.volume = 1;
     u.pitch = ficha.pitch;
     u.rate = ficha.rate;
-    u.lang = ficha.lang;
-    let asignada = false;
-    try { u.voice = ficha.voz; asignada = !!(u.voice && vozEsEspanol(u.voice)); } catch (e) {}
-    if (!asignada || !vozEsEspanol({ lang: u.lang })) {
-      const evitar = (linea.evitar || []).concat(ficha.voiceURI ? [ficha.voiceURI] : []);
-      if ((linea.intentos || 0) < 6 && vocesEspanol().some(v => evitar.indexOf(v.voiceURI) < 0)) {
-        tvVoz = null;
-        hablarAhora(Object.assign({}, linea, { forzar: true, evitar: evitar, intentos: (linea.intentos || 0) + 1 }));
-      } else avisarSinVozEspanol();
-      return;
-    }
-    tvUltimaLocucion = { texto: linea.texto, marca: ficha.marca, name: ficha.name, lang: u.lang, voiceURI: ficha.voiceURI, pitch: u.pitch, rate: u.rate, volume: u.volume, empezo: false, voiceURIReal: null };
+    u.lang = 'es-CL';
+    if (vozEs) { try { u.voice = vozEs; } catch (e) {} }
+    if (u.voice && !vozEsEspanol(u.voice)) { try { u.voice = null; } catch (e) {} }
+    tvUltimaLocucion = { texto: linea.texto, marca: ficha.marca, name: vozEs ? ficha.name : null, lang: u.lang, voiceURI: (u.voice && u.voice.voiceURI) || null, pitch: u.pitch, rate: u.rate, volume: u.volume, empezo: false, voiceURIReal: null };
     u.onstart = () => {
       if (!tvUltimaLocucion || tvUltimaLocucion.texto !== linea.texto) return;
       const real = u.voice;
-      if (real && !vozEsEspanol(real)) { cortarVozTele(); avisarSinVozEspanol(); return; }
+      if (real && /^en([_-]|$)/i.test(real.lang || '')) { cortarVozTele(); avisarSinVozEspanol(); return; }
       tvUltimaLocucion.empezo = true;
-      tvUltimaLocucion.voiceURIReal = real ? (real.voiceURI || real.name || null) : ficha.voiceURI;
-      tvUltimaLocucion.lang = (real && real.lang) || u.lang;
+      tvUltimaLocucion.voiceURIReal = real ? (real.voiceURI || real.name || null) : null;
+      tvUltimaLocucion.lang = u.lang || 'es-CL';
+      if (real && vozEsEspanol(real)) tvUltimaLocucion.lang = real.lang || u.lang;
       if (real && real.name) tvUltimaLocucion.name = real.name;
     };
     u.onerror = (ev) => {
       const err = ev && ev.error;
       if (err === 'interrupted' || err === 'canceled') return;
       if (!tvVoz || tvVoz.clave !== linea.clave) return;
-      const evitar = (linea.evitar || []).concat(ficha.voiceURI ? [ficha.voiceURI] : []);
+      const evitar = (linea.evitar || []).concat(vozEs && vozEs.voiceURI ? [vozEs.voiceURI] : []);
       tvVoz = null;
-      if ((linea.intentos || 0) >= 6 || !vocesEspanol().some(v => evitar.indexOf(v.voiceURI) < 0)) { avisarSinVozEspanol(); return; }
-      hablarAhora(Object.assign({}, linea, { forzar: true, evitar: evitar, intentos: (linea.intentos || 0) + 1 }));
+      if (!linea.sinVoz && (linea.intentos || 0) < 6 && vocesEspanol().some(v => evitar.indexOf(v.voiceURI) < 0)) {
+        hablarAhora(Object.assign({}, linea, { forzar: true, evitar: evitar, intentos: (linea.intentos || 0) + 1 }));
+        return;
+      }
+      if (!linea.sinVoz) { hablarAhora(Object.assign({}, linea, { forzar: true, sinVoz: true })); return; }
+      avisarSinVozEspanol();
     };
     u.onend = () => {
       if (!tvVoz || tvVoz.clave !== linea.clave) return;

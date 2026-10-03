@@ -145,7 +145,7 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /u\.pitch = ficha\.pitch/);
   assert.match(html, /u\.rate = ficha\.rate/);
   assert.match(html, /u\.volume = 1/);
-  assert.match(html, /u\.lang = ficha\.lang/);
+  assert.match(html, /u\.lang = 'es-CL'/);
   assert.match(html, /voiceschanged/);
   assert.match(html, /function vozEsEspanol/);
   assert.match(html, /la tele necesita una voz en español/);

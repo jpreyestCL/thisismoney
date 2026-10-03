@@ -2023,7 +2023,9 @@ function getAimDirection(out) {
 function updatePlayerCamera(dt) {
   if (state.cinematic) { playerAvatar.visible = false; viewmodel.visible = false; return; }
   viewmodel.visible = cameraMode === 0;
-  playerAvatar.visible = (cameraMode !== 0 || mirrorNear) && !state.driving && !state.riding;   // frente a un espejo se muestra tu cuerpo para que te veas
+  // En 1ª persona tu cuerpo NO se dibuja en tu vista (la cámara queda dentro de la cabeza y veías
+  // tus brazos como cuadros gigantes): solo aparece dentro del reflejo (lunaConCuerpo).
+  playerAvatar.visible = cameraMode !== 0 && !state.driving && !state.riding;
   // El cuerpo acompaña al jugador SIEMPRE (en 1ª persona sirve para verte en el espejo).
   // Mira hacia DONDE MIRAS (la cara de las personas apunta a +z y la vista va a -z), así en
   // el espejo te ves la cara y en tercera persona te ves la espalda.
@@ -5380,6 +5382,8 @@ function makeWindowTexture(color, luz) {
   return t;
 }
 const TORRE_COLORES = [[0x64748b, 0xfde68a], [0x475569, 0xbae6fd], [0x7c6f64, 0xfef3c7], [0x334155, 0xa5f3fc]];
+// Puertas de los edificios a las que se entra / sale con E: { nombre, a: afuera, b: adentro, azotea }
+const ENTRADAS = [];
 function buildSkyline(distritoId, alturas) {
   const distrito = DISTRITOS.find(d => d.id === distritoId); if (!distrito) return;
   const r = rectDistrito(distrito, -3);
@@ -5413,7 +5417,14 @@ function buildSkyline(distritoId, alturas) {
     const puerta = new THREE.Mesh(new THREE.BoxGeometry(haciaX ? .1 : 2.2, 2.8, haciaX ? 2.2 : .1), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: .1, metalness: .6 }));
     puerta.position.set(haciaX ? x + lado * (w / 2 - .45) : x, 1.4, haciaX ? z : z + lado * (d / 2 - .45)); scene.add(puerta);
     // Azotea: sala de máquinas, estanque y equipos de clima
-    const maq = new THREE.Mesh(new THREE.BoxGeometry(Math.min(4, w * .4), 2.6, Math.min(4, d * .4)), mat(0xcbd5e1)); maq.position.set(x - w * .2, alto + 2, z - d * .15); maq.castShadow = true; scene.add(maq);
+    const maqD = Math.min(4, d * .4);
+    const maq = new THREE.Mesh(new THREE.BoxGeometry(Math.min(4, w * .4), 2.6, maqD), mat(0xcbd5e1)); maq.position.set(x - w * .2, alto + 2, z - d * .15); maq.castShadow = true; scene.add(maq);
+    const puertaAzotea = new THREE.Mesh(new THREE.BoxGeometry(1, 2, .08), mat(0x475569)); puertaAzotea.position.set(x - w * .2, alto + 1.7, z - d * .15 + maqD / 2 + .04); scene.add(puertaAzotea);
+    // E en la puerta de la calle te sube en ascensor a la azotea; E en la puerta de la azotea te baja
+    const yawFuera = haciaX ? (lado > 0 ? -Math.PI / 2 : Math.PI / 2) : (lado > 0 ? Math.PI : 0);
+    ENTRADAS.push({ nombre: 'rascacielos', azotea: true, pisos: Math.round((alto - 4.2) / 3.4) + 1,
+      a: { x: haciaX ? x + lado * (w / 2 + 2.6) : x, y: 0, z: haciaX ? z : z + lado * (d / 2 + 2.6), yaw: yawFuera },
+      b: { x: x - w * .2, y: alto + .7, z: z - d * .15 + maqD / 2 + 1.3, yaw: Math.PI } });
     const est = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1.8, 12), mat(0x94a3b8)); est.position.set(x + w * .22, alto + 1.6, z + d * .2); scene.add(est);
     const clima = new THREE.Mesh(new THREE.BoxGeometry(1.6, .9, 1.1), mat(0xe5e7eb)); clima.position.set(x + w * .2, alto + 1.15, z - d * .25); scene.add(clima);
     const remate = new THREE.Mesh(new THREE.BoxGeometry(w + .8, .7, d + .8), mat(0x94a3b8));
@@ -7663,7 +7674,7 @@ function amoblarDepto(dep) {
   const esp = new THREE.Group(); esp.position.set(9.86, y0 + 1.75, s * 6); esp.rotation.y = -Math.PI / 2; torreNiveles[dep.nivel].add(esp);
   for (const [bw, bh, bx, by] of [[1, .06, 0, .56], [1, .06, 0, -.56], [.06, 1.18, -.47, 0], [.06, 1.18, .47, 0]]) tBox(esp, bx, by, 0, bw, bh, .04, 0xd4d4d8);
   const luna = new Reflector(new THREE.PlaneGeometry(.88, 1.06), { textureWidth: 512, textureHeight: 512, color: 0xb9cddb });
-  luna.position.z = .03; luna.visible = false; esp.add(luna);
+  luna.position.z = .03; luna.visible = false; esp.add(lunaConCuerpo(luna));
   mirrorObjs.push({ mesh: esp, mirrors: [luna], alturaY: y0 });
   // ---------- DORMITORIO: cama, tele con Play, velador, clóset y ventana ----------
   tBox(f, 13, .75, 9.72, 1.85, 1.3, .12, 0x6b4423, true);
@@ -7897,6 +7908,46 @@ function torreSilla(parent, x, z, rot) {
 buildTorre();
 document.querySelectorAll('[data-lift]').forEach(b => b.onclick = () => { const v = b.dataset.lift; elegirPiso(/^\d$/.test(v) ? +v : v); });
 document.getElementById('aptCloseBtn').onclick = cerrarDeptos;
+
+// ---- ENTRAR CON E: frente a la puerta te mete, adentro te saca a la calle ----
+// (los rascacielos los agrega buildSkyline: su "adentro" es el ascensor a la azotea)
+ENTRADAS.push(
+  { nombre: 'Edificio Mirador', a: { x: TORRE.x, y: 0, z: TORRE.z - TORRE.d / 2 - 3.2, yaw: 0 }, b: { x: TORRE.x, y: 0, z: TORRE.z - TORRE.d / 2 + 2.2, yaw: Math.PI } },
+  { nombre: 'Banco Central', a: { x: BANK.x, y: 0, z: BANK.frente + 4.5, yaw: Math.PI }, b: { x: BANK.x, y: 0, z: BANK.frente - 1.6, yaw: 0 } },
+  { nombre: 'Penal La Roca', a: { x: JAIL.x, y: 0, z: JAIL.z + JAIL.d / 2 + 3.5, yaw: Math.PI }, b: { x: JAIL.x, y: 0, z: JAIL.z + JAIL.d / 2 - 3, yaw: 0 } });
+const ENTRADA_RADIO = 2.4;
+let entrandoAhora = false;
+function entradaCerca() {
+  if (state.planet !== 'tierra' || state.country || state.driving || state.underground || state.inCastle || state.inRuins || state.inArena || state.inFlight || state.mission === 'alley' || torreLift.rider || sitOn) return null;
+  const pies = player.position.y - PLAYER_EYE;
+  for (const en of ENTRADAS) for (const lado of ['a', 'b']) {
+    const p = en[lado];
+    if (Math.abs(pies - p.y) < 1.5 && Math.hypot(player.position.x - p.x, player.position.z - p.z) < ENTRADA_RADIO) return { en, adentro: lado === 'b' };
+  }
+  return null;
+}
+function entradaAccion() {
+  const c = entradaCerca(); if (!c) return null;
+  if (c.en.azotea) return c.adentro ? { key: 'E', touch: '🛗', text: 'Bajar a la calle en ascensor' } : { key: 'E', touch: '🛗', text: 'Entrar al rascacielos · ascensor a la azotea' };
+  return c.adentro ? { key: 'E', touch: '🚪', text: 'Salir a la calle' } : { key: 'E', touch: '🚪', text: 'Entrar al ' + c.en.nombre };
+}
+function tryEntrada() {
+  const c = entradaCerca(); if (!c || entrandoAhora) return !!c;
+  const { en, adentro } = c, dest = adentro ? en.a : en.b;
+  entrandoAhora = true;
+  const f = ui('fade'); f.style.transition = 'opacity .25s'; f.style.background = '#000'; f.style.opacity = '1';
+  beep(adentro ? 520 : 660, .08, .04);
+  if (en.azotea) toast(adentro ? '🛗 Bajando… ' + en.pisos + ' → 1' : '🛗 Subiendo… 1 → ' + en.pisos);
+  setTimeout(() => {
+    player.position.set(dest.x, dest.y + PLAYER_EYE, dest.z);
+    vy = 0; grounded = true; yaw = dest.yaw; pitch = 0;
+    f.style.transition = 'opacity .45s'; f.style.opacity = '0';
+    entrandoAhora = false;
+    if (en.azotea) { tone(880, .18, .05, 'sine'); toast(adentro ? '🏙️ En la calle · E en la puerta te sube de nuevo' : '🏙️ ¡Azotea! · E en la puerta de la sala de máquinas para bajar'); }
+    else toast(adentro ? '🚪 Saliste del ' + en.nombre : '🚪 Entraste al ' + en.nombre + ' · E en la puerta para salir');
+  }, en.azotea ? 900 : 300);
+  return true;
+}
 
 // ===================================================================
 //  EL CONDOMINIO DONDE VIVES  (manzana `casa`, trazado en src/city-map.js)
@@ -9457,6 +9508,17 @@ const rgbPlaced = [];       // piezas gamer con luces RGB: cambian de color sola
 const mirrorObjs = [];      // espejos colocados (solo el más cercano refleja de verdad, por rendimiento)
 let mirrorNear = false;     // true si estás frente a un espejo (ahí se muestra tu cuerpo para verte)
 const _mirrorTmp = new THREE.Vector3();
+// El reflejo se dibuja en su propio render (dentro del de la cámara): ahí, y solo ahí, se prende tu cuerpo
+function lunaConCuerpo(luna) {
+  const original = luna.onBeforeRender;
+  luna.onBeforeRender = function (...args) {
+    const antes = playerAvatar.visible;
+    if (!state.cinematic && !state.driving && !state.riding) playerAvatar.visible = true;
+    original.apply(this, args);
+    playerAvatar.visible = antes;
+  };
+  return luna;
+}
 function updateMirrors() {
   let best = null, bd = 7;
   for (const o of mirrorObjs) {
@@ -10104,7 +10166,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     bar(1.3, 0.16, 0, 0.86); bar(1.3, 0.16, 0, -0.86); bar(0.16, 1.9, -0.63, 0); bar(0.16, 1.9, 0.63, 0);
     // Un reflector que se da vuelta hacia el lado desde el que lo miras
     const luna = new Reflector(new THREE.PlaneGeometry(1, 1.55), { textureWidth: 512, textureHeight: 512, color: 0xb9cddb });
-    luna.position.z = 0.08; luna.visible = false; m.add(luna);   // se prende solo cuando te acercas (rinde mejor)
+    luna.position.z = 0.08; luna.visible = false; m.add(lunaConCuerpo(luna));   // se prende solo cuando te acercas (rinde mejor)
     obj.mirrors = [luna];
     mirrorObjs.push(obj);
   }
@@ -12639,6 +12701,7 @@ function tryInteract() {
   if (tryJobInteract()) return;   // recados: calmar al perro / abrir el cajón
   if (tryDoor()) return;          // abrir / cerrar la puerta de tu casa
   if (tryTorre()) return;         // edificio: conserje, ascensor y puertas de los deptos
+  if (tryEntrada()) return;       // entrar / salir de los edificios por la puerta
   if (tryBuyPlot()) return;       // comprar el terreno del condominio
   if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract() && !tryVendorHere() && !tryHelperHere()) { if (!tryCollectGolden() && !tryRob() && !sellHouse()) tryGardenHere(); }
 }
@@ -14606,7 +14669,7 @@ function saveGame() {
     const wc = weaponVisualColor;
     const data = {
       saveVersion: GAME_RULES.saveVersion,
-      money: state.money, totalEarned: state.totalEarned, stage: state.stage, plot: state.plot || null, plotLegacy: !!state.plotLegacy, depto: state.depto || null,
+      money: state.money, totalEarned: state.totalEarned, stage: state.stage, plot: state.plot || null, plotLegacy: !!state.plotLegacy, depto: state.depto || null, pisoTorre: torreAdentro() ? torreNivel() : 0,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
       phase: state.phase === 'NIGHT' ? 'NIGHT' : 'DAY', dayTime: state.dayTime || 0, nightTime: state.nightTime || 0, spawnTimer: state.spawnTimer || 0,
       hordeOn: !!state.hordeOn, bossNight: !!state.bossNight, nightDamage: !!state.nightDamage, pinataDone: !!state.pinataDone, coldWarned: !!state.coldWarned,
@@ -15150,6 +15213,12 @@ function restoreWorldClock(d) {   // noche, clima y eclipse se quedan como al gu
     const fx = ui('coldfx'); if (fx && state.weather !== 'dust') fx.style.opacity = '0.85';
   }
 }
+function bajoTecho() {
+  if (state.underground || state.inCastle || state.inRuins || state.inArena || state.inFlight) return true;
+  const p = player.position, pies = p.y - PLAYER_EYE;
+  if (torreAdentro() && pies < TORRE.alto - .5) return true;
+  return state.planet === 'tierra' && !state.country && Math.abs(p.x - BANK.x) < BANK.w / 2 && Math.abs(p.z - BANK.z) < BANK.d / 2 && pies < BANK.h;
+}
 function updateWeather(dt) {
   if (!state.running || state.phase === 'TITLE') return;
   if (state.weather === 'clear') {
@@ -15166,6 +15235,7 @@ function updateWeather(dt) {
       for (let i = 0; i < p.count; i++) { let y = p.getY(i) - 14 * dt; if (y < 0) y = 18; p.setY(i, y); }
       p.needsUpdate = true;
       rainObj.position.set(player.position.x, 0, player.position.z);
+      rainObj.visible = !bajoTecho();   // las gotas siguen al jugador: bajo techo atravesarían el cielo raso
     }
     if (state.weather === 'dust') {   // el polvo daña lejos de una fogata (también de día)
       let warm = false; for (const f of campfires) if (dist2D(player.position, f.position) < 7) warm = true;
@@ -15579,7 +15649,9 @@ function loadGame() {
   state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0; state.trophies = d.trophies || 0;
   removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   (d.helpers || []).filter(h => h.hp !== 0).forEach(h => makeHelperAt(h.x, h.z, h.hp));                   // reponer ayudantes (ya equipados)
-  const spawnY = (state.planet === 'tierra' && d.px != null && inTreasureIsland(d.px, d.pz)) ? TREASURE_ISLAND.surface + PLAYER_EYE : PLAYER_EYE;
+  const enTorre = state.planet === 'tierra' && !state.country && d.px != null && Math.abs(d.px - TORRE.x) < TORRE.w / 2 && Math.abs(d.pz - TORRE.z) < TORRE.d / 2;
+  const spawnY = (state.planet === 'tierra' && d.px != null && inTreasureIsland(d.px, d.pz)) ? TREASURE_ISLAND.surface + PLAYER_EYE
+    : enTorre && d.pisoTorre > 0 ? Math.min(d.pisoTorre, TORRE.N - 1) * TORRE.H + PLAYER_EYE : PLAYER_EYE;   // en el edificio vuelves a tu piso
   player.position.set(d.px != null ? d.px : 10, spawnY, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
   dad.userData.mode = d.dadMode || 'follow';
@@ -19073,6 +19145,7 @@ function updateCreativeFlight(dt) {
   if (inTreasureIsland(player.position.x, player.position.z)) noteIslandArrival('🏝️ Llegaste volando a la ISLA DEL TESORO');
   grounded = false; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
 }
+let ojoAntes = PLAYER_EYE;   // altura de los ojos del frame anterior (de pie o agachado)
 function updateMovement(dt) {
   if (raceState) return;   // durante la carrera 3D el auto y la cámara siguen la pista aérea
   if (state.mission === 'alley' && alley.following) {
@@ -19109,6 +19182,11 @@ function updateMovement(dt) {
   const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const rightV = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
   const crouch = keys['ControlLeft'] || keys['ControlRight'] || touch.crouch;   // agacharse con Ctrl / botón
+  // Al pararte, los ojos suben 0,7 de golpe: justo la tolerancia de los suelos altos. Sin esto,
+  // pararte sobre una losa / techo / peldaño te hacía caer a través de ella hasta el suelo.
+  const ojoAhora = crouch ? CROUCH_EYE : PLAYER_EYE;
+  if (ojoAhora > ojoAntes && grounded) player.position.y += ojoAhora - ojoAntes;
+  ojoAntes = ojoAhora;
   const running = (keys['ShiftLeft'] || keys['ShiftRight'] || touch.run) && state.hunger > 5 && !crouch;
   let spd = running ? 14 : (crouch ? 4 : 9);
   if (state.hunger <= 0) spd = 6;     // muerto de hambre: caminas lento
@@ -19479,7 +19557,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, torreReset, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -20177,6 +20255,7 @@ function updateContextPrompt() {
     else if (nearestDoor()) { const d = nearestDoor(); action = { key: 'E', touch: '🚪', text: d.open ? 'Cerrar la puerta' : 'Abrir la puerta' }; }
     else if (torreLift.rider) action = { key: '🛗', touch: '🛗', text: 'Elige el piso en la botonera' };
     else if (torreAccion()) action = torreAccion();
+    else if (entradaAccion()) action = entradaAccion();
     else if (job && jobDog && job.id === 'dog' && !job.calm && dist2D(player.position, jobDog.position) < 3) action = { key: 'E', touch: '🐕', text: 'Calmar al perro perdido' };
     else if (job && jobCrate && job.id === 'crates' && dist2D(player.position, jobCrate.position) < 3) action = { key: 'E', touch: '📦', text: 'Abrir el cajón de Tito' };
     else {

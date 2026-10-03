@@ -37,6 +37,26 @@ test('el ascensor tiene botones para elegir el piso y hay escaleras', () => {
   assert.match(html, /TORRE_HUECO/);
 });
 
+test('con E se entra y se sale de los edificios (y los rascacielos suben a la azotea)', () => {
+  assert.match(html, /const ENTRADAS = \[\]/);
+  assert.match(html, /function tryEntrada\(/);
+  assert.match(html, /if \(tryEntrada\(\)\) return;/);
+  assert.match(html, /entradaAccion\(\)/);
+  for (const nombre of ['Edificio Mirador', 'Banco Central', 'Penal La Roca']) assert.ok(html.includes("nombre: '" + nombre + "'"), nombre);
+  assert.match(html, /nombre: 'rascacielos', azotea: true/);
+});
+
+test('pararte después de agacharte no te hace atravesar la losa', () => {
+  assert.match(html, /if \(ojoAhora > ojoAntes && grounded\) player\.position\.y \+= ojoAhora - ojoAntes;/);
+  assert.match(html, /pisoTorre: torreAdentro\(\) \? torreNivel\(\) : 0/);
+});
+
+test('bajo techo no llueve y en 1ª persona tu cuerpo solo sale en el espejo', () => {
+  assert.match(html, /rainObj\.visible = !bajoTecho\(\)/);
+  assert.match(html, /playerAvatar\.visible = cameraMode !== 0 && !state\.driving && !state\.riding;/);
+  assert.equal((html.match(/\.add\(lunaConCuerpo\(luna\)\)/g) || []).length, 2);
+});
+
 test('el horno se apoya en el piso (no flota)', () => {
   assert.match(html, /oven: 0\.7/);
 });

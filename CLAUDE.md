@@ -674,7 +674,15 @@ Manzana `torre` en `src/city-map.js` (`LUGARES.torre` = (-27.5, 130)); todo el c
 - Solo se dibujan los pisos vecinos al tuyo; una sola `PointLight` (`torreLuz`) te acompaña adentro.
 - Los rascacielos del centro (`makeWindowTexture`, `FACHADA_VENTANAS`) tienen ventanas de tamaño real
  (≈1,5 m × piso de 3,4 m) con antepecho, hall de vidrio con puerta y equipos en la azotea.
-- Pruebas: `tests/torre.test.mjs`. Debug: `__tim().TORRE`, `torreLift`, `elegirPiso`, `comprarDepto`.
+- **Entrar con E** (`ENTRADAS`, `entradaCerca`/`entradaAccion`/`tryEntrada`): frente a la puerta del
+ Mirador, el banco o la cárcel, E te mete (fundido a negro) y E adentro te saca. Cada rascacielos
+ (`buildSkyline`) agrega su entrada: E en la puerta te sube en ascensor a la azotea y E en la puerta
+ de la sala de máquinas te baja.
+- **Arreglos**: pararte después de agacharte subía los ojos justo 0,7 (la tolerancia de los suelos
+ altos) y te hacía atravesar la losa; ahora `ojoAntes` levanta al jugador al pararse. El save guarda
+ `pisoTorre` para volver a tu piso. La lluvia se oculta `bajoTecho()`. En 1ª persona tu cuerpo ya no
+ se dibuja en tu vista (veías tus brazos por dentro): `lunaConCuerpo` lo prende solo en el reflejo.
+- Pruebas: `tests/torre.test.mjs`. Debug: `__tim().TORRE`, `torreLift`, `elegirPiso`, `comprarDepto`, `ENTRADAS`.
 
 ## Convenciones del código
 

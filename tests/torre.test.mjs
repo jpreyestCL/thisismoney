@@ -67,6 +67,15 @@ test('saltando en el depto no llegas al piso de arriba ni a otro depto', () => {
   assert.equal((html.match(/top <= techoTorre/g) || []).length, 2);   // ni en losas ni encima de muebles/muros
 });
 
+test('el cuerpo se sienta, se acuesta y se ducha', () => {
+  assert.match(html, /function poseJugador\(\)/);
+  assert.match(html, /swingLimbs\(playerAvatar, dt \|\| 0\.016\);\n  poseJugador\(\);/);
+  assert.match(html, /cama\.acostado = \{/);
+  assert.match(html, /function empezarDucha\(d\)/);
+  assert.match(html, /updateDucha\(dt\);/);
+  assert.match(html, /if \(ducha\) \{ vy = 0;/);   // dentro de la ducha no se camina
+});
+
 test('los muebles del depto se usan con E', () => {
   for (const t of ['tele', 'play', 'congelador', 'horno', 'lavamanos', 'ducha', 'lampara']) assert.match(html, new RegExp("objeto\\('" + t + "'"));
   for (const k of ['sofa', 'silla', 'bano', 'cama']) assert.match(html, new RegExp("asiento\\('" + k + "'"));

@@ -41,7 +41,7 @@ assert.match(schema, /password_hash text not null/);
 assert.match(nginx, /location = \/api\/saves/);
 assert.match(nginx, /client_max_body_size 2m/);
 
-assert.match(sw, /tim-v67/);
+assert.match(sw, /tim-v68/);
 assert.match(html, /chat\.js\?v=5/);
 
 console.log('cloud save: ok');

@@ -1913,7 +1913,9 @@ function makePerson(colorBody, colorHead) {
 const playerAvatar = makePerson(0x3f6212, 0xe0ac69);
 // El muñeco tiene los ojos a 2,11 y la cámara va a PLAYER_EYE: se achica para que
 // el cuerpo que ves en tercera persona mida lo mismo que tú (~1,9) y quepa en las puertas.
-playerAvatar.scale.setScalar(PLAYER_EYE / 2.11);
+const AVATAR_K = PLAYER_EYE / 2.11;
+playerAvatar.scale.setScalar(AVATAR_K);
+playerAvatar.rotation.order = 'YXZ';   // primero hacia dónde mira, después se inclina (acostado en la cama)
 playerAvatar.visible = false;
 scene.add(playerAvatar);
 
@@ -2032,6 +2034,7 @@ function updatePlayerCamera(dt) {
   playerAvatar.position.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
   playerAvatar.rotation.y = yaw + Math.PI + (state.skiing && skiGearMesh ? skiGearMesh.rotation.y : 0);
   swingLimbs(playerAvatar, dt || 0.016);
+  poseJugador();
   if (cameraMode === 0) {
     camera.position.copy(player.position);
     camera.rotation.set(pitch, yaw, 0);
@@ -7723,10 +7726,20 @@ function amoblarDepto(dep) {
   dep.objetos = [];
   dep.tele = tele; dep.teleOn = false; tele.material = TORRE_TELE_APAGADA;
   dep.lampara = pantalla; dep.lamparaOn = true; dep.vidrioHorno = vidrioHorno;
-  asiento('sofa', -3.6, 6, 1.6, .35, -1, 0, [-4.85, 6]);
-  for (const [sx, sz, dzp] of [[1.95, 6.25, 1], [2.85, 6.25, 1], [1.95, 7.75, -1], [2.85, 7.75, -1]]) asiento('silla', sx, sz, .75, .15, 0, dzp, [sx, dzp > 0 ? 5.4 : 8.6]);
-  asiento('bano', 9.25, 8.8, 1.1, .1, -1, 0, [8.4, 7.6]);
+  // seatY = alto del cojín - .075: así la cadera del cuerpo queda justo sobre el asiento (ver poseJugador)
+  asiento('sofa', -3.6, 6, 1.6, .525, -1, 0, [-4.85, 6]);
+  for (const [sx, sz, dzp] of [[1.95, 6.25, 1], [2.85, 6.25, 1], [1.95, 7.75, -1], [2.85, 7.75, -1]]) asiento('silla', sx, sz, .75, .41, 0, dzp, [sx, dzp > 0 ? 5.4 : 8.6]);
+  asiento('bano', 9.25, 8.8, 1.1, .47, -1, 0, [8.4, 7.6]);
   asiento('cama', 13, 8.5, 1.7, 0, 0, -1, [13, 6.8]);
+  {   // en la cama te ACUESTAS: pies hacia la piecera, cabeza en la almohada, cara al techo
+    const cama = dep.objetos[dep.objetos.length - 1], largo = 2.36 * AVATAR_K, colchon = y0 + .62;
+    cama.acostado = {
+      raiz: { x: cama.x, y: colchon + .21 * AVATAR_K, z: TORRE.z + s * (7.55) },
+      ojo: { x: cama.x, y: colchon + .21 * AVATAR_K + .25 * AVATAR_K, z: TORRE.z + s * (7.55 + 2.05 * AVATAR_K) },
+      rotY: Math.atan2(cama.dx, cama.dz), largo,
+    };
+  }
+  dep.ducha = { x: TORRE.x + 6.8, z: TORRE.z + s * 9.07, y: y0, rotY: Math.atan2(-.35, s * .33), cabeza: W(6.45, 9.4), salida: W(6.8, 7.7), s };
   objeto('tele', -8.1, 6, 1.8);
   objeto('play', 13.8, 4.6, 1.5);
   objeto('congelador', 4.75, 9.2, 1.3);
@@ -7736,6 +7749,142 @@ function amoblarDepto(dep) {
   objeto('lampara', -2.6, 8.4, 1.1);
 }
 const TORRE_TELE_APAGADA = new THREE.MeshBasicMaterial({ color: 0x0b0b0f });
+// ---------- DUCHA: te metes, el agua cae desde la regadera y corre por tu cuerpo ----------
+const DUCHA_SEG = 7, DUCHA_GOTAS = preferLowPerf ? 70 : 160;
+let ducha = null;          // { d, t, gotas[], ruido } mientras te duchas
+let duchaFx = null;        // gotas (InstancedMesh) + vapor, se crean la 1ª vez
+const _duchaM = new THREE.Matrix4(), _duchaQ = new THREE.Quaternion(), _duchaS = new THREE.Vector3(), _duchaP = new THREE.Vector3();
+function crearDuchaFx() {
+  const gotas = new THREE.InstancedMesh(new THREE.BoxGeometry(.012, .2, .012),
+    new THREE.MeshBasicMaterial({ color: 0xbfe3ff, transparent: true, opacity: .6, depthWrite: false }), DUCHA_GOTAS);
+  gotas.frustumCulled = false; gotas.count = 0; scene.add(gotas);
+  const vaporMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false });
+  const vapor = [];
+  for (let i = 0; i < 7; i++) { const v = new THREE.Mesh(new THREE.SphereGeometry(.35, 10, 8), vaporMat.clone()); v.visible = false; scene.add(v); vapor.push(v); }
+  const charco = new THREE.Mesh(new THREE.CircleGeometry(.55, 20), new THREE.MeshBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0, depthWrite: false }));
+  charco.rotation.x = -Math.PI / 2; charco.visible = false; scene.add(charco);
+  return { gotas, vapor, charco };
+}
+function gotaNueva(g, d, alto) {
+  const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * .42;
+  g.x = d.cabeza.x + (d.x - d.cabeza.x) * .75 + Math.cos(a) * r;   // el chorro se abre hacia donde estás parado
+  g.z = d.cabeza.z + (d.z - d.cabeza.z) * .75 + Math.sin(a) * r;
+  g.y = d.y + 2.05 - (alto ? Math.random() * 2 : 0);
+  g.v = 4.5 + Math.random() * 2;
+}
+function ruidoDucha() {   // ruido blanco filtrado: suena a agua corriendo
+  if (!soundOn || !ensureAudio()) return null;
+  const n = audioCtx.sampleRate * 1.5, buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate), ch = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) ch[i] = Math.random() * 2 - 1;
+  const src = audioCtx.createBufferSource(); src.buffer = buf; src.loop = true;
+  const filtro = audioCtx.createBiquadFilter(); filtro.type = 'bandpass'; filtro.frequency.value = 1800; filtro.Q.value = .6;
+  const gan = audioCtx.createGain(); gan.gain.value = 0; gan.gain.linearRampToValueAtTime(.05, audioCtx.currentTime + .4);
+  src.connect(filtro); filtro.connect(gan); gan.connect(audioCtx.destination); src.start();
+  return { src, gan };
+}
+function empezarDucha(d) {
+  if (!duchaFx) duchaFx = crearDuchaFx();
+  if (sitOn) standUp(true);
+  ducha = { d, t: 0, gotas: [], ruido: ruidoDucha() };
+  for (let i = 0; i < DUCHA_GOTAS; i++) { const g = {}; gotaNueva(g, d, true); ducha.gotas.push(g); }
+  player.position.set(d.x, d.y + PLAYER_EYE, d.z);
+  const dx = d.cabeza.x - d.x, dz = d.cabeza.z - d.z;
+  yaw = Math.atan2(-dx, -dz); pitch = .15; vy = 0;
+  duchaFx.gotas.count = DUCHA_GOTAS; duchaFx.charco.visible = true;
+  duchaFx.charco.position.set(d.x, d.y + .11, d.z);
+  for (const v of duchaFx.vapor) v.visible = true;
+  toast('🚿 Abriste la ducha… ¡agua calentita!');
+}
+function terminarDucha() {
+  const d = ducha.d;
+  if (ducha.ruido) { try { ducha.ruido.gan.gain.linearRampToValueAtTime(0, audioCtx.currentTime + .3); ducha.ruido.src.stop(audioCtx.currentTime + .35); } catch (e) {} }
+  ducha = null;
+  duchaFx.gotas.count = 0; duchaFx.charco.visible = false;
+  for (const v of duchaFx.vapor) v.visible = false;
+  player.position.set(d.salida.x, d.salida.y + PLAYER_EYE, d.salida.z);
+  state.hp = Math.min(100, state.hp + 15); state.poison = 0;
+  toast('🚿 Te duchaste con agua calentita · +15 de vida ✨'); tone(880, .12, .04, 'triangle');
+}
+function updateDucha(dt) {
+  if (!ducha) return;
+  const d = ducha.d;
+  ducha.t += dt;
+  player.position.set(d.x, d.y + PLAYER_EYE, d.z);   // dentro de la ducha no se camina
+  if (ducha.t >= DUCHA_SEG || !torreAdentro(0)) { terminarDucha(); return; }
+  const cierre = Math.min(1, (DUCHA_SEG - ducha.t) / .6);   // el agua se corta al final
+  const cuerpoTop = d.y + 2.36 * AVATAR_K;
+  ducha.gotas.forEach((g, i) => {
+    g.y -= g.v * dt;
+    // al llegar al cuerpo el agua ya no cae libre: CORRE pegada a la piel, más lenta y por fuera
+    const ox = g.x - d.x, oz = g.z - d.z, r = Math.hypot(ox, oz);
+    let escala = 1;
+    if (g.y < cuerpoTop && r < .3) {
+      const k = .3 / Math.max(r, .01); g.x = d.x + ox * k; g.z = d.z + oz * k;
+      g.v = Math.min(g.v, 2.2); escala = .6;
+    }
+    if (g.y < d.y + .12) {
+      if (cierre < 1 && Math.random() > cierre) { g.y = -1e4; }
+      else gotaNueva(g, d, false);
+    }
+    _duchaP.set(g.x, g.y, g.z); _duchaS.set(1, escala, 1);
+    duchaFx.gotas.setMatrixAt(i, _duchaM.compose(_duchaP, _duchaQ, _duchaS));
+  });
+  duchaFx.gotas.instanceMatrix.needsUpdate = true;
+  duchaFx.charco.material.opacity = .45 * Math.min(1, ducha.t / 1.2) * cierre;
+  duchaFx.vapor.forEach((v, i) => {   // vapor que sube y se esfuma
+    const f = (ducha.t * .25 + i / duchaFx.vapor.length) % 1;
+    v.position.set(d.x + Math.sin(i * 2.3 + ducha.t * .4) * .5, d.y + 1.2 + f * 1.4, d.z + Math.cos(i * 1.7) * .4);
+    v.scale.setScalar(.6 + f * .9);
+    v.material.opacity = Math.sin(f * Math.PI) * .18 * Math.min(1, ducha.t / 1.5) * cierre;
+  });
+}
+// Pose del cuerpo del jugador (se ve en 3ª persona y en el espejo): sentado, acostado o duchándose.
+// El muñeco tiene las piernas de una pieza: para sentarse se le arma una rodilla (canilla + zapato).
+function rodillasDe(av) {
+  if (av.userData.rodillas) return av.userData.rodillas;
+  const l = av.userData.limbs;
+  av.userData.rodillas = [l.legL, l.legR].map(leg => {
+    const [muslo, zapato] = leg.children;
+    const rodilla = new THREE.Group(); rodilla.position.y = -.43; rodilla.visible = false; leg.add(rodilla);
+    const canilla = new THREE.Mesh(new THREE.BoxGeometry(.28, .45, .32), muslo.material); canilla.position.y = -.225; canilla.castShadow = true; rodilla.add(canilla);
+    const z2 = new THREE.Mesh(zapato.geometry, zapato.material); z2.position.set(0, -.5, .06); z2.castShadow = true; rodilla.add(z2);
+    return { leg, muslo, zapato, rodilla };
+  });
+  return av.userData.rodillas;
+}
+function poseJugador() {
+  const av = playerAvatar, l = av.userData.limbs; if (!l) return;
+  const modo = ducha ? 'ducha' : sitOn ? (sitOn.acostado ? 'acostado' : 'sentado') : null;
+  if (!modo && !av.userData.pose) return;
+  const rod = rodillasDe(av), sentado = modo === 'sentado';
+  for (const r of rod) {
+    r.muslo.scale.y = sentado ? .5 : 1; r.muslo.position.y = sentado ? -.2125 : -.425;
+    for (const c of r.leg.children) if (c !== r.muslo) c.visible = c === r.rodilla ? sentado : !sentado;   // zapato y grebas de la armadura
+    r.rodilla.rotation.x = Math.PI / 2;
+  }
+  av.userData.pose = modo; av.userData.seated = !!modo;
+  if (!modo) { av.rotation.x = 0; l.armL.rotation.set(0, 0, 0); l.armR.rotation.set(0, 0, 0); return; }
+  if (modo === 'sentado') {
+    const p = sitOn.mesh.position;
+    av.position.set(p.x, player.position.y - .975 - .9 * AVATAR_K, p.z);   // cadera sobre el cojín
+    av.rotation.set(0, sitOn.mesh.rotation.y, 0);
+    l.legL.rotation.x = l.legR.rotation.x = -Math.PI / 2;
+    l.armL.rotation.set(-.45, 0, 0); l.armR.rotation.set(-.45, 0, 0);
+  } else if (modo === 'acostado') {
+    const a = sitOn.acostado;
+    av.position.set(a.raiz.x, a.raiz.y, a.raiz.z);
+    av.rotation.set(-Math.PI / 2, a.rotY, 0);
+    l.legL.rotation.x = l.legR.rotation.x = 0;
+    l.armL.rotation.set(0, 0, .12); l.armR.rotation.set(0, 0, -.12);
+  } else {   // duchándote: te refriegas la cabeza y los brazos
+    const t = ducha.t, d = ducha.d;
+    av.position.set(d.x, d.y, d.z);
+    av.rotation.set(0, d.rotY + Math.sin(t * 1.3) * .35, 0);
+    l.legL.rotation.x = l.legR.rotation.x = 0;
+    l.armL.rotation.set(-2.7 + Math.sin(t * 9) * .3, 0, .35 + Math.sin(t * 7) * .15);
+    l.armR.rotation.set(-2.5 + Math.sin(t * 9 + 1.6) * .35, 0, -.35 - Math.sin(t * 6) * .15);
+  }
+}
 const torreUsoT = new Map();   // espera entre usos (congelador, horno, ducha) por depto
 function torreObjetoCerca(k) {
   let best = null, bd = 1e9;
@@ -7770,8 +7919,8 @@ function torreEspera(o, seg) {   // true si todavía no se puede volver a usar
 function usarObjetoDepto(o) {
   const dep = o.dep;
   if (o.tipo === 'asiento') {
-    trySit({ key: o.key, torre: true, salida: o.salida, mesh: { position: new THREE.Vector3(o.x, o.y + o.seatY, o.z), rotation: { y: Math.atan2(o.dx, o.dz) } } });
-    yaw = Math.atan2(-o.dx, -o.dz); pitch = o.key === 'cama' ? .05 : -.05;
+    trySit({ key: o.key, torre: true, salida: o.salida, acostado: o.acostado, mesh: { position: new THREE.Vector3(o.x, o.y + o.seatY, o.z), rotation: { y: Math.atan2(o.dx, o.dz) } } });
+    yaw = Math.atan2(-o.dx, -o.dz); pitch = o.acostado ? .55 : -.05;
     if (o.key === 'sofa' && !dep.teleOn) { setTeleDepto(dep, true); toast('📺 Prendiste la tele · ¡a ver el partido! · E para pararte'); }
     return true;
   }
@@ -7801,9 +7950,10 @@ function usarObjetoDepto(o) {
     return true;
   }
   if (o.tipo === 'ducha') {
+    if (ducha) return true;
     if (torreEspera(o, 30)) return true;
-    state.hp = Math.min(100, state.hp + 15);
-    toast('🚿 Te duchaste con agua calentita · +15 de vida'); beep(240, .4, .03); return true;
+    empezarDucha(dep.ducha);
+    return true;
   }
   if (o.tipo === 'lavamanos') { state.hp = Math.min(100, state.hp + 3); toast('🚰 Te lavaste la cara · ¡qué fresco! (+3 de vida)'); beep(330, .15, .03); return true; }
   return false;
@@ -7853,6 +8003,7 @@ function updateTorre(dt) {
     if (adentro) torreLuz.position.set(player.position.x, (torreLift.rider ? torreLift.y : nivel * TORRE.H) + 2.4, player.position.z);
   }
   updateTorreLift(dt);
+  updateDucha(dt);
 }
 // ---- ASCENSOR: llamar, subirse, elegir piso con la botonera y bajarse ----
 function torreLiftNivel() { return Math.round(torreLift.y / TORRE.H); }
@@ -19272,6 +19423,11 @@ function updateMovement(dt) {
   if (state.sailing) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }
   if (torreLift.rider) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // en el ascensor: te lleva la cabina
   if (typing) clearInput();   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
+  if (ducha) { vy = 0; grounded = true; camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // duchándote: updateDucha te tiene bajo el agua
+  if (sitOn && sitOn.acostado) {   // acostado: los ojos van en la almohada
+    const o = sitOn.acostado.ojo; player.position.set(o.x, o.y, o.z);
+    camera.rotation.y = yaw; camera.rotation.x = pitch; return;
+  }
   if (sitOn) {   // sentado: te quedas en el mueble hasta que te pares con E
     const p = sitOn.mesh.position, rot = sitOn.mesh.rotation.y;
     // un poco hacia el frente del mueble, para no quedar dentro del estanque/respaldo
@@ -19674,7 +19830,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,

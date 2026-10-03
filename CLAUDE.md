@@ -676,6 +676,13 @@ Manzana `torre` en `src/city-map.js` (`LUGARES.torre` = (-27.5, 130)); todo el c
  4 sillas, váter y cama (asientos falsos para `trySit` con `salida`: `standUp` te deja en ese punto
  libre), tele on/off, Play (`abrirMenuPlay`), congelador (+30 hambre, 40 s), horno (pizza +1 comida
  en 4 s, 60 s), ducha (+15 vida, 30 s), lavamanos y lámpara. Esperas en `torreUsoT`.
+- **Poses del cuerpo** (`poseJugador`, llamado en `updatePlayerCamera` tras `swingLimbs`): sentado en
+ CUALQUIER asiento (`sitOn`) la cadera queda sobre el cojín (ojo − .975) y `rodillasDe` le arma al
+ muñeco rodillas (muslo a la mitad + canilla con zapato); en la cama del depto (`sitOn.acostado`:
+ `raiz`/`ojo`/`rotY`) se acuesta de espaldas con los ojos en la almohada (`playerAvatar.rotation.order
+ = 'YXZ'`). **Ducha** (`empezarDucha`/`updateDucha`/`terminarDucha`, 7 s): te mete al receptáculo,
+ `duchaFx` = gotas en `InstancedMesh` que al llegar al cuerpo corren pegadas a él, charco y vapor,
+ ruido de agua (ruido blanco con filtro), brazos refregando la cabeza; al final +15 vida y sales.
 - **Techo de cada piso** (`torreTechoOjo(eye, y)`): dentro del Mirador los ojos no suben de
  `(k+1)*H - t - .15` (salvo en el hueco de la escalera y en la azotea), y no se aterriza en losas,
  muebles ni muros cuyo tope quede sobre ese techo. Antes, saltando cama → clóset → muro, terminabas

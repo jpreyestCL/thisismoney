@@ -133,6 +133,17 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /speechSynthesis/);
   assert.match(html, /es-CL/);
   assert.match(html, /es-ES/);
+  assert.match(html, /const TV_NOTICIA_SEG = 15/);
+  assert.match(html, /const TV_VOZ_ANTERIOR = \{ marca: 'default', lang: 'es-CL', pitch: 1, rate: 1 \}/);
+  assert.match(html, /periodista: \{ marca: 'periodista', pitch: 0\.78, rate: 0\.86 \}/);
+  assert.match(html, /comentarista: \{ marca: 'comentarista', pitch: 1\.18, rate: 1\.35 \}/);
+  assert.match(html, /hombre: \{ marca: 'hombre', pitch: 0\.45, rate: 0\.92 \}/);
+  assert.match(html, /mujer: \{ marca: 'mujer', pitch: 1\.55, rate: 1\.05 \}/);
+  assert.match(html, /voz: 'periodista'/);
+  assert.match(html, /voz: 'comentarista'/);
+  assert.match(html, /voz: habla\[0\] === 'Lila' \? 'mujer' : 'hombre'/);
+  assert.match(html, /u\.pitch = ficha\.pitch/);
+  assert.match(html, /u\.rate = ficha\.rate/);
   assert.match(html, /Pase de los /);
   assert.match(html, /arco izquierdo/);
   assert.match(html, /arco derecho/);

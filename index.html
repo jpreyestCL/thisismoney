@@ -7773,6 +7773,7 @@ const TEMPORADAS_NOVELA = [
   { titulo: 'Hermanos del huerto', lineas: [['Vera', 'Entierra la semilla'], ['Lila', 'Échale agua'], ['Vera', 'Ya hay manzanas'], ['Lila', 'La cosecha es hoy']] },
 ];
 const TV_NOTICIAS = ['ciudad', 'clima', 'deporte', 'plata', 'transito', 'farandula', 'juego', 'incendio', 'asalto', 'politica', 'ciencia', 'salud', 'escuela', 'playa', 'aeropuerto', 'carcel', 'banco', 'mascota', 'extremo', 'estreno', 'proximo'];
+const TV_NOTICIA_SEG = 15;
 const TV_NOTICIA_NOMBRE = {
   ciudad: 'CIUDAD', clima: 'CLIMA', deporte: 'DEPORTE', plata: 'PLATA', transito: 'TRÁNSITO', farandula: 'FARÁNDULA', juego: 'EL JUEGO',
   incendio: 'INCENDIO', asalto: 'ASALTO', politica: 'POLÍTICA', ciencia: 'CIENCIA', salud: 'SALUD', escuela: 'ESCUELA', playa: 'PLAYA',
@@ -8038,7 +8039,7 @@ function dibujarNoticiaExtra(ctx, tipo, lt) {
   return false;
 }
 function dibujarNoticias(ctx, t) {
-  const seg = 5, tipo = TV_NOTICIAS[Math.floor(t / seg) % TV_NOTICIAS.length], lt = t % seg;
+  const seg = TV_NOTICIA_SEG, tipo = TV_NOTICIAS[Math.floor(t / seg) % TV_NOTICIAS.length], lt = t % seg;
   if (dibujarNoticiaExtra(ctx, tipo, lt)) { /* cada tipo nuevo trae su propio cuadro */ }
   else if (tipo === 'ciudad') {
     const g = ctx.createLinearGradient(0, 0, 0, 236); g.addColorStop(0, '#1e3a8a'); g.addColorStop(.55, '#fb923c'); g.addColorStop(.55, '#334155'); g.addColorStop(1, '#1f2937');
@@ -8571,7 +8572,7 @@ function updateProgramas(dt) {
   updateProgramas.ult = tvT;
   dibujarPrograma(tvT);
 }
-let tvVoz = null, tvPendiente = null, tvVozTimer = 0, tvVozRota = false, tvVozElegida;
+let tvVoz = null, tvPendiente = null, tvVozTimer = 0, tvVozRota = false, tvVozElegida, tvUltimaLocucion = null;
 const tvFrases = [];
 const TV_NOTICIA_VOZ = {
   ciudad: 'Noticias de la ciudad. Hay obras en el centro.',
@@ -8604,22 +8605,22 @@ function marcadorPartido(t) {
 function lineaPartido(t) {
   const m = marcadorPartido(t), est = m.est, lado = est.equipo === 'azul' ? 'azules' : 'rojos';
   const marca = 'El marcador va ' + m.izq + ' a ' + m.der + '.';
-  if (est.momento === 'pase') return { clave: 'partido:pase:' + est.i + ':' + est.sub, cortar: true, texto: 'Pase de los ' + lado + '. ' + marca };
+  if (est.momento === 'pase') return { clave: 'partido:pase:' + est.i + ':' + est.sub, cortar: true, voz: 'comentarista', texto: 'Pase de los ' + lado + '. ' + marca };
   if (est.momento === 'gol') {
     const arco = est.arco === 'izq' ? 'izquierdo' : 'derecho';
-    return { clave: 'partido:gol:' + est.i + ':' + est.arco, cortar: true, texto: '¡Gol al arco ' + arco + '! ' + marca };
+    return { clave: 'partido:gol:' + est.i + ':' + est.arco, cortar: true, voz: 'comentarista', texto: '¡Gol al arco ' + arco + '! ' + marca };
   }
   return null;
 }
 function lineaNovela(t) {
   const temp = temporadaActual(), fase = faseNovela(t), vuelta = Math.floor(t / 21);
-  if (fase.intro) return { clave: 'novela:cartel:' + temp.n + ':' + vuelta, cortar: true, texto: 'Estreno. Temporada ' + temp.n + '. ' + temp.titulo + '.' };
+  if (fase.intro) return { clave: 'novela:cartel:' + temp.n + ':' + vuelta, cortar: true, voz: 'mujer', texto: 'Estreno. Temporada ' + temp.n + '. ' + temp.titulo + '.' };
   const habla = lineaVisibleNovela(temp, fase.escena, t);
   if (!habla) return null;
-  return { clave: 'novela:' + temp.n + ':' + vuelta + ':' + fase.escena + ':' + habla[1], cortar: false, texto: habla[0] + ' dice: ' + habla[1] };
+  return { clave: 'novela:' + temp.n + ':' + vuelta + ':' + fase.escena + ':' + habla[1], cortar: false, voz: habla[0] === 'Lila' ? 'mujer' : 'hombre', texto: habla[0] + ' dice: ' + habla[1] };
 }
 function lineaNoticias(t) {
-  const seg = 5, idx = Math.floor(t / seg), tipo = TV_NOTICIAS[idx % TV_NOTICIAS.length];
+  const seg = TV_NOTICIA_SEG, idx = Math.floor(t / seg), tipo = TV_NOTICIAS[idx % TV_NOTICIAS.length];
   let texto = TV_NOTICIA_VOZ[tipo] || '';
   if (tipo === 'estreno') {
     const temp = temporadaActual();
@@ -8628,7 +8629,7 @@ function lineaNoticias(t) {
     const p = proximoEstreno();
     texto = 'Próximo estreno. Se viene la temporada ' + p.siguiente + ': ' + p.titulo + '.';
   }
-  return { clave: 'noticias:' + idx + ':' + tipo, cortar: true, texto };
+  return { clave: 'noticias:' + idx + ':' + tipo, cortar: true, voz: 'periodista', texto };
 }
 function lineaDeLaTele(t) {
   const id = programaActual().id;
@@ -8640,15 +8641,67 @@ function lineaDeLaTele(t) {
 function tvPuedeHablar() {
   return !!(soundOn && viendoTele() && !tvVozRota);
 }
-function vozEspanol() {
-  if (tvVozElegida !== undefined && tvVozElegida !== null) return tvVozElegida;
-  try {
-    const lista = window.speechSynthesis.getVoices() || [];
-    const voz = lista.find(v => /es-CL/i.test(v.lang)) || lista.find(v => /es-ES/i.test(v.lang)) || lista.find(v => /^es/i.test(v.lang)) || null;
-    if (!lista.length) return null;
-    tvVozElegida = voz;
-    return voz;
-  } catch (e) { return null; }
+// Voz vieja de la tele: la primera es-CL (si no, es-ES), pitch 1 y rate 1. Ya no se usa.
+const TV_VOZ_ANTERIOR = { marca: 'default', lang: 'es-CL', pitch: 1, rate: 1 };
+// Cuatro voces. La de periodista solo sale en las noticias. Pitch y rate no se repiten.
+const TV_VOCES = {
+  periodista: { marca: 'periodista', pitch: 0.78, rate: 0.86 },
+  comentarista: { marca: 'comentarista', pitch: 1.18, rate: 1.35 },
+  hombre: { marca: 'hombre', pitch: 0.45, rate: 0.92 },
+  mujer: { marca: 'mujer', pitch: 1.55, rate: 1.05 },
+};
+const TV_VOZ_PERIODISTA = TV_VOCES.periodista;
+let tvAsignacion = null;
+function vocesDelNavegador() {
+  try { return window.speechSynthesis.getVoices() || []; } catch (e) { return []; }
+}
+function asignarVocesTele() {
+  if (tvAsignacion) return tvAsignacion;
+  const lista = vocesDelNavegador();
+  if (!lista.length) return null;
+  const es = lista.filter(v => /^es/i.test(v.lang));
+  const pool = (es.length ? es : lista).slice();
+  const sacarSi = (pred) => {
+    const i = pool.findIndex(pred);
+    if (i < 0) return null;
+    return pool.splice(i, 1)[0];
+  };
+  const sacarCualquiera = () => pool.shift() || null;
+  const hombre = sacarSi(v => /jorge|diego|pablo|carlos|enrique|andr[eé]s|miguel|ra[uú]l|male/i.test(v.name || '')) || sacarCualquiera();
+  const mujer = sacarSi(v => /paulina|m[oó]nica|sabina|laura|sof[ií]a|luc[ií]a|elena|female|mujer/i.test(v.name || '')) || sacarCualquiera();
+  const periodista = sacarSi(v => /es-ES/i.test(v.lang)) || sacarCualquiera();
+  const comentarista = sacarSi(v => /es-MX|es-AR|es-CO/i.test(v.lang)) || sacarCualquiera();
+  const respaldo = hombre || mujer || periodista || comentarista || lista[0];
+  tvAsignacion = {
+    periodista: periodista || respaldo,
+    comentarista: comentarista || respaldo,
+    hombre: hombre || respaldo,
+    mujer: mujer || respaldo,
+  };
+  return tvAsignacion;
+}
+function fichaVoz(id) {
+  const perfil = TV_VOCES[id] || TV_VOCES.periodista;
+  const asig = asignarVocesTele();
+  const voz = asig ? asig[id] : null;
+  return {
+    marca: perfil.marca,
+    name: voz ? voz.name : null,
+    lang: voz ? voz.lang : 'es-ES',
+    voiceURI: voz ? voz.voiceURI : null,
+    pitch: perfil.pitch,
+    rate: perfil.rate,
+    voz: voz,
+  };
+}
+function perfilVozTele() {
+  return {
+    periodista: fichaVoz('periodista'),
+    comentarista: fichaVoz('comentarista'),
+    hombre: fichaVoz('hombre'),
+    mujer: fichaVoz('mujer'),
+    noticiaSeg: TV_NOTICIA_SEG,
+  };
 }
 function cortarVozTele() {
   tvVoz = null;
@@ -8666,9 +8719,12 @@ function hablarAhora(linea) {
     tvVoz = { clave: linea.clave, texto: linea.texto };
     tvPendiente = null;
     const u = new SpeechSynthesisUtterance(linea.texto);
-    const voz = vozEspanol();
-    u.lang = (voz && voz.lang) || 'es-CL';
-    try { if (voz) u.voice = voz; } catch (e) {}
+    const ficha = fichaVoz(linea.voz || 'periodista');
+    u.lang = ficha.lang || 'es-ES';
+    u.pitch = ficha.pitch;
+    u.rate = ficha.rate;
+    try { if (ficha.voz) u.voice = ficha.voz; } catch (e) {}
+    tvUltimaLocucion = { texto: linea.texto, marca: ficha.marca, name: ficha.name, lang: u.lang, voiceURI: ficha.voiceURI, pitch: u.pitch, rate: u.rate };
     u.onend = () => {
       if (!tvVoz || tvVoz.clave !== linea.clave) return;
       tvVoz = null;
@@ -21689,7 +21745,8 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.temporada = temporadaActual;
   timDump.lineaTele = (t) => lineaDeLaTele(t == null ? tvT : t);
   timDump.frasesTele = () => tvFrases.slice();
-  timDump.actualizarVozTele = () => ({ voz: actualizarVozTele(), frases: tvFrases.slice(), viendo: !!viendoTele() });
+  timDump.actualizarVozTele = () => ({ voz: actualizarVozTele(), frases: tvFrases.slice(), viendo: !!viendoTele(), locucion: tvUltimaLocucion });
+  timDump.perfilVozTele = perfilVozTele;
   timDump.estadoPartido = (t) => estadoPartido(t == null ? tvT : t);
   timDump.tvCanvas = () => (tvMat && tvMat.userData.cv ? tvMat.userData.cv.toDataURL('image/png') : null);
   timDump.setCam = (m) => { cameraMode = m; };

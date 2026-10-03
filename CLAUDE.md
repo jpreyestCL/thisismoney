@@ -654,6 +654,28 @@ existen todavía en la línea donde se declaran `BANK_POS`/`JAIL_POS`.
   Ahora las filas se calculan con `Math.ceil(items.length / cols.length)`.
 - Debug: `__tim().jailFolk`, `__tim().bankTeller()`, `__tim().bankDeskNear()`, `__tim().JAIL`.
 
+## Edificio Mirador (deptos de $3000 con ascensor y escalera)
+
+Manzana `torre` en `src/city-map.js` (`LUGARES.torre` = (-27.5, 130)); todo el código está en
+`buildTorre()` y compañía, justo después de `buildJail()`. `TORRE` = 32×20, 5 pisos de 4 m.
+
+- **Hall**: conserje sentada (`torreConserje`) en su mesón; con E abre `#aptbox` (`abrirDeptos`).
+ `comprarDepto(id)` cobra `TORRE_PRECIO` (3000, gratis en creativo), un depto por partida
+ (`state.depto`, se guarda). Hay 8 deptos (201…502), con número en la puerta.
+- **Ascensor** (`torreLift`): E frente a la puerta lo llama (`llamarAscensor`); al llegar te subes
+ (`subirAscensor`, cámara en primera persona dentro de la cabina) y se abre la botonera
+ `#liftbox` (`elegirPiso(n)`, ◀▶ abrir, 🔔 alarma). Fases `cerrando/moviendo/abriendo/abierto/quieto`
+ en `updateTorreLift`; la cabina tiene espejo, pasamanos, botonera y pantalla con el piso.
+- **Escalera**: cada peldaño es una `addLandingSurface` (sube sola al caminar, hueco `TORRE_HUECO`).
+- **Depto** (`buildTorreDepto` + `amoblarDepto`, se amuebla al acercarte): living con sillón frente a
+ la tele, cocina con congelador, mesa con sillas y horno APOYADO en el piso, baño con espejo de
+ verdad (Reflector, `alturaY` para no encender el de otro piso), váter, ducha y alfombra, y dormitorio
+ con cama, tele con Play y ventanales. Tu puerta se abre/cierra con E (`setPuertaDepto`).
+- Solo se dibujan los pisos vecinos al tuyo; una sola `PointLight` (`torreLuz`) te acompaña adentro.
+- Los rascacielos del centro (`makeWindowTexture`, `FACHADA_VENTANAS`) tienen ventanas de tamaño real
+ (≈1,5 m × piso de 3,4 m) con antepecho, hall de vidrio con puerta y equipos en la azotea.
+- Pruebas: `tests/torre.test.mjs`. Debug: `__tim().TORRE`, `torreLift`, `elegirPiso`, `comprarDepto`.
+
 ## Convenciones del código
 
 - Idioma: **español** en comentarios, textos de UI y nombres de funciones/variables de dominio

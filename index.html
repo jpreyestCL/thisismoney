@@ -79,6 +79,18 @@
     font-size: 13px; font-weight: 800; text-align: center; pointer-events: none; letter-spacing: .02em; }
   body.inflight #flighthud { display: block; }
   body.inflight #flyfx { display: none !important; }
+  body.enAscensor #questBtn { display:none !important; }
+  #liftbox { position:absolute; right:3vw; top:50%; transform:translateY(-50%); display:none; pointer-events:all; z-index:8; flex-direction:column; align-items:center; gap:8px;
+    width:150px; padding:12px 10px; border-radius:12px; color:#0f172a; background:linear-gradient(160deg,#e2e8f0,#94a3b8 55%,#64748b); border:3px solid #334155; box-shadow:0 10px 30px rgba(0,0,0,.55), inset 0 1px 0 #fff; }
+  #liftDisplay { width:100%; background:#020617; color:#f87171; font:900 30px monospace; text-align:center; border-radius:6px; padding:3px 0; box-shadow: inset 0 0 8px #000; }
+  #liftButtons { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  #liftButtons .hall { grid-column: span 2; justify-self:center; }
+  .liftBtn { pointer-events:all; cursor:pointer; width:52px; height:52px; border-radius:50%; border:3px solid #475569; font:900 20px sans-serif; color:#1e293b;
+    background:radial-gradient(circle at 35% 30%, #fff, #cbd5e1 55%, #94a3b8); box-shadow:0 3px 0 #334155; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; }
+  .liftBtn small { font-size:8px; font-weight:900; }
+  .liftBtn:active { transform:translateY(2px); box-shadow:0 1px 0 #334155; }
+  .liftBtn.on { color:#7c2d12; border-color:#f59e0b; background:radial-gradient(circle at 35% 30%, #fff7d6, #fbbf24 60%, #d97706); box-shadow:0 0 14px #f59e0b, 0 3px 0 #92400e; }
+  .liftBtn.chico { width:42px; height:42px; font-size:15px; }
   .bankBtn { pointer-events: all; cursor: pointer; background: rgba(250,204,21,.18); border: 1px solid #facc15; color: #fff; padding: 10px 6px; font-size: 13px; font-weight: 800; border-radius: 9px; }
   .ranking-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:12px 0; }
   .ranking-tab.active { background:rgba(56,189,248,.3); border-color:#38bdf8; }
@@ -691,6 +703,26 @@
     <div style="font-size:11px; opacity:.65">💡 Lo ahorrado gana <b>5% de interés</b> cada noche superada. Las deudas crecen <b>10%</b> por noche… ¡cuidado!</div>
     <button id="bankCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
   </div>
+  <!-- Botonera del ascensor del Edificio Mirador (a un costado: se sigue viendo la cabina) -->
+  <div id="liftbox">
+    <div id="liftDisplay">1</div>
+    <div style="font-size:11px; font-weight:900; letter-spacing:.5px">ELIGE EL PISO</div>
+    <div id="liftButtons">
+      <button class="liftBtn" data-lift="5">5</button><button class="liftBtn" data-lift="4">4</button>
+      <button class="liftBtn" data-lift="3">3</button><button class="liftBtn" data-lift="2">2</button>
+      <button class="liftBtn hall" data-lift="1">1<small>HALL</small></button>
+    </div>
+    <div style="display:flex; gap:8px">
+      <button class="liftBtn chico" data-lift="abrir" title="Abrir y bajarse">◀▶</button>
+      <button class="liftBtn chico" data-lift="alarma" title="Alarma">🔔</button>
+    </div>
+  </div>
+  <div id="aptbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #38bdf8; padding:14px 16px 12px; border-radius:14px; text-align:center; width:min(94vw,440px); flex-direction:column; gap:8px;">
+    <div style="font-size:15px; font-weight:800; color:#38bdf8">🏢 EDIFICIO MIRADOR · DEPARTAMENTOS</div>
+    <div id="aptInfo" style="font-size:13px; line-height:1.6"></div>
+    <div id="aptList" style="display:grid; grid-template-columns:1fr 1fr; gap:7px"></div>
+    <button id="aptCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
+  </div>
   <div id="questbox">
     <div style="font-size:15px; font-weight:800; color:#fbbf24">📋 MISIONES</div>
     <div style="font-size:11px; opacity:.7; margin:2px 0 8px">Del juego y del día. El callejón de Tito se desbloquea a los $20.000: te lleva a otro rincón, no está en el mapa.</div>
@@ -1213,7 +1245,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
-import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=5';
+import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -5319,17 +5351,31 @@ spawnPedestrians();
 //  Torres de vidrio y hormigón dentro de las manzanas del centro y de
 //  las oficinas del sur. Bloquean el paso y se puede aterrizar arriba.
 // ===================================================================
+// Fachada de verdad: 8 ventanas × 8 pisos por textura (cada ventana ≈ 1,5 m y cada piso 3,4 m),
+// con antepecho de hormigón, marco, montante al medio y un brillo de cielo en el vidrio.
+const FACHADA_VENTANAS = 8;
 function makeWindowTexture(color, luz) {
-  const c = document.createElement('canvas'); c.width = c.height = 64;
-  const g = c.getContext('2d');
-  g.fillStyle = '#' + new THREE.Color(color).getHexString(); g.fillRect(0, 0, 64, 64);
-  for (let fila = 0; fila < 8; fila++) for (let col = 0; col < 8; col++) {
-    const encendida = Math.random() < .35;
-    g.fillStyle = encendida ? '#' + new THREE.Color(luz).getHexString() : 'rgba(15,23,42,.72)';
-    g.fillRect(col * 8 + 2, fila * 8 + 2, 5, 5);
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'), celda = 256 / FACHADA_VENTANAS;
+  const muro = new THREE.Color(color), osc = muro.clone().multiplyScalar(.72);
+  g.fillStyle = '#' + muro.getHexString(); g.fillRect(0, 0, 256, 256);
+  for (let fila = 0; fila < FACHADA_VENTANAS; fila++) {
+    const y = fila * celda;
+    g.fillStyle = '#' + osc.getHexString(); g.fillRect(0, y + celda - 9, 256, 9);          // antepecho / losa
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(0, y + celda - 9, 256, 1);
+    for (let col = 0; col < FACHADA_VENTANAS; col++) {
+      const x = col * celda, encendida = Math.random() < .3;
+      g.fillStyle = '#1e293b'; g.fillRect(x + 2, y + 2, celda - 4, celda - 12);          // marco
+      const vidrio = g.createLinearGradient(x, y, x + celda, y + celda);
+      if (encendida) { vidrio.addColorStop(0, '#' + new THREE.Color(luz).getHexString()); vidrio.addColorStop(1, '#' + new THREE.Color(luz).multiplyScalar(.7).getHexString()); }
+      else { vidrio.addColorStop(0, '#5b7a99'); vidrio.addColorStop(.55, '#2b3f57'); vidrio.addColorStop(1, '#1b2838'); }
+      g.fillStyle = vidrio; g.fillRect(x + 3, y + 3, celda - 6, celda - 14);
+      if (!encendida) { g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(x + 4, y + 4, 4, celda - 16); }   // reflejo
+      g.fillStyle = '#1e293b'; g.fillRect(x + celda / 2 - 1, y + 3, 2, celda - 14);   // montante
+    }
   }
   const t = new THREE.CanvasTexture(c);
-  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return t;
 }
@@ -5347,9 +5393,29 @@ function buildSkyline(distritoId, alturas) {
     const w = pasoX * .72, d = pasoZ * .72;
     const [muro, luz] = TORRE_COLORES[(cx + cz) % TORRE_COLORES.length];
     const tex = makeWindowTexture(muro, luz);
-    tex.repeat.set(Math.max(1, Math.round(w / 3)), Math.max(2, Math.round(alto / 3.4)));
-    const torre = new THREE.Mesh(new THREE.BoxGeometry(w, alto, d), new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: .72, metalness: .18 }));
-    torre.position.set(x, alto / 2, z); torre.castShadow = true; torre.receiveShadow = true; scene.add(torre);
+    // Ventanas de tamaño real: ~1,5 m de ancho y un piso cada 3,4 m (la planta baja es el hall)
+    const vent = FACHADA_VENTANAS;
+    tex.repeat.set(Math.max(1, Math.round(w / 1.5)) / vent, (alto - 4.2) / 3.4 / vent);
+    const torreMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: .55, metalness: .25 });
+    const torre = new THREE.Mesh(new THREE.BoxGeometry(w, alto - 4.2, d), torreMat);
+    torre.position.set(x, 4.2 + (alto - 4.2) / 2, z); torre.castShadow = true; torre.receiveShadow = true; scene.add(torre);
+    // Planta baja: hall de vidrio un poco más adentro, columnas, marquesina y puerta hacia la calle más cercana
+    const hall = new THREE.Mesh(new THREE.BoxGeometry(w - 1, 4.2, d - 1), new THREE.MeshStandardMaterial({ color: 0x9fc4dd, roughness: .08, metalness: .45, emissive: 0x334155, emissiveIntensity: .25 }));
+    hall.position.set(x, 2.1, z); scene.add(hall);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const col = new THREE.Mesh(new THREE.BoxGeometry(.7, 4.2, .7), mat(muro)); col.position.set(x + sx * (w / 2 - .35), 2.1, z + sz * (d / 2 - .35)); col.castShadow = true; scene.add(col);
+    }
+    const losaHall = new THREE.Mesh(new THREE.BoxGeometry(w + .3, .5, d + .3), mat(0x64748b)); losaHall.position.set(x, 4.2, z); scene.add(losaHall);
+    const haciaX = Math.abs(x - Math.round(x / 55) * 55) < Math.abs(z - Math.round(z / 55) * 55);   // la avenida más cercana
+    const lado = haciaX ? Math.sign(Math.round(x / 55) * 55 - x) || 1 : Math.sign(Math.round(z / 55) * 55 - z) || 1;
+    const fx = haciaX ? x + lado * (w / 2 + .9) : x, fz = haciaX ? z : z + lado * (d / 2 + .9);
+    const marq = new THREE.Mesh(new THREE.BoxGeometry(haciaX ? 1.8 : 5, .25, haciaX ? 5 : 1.8), mat(0x1f2937)); marq.position.set(fx, 3.5, fz); marq.castShadow = true; scene.add(marq);
+    const puerta = new THREE.Mesh(new THREE.BoxGeometry(haciaX ? .1 : 2.2, 2.8, haciaX ? 2.2 : .1), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: .1, metalness: .6 }));
+    puerta.position.set(haciaX ? x + lado * (w / 2 - .45) : x, 1.4, haciaX ? z : z + lado * (d / 2 - .45)); scene.add(puerta);
+    // Azotea: sala de máquinas, estanque y equipos de clima
+    const maq = new THREE.Mesh(new THREE.BoxGeometry(Math.min(4, w * .4), 2.6, Math.min(4, d * .4)), mat(0xcbd5e1)); maq.position.set(x - w * .2, alto + 2, z - d * .15); maq.castShadow = true; scene.add(maq);
+    const est = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1.8, 12), mat(0x94a3b8)); est.position.set(x + w * .22, alto + 1.6, z + d * .2); scene.add(est);
+    const clima = new THREE.Mesh(new THREE.BoxGeometry(1.6, .9, 1.1), mat(0xe5e7eb)); clima.position.set(x + w * .2, alto + 1.15, z - d * .25); scene.add(clima);
     const remate = new THREE.Mesh(new THREE.BoxGeometry(w + .8, .7, d + .8), mat(0x94a3b8));
     remate.position.set(x, alto + .35, z); remate.castShadow = true; scene.add(remate);
     if (alto > 26) {   // antena con luz roja para los aviones
@@ -7156,6 +7222,683 @@ buildBank();
 buildJail();
 
 // ===================================================================
+//  EDIFICIO MIRADOR: torre de departamentos a la que se ENTRA.
+//  Hall con conserje, ascensor con botonera (tú eliges el piso),
+//  escalera que se sube caminando y 8 deptos numerados a la venta:
+//  living con sillón y tele, cocina con congelador y horno, baño con
+//  espejo y alfombra, y dormitorio con cama, tele con Play y ventanas.
+//  Coordenadas locales: (0,0) es el centro, -z es el frente (al sur).
+// ===================================================================
+const TORRE = { x: LUGARES.torre.x, z: LUGARES.torre.z, w: 32, d: 20, H: 4, N: 5, t: .3 };
+TORRE.alto = TORRE.H * TORRE.N;
+const TORRE_PRECIO = 3000;
+const TORRE_HUECO = { minX: -15.7, maxX: -13.5, minZ: -8.7, maxZ: -2.2 };   // escalera: sube hacia el frente
+const TORRE_ASC = { x: -14, z: 3.4, puertaZ: 1.7 };                          // ascensor: la puerta da al pasillo
+const torreDeptos = [];      // { id, nivel, s, puerta, obs, abierta, grupo, amoblado }
+const torreNiveles = [];     // interior de cada piso: solo se dibuja si estás adentro
+let torreConserje = null, torreLuz = null;
+const torreLift = { y: 0, target: 0, puertas: 0, fase: 'quieto', rider: false, subir: false, llego: false, espera: 0, camPrev: 0,
+  cabina: null, hojasCabina: [], rellanos: [], botones: [], pantalla: null, pantallaTxt: '' };
+const torreVidrio = new THREE.MeshStandardMaterial({ color: 0xa8d4ef, transparent: true, opacity: .26, roughness: .04, metalness: .3, depthWrite: false, side: THREE.DoubleSide });
+const torreAcero = new THREE.MeshStandardMaterial({ color: 0xc7ced6, roughness: .28, metalness: .78 });
+function tBox(parent, x, y, z, w, h, d, c, sombra) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), typeof c === 'number' ? mcMat(c) : c);
+  m.position.set(x, y, z); m.castShadow = !!sombra; m.receiveShadow = true; parent.add(m); return m;
+}
+function tCil(parent, x, y, z, r, h, c, giroZ) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 16), typeof c === 'number' ? mcMat(c) : c);
+  m.position.set(x, y, z); if (giroZ) m.rotation.z = Math.PI / 2; parent.add(m); return m;
+}
+// Caja de choque en coordenadas del edificio. bottom/top: solo choca a esa altura (cada piso tiene las suyas).
+function tObs(x0, x1, z0, z1, bottom, top) {
+  const o = addObstacle(TORRE.x + (x0 + x1) / 2, TORRE.z + (z0 + z1) / 2, Math.abs(x1 - x0), Math.abs(z1 - z0), top, 'torre');
+  if (bottom) o.bottom = bottom;
+  return o;
+}
+function torreTextura(tipo) {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  if (tipo === 'madera') {
+    for (let i = 0; i < 8; i++) {
+      g.fillStyle = ['#a8743f', '#94643a', '#b98249', '#9c6b3b'][i % 4]; g.fillRect(0, i * 16, 128, 16);
+      g.fillStyle = 'rgba(40,20,5,.35)'; g.fillRect(0, i * 16 + 15, 128, 1); g.fillRect((i * 53) % 128, i * 16, 2, 16);
+      g.fillStyle = 'rgba(255,255,255,.06)'; g.fillRect(0, i * 16 + 3, 128, 2);
+    }
+  } else {
+    g.fillStyle = tipo === 'banio' ? '#dbeafe' : tipo === 'marmol' ? '#ece8df' : '#f1f5f9'; g.fillRect(0, 0, 128, 128);
+    if (tipo === 'marmol') { g.strokeStyle = 'rgba(120,113,108,.25)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(Math.random() * 128, 0); g.bezierCurveTo(Math.random() * 128, 40, Math.random() * 128, 90, Math.random() * 128, 128); g.stroke(); } }
+    g.fillStyle = 'rgba(100,116,139,.5)';
+    const n = tipo === 'marmol' ? 2 : 4;
+    for (let i = 0; i <= n; i++) { g.fillRect(i * 128 / n, 0, 2, 128); g.fillRect(0, i * 128 / n, 128, 2); }
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.MeshStandardMaterial({ map: t, roughness: tipo === 'madera' ? .62 : .35 });
+}
+const TORRE_PISOS = { madera: torreTextura('madera'), baldosa: torreTextura('baldosa'), banio: torreTextura('banio'), marmol: torreTextura('marmol') };
+// Piso con textura: las UV se estiran según el tamaño, así la tabla/baldosa mide siempre lo mismo.
+function tPiso(parent, x, z, w, d, tipo, y) {
+  const geo = new THREE.BoxGeometry(w, .04, d), uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 2, uv.getY(i) * d / 2);
+  const m = new THREE.Mesh(geo, TORRE_PISOS[tipo]); m.position.set(x, (y || 0) + .02, z); m.receiveShadow = true; parent.add(m); return m;
+}
+// Pantalla de tele: una escena de juego dibujada (sin letras, así se puede espejar).
+function torrePantalla(juego) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 72;
+  const g = c.getContext('2d');
+  const cielo = g.createLinearGradient(0, 0, 0, 72); cielo.addColorStop(0, juego ? '#4c1d95' : '#38bdf8'); cielo.addColorStop(1, juego ? '#db2777' : '#bae6fd');
+  g.fillStyle = cielo; g.fillRect(0, 0, 128, 72);
+  g.fillStyle = juego ? '#1e1b4b' : '#16a34a'; g.fillRect(0, 50, 128, 22);
+  if (juego) {
+    g.fillStyle = '#facc15'; for (let i = 0; i < 6; i++) g.fillRect(14 + i * 19, 40 - (i % 2) * 8, 6, 6);   // monedas
+    g.fillStyle = '#ef4444'; g.fillRect(24, 34, 9, 16); g.fillStyle = '#fde68a'; g.fillRect(25, 28, 7, 7);  // el personaje
+    g.fillStyle = '#22d3ee'; g.fillRect(4, 4, 30, 4); g.fillStyle = '#f472b6'; g.fillRect(96, 4, 28, 4);   // barras de vida
+  } else {
+    g.fillStyle = '#fff'; g.fillRect(62, 50, 2, 22); g.strokeStyle = '#fff'; g.beginPath(); g.arc(63, 61, 7, 0, 6.3); g.stroke();   // cancha de fútbol
+    g.fillStyle = '#f8fafc'; g.beginPath(); g.arc(80, 58, 2.5, 0, 6.3); g.fill();
+    g.fillStyle = '#1d4ed8'; g.fillRect(44, 50, 4, 9); g.fillStyle = '#dc2626'; g.fillRect(88, 52, 4, 9);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.MeshBasicMaterial({ map: t });
+}
+const TORRE_TELE = { living: null, juego: null };
+// Pantallita del ascensor (piso y flecha): una sola textura para todos los rellanos y la cabina.
+function pintarPantallaAscensor() {
+  const L = torreLift, piso = Math.round(L.y / TORRE.H) + 1;
+  const flecha = L.fase === 'moviendo' ? (L.target * TORRE.H > L.y ? '▲' : '▼') : '';
+  const txt = flecha + piso;
+  if (txt === L.pantallaTxt) return;
+  L.pantallaTxt = txt;
+  const c = L.pantalla.image, g = c.getContext('2d');
+  g.fillStyle = '#020617'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#f87171'; g.font = 'bold 44px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(txt, c.width / 2, c.height / 2 + 2);
+  L.pantalla.needsUpdate = true;
+  const pd = document.getElementById('liftDisplay'); if (pd) pd.textContent = txt;
+}
+function buildTorre() {
+  const { w, d, H, N, t } = TORRE, hw = w / 2, hd = d / 2;
+  const g = new THREE.Group(); g.position.set(TORRE.x, 0, TORRE.z); scene.add(g); TORRE.grupo = g;
+  const concreto = 0xd9d4ca, concretoOsc = 0x8f949a, marco = 0x1f2937;
+  mcFloor(scene, TORRE.x, TORRE.z - .6, w + 3, d + 2.6, 0xc4c7cb, .03);   // explanada
+  for (let k = 0; k < N; k++) { const lg = new THREE.Group(); lg.visible = false; g.add(lg); torreNiveles.push(lg); }
+  // ---- LOSAS: cada piso es un suelo de verdad (te paras encima); la escalera tiene su hueco ----
+  for (let k = 1; k <= N; k++) {
+    const y = k * H, hu = TORRE_HUECO;
+    // Huecos: la escalera y el pozo del ascensor (por ahí pasa la cabina)
+    const rects = k === N ? [[-hw, hw, -hd, hd]] : [[-hw, hw, -hd, hu.minZ], [-hw, hu.minX, hu.minZ, hu.maxZ], [hu.maxX, hw, hu.minZ, hu.maxZ],
+      [-hw, hw, hu.maxZ, 1.6], [-12.1, hw, 1.6, 5.3], [-hw, hw, 5.3, hd]];
+    for (const [x0, x1, z0, z1] of rects) {
+      tBox(g, (x0 + x1) / 2, y - .15, (z0 + z1) / 2, x1 - x0, .3, z1 - z0, k === N ? 0x9ca3af : 0xf5f5f4, true);
+      addLandingSurface(TORRE.x + (x0 + x1) / 2, TORRE.z + (z0 + z1) / 2, x1 - x0, z1 - z0, y, g);
+    }
+  }
+  // ---- FACHADA: antepecho + ventanal corrido + dintel en cada piso, banda en cada losa ----
+  const caras = [{ cx: 0, cz: -hd, L: w, ejeX: true, frente: true }, { cx: 0, cz: hd, L: w, ejeX: true }, { cx: -hw, cz: 0, L: d, ejeX: false }, { cx: hw, cz: 0, L: d, ejeX: false }];
+  const montantes = [];
+  for (const c of caras) {
+    const W = c.ejeX ? c.L + t : t, D = c.ejeX ? t : c.L + t;
+    for (let k = 0; k < N; k++) {
+      const y0 = k * H, hall = c.frente && k === 0;
+      const ante = hall ? .12 : .9, dintel = hall ? 3.4 : 2.9;
+      if (!hall) tBox(g, c.cx, y0 + ante / 2, c.cz, W, ante, D, concreto, true);
+      tBox(g, c.cx, y0 + (dintel + H) / 2, c.cz, W, H - dintel, D, concreto, true);
+      if (k > 0) tBox(g, c.cx, y0 + .05, c.cz, W + (c.ejeX ? .3 : .3), .3, D + .3, concretoOsc, true);   // banda de la losa
+      for (let off = -c.L / 2 + 2; off < c.L / 2 - .5; off += 2) {   // montantes del ventanal (cada 2 m)
+        if (hall && Math.abs(off) < 1.6) continue;
+        montantes.push([c.ejeX ? c.cx + off : c.cx, y0 + (ante + dintel) / 2, c.ejeX ? c.cz : c.cz + off, dintel - ante, c.ejeX]);
+      }
+    }
+    // Vidrio: un solo paño por cara (el antepecho y el dintel lo tapan donde no hay ventana)
+    if (c.frente) {
+      for (const sx of [-1, 1]) tBox(g, sx * (hw + 1.4) / 2, TORRE.alto / 2, c.cz, hw - 1.4, TORRE.alto, .04, torreVidrio);
+      tBox(g, 0, (H + TORRE.alto) / 2, c.cz, 2.8, TORRE.alto - H, .04, torreVidrio);
+    } else tBox(g, c.cx, TORRE.alto / 2, c.cz, c.ejeX ? c.L : .04, TORRE.alto, c.ejeX ? .04 : c.L, torreVidrio);
+  }
+  const mGeo = new THREE.BoxGeometry(1, 1, 1), mMat = mcMat(marco);
+  const mont = new THREE.InstancedMesh(mGeo, mMat, montantes.length), m4 = new THREE.Matrix4();
+  montantes.forEach(([x, y, z, h, ejeX], i) => { m4.makeScale(ejeX ? .1 : .36, h, ejeX ? .36 : .1); m4.setPosition(x, y, z); mont.setMatrixAt(i, m4); });
+  g.add(mont);
+  // Choque de la fachada (la puerta del hall queda libre)
+  tObs(-hw - t / 2, hw + t / 2, hd - t / 2, hd + t / 2, 0, TORRE.alto + 1);
+  for (const sx of [-1, 1]) tObs(sx * hw - t / 2, sx * hw + t / 2, -hd, hd, 0, TORRE.alto + 1);
+  tObs(-hw - t / 2, -1.4, -hd - t / 2, -hd + t / 2, 0, TORRE.alto + 1);
+  tObs(1.4, hw + t / 2, -hd - t / 2, -hd + t / 2, 0, TORRE.alto + 1);
+  tObs(-1.4, 1.4, -hd - t / 2, -hd + t / 2, 3.4, TORRE.alto + 1);
+  // ---- BALCONES con baranda de vidrio (en el living de cada depto) ----
+  for (let k = 1; k < N; k++) for (const s of [-1, 1]) {
+    const y = k * H, z = s * (hd + .8);
+    tBox(g, -4.5, y - .1, z, 7.6, .22, 1.6, concreto, true);
+    tBox(g, -4.5, y + .55, s * (hd + 1.56), 7.6, 1.05, .04, torreVidrio);
+    for (const sx of [-1, 1]) tBox(g, -4.5 + sx * 3.78, y + .55, z, .04, 1.05, 1.6, torreVidrio);
+    tBox(g, -4.5, y + 1.1, s * (hd + 1.56), 7.7, .06, .09, torreAcero);
+  }
+  // ---- AZOTEA: antepecho, sala de máquinas del ascensor, estanque y aire acondicionado ----
+  for (const c of caras) tBox(g, c.cx, TORRE.alto + .5, c.cz, c.ejeX ? c.L + t : t, 1, c.ejeX ? t : c.L + t, concreto, true);
+  tBox(g, -14, TORRE.alto + 1.6, 3.4, 4.4, 3.2, 4.4, 0xcbd5e1, true);
+  tObs(-16.2, -11.8, 1.2, 5.6, TORRE.alto, TORRE.alto + 3.2);
+  const estanque = tCil(g, 9, TORRE.alto + 3.2, 4, 1.7, 2.6, 0x94a3b8); estanque.castShadow = true;
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) tBox(g, 9 + sx * 1.1, TORRE.alto + 1, 4 + sz * 1.1, .15, 2, .15, 0x475569);
+  for (let i = 0; i < 3; i++) { tBox(g, 2 + i * 2.6, TORRE.alto + .55, -6, 1.8, 1.1, 1.2, 0xe5e7eb, true); tCil(g, 2 + i * 2.6, TORRE.alto + 1.12, -6, .45, .05, 0x334155); }
+  tCil(g, 13, TORRE.alto + 4, -7, .08, 8, 0x9ca3af);
+  const baliza = new THREE.Mesh(new THREE.SphereGeometry(.28, 8, 6), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xdc2626, emissiveIntensity: 1.1 }));
+  baliza.position.set(13, TORRE.alto + 8.1, -7); g.add(baliza);
+  // ---- ENTRADA: marquesina, puerta de vidrio abierta, letrero y jardineras ----
+  tBox(g, 0, 3.7, -hd - .9, 7.2, .28, 1.8, 0x1f2937, true);   // marquesina (no llega a la vereda)
+  tBox(g, 0, 3.54, -hd - .9, 6.6, .05, 1.4, new THREE.MeshStandardMaterial({ color: 0xfff7d6, emissive: 0xfde68a, emissiveIntensity: .6 }));
+  for (const sx of [-1, 1]) { tCil(g, sx * 3.3, 1.8, -hd - 1.55, .1, 3.6, torreAcero); tObs(sx * 3.3 - .2, sx * 3.3 + .2, -hd - 1.75, -hd - 1.35, 0, 3.6); }
+  for (const sx of [-1, 1]) {
+    const hoja = tBox(g, sx * 1.35, 1.7, -hd + .55, .06, 3.3, 1.3, torreVidrio); hoja.rotation.y = sx * .25;
+    tBox(g, sx * 1.4, 1.7, -hd, .12, 3.4, .36, torreAcero);
+    tBox(g, sx * 5.2, .45, -hd - 1.2, 2.6, .9, 1, 0x57534e, true); tObs(sx * 5.2 - 1.3, sx * 5.2 + 1.3, -hd - 1.7, -hd - .7, 0, .9);
+    mcFlowers(g, sx * 5.2, -hd - 1.2, .9);
+  }
+  const letrero = makeSign('EDIFICIO MIRADOR', 0x93c5fd); letrero.scale.set(.75, .75, .75);
+  letrero.rotation.y = Math.PI; letrero.position.set(TORRE.x, 4.5, TORRE.z - hd - 1.85); scene.add(letrero);
+  const precio = makeSign('DEPTOS $' + TORRE_PRECIO + ' · CONSERJERÍA', 0xfef08a); precio.scale.set(.36, .36, .36);
+  precio.rotation.y = Math.PI; precio.position.set(TORRE.x + 9, 2.5, TORRE.z - hd - 1.1); scene.add(precio);
+  tBox(g, 9, 1.1, -hd - 1.05, .1, 2.2, .1, torreAcero);
+  // ---- NÚCLEO: ascensor (caja de choque de arriba a abajo) y escalera ----
+  tObs(-15.7, -12.1, 1.6, 5.3, 0, TORRE.alto);
+  tBox(g, -13.9, TORRE.alto / 2, 5.2, 3.6, TORRE.alto, .2, 0xe7e5e4, true);
+  tBox(g, -12.2, TORRE.alto / 2, 3.45, .2, TORRE.alto, 3.7, 0xe7e5e4, true);
+  for (const x of [-15.25, -12.65]) tBox(g, x, TORRE.alto / 2, 1.7, x < -14 ? .9 : 1.1, TORRE.alto, .2, 0xe7e5e4, true);
+  const pantalla = document.createElement('canvas'); pantalla.width = 96; pantalla.height = 48;
+  torreLift.pantalla = new THREE.CanvasTexture(pantalla);
+  const pantallaMat = new THREE.MeshBasicMaterial({ map: torreLift.pantalla });
+  for (let k = 0; k < N; k++) {
+    const y0 = k * H;
+    tBox(g, TORRE_ASC.x, y0 + 3.25, 1.7, 1.6, 1.5, .2, 0xe7e5e4, true);   // dintel sobre la puerta
+    for (const sx of [-1, 1]) tBox(g, TORRE_ASC.x + sx * .87, y0 + 1.27, 1.56, .1, 2.6, .08, torreAcero);   // marco de acero
+    tBox(g, TORRE_ASC.x, y0 + 2.55, 1.56, 1.84, .1, .08, torreAcero);
+    const hojas = [];
+    for (const sx of [-1, 1]) { const h = tBox(g, TORRE_ASC.x + sx * .4, y0 + 1.25, 1.56, .8, 2.5, .05, torreAcero); hojas.push({ m: h, sx }); }
+    const pan = new THREE.Mesh(new THREE.PlaneGeometry(.56, .28), pantallaMat); pan.rotation.y = Math.PI; pan.position.set(TORRE_ASC.x, y0 + 2.85, 1.52); g.add(pan);
+    tBox(g, TORRE_ASC.x + 1.25, y0 + 1.3, 1.57, .16, .34, .03, torreAcero);
+    const llamar = tCil(g, TORRE_ASC.x + 1.25, y0 + 1.3, 1.54, .045, .03, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x38bdf8, emissiveIntensity: .5 }));
+    llamar.rotation.x = Math.PI / 2;
+    const placa = makeSign('PISO ' + (k + 1), 0xe2e8f0); placa.scale.set(.18, .18, .18); placa.rotation.y = Math.PI;
+    placa.position.set(-11.2, y0 + 2.7, 1.5); torreNiveles[k].add(placa);
+    torreLift.rellanos.push(hojas);
+  }
+  pintarPantallaAscensor();
+  // La CABINA: se ve que estás adentro (paredes de acero, espejo, pasamanos, luz y botonera)
+  const cab = new THREE.Group(); g.add(cab); torreLift.cabina = cab;
+  const cx0 = -15.55, cx1 = -12.45, cz0 = 1.9, cz1 = 4.95, cw = cx1 - cx0, cdz = cz1 - cz0, ccx = (cx0 + cx1) / 2, ccz = (cz0 + cz1) / 2;
+  tBox(cab, ccx, .03, ccz, cw, .06, cdz, 0x3f3f46);
+  tBox(cab, ccx, 2.68, ccz, cw, .06, cdz, torreAcero);
+  tBox(cab, ccx, 2.62, ccz, 1.6, .04, 1.6, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf8fafc, emissiveIntensity: .9 }));
+  tBox(cab, ccx, 1.35, cz1, cw, 2.7, .06, torreAcero);
+  for (const x of [cx0, cx1]) tBox(cab, x, 1.35, ccz, .06, 2.7, cdz, torreAcero);
+  for (const x of [-15.18, -12.82]) tBox(cab, x, 1.35, cz0, .74, 2.7, .06, torreAcero);
+  tBox(cab, -14, 2.6, cz0, 1.6, .2, .06, torreAcero);
+  tBox(cab, ccx, 1.6, cz1 - .05, 2.2, 1.3, .02, new THREE.MeshStandardMaterial({ color: 0xdbeafe, roughness: .05, metalness: .9 }));   // espejo del fondo
+  tBox(cab, ccx, .95, cz1 - .14, cw - .3, .05, .05, 0xd4a017);   // pasamanos de bronce
+  for (const x of [cx0 + .3, cx1 - .3]) tBox(cab, x, .95, cz1 - .09, .04, .04, .12, 0xd4a017);
+  for (const sx of [-1, 1]) { const h = tBox(cab, -14 + sx * .4, 1.25, cz0 + .05, .8, 2.5, .04, torreAcero); torreLift.hojasCabina.push({ m: h, sx }); }
+  // Botonera en la pared derecha (al lado de la puerta): números pintados + botones que se encienden
+  const bc = document.createElement('canvas'); bc.width = 64; bc.height = 192;
+  const bg = bc.getContext('2d');
+  bg.fillStyle = '#9aa4b1'; bg.fillRect(0, 0, 64, 192); bg.fillStyle = '#111827'; bg.font = 'bold 22px sans-serif'; bg.textAlign = 'center'; bg.textBaseline = 'middle';
+  for (let k = 0; k < N; k++) bg.fillText(String(k + 1), 18, 172 - k * 32);
+  bg.font = 'bold 14px sans-serif'; bg.fillText('◀▶', 32, 14);
+  const btex = new THREE.CanvasTexture(bc); btex.colorSpace = THREE.SRGBColorSpace;
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(.3, .9), new THREE.MeshStandardMaterial({ map: btex, roughness: .4, metalness: .4 }));
+  panel.rotation.y = -Math.PI / 2; panel.position.set(cx1 - .04, 1.35, cz0 + .5); cab.add(panel);
+  for (let k = 0; k < N; k++) {
+    const b = tCil(cab, cx1 - .06, 1.35 - .45 + (20 + k * 32) / 192 * .9, cz0 + .5 + .05, .035, .03,
+      new THREE.MeshStandardMaterial({ color: 0xe5e7eb, emissive: 0xf59e0b, emissiveIntensity: 0, metalness: .6, roughness: .3 }), true);
+    torreLift.botones.push(b);
+  }
+  const panCab = new THREE.Mesh(new THREE.PlaneGeometry(.4, .2), pantallaMat); panCab.position.set(-14, 2.4, cz0 + .1); cab.add(panCab);
+  if (!preferLowPerf) { torreLuz = new THREE.PointLight(0xfff4dc, 0, 16, 1); scene.add(torreLuz); }
+  // ---- ESCALERA: 10 peldaños por piso (cada uno es un suelo), con su muro y baranda ----
+  for (let k = 0; k < N - 1; k++) {
+    const lg = torreNiveles[k], y0 = k * H;
+    for (let i = 0; i < 10; i++) {
+      const top = y0 + .4 * (i + 1), z0 = TORRE_HUECO.maxZ - .65 * i, z1 = z0 - .65;
+      tBox(lg, (TORRE_HUECO.minX + TORRE_HUECO.maxX) / 2, top - .2, (z0 + z1) / 2, 2.2, .4, .65, i % 2 ? 0xa8a29e : 0xb6b0aa);
+      addLandingSurface(TORRE.x + (TORRE_HUECO.minX + TORRE_HUECO.maxX) / 2, TORRE.z + (z0 + z1) / 2, 2.2, .65, top, g);
+    }
+    tBox(lg, -13.4, y0 + 1.85, -5.8, .2, 3.7, 5.8, 0xe7e5e4);
+    tObs(-13.5, -13.3, -8.7, -2.9, y0, y0 + 3.7);
+    tBox(lg, -15.6, y0 + 2.6, -5.45, .06, .06, 6.6, 0xd4a017);   // pasamanos en el muro de afuera
+  }
+  { // último piso: baranda alrededor del hueco para no caerse
+    const y0 = (N - 1) * H, lg = torreNiveles[N - 1];
+    tBox(lg, -14.6, y0 + .55, TORRE_HUECO.maxZ, 2.2, 1.1, .05, torreVidrio); tBox(lg, -14.6, y0 + 1.1, TORRE_HUECO.maxZ, 2.2, .06, .08, torreAcero);
+    tBox(lg, TORRE_HUECO.maxX, y0 + .55, -5.45, .05, 1.1, 6.5, torreVidrio); tBox(lg, TORRE_HUECO.maxX, y0 + 1.1, -5.45, .08, .06, 6.5, torreAcero);
+    tObs(TORRE_HUECO.minX, TORRE_HUECO.maxX, TORRE_HUECO.maxZ - .1, TORRE_HUECO.maxZ + .1, y0, y0 + 1.1);
+    tObs(TORRE_HUECO.maxX - .1, TORRE_HUECO.maxX + .1, TORRE_HUECO.minZ, TORRE_HUECO.maxZ, y0, y0 + 1.1);
+  }
+  buildTorreHall();
+  for (let k = 1; k < N; k++) {
+    const lg = torreNiveles[k], y0 = k * H;
+    tBox(lg, 3.4, y0 + .02, 0, 24.8, .03, 2.9, 0x7f1d1d);   // alfombra del pasillo
+    for (const x of [-12, -4, 4, 12]) tBox(lg, x, y0 + 3.66, 0, .8, .04, .8, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff7e0, emissiveIntensity: .8 }));
+    mcBench(lg, -11, 8.6, Math.PI); lg.children[lg.children.length - 1].position.y = y0;
+    torrePlanta(lg, -8.4, y0, 9.2); torrePlanta(lg, 15.2, y0, -.9);
+    for (const s of [-1, 1]) buildTorreDepto(k, s);
+  }
+}
+function buildTorreHall() {
+  const lg = torreNiveles[0], { d } = TORRE, hd = d / 2;
+  tPiso(lg, 2, 0, 27.6, d - .4, 'marmol');
+  tBox(lg, 1, .05, -5, 5, .03, 3.2, 0x1e3a8a);   // alfombra de la entrada
+  for (const x of [-4, 4, 10]) for (const z of [-5, 3]) tBox(lg, x, 3.66, z, 1.2, .04, 1.2, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff7e0, emissiveIntensity: .8 }));
+  // Mesón de la conserjería y la SEÑORA que atiende (como la cajera del banco)
+  const dx = 5, dz = 2.4;
+  tBox(lg, dx, .55, dz, 3.8, 1.1, .7, 0x6b4a2a, true); tBox(lg, dx, 1.13, dz, 4, .07, .9, 0x292524);
+  for (const sx of [-1.85, 1.85]) tBox(lg, dx + sx, .55, dz + .55, .12, 1.1, .5, 0x6b4a2a);
+  tObs(dx - 1.95, dx + 1.95, dz - .4, dz + .4, 0, 1.15);
+  tBox(lg, dx - 1.1, 1.42, dz + .1, .7, .44, .06, 0x111827); tBox(lg, dx - 1.1, 1.42, dz + .06, .6, .36, .02, new THREE.MeshBasicMaterial({ color: 0x60a5fa }));
+  tBox(lg, dx + 1.2, 1.2, dz, .3, .08, .2, 0xfacc15);   // timbre
+  tBox(lg, dx, .5, dz + 1.15, .8, .1, .8, 0x3f3f46); tBox(lg, dx, .95, dz + 1.55, .8, .9, .1, 0x3f3f46);
+  torreConserje = makePerson(0x0f766e, 0xe8b88a);
+  sentarPersona(torreConserje, TORRE.x + dx, 1.05, TORRE.z + dz + 1.15, Math.PI);
+  const moño = new THREE.Mesh(new THREE.BoxGeometry(.6, .42, .6), mat(0x6b3a1e)); moño.position.set(0, 2.28, -.04); torreConserje.add(moño);
+  scene.add(torreConserje);
+  const cartel = makeSign('CONSERJERÍA · E', 0xa7f3d0); cartel.scale.set(.3, .3, .3); cartel.rotation.y = Math.PI;
+  cartel.position.set(dx, 3.1, dz - .1); lg.add(cartel);
+  // Casilleros del correo en la pared de atrás
+  const cc = document.createElement('canvas'); cc.width = 128; cc.height = 64;
+  const cg = cc.getContext('2d'); cg.fillStyle = '#a1a1aa'; cg.fillRect(0, 0, 128, 64);
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 4; j++) { cg.fillStyle = '#d4d4d8'; cg.fillRect(3 + i * 15.6, 3 + j * 15, 13, 12); cg.fillStyle = '#3f3f46'; cg.fillRect(6 + i * 15.6, 8 + j * 15, 7, 2); }
+  const ctex = new THREE.CanvasTexture(cc); ctex.colorSpace = THREE.SRGBColorSpace;
+  const casilleros = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.8), new THREE.MeshStandardMaterial({ map: ctex, metalness: .5, roughness: .4 }));
+  casilleros.rotation.y = Math.PI; casilleros.position.set(11.5, 1.6, hd - .2); lg.add(casilleros);
+  // Sala de espera: dos sillones, mesa de centro, plantas y un cuadro
+  for (const sx of [-1, 1]) {
+    const sx0 = -5.5 + sx * 2.2;
+    tBox(lg, sx0, .25, 5.5, 1.9, .45, .9, 0x334155); tBox(lg, sx0, .7, 5.9, 1.9, .55, .2, 0x334155);
+    for (const ax of [-.9, .9]) tBox(lg, sx0 + ax, .45, 5.5, .15, .5, .9, 0x1e293b);
+    tObs(sx0 - 1, sx0 + 1, 5, 6.05, 0, .8);
+  }
+  tBox(lg, -5.5, .4, 4, 1.4, .06, .8, 0x78350f); tBox(lg, -5.5, .2, 4, .1, .4, .1, 0x44403c);
+  for (const [px, pz] of [[-8.5, 8.8], [12.5, -8.6], [-1.6, -8.6], [14.6, 8.6]]) torrePlanta(lg, px, 0, pz);
+  torreCuadro(lg, -5.5, 2.1, hd - .2, Math.PI);
+}
+function torrePlanta(parent, x, y, z) {
+  tCil(parent, x, y + .3, z, .3, .6, 0xb45309);
+  tCil(parent, x, y + .62, z, .26, .04, 0x3f2d1a);
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * 6.28, h = new THREE.Mesh(new THREE.BoxGeometry(.14, .7, .05), mcMat(i % 2 ? 0x2f7d32 : 0x3f9b45));
+    h.position.set(x + Math.cos(a) * .14, y + 1, z + Math.sin(a) * .14); h.rotation.set(Math.sin(a) * .5, -a, Math.cos(a) * .5); parent.add(h);
+  }
+}
+function torreCuadro(parent, x, y, z, rotY) {
+  const c = new THREE.Group(); c.position.set(x, y, z); c.rotation.y = rotY || 0; parent.add(c);
+  tBox(c, 0, 0, 0, 1.3, .9, .05, 0xb8860b);
+  tBox(c, 0, .12, .03, 1.1, .45, .02, 0x7dd3fc); tBox(c, 0, -.2, .03, 1.1, .3, .02, 0x65a30d);
+  tBox(c, -.25, .02, .04, .5, .18, .02, 0x57534e); tBox(c, .3, .22, .04, .14, .14, .02, 0xfde047);
+  return c;
+}
+// Un depto (s = -1 al sur del pasillo, +1 al norte). El interior se dibuja en un grupo
+// espejado (scale.z = s), así los dos lados del pasillo salen iguales pero dados vuelta.
+function buildTorreDepto(k, s) {
+  const lg = torreNiveles[k], y0 = k * TORRE.H, id = String((k + 1) * 100 + (s < 0 ? 1 : 2));
+  const pared = 0xf3efe7, Z = zp => s * zp;
+  const muro = (x0, x1, zp0, zp1) => {
+    const z0 = Math.min(Z(zp0), Z(zp1)), z1 = Math.max(Z(zp0), Z(zp1));
+    tBox(lg, (x0 + x1) / 2, y0 + 1.85, (z0 + z1) / 2, x1 - x0, 3.7, z1 - z0, pared);
+    tObs(x0, x1, z0, z1, y0, y0 + 3.7);
+  };
+  const dintel = (x0, x1, zp0, zp1) => { const z0 = Math.min(Z(zp0), Z(zp1)), z1 = Math.max(Z(zp0), Z(zp1)); tBox(lg, (x0 + x1) / 2, y0 + 3.1, (z0 + z1) / 2, x1 - x0, 1.2, z1 - z0, pared); };
+  // Muros: pasillo (con la puerta del depto), núcleo, cocina | baño | dormitorio
+  muro(-9.15, -5.7, 1.4, 1.6); muro(-4.3, 15.85, 1.4, 1.6); dintel(-5.7, -4.3, 1.4, 1.6);
+  muro(-9.15, -8.85, 1.6, 9.85);
+  muro(-.1, .1, 3.7, 9.85); muro(5.9, 6.1, 3.7, 9.85); muro(9.9, 10.1, 3.7, 9.85);
+  for (const [a, b] of [[-.1, 2.2], [3.8, 7.45], [8.55, 10.6], [11.9, 15.85]]) muro(a, b, 3.5, 3.7);
+  for (const [a, b] of [[2.2, 3.8], [7.45, 8.55], [10.6, 11.9]]) dintel(a, b, 3.5, 3.7);
+  // Puerta con bisagra y número
+  const hinge = new THREE.Group(); hinge.position.set(-5.7, y0, Z(1.5)); lg.add(hinge);
+  tBox(hinge, .7, 1.2, 0, 1.38, 2.4, .08, 0x7c4a21, true);
+  for (const dy of [.45, 1.6]) for (const lado of [-1, 1]) tBox(hinge, .7, dy, lado * .05, 1.1, .7, .02, 0x6b3f1c);
+  for (const lado of [-1, 1]) tBox(hinge, 1.22, 1.1, lado * .08, .14, .05, .06, 0xd4a017);
+  const obs = tObs(-5.7, -4.3, Z(1.42), Z(1.58), y0, y0 + 2.5);
+  const placa = makeSign(id, 0xfde68a); placa.scale.set(.2, .2, .2);
+  if (s > 0) placa.rotation.y = Math.PI;
+  placa.position.set(-5, y0 + 2.75, Z(1.5) - s * .14); lg.add(placa);
+  tBox(lg, -3.9, y0 + 1.25, Z(1.5) - s * .11, .1, .14, .03, 0x111827);   // timbre
+  const grupo = new THREE.Group(); grupo.position.y = y0; grupo.scale.z = s; lg.add(grupo);
+  torreDeptos.push({ id, nivel: k, s, hinge, obs, top: y0 + 2.5, abierta: false, grupo, amoblado: false, puertaX: -5, puertaZ: Z(1.5) });
+}
+// Muebles: se arman la primera vez que llegas a ese piso (8 deptos completos pesarían mucho).
+function amoblarDepto(dep) {
+  if (dep.amoblado) return;
+  dep.amoblado = true;
+  const f = dep.grupo, s = dep.s, y0 = dep.nivel * TORRE.H;
+  const obs = (x0, x1, zp0, zp1, alto) => tObs(x0, x1, Math.min(s * zp0, s * zp1), Math.max(s * zp0, s * zp1), y0, y0 + alto);
+  const luzTecho = (x, zp) => tBox(f, x, 3.66, zp, .6, .05, .6, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4d6, emissiveIntensity: .85 }));
+  const blanco = 0xf8fafc, madera = 0x8b5a2b;
+  // Pisos: madera en el living, el pasillo y la pieza; baldosa en la cocina y el baño
+  tPiso(f, -4.47, 5.72, 8.75, 8.25, 'madera'); tPiso(f, 7.9, 2.55, 15.9, 1.9, 'madera');
+  tPiso(f, 3, 6.78, 5.8, 6.15, 'baldosa'); tPiso(f, 8, 6.78, 3.8, 6.15, 'banio'); tPiso(f, 12.97, 6.78, 5.75, 6.15, 'madera');
+  // ---------- LIVING: sillón mirando a la tele ----------
+  tBox(f, -5.4, .05, 6, 3.4, .03, 2.6, 0x7c2d12); tBox(f, -5.4, .06, 6, 2.8, .03, 2, 0xd6a76a);   // alfombra
+  tBox(f, -8.5, .3, 6, .55, .6, 2.6, 0x3f2d1a); obs(-8.85, -8.2, 4.7, 7.3, .6);                    // mueble de la tele
+  for (const dz of [-.65, .65]) tBox(f, -8.22, .3, 6 + dz, .02, .45, 1.15, 0x2a1d10);
+  tBox(f, -8.6, 1.3, 6, .08, 1.18, 2.08, 0x0b0b0f); tBox(f, -8.6, .65, 6, .3, .06, .5, 0x0b0b0f);
+  if (!TORRE_TELE.living) TORRE_TELE.living = torrePantalla(false);
+  const tele = new THREE.Mesh(new THREE.PlaneGeometry(1.95, 1.06), TORRE_TELE.living); tele.rotation.y = Math.PI / 2; tele.position.set(-8.55, 1.3, 6); f.add(tele);
+  const sofa = 0x475569, coj = 0x64748b;
+  tBox(f, -3.6, .25, 6, 1, .4, 2.7, sofa, true);
+  for (const dz of [-.62, .62]) tBox(f, -3.68, .52, 6 + dz, .86, .16, 1.22, coj);
+  tBox(f, -3.18, .78, 6, .26, .78, 2.7, sofa, true);
+  for (const dz of [-1.25, 1.25]) tBox(f, -3.6, .52, 6 + dz, 1, .55, .2, sofa);
+  for (const dz of [-.9, .9]) { const c = tBox(f, -3.4, .75, 6 + dz, .14, .38, .38, dz < 0 ? 0xfacc15 : 0x22d3ee); c.rotation.x = .2; }
+  for (const [lx, lz] of [[-4, 4.75], [-4, 7.25], [-3.25, 4.75], [-3.25, 7.25]]) tBox(f, lx, .03, lz, .08, .06, .08, 0x1f2937);
+  obs(-4.15, -3.05, 4.62, 7.38, .9);
+  tBox(f, -5.95, .42, 6, .75, .05, 1.3, 0x78350f); for (const [lx, lz] of [[-6.25, 5.45], [-6.25, 6.55], [-5.65, 5.45], [-5.65, 6.55]]) tBox(f, lx, .2, lz, .05, .4, .05, 0x44403c);
+  tBox(f, -5.9, .46, 5.8, .25, .03, .32, 0xef4444); tCil(f, -6.05, .5, 6.3, .05, .1, 0xffffff);
+  obs(-6.35, -5.55, 5.3, 6.7, .45);
+  tCil(f, -2.6, .03, 8.8, .2, .05, 0x1f2937); tCil(f, -2.6, .85, 8.8, .025, 1.6, 0x1f2937);
+  const pantalla = new THREE.Mesh(new THREE.CylinderGeometry(.18, .28, .32, 14, 1, true), new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xfde68a, emissiveIntensity: .7, side: THREE.DoubleSide }));
+  pantalla.position.set(-2.6, 1.72, 8.8); f.add(pantalla);
+  torrePlanta(f, -1, 0, 9.2); torreCuadro(f, -7.3, 1.9, 1.64, 0);
+  luzTecho(-4.5, 5.8); luzTecho(4, 2.5); luzTecho(11.5, 2.5);
+  // ---------- COCINA: muebles, horno de verdad (parado en el suelo), campana, lavaplatos y congelador ----------
+  const mueble = 0xf5f5f4, cubierta = 0x374151;
+  for (const [a, b] of [[4.0, 6.22], [6.98, 8.6]]) {
+    tBox(f, 5.57, .45, (a + b) / 2, .65, .9, b - a, mueble, true);
+    tBox(f, 5.55, .925, (a + b) / 2, .72, .05, b - a + .02, cubierta);
+    for (let zz = a + .3; zz < b - .1; zz += .6) { tBox(f, 5.235, .45, zz, .02, .8, .55, 0xe7e5e4); tBox(f, 5.215, .62, zz + .18, .03, .14, .03, 0x6b7280); }
+  }
+  tBox(f, 5.88, 1.25, 6.3, .02, .62, 4.6, 0xe0f2fe);   // cerámica de la pared
+  // El HORNO: cuerpo de acero desde el suelo, puerta con vidrio, manilla, perillas, cajón y encimera con 4 quemadores
+  const hx = 5.56, hz = 6.6;
+  tBox(f, hx, .46, hz, .66, .92, .76, torreAcero, true);
+  tBox(f, 5.215, .44, hz, .03, .56, .7, 0x1f2937);
+  tBox(f, 5.2, .44, hz, .02, .34, .52, new THREE.MeshStandardMaterial({ color: 0x1c1917, emissive: 0xf97316, emissiveIntensity: .25, roughness: .1 }));
+  tBox(f, 5.15, .76, hz, .04, .04, .6, torreAcero); for (const dz of [-.27, .27]) tBox(f, 5.18, .76, hz + dz, .06, .04, .04, torreAcero);
+  tBox(f, 5.215, .84, hz, .03, .1, .74, 0x111827);
+  for (let i = 0; i < 4; i++) tCil(f, 5.19, .84, hz - .27 + i * .18, .03, .04, 0xe5e7eb, true);
+  tBox(f, 5.215, .09, hz, .03, .14, .7, 0x9ca3af);
+  tBox(f, hx, .935, hz, .64, .02, .74, 0x0b0b0f);
+  for (const [bx, bz] of [[5.4, hz - .18], [5.4, hz + .18], [5.72, hz - .18], [5.72, hz + .18]]) {
+    const q = new THREE.Mesh(new THREE.TorusGeometry(.1, .018, 6, 18), new THREE.MeshStandardMaterial({ color: 0x7f1d1d, emissive: 0x991b1b, emissiveIntensity: .35 }));
+    q.rotation.x = Math.PI / 2; q.position.set(bx, .95, bz); f.add(q);
+  }
+  tBox(f, 5.62, 2.1, hz, .55, .14, .82, torreAcero); tBox(f, 5.76, 2.9, hz, .26, 1.45, .36, torreAcero);   // campana
+  tBox(f, 5.5, .955, 5, .46, .02, .62, 0x9ca3af); tBox(f, 5.5, .94, 5, .38, .03, .5, 0x4b5563);            // lavaplatos
+  tCil(f, 5.78, 1.1, 5, .025, .3, torreAcero); tBox(f, 5.66, 1.24, 5, .25, .03, .03, torreAcero);
+  for (const [a, b] of [[4.05, 5.75], [7.3, 8.6]]) { tBox(f, 5.72, 2.2, (a + b) / 2, .36, .72, b - a, mueble, true); tBox(f, 5.53, 2.0, (a + b) / 2, .03, .04, (b - a) * .7, 0x6b7280); }
+  obs(5.2, 5.9, 4.0, 8.6, .95);
+  // Congelador (refrigerador de dos puertas: arriba congela, abajo enfría)
+  tBox(f, 5.5, 1.0, 9.25, .76, 2.0, .9, 0xe5e7eb, true);
+  tBox(f, 5.1, 1.62, 9.25, .04, .74, .86, 0xf1f5f9); tBox(f, 5.1, .62, 9.25, .04, 1.2, .86, 0xf1f5f9);
+  tBox(f, 5.09, 1.24, 9.25, .03, .03, .86, 0x6b7280);
+  tBox(f, 5.05, 1.5, 8.88, .05, .42, .05, 0x6b7280); tBox(f, 5.05, .9, 8.88, .05, .7, .05, 0x6b7280);
+  tBox(f, 5.07, 1.82, 9.45, .02, .16, .3, new THREE.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x38bdf8, emissiveIntensity: .7 }));
+  for (const [ix, iz, c] of [[5.07, 9.5, 0xef4444], [5.07, 9.35, 0xfacc15]]) tBox(f, ix, .8, iz, .02, .1, .1, c);
+  obs(5.1, 5.9, 8.78, 9.75, 2);
+  // Mesa del comedor con cuatro sillas
+  tBox(f, 2.4, .76, 7, 1.5, .06, .9, 0x92400e, true);
+  for (const [lx, lz] of [[1.75, 6.65], [1.75, 7.35], [3.05, 6.65], [3.05, 7.35]]) tBox(f, lx, .37, lz, .06, .74, .06, 0x78350f);
+  for (const [sx, sz, r] of [[1.95, 6.25, 0], [2.85, 6.25, 0], [1.95, 7.75, Math.PI], [2.85, 7.75, Math.PI]]) torreSilla(f, sx, sz, r);
+  tCil(f, 2.4, .82, 7, .1, .06, 0xffffff); tCil(f, 2.15, .82, 6.85, .05, .07, 0xef4444);
+  obs(1.65, 3.15, 6.55, 7.45, .8);
+  tCil(f, 2.4, 3.2, 7, .01, .9, 0x111827);
+  const lampara = new THREE.Mesh(new THREE.ConeGeometry(.28, .26, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0x111827, emissive: 0xfde68a, emissiveIntensity: .35, side: THREE.DoubleSide }));
+  lampara.position.set(2.4, 2.65, 7); f.add(lampara);
+  // ---------- BAÑO: espejo, lavamanos, taza, ducha y alfombra ----------
+  tBox(f, 9.885, .75, 6.78, .02, 1.5, 6.1, 0xbfdbfe); tBox(f, 6.115, .75, 6.78, .02, 1.5, 6.1, 0xbfdbfe);
+  tBox(f, 9.62, .42, 6, .52, .84, 1.1, blanco, true); tBox(f, 9.6, .87, 6, .58, .05, 1.16, 0xe5e7eb);
+  tBox(f, 9.355, .42, 6, .02, .6, .9, 0xe5e7eb); tBox(f, 9.33, .7, 6, .03, .03, .25, 0x9ca3af);
+  const lav = tCil(f, 9.58, .9, 6, .22, .08, blanco); lav.scale.x = .8; tCil(f, 9.58, .945, 6, .17, .02, 0xcbd5e1);
+  tCil(f, 9.84, 1.02, 6, .025, .25, torreAcero); tBox(f, 9.74, 1.13, 6, .2, .03, .03, torreAcero);
+  obs(9.3, 9.9, 5.4, 6.6, .9);
+  tBox(f, 9.72, .72, 8.8, .26, .5, .56, blanco, true); tBox(f, 9.72, .99, 8.8, .3, .04, .6, 0xe5e7eb); tCil(f, 9.72, 1.02, 8.8, .04, .02, 0x9ca3af);
+  tBox(f, 9.45, .2, 8.8, .42, .4, .36, blanco);
+  const taza = tCil(f, 9.3, .44, 8.8, .22, .14, blanco); taza.scale.x = 1.3;
+  tBox(f, 9.3, .53, 8.8, .58, .03, .44, 0xf1f5f9);
+  obs(9.05, 9.9, 8.5, 9.1, .8);
+  tBox(f, 6.8, .05, 9.07, 1.4, .1, 1.55, 0xf8fafc);
+  tBox(f, 6.8, 1.1, 8.3, 1.4, 2, .03, torreVidrio); tBox(f, 7.5, 1.1, 9.07, .03, 2, 1.55, torreVidrio);
+  tCil(f, 6.2, 1.5, 9.4, .02, 1.2, torreAcero); tBox(f, 6.32, 2.12, 9.4, .25, .03, .03, torreAcero); tCil(f, 6.45, 2.08, 9.4, .1, .03, torreAcero);
+  obs(6.1, 7.55, 8.25, 8.35, 2.1); obs(7.45, 7.55, 8.3, 9.85, 2.1);
+  tBox(f, 8.4, .025, 6, .95, .03, 1.45, 0x2563eb); tBox(f, 8.4, .035, 6, .75, .03, 1.25, 0x93c5fd);   // alfombra
+  tBox(f, 6.16, 1.35, 5.7, .05, .03, .6, torreAcero); tBox(f, 6.2, 1.05, 5.7, .04, .6, .5, 0xf472b6);   // toalla
+  luzTecho(8, 6.5);
+  // El espejo va fuera del grupo espejado (un Reflector no se puede dar vuelta): refleja de verdad
+  const esp = new THREE.Group(); esp.position.set(9.86, y0 + 1.75, s * 6); esp.rotation.y = -Math.PI / 2; torreNiveles[dep.nivel].add(esp);
+  for (const [bw, bh, bx, by] of [[1, .06, 0, .56], [1, .06, 0, -.56], [.06, 1.18, -.47, 0], [.06, 1.18, .47, 0]]) tBox(esp, bx, by, 0, bw, bh, .04, 0xd4d4d8);
+  const luna = new Reflector(new THREE.PlaneGeometry(.88, 1.06), { textureWidth: 512, textureHeight: 512, color: 0xb9cddb });
+  luna.position.z = .03; luna.visible = false; esp.add(luna);
+  mirrorObjs.push({ mesh: esp, mirrors: [luna], alturaY: y0 });
+  // ---------- DORMITORIO: cama, tele con Play, velador, clóset y ventana ----------
+  tBox(f, 13, .75, 9.72, 1.85, 1.3, .12, 0x6b4423, true);
+  tBox(f, 13, .22, 8.62, 1.72, .3, 2.12, 0x7a5230, true);
+  tBox(f, 13, .48, 8.64, 1.62, .24, 2.02, blanco);
+  tBox(f, 13, .63, 8.1, 1.68, .08, 1.3, 0x3b82f6); tBox(f, 13, .66, 8.72, 1.68, .06, .14, 0xdbeafe);
+  for (const px of [12.55, 13.45]) { const p = tBox(f, px, .68, 9.35, .66, .15, .38, 0xf8fafc); p.rotation.x = -.2; }
+  for (const [lx, lz] of [[12.2, 7.6], [13.8, 7.6], [12.2, 9.6], [13.8, 9.6]]) tBox(f, lx, .04, lz, .08, .08, .08, 0x3f2d1a);
+  obs(12.1, 13.9, 7.52, 9.8, .7);
+  for (const vx of [11.6, 14.45]) {
+    tBox(f, vx, .27, 9.5, .5, .54, .42, madera, true); tBox(f, vx, .42, 9.28, .4, .02, .02, 0xd4a017);
+    tCil(f, vx, .62, 9.5, .07, .16, 0xe5e7eb);
+    const pant = new THREE.Mesh(new THREE.CylinderGeometry(.11, .16, .2, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xfde68a, emissiveIntensity: .6, side: THREE.DoubleSide }));
+    pant.position.set(vx, .8, 9.5); f.add(pant);
+    obs(vx - .25, vx + .25, 9.28, 9.72, .55);
+  }
+  tBox(f, 13, .025, 6.6, 2.3, .03, 1.3, 0x9333ea);
+  // La tele con la Play (consola parada, con su luz azul, y el control encima del mueble)
+  tBox(f, 13.8, .28, 4.0, 1.9, .56, .48, 0x1f2937, true); obs(12.85, 14.75, 3.7, 4.25, .56);
+  tBox(f, 13.8, 1.38, 3.8, 1.55, .9, .06, 0x0b0b0f); tBox(f, 13.8, .64, 3.9, .3, .06, .3, 0x0b0b0f);
+  if (!TORRE_TELE.juego) TORRE_TELE.juego = torrePantalla(true);
+  const teleJ = new THREE.Mesh(new THREE.PlaneGeometry(1.44, .8), TORRE_TELE.juego); teleJ.position.set(13.8, 1.38, 3.835); f.add(teleJ);
+  tBox(f, 13.05, .58, 4.02, .1, .02, .26, 0x111827);
+  tBox(f, 13.05, .8, 4.02, .07, .44, .26, 0x111827);
+  for (const dx of [-.055, .055]) tBox(f, 13.05 + dx, .8, 4.02, .02, .46, .3, 0xf8fafc);
+  tBox(f, 13.05, .8, 4.18, .015, .36, .01, new THREE.MeshStandardMaterial({ color: 0x60a5fa, emissive: 0x3b82f6, emissiveIntensity: 1.2 }));
+  const control = new THREE.Group(); control.position.set(14.5, .59, 4.1); control.rotation.y = .3; f.add(control);
+  tBox(control, 0, 0, 0, .22, .05, .1, 0xf8fafc);
+  for (const dx of [-.11, .11]) { const gr = tBox(control, dx, -.005, .05, .07, .045, .12, 0xf8fafc); gr.rotation.y = dx < 0 ? .3 : -.3; }
+  tBox(control, 0, .03, -.01, .09, .01, .05, 0x111827);
+  for (const dx of [-.04, .04]) tCil(control, dx, .035, .03, .016, .02, 0x111827);
+  // Clóset y una ventana grande a la calle (el muro de afuera es de vidrio)
+  tBox(f, 10.45, 1.1, 7.3, .62, 2.2, 2.4, 0xd6c3a5, true); tBox(f, 10.775, 1.1, 7.3, .02, 2.1, .02, 0x8b6f47);
+  for (const dz of [-.12, .12]) tBox(f, 10.79, 1.1, 7.3 + dz, .03, .3, .03, 0x4b5563);
+  obs(10.1, 10.8, 6.1, 8.5, 2.2);
+  luzTecho(13, 6.5);
+}
+// ---- Dónde estás: piso (0 = hall) y si estás dentro del edificio ----
+function torreLocal() { return { x: player.position.x - TORRE.x, z: player.position.z - TORRE.z }; }
+function torreAdentro(margen) {
+  const p = torreLocal(), m = margen || 0;
+  return state.planet === 'tierra' && !state.country && Math.abs(p.x) < TORRE.w / 2 + m && Math.abs(p.z) < TORRE.d / 2 + m;
+}
+function torreNivel() {
+  const pies = player.position.y - PLAYER_EYE;
+  return THREE.MathUtils.clamp(Math.floor((pies + .6) / TORRE.H), 0, TORRE.N - 1);
+}
+function deptoPorId(id) { return id == null ? null : torreDeptos.find(dp => dp.id === String(id)) || null; }
+function setPuertaDepto(dep, abierta) {
+  dep.abierta = abierta;
+  dep.hinge.rotation.y = abierta ? (dep.s < 0 ? 1.45 : -1.45) : 0;
+  dep.obs.top = abierta ? -100 : dep.top;   // abierta: la caja de choque deja de existir a cualquier altura
+}
+// Al cargar / empezar: puertas cerradas (la tuya se abre con E) y el ascensor en el hall
+function torreReset() {
+  for (const dep of torreDeptos) setPuertaDepto(dep, false);
+  const L = torreLift;
+  if (L.rider) { L.rider = false; cameraMode = L.camPrev || 0; const lb = document.getElementById('liftbox'); if (lb) lb.style.display = 'none'; document.body.classList.remove('enAscensor'); }
+  Object.assign(L, { y: 0, target: 0, puertas: 0, fase: 'quieto', subir: false, llego: false, espera: 0 });
+}
+const LIFT_V = 2.8;
+function updateTorre(dt) {
+  if (!TORRE.grupo || !TORRE.grupo.visible) return;
+  const adentro = torreAdentro(), nivel = adentro ? torreNivel() : -9;
+  const cerca = dist2D(player.position, TORRE) < 48;
+  torreNiveles.forEach((lg, k) => { lg.visible = k === 0 ? (cerca || adentro) : (adentro && Math.abs(k - nivel) <= 1); });
+  if (adentro) for (const dep of torreDeptos) if (!dep.amoblado && Math.abs(dep.nivel - nivel) <= 1) amoblarDepto(dep);
+  if (torreLuz) {   // una sola luz que te acompaña adentro (el número de luces no cambia: no recompila shaders)
+    torreLuz.intensity = adentro ? 1.8 : 0;
+    if (adentro) torreLuz.position.set(player.position.x, (torreLift.rider ? torreLift.y : nivel * TORRE.H) + 2.4, player.position.z);
+  }
+  updateTorreLift(dt);
+}
+// ---- ASCENSOR: llamar, subirse, elegir piso con la botonera y bajarse ----
+function torreLiftNivel() { return Math.round(torreLift.y / TORRE.H); }
+function updateTorreLift(dt) {
+  const L = torreLift, H = TORRE.H;
+  if (L.fase === 'cerrando') {
+    L.puertas = Math.max(0, L.puertas - dt * 1.5);
+    if (L.puertas === 0) L.fase = Math.abs(L.y - L.target * H) < .01 ? (L.subir || L.rider ? 'abriendo' : 'quieto') : 'moviendo';
+  } else if (L.fase === 'moviendo') {
+    const ty = L.target * H, paso = LIFT_V * dt;
+    if (Math.abs(ty - L.y) <= paso) { L.y = ty; L.fase = 'abriendo'; tone(880, .18, .05, 'sine'); setTimeout(() => tone(660, .25, .05, 'sine'), 160); }
+    else L.y += Math.sign(ty - L.y) * paso;
+  } else if (L.fase === 'abriendo') {
+    L.puertas = Math.min(1, L.puertas + dt * 1.5);
+    if (L.puertas === 1) {
+      L.fase = 'abierto'; L.espera = 0;
+      if (L.rider) L.llego = true;
+      else if (L.subir) {   // llegó a buscarte: si sigues frente a la puerta, te subes
+        const p = torreLocal();
+        if (torreAdentro() && torreNivel() === torreLiftNivel() && Math.hypot(p.x - TORRE_ASC.x, p.z - .6) < 4) subirAscensor();
+        else L.subir = false;
+      }
+    }
+  } else if (L.fase === 'abierto') {
+    L.espera += dt;
+    if (L.rider && L.llego && L.espera > .5) bajarAscensor();
+    else if (!L.rider && L.espera > 5) L.fase = 'cerrando';
+  }
+  L.cabina.position.y = L.y;
+  const ab = L.puertas * .78;
+  for (const h of L.hojasCabina) h.m.position.x = -14 + h.sx * (.4 + ab);
+  const enNivel = torreLiftNivel();
+  L.rellanos.forEach((hojas, k) => { for (const h of hojas) h.m.position.x = TORRE_ASC.x + h.sx * (.4 + (k === enNivel ? ab : 0)); });
+  L.botones.forEach((b, k) => { b.material.emissiveIntensity = (L.rider && L.fase !== 'abierto' && k === L.target) || (L.rider && k === enNivel && L.fase === 'abierto' && !L.llego) ? 1.4 : 0; });
+  pintarPantallaAscensor();
+  if (L.rider) {   // tú vas adentro: la cámara va contigo
+    player.position.set(TORRE.x + TORRE_ASC.x, L.y + PLAYER_EYE + .06, TORRE.z + TORRE_ASC.z);
+    vy = 0; grounded = true;
+  }
+}
+function llamarAscensor(nivel) {
+  const L = torreLift;
+  if (L.rider) return;
+  if (torreLiftNivel() === nivel && (L.fase === 'abierto' || L.fase === 'abriendo') && Math.abs(L.y - nivel * TORRE.H) < .01) { L.subir = true; if (L.fase === 'abierto') subirAscensor(); return; }
+  L.target = nivel; L.subir = true;
+  if (L.fase === 'quieto') L.fase = Math.abs(L.y - nivel * TORRE.H) < .01 ? 'abriendo' : 'moviendo';
+  else if (L.fase === 'abierto') L.fase = 'cerrando';
+  toast('🛗 Llamaste el ascensor… ya viene');
+  beep(990, .08, .04);
+}
+function subirAscensor() {
+  const L = torreLift;
+  L.subir = false; L.rider = true; L.llego = false; L.espera = 0;
+  L.camPrev = cameraMode; cameraMode = 0;   // adentro de la cabina se ve en primera persona
+  yaw = 0; pitch = -.05;                    // mirando a la puerta
+  abrirBotonera();
+}
+function bajarAscensor() {
+  const L = torreLift, k = torreLiftNivel();
+  L.rider = false; L.llego = false; L.espera = 0;
+  player.position.set(TORRE.x + TORRE_ASC.x, k * TORRE.H + PLAYER_EYE, TORRE.z + .3);
+  vy = 0; grounded = true; yaw = 0;
+  cameraMode = L.camPrev || 0;
+  cerrarBotonera();
+  toast(k === 0 ? '🛗 Hall · conserjería a la derecha' : '🛗 Piso ' + (k + 1) + ' · deptos ' + ((k + 1) * 100 + 1) + ' y ' + ((k + 1) * 100 + 2));
+}
+function elegirPiso(n) {
+  const L = torreLift;
+  if (!L.rider) return;
+  if (n === 'abrir') { if (L.fase === 'abierto' || L.fase === 'quieto') bajarAscensor(); return; }
+  if (n === 'alarma') { tone(1200, .4, .06, 'square'); toast('🔔 ¡Riiing! (todo bien, era una prueba)'); return; }
+  const k = n - 1;
+  if (L.fase === 'moviendo' || L.fase === 'cerrando') { L.target = k; renderBotonera(); return; }
+  if (k === torreLiftNivel()) { bajarAscensor(); return; }
+  L.target = k; L.llego = false; L.fase = 'cerrando';
+  beep(1320, .06, .04);
+  renderBotonera();
+}
+function renderBotonera() {
+  const box = ui('liftButtons'); if (!box) return;
+  const L = torreLift;
+  box.querySelectorAll('[data-lift]').forEach(b => b.classList.toggle('on', +b.dataset.lift === L.target + 1 && L.fase !== 'abierto'));
+}
+function abrirBotonera() {
+  closeShopInput(); closeMathBox(); closeBank(); releaseLock();
+  typing = true; for (const k in keys) keys[k] = false;
+  ui('liftbox').style.display = 'flex'; renderBotonera();
+  document.body.classList.add('enAscensor');
+}
+function cerrarBotonera() { ui('liftbox').style.display = 'none'; document.body.classList.remove('enAscensor'); typing = algunRecuadroAbierto(); }
+// ---- La E dentro del edificio ----
+function torreQueHay() {
+  if (!torreAdentro(4) || torreLift.rider || state.driving) return null;
+  const p = torreLocal(), k = torreNivel();
+  if (k === 0 && torreConserje && dist2D(player.position, torreConserje.position) < 3.6) return { tipo: 'conserje' };
+  if (Math.hypot(p.x - TORRE_ASC.x, p.z - .6) < 2.2) return { tipo: 'ascensor', nivel: k };
+  for (const dep of torreDeptos) if (dep.nivel === k && Math.hypot(p.x - dep.puertaX, p.z - dep.puertaZ) < 1.9) return { tipo: 'depto', dep };
+  return null;
+}
+function torreAccion() {
+  const q = torreQueHay(); if (!q) return null;
+  if (q.tipo === 'conserje') return { key: 'E', touch: '🛎️', text: 'Hablar con la conserje · deptos a $' + TORRE_PRECIO };
+  if (q.tipo === 'ascensor') return { key: 'E', touch: '🛗', text: 'Llamar el ascensor' };
+  const dep = q.dep;
+  if (state.depto === dep.id) return { key: 'E', touch: '🔑', text: (dep.abierta ? 'Cerrar' : 'Abrir') + ' tu depto ' + dep.id };
+  return { key: 'E', touch: '🏢', text: 'Depto ' + dep.id + (state.depto ? ' · ocupado' : ' · en venta $' + TORRE_PRECIO) };
+}
+function tryTorre() {
+  const q = torreQueHay(); if (!q) return false;
+  if (q.tipo === 'conserje') {
+    say('🛎️ Conserje', state.depto ? '¡Hola! Tu depto es el ' + state.depto + ', en el piso ' + state.depto[0] + '. El ascensor está al fondo a la izquierda.'
+      : ['¡Bienvenido al Edificio Mirador! Tenemos deptos a $' + TORRE_PRECIO + '.', 'Buenas tardes. ¿Busca departamento? Los tengo del piso 2 al 5.'][Math.floor(Math.random() * 2)]);
+    abrirDeptos(null); return true;
+  }
+  if (q.tipo === 'ascensor') { llamarAscensor(q.nivel); return true; }
+  const dep = q.dep;
+  if (state.depto === dep.id) { setPuertaDepto(dep, !dep.abierta); beep(dep.abierta ? 520 : 380, .1, .04); return true; }
+  abrirDeptos(dep.id); return true;
+}
+// ---- Comprar un depto (recuadro de la conserje o en la misma puerta) ----
+let aptFoco = null;
+function abrirDeptos(foco) {
+  closeShopInput(); closeMathBox(); closeBank(); releaseLock();
+  aptFoco = foco;
+  typing = true; for (const k in keys) keys[k] = false;
+  ui('aptbox').style.display = 'flex'; renderDeptos();
+}
+function cerrarDeptos() { ui('aptbox').style.display = 'none'; typing = algunRecuadroAbierto(); }
+function renderDeptos() {
+  const mio = state.depto;
+  ui('aptInfo').innerHTML = (mio ? '🔑 Tu depto: <b>' + mio + '</b> (piso ' + mio[0] + ')<br>' : '') +
+    'Cada depto trae <b>living</b> con sillón y tele, <b>cocina</b> con congelador, mesa y horno, <b>baño</b> con espejo y alfombra, y <b>dormitorio</b> con cama, tele con Play y ventanas.<br>Precio: <b style="color:#facc15">$' + TORRE_PRECIO + '</b>';
+  const lista = (aptFoco ? torreDeptos.filter(dp => dp.id === aptFoco) : torreDeptos).slice().sort((a, b) => a.id.localeCompare(b.id));
+  ui('aptList').innerHTML = lista.map(dp => {
+    const tuyo = mio === dp.id;
+    const txt = tuyo ? '🔑 ' + dp.id + ' · TUYO' : mio ? '🚪 ' + dp.id + ' · ocupado' : '🏢 ' + dp.id + ' · Comprar $' + TORRE_PRECIO;
+    return '<button class="bankBtn" data-apt="' + dp.id + '"' + (tuyo || mio ? ' disabled style="opacity:.55"' : '') + '>' + txt + '</button>';
+  }).join('');
+  ui('aptList').querySelectorAll('[data-apt]').forEach(b => b.onclick = () => comprarDepto(b.dataset.apt));
+}
+function comprarDepto(id) {
+  const dep = deptoPorId(id); if (!dep) return;
+  if (state.depto) { toast('🔑 Ya tienes el depto ' + state.depto); return; }
+  if (!state.creative && state.money < TORRE_PRECIO) { toast('💸 El depto cuesta $' + TORRE_PRECIO + ' y tienes $' + Math.floor(state.money)); beep(200, .15, .04); return; }
+  if (!state.creative) addMoney(-TORRE_PRECIO);
+  state.depto = dep.id;
+  setPuertaDepto(dep, torreNivel() === dep.nivel && torreAdentro());
+  toast('🔑 ¡Compraste el depto ' + dep.id + '! Piso ' + dep.id[0] + ' · toma el ascensor o la escalera');
+  tone(660, .12, .05, 'triangle'); setTimeout(() => tone(990, .2, .05, 'triangle'), 120);
+  if (typeof vibr === 'function') vibr(60);
+  renderDeptos(); saveGame();
+}
+function torreSilla(parent, x, z, rot) {
+  const c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = rot; parent.add(c);
+  tBox(c, 0, .46, 0, .44, .05, .44, 0xa16207);
+  tBox(c, 0, .78, -.2, .44, .52, .05, 0xa16207);
+  for (const [lx, lz] of [[-.19, -.19], [.19, -.19], [-.19, .19], [.19, .19]]) tBox(c, lx, .23, lz, .04, .46, .04, 0x78350f);
+}
+buildTorre();
+document.querySelectorAll('[data-lift]').forEach(b => b.onclick = () => { const v = b.dataset.lift; elegirPiso(/^\d$/.test(v) ? +v : v); });
+document.getElementById('aptCloseBtn').onclick = cerrarDeptos;
+
+// ===================================================================
 //  EL CONDOMINIO DONDE VIVES  (manzana `casa`, trazado en src/city-map.js)
 //  Reja, portón, pasaje, lotes (dos EN VENTA) y, al noroeste, cancha de
 //  fútbol y resbalines. La manzana ya topa con las avenidas, así que todo
@@ -8718,7 +9461,8 @@ function updateMirrors() {
   let best = null, bd = 7;
   for (const o of mirrorObjs) {
     if (!o.mesh.parent) continue;
-    const d = dist2D(player.position, o.mesh.position);
+    if (o.alturaY != null && Math.abs(player.position.y - PLAYER_EYE - o.alturaY) > 2) continue;   // espejo de otro piso del edificio
+    const d = dist2D(player.position, o.mesh.getWorldPosition(_mirrorTmp));   // los del edificio van dentro de un grupo
     if (d < bd) { bd = d; best = o; }
   }
   mirrorNear = !!best;
@@ -8932,7 +9676,7 @@ function addDoorFrameParts(target, color, ghost) {
   mk(4.2, 0.2, 0.5, 0, 0.3, 0);                                       // cornisa arriba
 }
 function objColor(key, variantId) { const variant = variantFor(key, variantId); return variant ? variant.color : SHOP.find(s => s.key === key).color; }
-const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, ballesta: 0.6, torreta: 0.6, laser: 0.6,
+const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, oven: 0.7, ballesta: 0.6, torreta: 0.6, laser: 0.6,
   window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, mesa_tele: 0.72, play_gamer: 0.12, piscina: 0.1, planta: 0.4, heladera: 0.95,
   espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35, piso2: 3,
   computador_gamer: 0.66, pc_gamer: 0.6, silla_gamer: 0.5, luces_gamer: 1.8, teclado_gamer: 0.08, parlante_gamer: 0.65, alexa: 0.38, mesa_gamer: 0.8 };
@@ -9368,6 +10112,22 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     const borde = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.06, 2.1), mat(0x7f1d1d)); borde.position.y = -0.02; m.add(borde);
     const centro = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.07, 1.1), mat(0xfacc15)); centro.position.y = 0.03; m.add(centro);
     const rombo = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.08, 0.5), mat(0xb91c1c)); rombo.position.y = 0.05; rombo.rotation.y = Math.PI / 4; m.add(rombo);
+  }
+  if (key === 'oven') {   // cocina con horno: puerta con vidrio, manilla, perillas, cajón y 4 quemadores arriba
+    const negro = mat(0x1f2937), acero = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: .3, metalness: .75 });
+    const add = (geo, material, x, y, z) => { const p = new THREE.Mesh(geo, material); p.position.set(x, y, z); m.add(p); return p; };
+    add(new THREE.BoxGeometry(1, .72, .04), negro, 0, -.18, .52);
+    add(new THREE.BoxGeometry(.74, .42, .02), new THREE.MeshStandardMaterial({ color: 0x1c1917, emissive: 0xf97316, emissiveIntensity: .3, roughness: .1 }), 0, -.16, .545);
+    add(new THREE.BoxGeometry(.86, .05, .05), acero, 0, .23, .6);
+    for (const sx of [-.38, .38]) add(new THREE.BoxGeometry(.05, .05, .08), acero, sx, .23, .56);
+    add(new THREE.BoxGeometry(1.12, .16, .04), mat(0x111827), 0, .45, .52);
+    for (let i = 0; i < 4; i++) { const k = add(new THREE.CylinderGeometry(.045, .045, .05, 12), acero, -.36 + i * .24, .45, .56); k.rotation.x = Math.PI / 2; }
+    add(new THREE.BoxGeometry(1, .16, .03), acero, 0, -.6, .52);
+    add(new THREE.BoxGeometry(1.16, .03, .96), mat(0x0b0b0f), 0, .715, 0);
+    for (const [bx, bz] of [[-.28, -.22], [.28, -.22], [-.28, .22], [.28, .22]]) {
+      const q = add(new THREE.TorusGeometry(.14, .025, 6, 18), new THREE.MeshStandardMaterial({ color: 0x7f1d1d, emissive: 0x991b1b, emissiveIntensity: .35 }), bx, .74, bz);
+      q.rotation.x = Math.PI / 2;
+    }
   }
   if (key === 'heladera') {   // heladera de dos puertas: manillas largas, dispensador, imanes y patas
     const acero = new THREE.MeshStandardMaterial({ color: 0xc3cad3, roughness: .3, metalness: .72, flatShading: true });
@@ -11849,7 +12609,7 @@ const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
 let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
 // Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
-const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'rocketbox', 'chatbox', 'chatReply', 'stickerMake', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox', 'questbox', 'keypadbox', 'blackbox'];
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'liftbox', 'aptbox', 'rocketbox', 'chatbox', 'chatReply', 'stickerMake', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox', 'questbox', 'keypadbox', 'blackbox'];
 function algunRecuadroAbierto() {
   if (typeof wheelOpen === 'function' && wheelOpen()) return true;   // el menú de la rueda también cuenta
   return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
@@ -11878,6 +12638,7 @@ function tryInteract() {
   if (tryAlleyInteract()) return;
   if (tryJobInteract()) return;   // recados: calmar al perro / abrir el cajón
   if (tryDoor()) return;          // abrir / cerrar la puerta de tu casa
+  if (tryTorre()) return;         // edificio: conserje, ascensor y puertas de los deptos
   if (tryBuyPlot()) return;       // comprar el terreno del condominio
   if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract() && !tryVendorHere() && !tryHelperHere()) { if (!tryCollectGolden() && !tryRob() && !sellHouse()) tryGardenHere(); }
 }
@@ -11895,6 +12656,8 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('blueprintPanel').style.display === 'block') { closeBlueprintPanel(); return; }
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
+  if (e.code === 'Escape' && ui('aptbox').style.display === 'flex') { cerrarDeptos(); return; }
+  if (e.code === 'Escape' && torreLift.rider) { elegirPiso('abrir'); return; }                      // Esc: bajarse (si el ascensor está detenido)
   if (e.code === 'Escape' && ui('rocketbox').style.display === 'flex') { closeRocket(); return; }  // Esc cierra los cajones del cohete
   if (e.code === 'Escape' && ui('businessbox').style.display === 'block') { closeBusiness(); return; }
   if (e.code === 'Escape' && state.sportGame) { finishSportGame(true); return; }
@@ -12888,6 +13651,7 @@ function startGame() {
   abortFlight();
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.plotLegacy = false; resetPlots();   // el condominio vuelve a tener sus lotes en venta
+  state.depto = null; torreReset();         // y el edificio, sus deptos
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; state.hasBow = false; resetMeleeWeapon(); applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
@@ -13842,7 +14606,7 @@ function saveGame() {
     const wc = weaponVisualColor;
     const data = {
       saveVersion: GAME_RULES.saveVersion,
-      money: state.money, totalEarned: state.totalEarned, stage: state.stage, plot: state.plot || null, plotLegacy: !!state.plotLegacy,
+      money: state.money, totalEarned: state.totalEarned, stage: state.stage, plot: state.plot || null, plotLegacy: !!state.plotLegacy, depto: state.depto || null,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
       phase: state.phase === 'NIGHT' ? 'NIGHT' : 'DAY', dayTime: state.dayTime || 0, nightTime: state.nightTime || 0, spawnTimer: state.spawnTimer || 0,
       hordeOn: !!state.hordeOn, bossNight: !!state.bossNight, nightDamage: !!state.nightDamage, pinataDone: !!state.pinataDone, coldWarned: !!state.coldWarned,
@@ -14745,6 +15509,7 @@ function loadGame() {
   lastHp = state.hp;
   resetPlots();
   if (lotePorId(d.plot)) mudarseAlLote(lotePorId(d.plot), true);
+  state.depto = deptoPorId(d.depto) ? String(d.depto) : null; torreReset();
   state.inv = Object.assign(freshInv(), d.inv || {});
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
@@ -18017,6 +18782,7 @@ function loop() {
     updateAlley(dt);                     // Tito, callejón y luces que parpadean
     updateEarthBulls(dt);                  // cinco toros del pasto, separados
     updateJailFolk(dt);                    // presos y guardias del penal
+    updateTorre(dt);                       // edificio de deptos: pisos visibles, ascensor y luz
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (onEarth) updateOceanExpedition(dt);
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -18144,7 +18910,7 @@ function drawMinimap() {
   }
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
-  if (state.planet !== 'platus') { icon(LUGARES.super.x, LUGARES.super.z, '🛒', 13); icon(LUGARES.armeria.x, LUGARES.armeria.z, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); icon(LUGARES.carcel.x, LUGARES.carcel.z, '🚔', 12); icon(SKI_RESORT.gate.x, SKI_RESORT.gate.z, '⛷️', 15); }   // súper / armería / banco / gasolinera / arcade / cárcel / esquí
+  if (state.planet !== 'platus') { icon(LUGARES.super.x, LUGARES.super.z, '🛒', 13); icon(LUGARES.armeria.x, LUGARES.armeria.z, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(TORRE.x, TORRE.z, '🏢', 14); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); icon(LUGARES.carcel.x, LUGARES.carcel.z, '🚔', 12); icon(SKI_RESORT.gate.x, SKI_RESORT.gate.z, '⛷️', 15); }   // súper / armería / banco / gasolinera / arcade / cárcel / esquí
   if (state.planet !== 'platus') {   // los tres parques
     icon(CONDO_PARK.x, CONDO_PARK.z, '🌳', 13); icon(FUN_PARK.x, FUN_PARK.z, '🎡', 15); icon(WATER_PARK.x, WATER_PARK.z, '🏊', 14);
     icon(AIRPORT.x, AIRPORT.z, '✈️', 15);
@@ -18316,6 +19082,7 @@ function updateMovement(dt) {
   }
   if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
   if (state.sailing) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }
+  if (torreLift.rider) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // en el ascensor: te lleva la cabina
   if (typing) clearInput();   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
   if (sitOn) {   // sentado: te quedas en el mueble hasta que te pares con E
     const p = sitOn.mesh.position, rot = sitOn.mesh.rotation.y;
@@ -18712,7 +19479,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, torreReset, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -19408,6 +20175,8 @@ function updateContextPrompt() {
       else action = { key: 'E · F5', touch: '🎬', text: 'E asiento = peli · pasillo hasta la puerta 👨‍✈️ · F5 ves las alas' };
     }
     else if (nearestDoor()) { const d = nearestDoor(); action = { key: 'E', touch: '🚪', text: d.open ? 'Cerrar la puerta' : 'Abrir la puerta' }; }
+    else if (torreLift.rider) action = { key: '🛗', touch: '🛗', text: 'Elige el piso en la botonera' };
+    else if (torreAccion()) action = torreAccion();
     else if (job && jobDog && job.id === 'dog' && !job.calm && dist2D(player.position, jobDog.position) < 3) action = { key: 'E', touch: '🐕', text: 'Calmar al perro perdido' };
     else if (job && jobCrate && job.id === 'crates' && dist2D(player.position, jobCrate.position) < 3) action = { key: 'E', touch: '📦', text: 'Abrir el cajón de Tito' };
     else {
@@ -19604,7 +20373,7 @@ function renderHUD() {
   if (currentBlueprint()) gear.unshift('📐 ' + currentBlueprint().name + ' · ' + currentBlueprint().parts.length + ' piezas');
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');
-  if (playerAirborne()) gear.unshift('🪽 en el aire · 3 bloques · los de tierra no te pegan · policía no te atrapa');
+  if (playerAirborne() && !torreAdentro()) gear.unshift('🪽 en el aire · 3 bloques · los de tierra no te pegan · policía no te atrapa');
   if (state.ngplus) gear.unshift('⭐ Partida+');
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
   if (state.planet === 'platus' && state.contract) gear.push('📋 ' + state.contract.have + '/' + state.contract.need + (state.contract.done ? ' ✅ cobra (Y)' : ''));

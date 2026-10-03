@@ -93,12 +93,19 @@ const BANCO = Object.freeze({
   id: 'banco', nombre: 'Banco Central', icono: '🏦', x: 130, z: -17, w: 24, d: 16, tipo: 'civico',
 });
 
+// Edificio de departamentos en la franja libre del norte (entre la avenida 110
+// y la autopista del anillo), con la entrada mirando a la avenida del sur.
+const TORRE = Object.freeze({
+  id: 'torre', nombre: 'Edificio Mirador', icono: '🏢', x: -27.5, z: 130, w: 36, d: 24, tipo: 'residencial',
+});
+
 export const DISTRITOS = Object.freeze([
   ...CENTRO_URBANO.map(([id, nombre, icono, x, z, tipo]) =>
     Object.freeze({ id, nombre, icono, x, z, w: MANZANA, d: MANZANA, tipo })),
   ...ANILLO.map(([id, nombre, icono, x, z]) =>
     Object.freeze({ id, nombre, icono, x, z, w: BANDA, d: BANDA, tipo: 'casas' })),
   BANCO,
+  TORRE,
   ...AFUERAS.map(Object.freeze),
 ]);
 
@@ -113,6 +120,7 @@ export const LUGARES = Object.freeze({
   spawnMama: Object.freeze({ x: 15.5, z: 18.5, distrito: 'casa' }),   // en la explanada común del condominio
   super: Object.freeze({ x: 28, z: -35, distrito: 'comercial' }),   // al fondo de su manzana, con la puerta libre hacia el norte
   banco: Object.freeze({ x: 130, z: -17, distrito: 'banco' }),      // manzana propia al este: no tapa el súper ni la calle
+  torre: Object.freeze({ x: -27.5, z: 130, distrito: 'torre' }),    // edificio de departamentos (ascensor, escalera y deptos a la venta)
   entregaAutos: Object.freeze({ x: 42, z: -44, distrito: 'comercial' }),
   armeria: Object.freeze({ x: -82, z: -86, distrito: 'armeria' }),
   gasolinera: Object.freeze({ x: -33, z: 18, distrito: 'plaza' }),

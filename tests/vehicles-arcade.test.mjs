@@ -7,7 +7,7 @@ assert.match(html, /icon\(GAS_STATION_POS\.x, GAS_STATION_POS\.z, '⛽'/);
 assert.match(html, /icon\(ARCADE_POS\.x, ARCADE_POS\.z, '🎮'/);
 assert.match(html, /const target = state\.driving \? car : vehicles\.find/);
 assert.match(html, /Compraste ' \+ missing/);
-assert.match(html, /car\.fuel = Math\.max\(0, car\.fuel - Math\.abs\(move\) \* \.035\)/);
+assert.match(html, /car\.fuel = Math\.max\(0, car\.fuel - Math\.abs\(move\) \* \.007\)/);
 assert.match(html, /const cost = missing \* 3/);
 assert.match(html, /fuel: v\.fuel/);
 assert.match(html, /ARCADE_POS/);

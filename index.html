@@ -16662,7 +16662,8 @@ function updateDriving(dt) {
   car.reverse = throttle < -0.05; car.turbo = !!turbo;
   const prevX = car.group.position.x, prevZ = car.group.position.z, prevY = car.group.position.y;
   car.group.position.addScaledVector(fwd, move);
-  if (!car.helicopter && Math.abs(move) > .01) car.fuel = Math.max(0, car.fuel - Math.abs(move) * .035);
+  // .007 por metro (antes .035): mismo tanque de 100%, dura 5 veces más. Auto y moto comparten este consumo.
+  if (!car.helicopter && Math.abs(move) > .01) car.fuel = Math.max(0, car.fuel - Math.abs(move) * .007);
   if (!car.helicopter && car.group.position.x < -188 && Math.abs(car.group.position.z - OCEAN.cz) < OCEAN.waterD / 2) {
     car.group.position.set(prevX, car.group.position.y, prevZ); car.speed = 0;
     car.oceanWarn = (car.oceanWarn || 0) - dt; if (car.oceanWarn <= 0) { car.oceanWarn = 2; toast('🌊 Los autos no pueden entrar al océano · usa un barco'); }

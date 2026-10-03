@@ -144,6 +144,15 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /voz: habla\[0\] === 'Lila' \? 'mujer' : 'hombre'/);
   assert.match(html, /u\.pitch = ficha\.pitch/);
   assert.match(html, /u\.rate = ficha\.rate/);
+  assert.match(html, /u\.volume = 1/);
+  assert.match(html, /u\.lang = ficha\.lang/);
+  assert.match(html, /voiceschanged/);
+  assert.match(html, /function vozEsEspanol/);
+  assert.match(html, /la tele necesita una voz en español/);
+  assert.match(html, /let soundOn = true/);
+  const hablar = html.slice(html.indexOf('function hablarAhora'), html.indexOf('function actualizarVozTele'));
+  assert.doesNotMatch(hablar, /\.cancel\(/);
+  assert.match(html.slice(html.indexOf('function cortarVozTele'), html.indexOf('function hablarAhora')), /\.cancel\(/);
   assert.match(html, /Pase de los /);
   assert.match(html, /arco izquierdo/);
   assert.match(html, /arco derecho/);

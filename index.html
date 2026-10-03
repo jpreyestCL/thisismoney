@@ -8651,16 +8651,24 @@ const TV_VOCES = {
   mujer: { marca: 'mujer', pitch: 1.55, rate: 1.05 },
 };
 const TV_VOZ_PERIODISTA = TV_VOCES.periodista;
-let tvAsignacion = null;
+let tvAsignacion = null, tvEsperandoVoces = null, tvVocesTimer = 0, tvCanceladoEn = 0, tvAvisoVozEs = false;
 function vocesDelNavegador() {
   try { return window.speechSynthesis.getVoices() || []; } catch (e) { return []; }
 }
+function vozEsEspanol(v) {
+  return /^es([_-]|$)/i.test((v && v.lang) || '');
+}
+function vocesEspanol() {
+  return vocesDelNavegador().filter(vozEsEspanol);
+}
+function vozViva(voz, lista) {
+  if (!voz || !lista || !lista.length) return null;
+  return lista.find(v => v === voz || (voz.voiceURI && v.voiceURI === voz.voiceURI)) || null;
+}
 function asignarVocesTele() {
-  if (tvAsignacion) return tvAsignacion;
-  const lista = vocesDelNavegador();
-  if (!lista.length) return null;
-  const es = lista.filter(v => /^es/i.test(v.lang));
-  const pool = (es.length ? es : lista).slice();
+  const es = vocesEspanol();
+  if (!es.length) { tvAsignacion = null; return null; }
+  const pool = es.slice();
   const sacarSi = (pred) => {
     const i = pool.findIndex(pred);
     if (i < 0) return null;
@@ -8671,7 +8679,7 @@ function asignarVocesTele() {
   const mujer = sacarSi(v => /paulina|m[oó]nica|sabina|laura|sof[ií]a|luc[ií]a|elena|female|mujer/i.test(v.name || '')) || sacarCualquiera();
   const periodista = sacarSi(v => /es-ES/i.test(v.lang)) || sacarCualquiera();
   const comentarista = sacarSi(v => /es-MX|es-AR|es-CO/i.test(v.lang)) || sacarCualquiera();
-  const respaldo = hombre || mujer || periodista || comentarista || lista[0];
+  const respaldo = es.find(v => v.default) || es[0];
   tvAsignacion = {
     periodista: periodista || respaldo,
     comentarista: comentarista || respaldo,
@@ -8680,19 +8688,45 @@ function asignarVocesTele() {
   };
   return tvAsignacion;
 }
-function fichaVoz(id) {
+function fichaVoz(id, evitar) {
   const perfil = TV_VOCES[id] || TV_VOCES.periodista;
+  const es = vocesEspanol().filter(v => !evitar || evitar.indexOf(v.voiceURI) < 0);
   const asig = asignarVocesTele();
-  const voz = asig ? asig[id] : null;
+  let voz = asig ? vozViva(asig[id], es) : null;
+  if (!voz) voz = es.find(v => v.default) || es[0] || null;
+  if (voz && !vozEsEspanol(voz)) voz = null;
   return {
     marca: perfil.marca,
     name: voz ? voz.name : null,
-    lang: voz ? voz.lang : 'es-ES',
+    lang: voz && voz.lang ? voz.lang : '',
     voiceURI: voz ? voz.voiceURI : null,
     pitch: perfil.pitch,
     rate: perfil.rate,
     voz: voz,
   };
+}
+function avisarSinVozEspanol() {
+  if (tvAvisoVozEs) return;
+  tvAvisoVozEs = true;
+  toast('la tele necesita una voz en español');
+}
+function vocesLlegaron() {
+  if (!vocesDelNavegador().length) return;
+  if (tvVocesTimer) { clearTimeout(tvVocesTimer); tvVocesTimer = 0; }
+  tvAsignacion = null;
+  const p = tvEsperandoVoces;
+  tvEsperandoVoces = null;
+  if (p && tvPuedeHablar()) hablarAhora(p);
+}
+function engancharVocesTele() {
+  if (engancharVocesTele.listo) return;
+  engancharVocesTele.listo = true;
+  const syn = window.speechSynthesis;
+  if (!syn) return;
+  try { syn.addEventListener('voiceschanged', vocesLlegaron); } catch (e) {
+    try { syn.onvoiceschanged = vocesLlegaron; } catch (e2) {}
+  }
+  try { syn.getVoices(); } catch (e) {}
 }
 function perfilVozTele() {
   return {
@@ -8706,7 +8740,10 @@ function perfilVozTele() {
 function cortarVozTele() {
   tvVoz = null;
   tvPendiente = null;
+  tvEsperandoVoces = null;
   if (tvVozTimer) { clearTimeout(tvVozTimer); tvVozTimer = 0; }
+  if (tvVocesTimer) { clearTimeout(tvVocesTimer); tvVocesTimer = 0; }
+  tvCanceladoEn = performance.now();
   try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
 }
 function hablarAhora(linea) {
@@ -8715,16 +8752,65 @@ function hablarAhora(linea) {
     const syn = window.speechSynthesis;
     if (!syn || typeof syn.speak !== 'function' || typeof SpeechSynthesisUtterance !== 'function') { tvVozRota = true; return; }
     ensureAudio();
+    engancharVocesTele();
+    const lista = vocesDelNavegador();
+    if (!lista.length && !linea.forzar) {
+      tvEsperandoVoces = linea;
+      tvVoz = { clave: linea.clave, texto: linea.texto };
+      if (!tvVocesTimer) tvVocesTimer = setTimeout(() => {
+        tvVocesTimer = 0;
+        const p = tvEsperandoVoces;
+        if (!p || !tvPuedeHablar()) return;
+        tvEsperandoVoces = null;
+        hablarAhora(Object.assign({}, p, { forzar: true }));
+      }, 800);
+      return;
+    }
+    const ficha = fichaVoz(linea.voz || 'periodista', linea.evitar);
+    if (!ficha.voz || !vozEsEspanol(ficha.voz)) {
+      avisarSinVozEspanol();
+      tvVoz = { clave: linea.clave, texto: linea.texto };
+      tvEsperandoVoces = null;
+      return;
+    }
     if (tvVozTimer) { clearTimeout(tvVozTimer); tvVozTimer = 0; }
     tvVoz = { clave: linea.clave, texto: linea.texto };
     tvPendiente = null;
+    tvEsperandoVoces = null;
     const u = new SpeechSynthesisUtterance(linea.texto);
-    const ficha = fichaVoz(linea.voz || 'periodista');
-    u.lang = ficha.lang || 'es-ES';
+    u.volume = 1;
     u.pitch = ficha.pitch;
     u.rate = ficha.rate;
-    try { if (ficha.voz) u.voice = ficha.voz; } catch (e) {}
-    tvUltimaLocucion = { texto: linea.texto, marca: ficha.marca, name: ficha.name, lang: u.lang, voiceURI: ficha.voiceURI, pitch: u.pitch, rate: u.rate };
+    u.lang = ficha.lang;
+    let asignada = false;
+    try { u.voice = ficha.voz; asignada = !!(u.voice && vozEsEspanol(u.voice)); } catch (e) {}
+    if (!asignada || !vozEsEspanol({ lang: u.lang })) {
+      const evitar = (linea.evitar || []).concat(ficha.voiceURI ? [ficha.voiceURI] : []);
+      if ((linea.intentos || 0) < 6 && vocesEspanol().some(v => evitar.indexOf(v.voiceURI) < 0)) {
+        tvVoz = null;
+        hablarAhora(Object.assign({}, linea, { forzar: true, evitar: evitar, intentos: (linea.intentos || 0) + 1 }));
+      } else avisarSinVozEspanol();
+      return;
+    }
+    tvUltimaLocucion = { texto: linea.texto, marca: ficha.marca, name: ficha.name, lang: u.lang, voiceURI: ficha.voiceURI, pitch: u.pitch, rate: u.rate, volume: u.volume, empezo: false, voiceURIReal: null };
+    u.onstart = () => {
+      if (!tvUltimaLocucion || tvUltimaLocucion.texto !== linea.texto) return;
+      const real = u.voice;
+      if (real && !vozEsEspanol(real)) { cortarVozTele(); avisarSinVozEspanol(); return; }
+      tvUltimaLocucion.empezo = true;
+      tvUltimaLocucion.voiceURIReal = real ? (real.voiceURI || real.name || null) : ficha.voiceURI;
+      tvUltimaLocucion.lang = (real && real.lang) || u.lang;
+      if (real && real.name) tvUltimaLocucion.name = real.name;
+    };
+    u.onerror = (ev) => {
+      const err = ev && ev.error;
+      if (err === 'interrupted' || err === 'canceled') return;
+      if (!tvVoz || tvVoz.clave !== linea.clave) return;
+      const evitar = (linea.evitar || []).concat(ficha.voiceURI ? [ficha.voiceURI] : []);
+      tvVoz = null;
+      if ((linea.intentos || 0) >= 6 || !vocesEspanol().some(v => evitar.indexOf(v.voiceURI) < 0)) { avisarSinVozEspanol(); return; }
+      hablarAhora(Object.assign({}, linea, { forzar: true, evitar: evitar, intentos: (linea.intentos || 0) + 1 }));
+    };
     u.onend = () => {
       if (!tvVoz || tvVoz.clave !== linea.clave) return;
       tvVoz = null;
@@ -8742,10 +8828,12 @@ function hablarAhora(linea) {
         syn.speak(u);
       } catch (e) { tvVoz = null; }
     };
-    try { syn.cancel(); } catch (e) {}
-    tvVozTimer = setTimeout(lanzar, 50);
+    const desdeCorte = tvCanceladoEn ? performance.now() - tvCanceladoEn : 9999;
+    if (desdeCorte < 300) tvVozTimer = setTimeout(lanzar, Math.ceil(300 - desdeCorte));
+    else lanzar();
   } catch (e) { tvVoz = null; }
 }
+engancharVocesTele();
 function actualizarVozTele() {
   if (!tvPuedeHablar()) { if (tvVoz || tvVozTimer || tvPendiente) cortarVozTele(); return tvVoz; }
   const linea = lineaDeLaTele(tvT);

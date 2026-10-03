@@ -1245,7 +1245,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
-import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, distritoEn, enCalle, enCondominio, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=6';
+import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=7';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -1855,15 +1855,47 @@ let vmSwing = 0, vmBob = 0, vmToolOverride = 0, weaponVisualColor = 0x94a3b8;
 // ===================================================================
 //  PERSONAS (papá, enemigos, vendedor, mamá, ayudantes)
 // ===================================================================
-function makePerson(colorBody, colorHead) {
+const ROPA_POLERAS = [0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a, 0xf97316, 0x2563eb, 0xdb2777, 0x0f766e, 0xf8fafc, 0xb91c1c, 0x0369a1, 0x4d7c0f, 0x9d174d, 0xb45309];
+const ROPA_PANTALONES = [0x1e293b, 0x1e3a8a, 0x3f3f46, 0x44403c, 0x0f172a, 0x334155, 0x14532d, 0x7f1d1d, 0x57534e, 0x1c1917];
+const ROPA_ZAPATOS = [0x111827, 0xf8fafc, 0x7f1d1d, 0x1d4ed8, 0xd6d3d1, 0x713f12, 0x064e3b, 0x44403c];
+const ROPA_POLERONES = [0x1f2937, 0x7f1d1d, 0x1e3a8a, 0x365314, 0x4c1d95, 0x9a3412, 0x0f172a, 0x334155, 0xb91c1c, 0x0c4a6e];
+const ROPA_PELOS = [0x1c1410, 0x3b2b1f, 0x78350f, 0x111827, 0xb45309, 0xf5e6c8, 0x7f1d1d, 0x292524];
+const ROPA_PIELES = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xf6d7b8, 0xa56b45];
+function tonoRopa(lista) { return lista[(Math.random() * lista.length) | 0]; }
+// colorBody / colorHead siguen siendo la polera y la piel cuando se pasan (uniforme,
+// equipo, policía). Con { variar: true } cada persona sale distinta, y una parte
+// lleva polerón con la capucha puesta. El sorteo es al crearla: no cambia cada frame.
+function makePerson(colorBody, colorHead, opciones) {
+  const opt = opciones || {};
+  const variar = opt.variar === true;
   const g = new THREE.Group();
-  const pants = 0x1f2937;
+  const piel = colorHead != null ? colorHead : (variar ? tonoRopa(ROPA_PIELES) : 0xf1c27d);
+  const polera = colorBody != null ? colorBody : (variar ? tonoRopa(ROPA_POLERAS) : 0x9333ea);
+  const pants = variar ? tonoRopa(ROPA_PANTALONES) : 0x1f2937;
+  const zapatoCol = variar ? tonoRopa(ROPA_ZAPATOS) : 0x3f3f46;
+  const cortePantalon = variar ? ['recto', 'ancho', 'corto'][(Math.random() * 3) | 0] : 'recto';
+  const cortePolera = variar ? ['lisa', 'rayas', 'chaleco'][(Math.random() * 3) | 0] : 'lisa';
+  const corteZapato = variar ? ['tenis', 'bota', 'sandalia'][(Math.random() * 3) | 0] : 'tenis';
+  const poleron = variar && Math.random() < 0.36;
+  const colorPoleron = poleron ? tonoRopa(ROPA_POLERONES) : polera;
+  const pelo = variar ? tonoRopa(ROPA_PELOS) : 0x3b2b1f;
+  const torso = poleron ? colorPoleron : polera;
   const addBox = (w, h, d, col, x, y, z) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
     m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
   };
-  addBox(0.75, 0.95, 0.42, colorBody, 0, 1.35, 0);
-  addBox(0.5, 0.5, 0.5, colorHead, 0, 2.05, 0);
+  addBox(poleron ? 0.84 : 0.75, 0.95, poleron ? 0.5 : 0.42, torso, 0, 1.35, 0);
+  if (poleron) {
+    addBox(0.38, 0.28, 0.08, 0x0f172a, 0, 1.2, 0.28);                 // bolsillo canguro
+    addBox(0.045, 0.36, 0.045, 0xe7e5e4, -0.08, 1.55, 0.28);          // cordón
+    addBox(0.045, 0.36, 0.045, 0xe7e5e4, 0.08, 1.55, 0.28);
+  } else if (cortePolera === 'rayas') {
+    addBox(0.77, 0.1, 0.44, 0xf8fafc, 0, 1.55, 0);
+    addBox(0.77, 0.1, 0.44, 0xf8fafc, 0, 1.28, 0);
+  } else if (cortePolera === 'chaleco') {
+    addBox(0.82, 0.62, 0.5, tonoRopa(ROPA_POLERONES), 0, 1.32, 0);
+  }
+  addBox(0.5, 0.5, 0.5, piel, 0, 2.05, 0);
   const limb = (col, w, h, d, x, pivotY) => {
     const pivot = new THREE.Group(); pivot.position.set(x, pivotY, 0);
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
@@ -1881,31 +1913,61 @@ function makePerson(colorBody, colorHead) {
   }
   facePiece(0.2, 0.05, 0x7f3a35, 0, 1.94, 0.253);                     // boca
   facePiece(0.07, 0.09, 0xcf9b6d, 0, 2.02, 0.255);                    // nariz
-  for (const sx of [-0.26, 0.26]) addBox(0.06, 0.18, 0.16, colorHead, sx, 2.05, 0);   // orejas
-  // Pelo (gorro de pelo estilo voxel): tapa arriba y la nuca, y deja la cara libre
-  const pelo = 0x3b2b1f;
-  addBox(0.54, 0.12, 0.54, pelo, 0, 2.31, 0);                         // capa de arriba
-  addBox(0.54, 0.3, 0.1, pelo, 0, 2.14, -0.22);                       // nuca
-  for (const sx of [-0.25, 0.25]) addBox(0.06, 0.3, 0.5, pelo, sx, 2.12, 0);          // patillas
-  addBox(0.5, 0.1, 0.1, pelo, 0, 2.26, 0.22);                         // chasquilla
+  for (const sx of [-0.26, 0.26]) addBox(0.06, 0.18, 0.16, piel, sx, 2.05, 0);   // orejas
+  if (poleron) {
+    // Capucha ARRIBA: tapa la nuca y los lados, y deja la cara al descubierto.
+    addBox(0.66, 0.18, 0.5, colorPoleron, 0, 2.38, -0.06);            // techo de la capucha
+    addBox(0.66, 0.46, 0.16, colorPoleron, 0, 2.12, -0.28);           // nuca
+    addBox(0.14, 0.42, 0.4, colorPoleron, -0.28, 2.1, -0.1);          // lado, sin tapar los ojos
+    addBox(0.14, 0.42, 0.4, colorPoleron, 0.28, 2.1, -0.1);
+    addBox(0.1, 0.4, 0.12, colorPoleron, -0.22, 2.12, 0.16);          // borde de la capucha, enmarca la cara
+    addBox(0.1, 0.4, 0.12, colorPoleron, 0.22, 2.12, 0.16);
+    addBox(0.36, 0.08, 0.08, pelo, 0, 2.24, 0.22);                    // un mechón bajo la abertura
+    g.userData.capucha = true;
+  } else {
+    // Pelo (gorro de pelo estilo voxel): tapa arriba y la nuca, y deja la cara libre
+    addBox(0.54, 0.12, 0.54, pelo, 0, 2.31, 0);                       // capa de arriba
+    addBox(0.54, 0.3, 0.1, pelo, 0, 2.14, -0.22);                     // nuca
+    for (const sx of [-0.25, 0.25]) addBox(0.06, 0.3, 0.5, pelo, sx, 2.12, 0);        // patillas
+    addBox(0.5, 0.1, 0.1, pelo, 0, 2.26, 0.22);                       // chasquilla
+  }
   // Ropa: cuello, cinturón y hebilla
-  addBox(0.4, 0.1, 0.44, colorHead, 0, 1.84, 0);                      // cuello
+  addBox(0.4, 0.1, 0.44, piel, 0, 1.84, 0);                           // cuello
   addBox(0.78, 0.14, 0.45, 0x27303f, 0, 0.94, 0);                     // cinturón
   addBox(0.18, 0.13, 0.05, 0xd4a017, 0, 0.94, 0.23);                  // hebilla
-  const armL = limb(colorBody, 0.22, 0.8, 0.28, -0.5, 1.78);
-  const armR = limb(colorBody, 0.22, 0.8, 0.28,  0.5, 1.78);
-  const legL = limb(pants, 0.28, 0.85, 0.32, -0.2, 0.9);
-  const legR = limb(pants, 0.28, 0.85, 0.32,  0.2, 0.9);
+  const manga = poleron ? colorPoleron : polera;
+  const armL = limb(manga, 0.22, 0.8, 0.28, -0.5, 1.78);
+  const armR = limb(manga, 0.22, 0.8, 0.28,  0.5, 1.78);
+  const legW = cortePantalon === 'ancho' ? 0.36 : 0.28;
+  const legD = cortePantalon === 'ancho' ? 0.38 : 0.32;
+  const legH = cortePantalon === 'corto' ? 0.48 : 0.85;
+  const legL = limb(pants, legW, legH, legD, -0.2, 0.9);
+  const legR = limb(pants, legW, legH, legD,  0.2, 0.9);
   // Manos y zapatos (cuelgan de los miembros, así se mueven al caminar)
   const parte = (pivot, w, h, d, col, y, z) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
     m.position.set(0, y, z || 0); m.castShadow = true; pivot.add(m); return m;
   };
-  parte(armL, 0.24, 0.2, 0.3, colorHead, -0.88);                      // mano izquierda
-  parte(armR, 0.24, 0.2, 0.3, colorHead, -0.88);                      // mano derecha
-  parte(legL, 0.3, 0.16, 0.44, 0x3f3f46, -0.9, 0.06);                 // zapato izquierdo
-  parte(legR, 0.3, 0.16, 0.44, 0x3f3f46, -0.9, 0.06);                 // zapato derecho
+  parte(armL, 0.24, 0.2, 0.3, piel, -0.88);                           // mano izquierda
+  parte(armR, 0.24, 0.2, 0.3, piel, -0.88);                           // mano derecha
+  if (cortePantalon === 'corto') {
+    parte(legL, 0.26, 0.38, 0.28, piel, -0.66);                       // pantorrilla
+    parte(legR, 0.26, 0.38, 0.28, piel, -0.66);
+  }
+  const shoeH = corteZapato === 'bota' ? 0.34 : corteZapato === 'sandalia' ? 0.1 : 0.16;
+  const shoeY = -0.98 + shoeH / 2;
+  const shoeD = corteZapato === 'sandalia' ? 0.36 : 0.46;
+  parte(legL, 0.32, shoeH, shoeD, zapatoCol, shoeY, 0.06);
+  parte(legR, 0.32, shoeH, shoeD, zapatoCol, shoeY, 0.06);
+  if (corteZapato === 'tenis') {
+    parte(legL, 0.33, 0.05, 0.47, 0xf8fafc, shoeY + 0.02, 0.07);
+    parte(legR, 0.33, 0.05, 0.47, 0xf8fafc, shoeY + 0.02, 0.07);
+  } else if (corteZapato === 'bota') {
+    parte(legL, 0.3, 0.08, 0.34, 0x111827, shoeY + shoeH / 2 + 0.02, 0.02);
+    parte(legR, 0.3, 0.08, 0.34, 0x111827, shoeY + shoeH / 2 + 0.02, 0.02);
+  }
   g.userData.limbs = { armL, armR, legL, legR };
+  g.userData.ropa = { poleron, polera: torso, pantalon: pants, zapatos: zapatoCol, cortePolera, cortePantalon, corteZapato };
   return g;
 }
 
@@ -3013,10 +3075,28 @@ function poblarBarrio(id, opciones = {}) {
     if (i === dorada) goldenHouse = casa;
   });
   const centro = new THREE.Vector3(distrito.x, 0, distrito.z);
+  const limite = rectDistrito(distrito, -1.55);   // se quedan en la manzana, lejos del asfalto
+  const dentro = (x, z) => x > limite.minX + .15 && x < limite.maxX - .15 && z > limite.minZ + .15 && z < limite.maxZ - .15;
+  const ocupado = (x, z) => obstacles.some(o => x > o.minX + .15 && x < o.maxX - .15 && z > o.minZ + .15 && z < o.maxZ - .15);
+  const puntos = [{ x: distrito.x, z: distrito.z, tipo: 'patio' }];
+  puntos.push({ x: distrito.x - 3.4, z: distrito.z, tipo: 'banco' }, { x: distrito.x + 3.2, z: distrito.z + 1.4, tipo: 'banco' });
+  puntos.push({ x: distrito.x, z: distrito.z - 2.2, tipo: 'trabajo' });
+  for (const l of lotes) {
+    // La puerta da a la calle: el vecino llega por el patio, justo detrás de su casa.
+    const atras = -(l.plan.d / 2 + 1.15), cs = Math.cos(l.rot), sn = Math.sin(l.rot);
+    puntos.push({ x: l.x + atras * sn, z: l.z + atras * cs, tipo: 'puerta' });
+  }
+  const libres = puntos.filter(p => dentro(p.x, p.z) && !ocupado(p.x, p.z));
+  const metas = libres.length ? libres : puntos.filter(p => dentro(p.x, p.z));
+  const casa = { x: distrito.x, z: distrito.z };
   for (let i = 0; i < (opciones.gente || 4); i++) {
-    const vecino = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
-    vecino.position.set(distrito.x + (Math.random() * 20 - 10), 0, distrito.z + (Math.random() * 20 - 10));
-    initCitizenBrain(vecino, centro, Math.min(18, distrito.w / 2));
+    const vecino = makePerson(null, ROPA_PIELES[i % ROPA_PIELES.length], { variar: true });
+    const spawn = metas[i % metas.length] || casa;
+    const ox = ((i % 3) - 1) * .7, oz = (i % 2) * .6;
+    let sx = spawn.x + ox, sz = spawn.z + oz;
+    if (!dentro(sx, sz) || ocupado(sx, sz)) { sx = spawn.x; sz = spawn.z; }
+    vecino.position.set(sx, 0, sz);
+    initCitizenBrain(vecino, centro, Math.min(16, distrito.w / 2 - 2), { modo: 'manzana', puntos: metas, rect: limite, home: casa });
     scene.add(vecino); npcs.push(vecino);
   }
 }
@@ -3598,13 +3678,16 @@ setTimeout(() => {
   loadBuilding('assets/tienda.glb', -14, 16, 6);       // negocio de la Plaza Central
   loadBuilding('assets/tienda.glb', 16, -71, 6);       // negocio del barrio de oficinas
 }, 0);
-function initCitizenBrain(n, center, radius) {
+function initCitizenBrain(n, center, radius, extra) {
   const id = citizenSerial++;
+  const ex = extra || {};
   n.userData.brain = {
-    home: center.clone(), radius: radius || 18, goal: n.position.clone(), activity: 'idle',
-    thinkIn: Math.random() * 2, wait: Math.random() * 1.5, speed: .9 + Math.random() * .45,
-    sociable: Math.random() > .25, targetPerson: null,
+    home: ex.home ? new THREE.Vector3(ex.home.x, 0, ex.home.z) : center.clone(),
+    radius: radius || 18, goal: n.position.clone(), activity: 'idle',
+    thinkIn: .3 + Math.random() * 1.1, wait: .25 + Math.random() * 1.1, speed: .95 + Math.random() * .5,
+    sociable: Math.random() > .28, targetPerson: null,
     id: 'citizen-' + id, name: CITIZEN_NAMES[id % CITIZEN_NAMES.length], job: CITIZEN_JOBS[id % CITIZEN_JOBS.length], trust: 0,
+    modo: ex.modo || 'manzana', puntos: ex.puntos || [], rect: ex.rect || null, camino: [], wp: 0, intentos: 0,
   };
 }
 function citizenPointBlocked(x, z) {
@@ -3612,77 +3695,136 @@ function citizenPointBlocked(x, z) {
   if (typeof insidePlayerStructure === 'function' && insidePlayerStructure(x,z,.35)) return true;
   return obstacles.some(o => x > o.minX - .48 && x < o.maxX + .48 && z > o.minZ - .48 && z < o.maxZ + .48);
 }
+function pasoLegal(b, x, z) {
+  if (b.modo === 'vereda') return !enAsfalto(x, z) || enCrucePeatonal(x, z);
+  if (!b.rect) return true;
+  return x >= b.rect.minX && x <= b.rect.maxX && z >= b.rect.minZ && z <= b.rect.maxZ;
+}
+function fijarCamino(n, x, z) {
+  const b = n.userData.brain;
+  let camino;
+  if (b.modo === 'vereda') camino = caminoPorVereda(n.position.x, n.position.z, x, z);
+  else {
+    const mismoLado = Math.sign(n.position.z - b.home.z) === Math.sign(z - b.home.z) && Math.abs(z - b.home.z) > 2.5 && Math.abs(n.position.z - b.home.z) > 2.5;
+    camino = mismoLado ? [{ x, z }] : [{ x: b.home.x, z: b.home.z }, { x, z }];
+    if (b.rect) camino = camino.map(p => ({
+      x: THREE.MathUtils.clamp(p.x, b.rect.minX + .2, b.rect.maxX - .2),
+      z: THREE.MathUtils.clamp(p.z, b.rect.minZ + .2, b.rect.maxZ - .2),
+    }));
+  }
+  b.camino = camino && camino.length ? camino : [{ x, z }];
+  b.wp = 0;
+  const p = b.camino[0];
+  b.goal.set(p.x, 0, p.z);
+}
+function elegirLugar(n) {
+  const b = n.userData.brain;
+  const lista = b.puntos && b.puntos.length ? b.puntos : [{ x: b.home.x, z: b.home.z, tipo: b.modo === 'vereda' ? 'vereda' : 'patio' }];
+  let meta = lista[(Math.random() * lista.length) | 0];
+  for (let i = 0; i < 6; i++) {
+    const c = lista[(Math.random() * lista.length) | 0];
+    if (Math.hypot(c.x - n.position.x, c.z - n.position.z) > 5 && c !== meta) { meta = c; break; }
+  }
+  b.activity = meta.tipo || 'vereda';
+  b.targetPerson = null; b.wait = 0;
+  b.pausaAlLlegar = (meta.tipo === 'puerta' || meta.tipo === 'banco' || meta.tipo === 'trabajo' || meta.tipo === 'plaza') ? 1.2 + Math.random() * 2.2 : .4 + Math.random() * .8;
+  fijarCamino(n, meta.x, meta.z);
+}
 function chooseCitizenGoal(n) {
   const b = n.userData.brain;
   if (state.phase === 'NIGHT' || state.weather === 'rain') {
     b.activity = state.phase === 'NIGHT' ? 'goingHome' : 'shelter';
-    b.goal.copy(b.home); b.wait = 0; b.targetPerson = null; return;
+    b.targetPerson = null; b.wait = 0; b.pausaAlLlegar = 8;
+    fijarCamino(n, b.home.x, b.home.z);
+    return;
   }
   if (state.wanted > 0 && dist2D(n.position, player.position) < 22) {
-    const dx = n.position.x - player.position.x, dz = n.position.z - player.position.z, len = Math.hypot(dx, dz) || 1;
-    b.activity = 'flee'; b.goal.set(n.position.x + dx / len * 14, 0, n.position.z + dz / len * 14); b.wait = 0; return;
+    let lejos = b.home, bd = -1;
+    for (const p of (b.puntos.length ? b.puntos : [b.home])) {
+      const d = Math.hypot(p.x - player.position.x, p.z - player.position.z);
+      if (d > bd) { bd = d; lejos = p; }
+    }
+    b.activity = 'flee'; b.targetPerson = null; b.wait = 0;
+    fijarCamino(n, lejos.x, lejos.z);
+    return;
   }
   const roll = Math.random();
-  if (roll < .18) {
-    b.activity = 'idle'; b.goal.copy(n.position); b.wait = 1.5 + Math.random() * 3; b.targetPerson = null;
-  } else if (roll < .38 && b.sociable && npcs.length > 1) {
-    const candidates = npcs.filter(o => o !== n && o.visible && dist2D(o.position, n.position) < 18);
-    const friend = candidates[(Math.random() * candidates.length) | 0];
-    if (friend) { b.activity = 'socialize'; b.targetPerson = friend; b.goal.copy(friend.position); b.wait = 2 + Math.random() * 3; }
-    else b.thinkIn = 0;
-  } else if (roll < .52 && keepers.length) {
-    let shop = keepers[0]; for (const k of keepers) if (dist2D(k, n.position) < dist2D(shop, n.position)) shop = k;
-    b.activity = 'shop'; b.goal.set(shop.x + (Math.random() - .5) * 4, 0, shop.z + 3 + Math.random() * 3); b.wait = 2 + Math.random() * 4; b.targetPerson = null;
-  } else {
-    b.activity = 'stroll'; b.targetPerson = null; b.wait = 0;
-    for (let tries = 0; tries < 8; tries++) {
-      const a = Math.random() * Math.PI * 2, r = 4 + Math.random() * b.radius;
-      const x = b.home.x + Math.cos(a) * r, z = b.home.z + Math.sin(a) * r;
-      if (!citizenPointBlocked(x, z)) { b.goal.set(x, 0, z); break; }
-    }
-  }
-  b.thinkIn = 2.5 + Math.random() * 4;
+  if (roll < .14) {
+    b.activity = 'idle'; b.targetPerson = null; b.camino = []; b.wp = 0;
+    b.goal.copy(n.position); b.wait = 1.3 + Math.random() * 2.4;
+  } else if (roll < .32 && b.sociable) {
+    const amigos = npcs.filter(o => o !== n && o.visible && o.userData.brain && o.userData.brain.modo === b.modo && dist2D(o.position, n.position) < (b.modo === 'vereda' ? 30 : 14));
+    const friend = amigos[(Math.random() * amigos.length) | 0];
+    if (friend) {
+      b.activity = 'socialize'; b.targetPerson = friend; b.wait = 0; b.pausaAlLlegar = 2 + Math.random() * 2.2;
+      fijarCamino(n, friend.position.x, friend.position.z);
+    } else elegirLugar(n);
+  } else elegirLugar(n);
 }
 function updateNPCs(dt) {
   if (state.planet !== 'tierra') return;
   for (const n of npcs) {
-    if (!n.userData.brain) initCitizenBrain(n, n.position.clone(), 18);
+    if (!n.userData.brain) initCitizenBrain(n, n.position.clone(), 18, { modo: 'manzana', puntos: [{ x: n.position.x, z: n.position.z, tipo: 'patio' }], home: n.position });
     const b = n.userData.brain;
-    b.thinkIn -= dt;
-    if (state.phase === 'DAY' && !n.visible) { n.visible = true; b.thinkIn = 0; }
-    if (state.wanted > 0 && dist2D(n.position, player.position) < 15 && b.activity !== 'flee') b.thinkIn = 0;
-    if ((state.phase === 'NIGHT' && b.activity !== 'goingHome') || b.thinkIn <= 0) chooseCitizenGoal(n);
+    if (state.phase === 'DAY' && !n.visible) { n.visible = true; b.activity = 'idle'; b.camino = []; b.wait = 0; b.pausaAlLlegar = 0; }
+    if (state.phase === 'NIGHT' && b.activity !== 'goingHome') chooseCitizenGoal(n);
+    else if (state.weather === 'rain' && b.activity !== 'shelter' && b.activity !== 'goingHome') chooseCitizenGoal(n);
+    else if (state.wanted > 0 && dist2D(n.position, player.position) < 16 && b.activity !== 'flee') chooseCitizenGoal(n);
+    else if (b.trabado) {
+      b.trabado = false; b.intentos = (b.intentos || 0) + 1;
+      if (b.intentos > 4) { b.intentos = 0; b.activity = 'idle'; b.wait = 1.2; b.camino = []; b.goal.copy(n.position); }
+      else chooseCitizenGoal(n);
+    }
 
-    if (b.activity === 'socialize' && b.targetPerson) {
-      b.goal.copy(b.targetPerson.position); b.goal.x += 1.15;
-      if (dist2D(n.position, b.goal) < 1.4) { n.rotation.y = Math.atan2(b.targetPerson.position.x - n.position.x, b.targetPerson.position.z - n.position.z); b.wait -= dt; }
+    const dist = dist2D(n.position, b.goal);
+    if (dist <= .65) {
+      if (b.camino && b.wp < b.camino.length - 1) {
+        b.wp++; const p = b.camino[b.wp]; b.goal.set(p.x, 0, p.z);
+      } else if (b.pausaAlLlegar > 0) {
+        b.wait = b.pausaAlLlegar; b.pausaAlLlegar = 0;
+        swingLimbs(n, 0); n.userData.activity = b.activity; continue;
+      } else if (b.activity === 'socialize' && b.targetPerson && b.targetPerson.visible && b.wait > 0) {
+        n.rotation.y = Math.atan2(b.targetPerson.position.x - n.position.x, b.targetPerson.position.z - n.position.z);
+        b.wait -= dt; swingLimbs(n, 0); n.userData.activity = b.activity; continue;
+      } else if (b.wait > 0) {
+        b.wait -= dt; swingLimbs(n, 0); n.userData.activity = b.activity; continue;
+      } else if (b.activity === 'goingHome' || b.activity === 'shelter') {
+        b.wait = 6; swingLimbs(n, 0); n.userData.activity = b.activity; continue;
+      } else {
+        b.intentos = 0; chooseCitizenGoal(n);
+      }
     }
     const distance = dist2D(n.position, b.goal);
     let moved = false;
-    if (distance > .7 && b.wait <= 0) {
+    if (distance > .45 && b.wait <= 0) {
       let dx = (b.goal.x - n.position.x) / distance, dz = (b.goal.z - n.position.z) / distance;
-      // Separación corta: evita que los peatones se atraviesen o formen una sola masa.
-      if (dist2D(n.position, player.position) < 32) {
+      if (b.modo === 'vereda' && dist2D(n.position, player.position) < 28) {
+        let sx = 0, sz = 0;
         for (const other of npcs) if (other !== n && other.visible) {
           const d = dist2D(n.position, other.position);
-          if (d > .01 && d < 1.25) { dx += (n.position.x - other.position.x) / d * .7; dz += (n.position.z - other.position.z) / d * .7; }
+          if (d > .01 && d < 1.15) { sx += (n.position.x - other.position.x) / d; sz += (n.position.z - other.position.z) / d; }
         }
+        dx += sx * .4; dz += sz * .4;
+        const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
       }
-      const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
-      const speed = b.speed * (b.activity === 'flee' ? 2.8 : 1), step = speed * dt;
+      const speed = b.speed * (b.activity === 'flee' ? 2.6 : 1), step = Math.min(distance, speed * dt);
       let nx = n.position.x + dx * step, nz = n.position.z + dz * step;
-      if (citizenPointBlocked(nx, nz)) {
+      if (b.modo === 'vereda' && enAsfalto(nx, nz) && !enCrucePeatonal(nx, nz)) {
+        const c = corregirAVereda(nx, nz); nx = c.x; nz = c.z;
+      } else if (b.rect) {
+        nx = THREE.MathUtils.clamp(nx, b.rect.minX, b.rect.maxX);
+        nz = THREE.MathUtils.clamp(nz, b.rect.minZ, b.rect.maxZ);
+      }
+      if (!pasoLegal(b, nx, nz) || citizenPointBlocked(nx, nz)) {
         const sx = n.position.x - dz * step, sz = n.position.z + dx * step;
-        if (!citizenPointBlocked(sx, sz)) { nx = sx; nz = sz; }
-        else { b.thinkIn = 0; nx = n.position.x; nz = n.position.z; }
+        if (pasoLegal(b, sx, sz) && !citizenPointBlocked(sx, sz)) { nx = sx; nz = sz; }
+        else { b.trabado = true; nx = n.position.x; nz = n.position.z; }
       }
       moved = nx !== n.position.x || nz !== n.position.z;
-      n.position.x = nx; n.position.z = nz; n.rotation.y = Math.atan2(dx, dz);
-    } else {
-      b.wait -= dt;
-      if (b.wait <= 0 && distance <= .7) b.thinkIn = 0;
+      n.position.x = nx; n.position.z = nz;
+      if (moved) n.rotation.y = Math.atan2(b.goal.x - n.position.x, b.goal.z - n.position.z);
     }
-    if (state.phase === 'NIGHT' && dist2D(n.position, b.home) < 1.2) n.visible = false;
+    if (state.phase === 'NIGHT' && dist2D(n.position, b.home) < 1.35) n.visible = false;
     if (moved) swingLimbs(n, dt); else swingLimbs(n, 0);
     n.userData.activity = b.activity;
   }
@@ -4507,19 +4649,41 @@ function buildJail() {
 }
 // buildBank() y buildJail() se llaman más abajo, junto al condominio: los dos usan
 // los helpers de parques (mcFloor, mcBench…), que todavía no existen en esta línea.
-// Presos y guardias dando vueltas dentro de su zona (barato: solo si estás cerca)
+function puntoJailLibre(x, z) {
+  return !obstacles.some(o => x > o.minX + .2 && x < o.maxX - .2 && z > o.minZ + .2 && z < o.maxZ - .2);
+}
+function metaJail(ud, desde) {
+  for (let i = 0; i < 8; i++) {
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.max(.4, ud.r - .3);
+    const x = ud.ox + Math.cos(a) * r, z = ud.oz + Math.sin(a) * r;
+    if (desde && Math.hypot(x - desde.x, z - desde.z) < Math.min(1.1, ud.r * .4)) continue;
+    if (!puntoJailLibre(x, z)) continue;
+    return { x, z };
+  }
+  return null;
+}
+// Presos y guardias caminan a un punto de su zona (celda, pasillo o patio) y eligen otro. No orbitan.
 function updateJailFolk(dt) {
   if (state.planet !== 'tierra' || state.country) return;
   if (dist2D(player.position, JAIL_POS) > 90) return;
   for (const p of jailFolk) {
     if (!p.visible) continue;
     const ud = p.userData.jail;
-    ud.wait -= dt;
-    if (ud.wait <= 0) { ud.heading += Math.random() * 2.2 - 1.1; ud.wait = 1.5 + Math.random() * 3; }
-    const nx = p.position.x + Math.sin(ud.heading) * 1.1 * dt, nz = p.position.z + Math.cos(ud.heading) * 1.1 * dt;
-    if (Math.hypot(nx - ud.ox, nz - ud.oz) < ud.r) { p.position.x = nx; p.position.z = nz; }
-    else { ud.heading += Math.PI; ud.wait = .6; }
-    p.rotation.y = ud.heading;
+    if (!ud.meta) {
+      ud.espera = (ud.espera || 0) - dt;
+      if (ud.espera > 0) { swingLimbs(p, 0); continue; }
+      ud.meta = metaJail(ud, p.position);
+      if (!ud.meta) { ud.espera = .6; swingLimbs(p, 0); continue; }
+    }
+    const dx = ud.meta.x - p.position.x, dz = ud.meta.z - p.position.z, d = Math.hypot(dx, dz) || 1;
+    if (d < .4) { ud.meta = null; ud.espera = 1.1 + Math.random() * 2.2; swingLimbs(p, 0); continue; }
+    const step = Math.min(d, 1.15 * dt);
+    const nx = p.position.x + dx / d * step, nz = p.position.z + dz / d * step;
+    if (Math.hypot(nx - ud.ox, nz - ud.oz) > ud.r - .12 || !puntoJailLibre(nx, nz)) {
+      ud.meta = null; ud.espera = .25; swingLimbs(p, 0); continue;
+    }
+    p.position.x = nx; p.position.z = nz;
+    p.rotation.y = Math.atan2(dx, dz);
     swingLimbs(p, dt);
   }
 }
@@ -5335,18 +5499,34 @@ function updateTraffic(dt) {
     if ((trafficTerrainFrame + carIndex) % 2 === 0) car.position.y = mountainHeightAt(car.position.x, car.position.z);   // reparte el cálculo entre cuadros
   }
 }
-// Peatones caminando por las veredas de los cruces del centro
-function spawnPedestrians() {
-  const vereda = CALLE.ancho / 2 + 1.4;
-  const spots = [];
-  for (const cruce of SEMAFOROS) {
-    spots.push([cruce.x + vereda, cruce.z + vereda + 6], [cruce.x - vereda, cruce.z - vereda - 6]);
+// Destinos de los peatones: mitad de cuadra, cebra, plaza y la puerta del súper. Todos sobre vereda o cruce.
+function puntosDeVereda() {
+  const A = EJE_VEREDA, ejes = [-55, 0, 55], pts = [];
+  for (let i = 0; i < ejes.length; i++) for (let j = 0; j < ejes.length; j++) {
+    if (i < ejes.length - 1) {
+      const x = (ejes[i] + ejes[i + 1]) / 2;
+      pts.push({ x, z: ejes[j] + A, tipo: 'vereda' }, { x, z: ejes[j] - A, tipo: 'vereda' });
+    }
+    if (j < ejes.length - 1) {
+      const z = (ejes[j] + ejes[j + 1]) / 2;
+      pts.push({ x: ejes[i] + A, z, tipo: 'vereda' }, { x: ejes[i] - A, z, tipo: 'vereda' });
+    }
   }
-  for (const [x, z] of spots) {
-    const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][(Math.random() * 5) | 0], 0xf1c27d);
-    n.position.set(x + (Math.random() * 3 - 1.5), 0, z + (Math.random() * 3 - 1.5));
-    initCitizenBrain(n, n.position.clone(), 14);
-    scene.add(n); npcs.push(n);
+  for (const c of SEMAFOROS) pts.push({ x: c.x, z: c.z + A, tipo: 'cruce' }, { x: c.x + A, z: c.z, tipo: 'cruce' });
+  pts.push({ x: -27.5, z: 55 - A, tipo: 'plaza' }, { x: -55 + A, z: 27.5, tipo: 'plaza' }, { x: A, z: 27.5, tipo: 'plaza' });
+  pts.push({ x: 28, z: -55 + A, tipo: 'trabajo' }, { x: 55 - A, z: -27.5, tipo: 'trabajo' });
+  return pts.filter(p => !enAsfalto(p.x, p.z) || enCrucePeatonal(p.x, p.z));
+}
+// Peatones del centro: salen en una esquina de vereda y caminan a otro destino, cruzando solo por la cebra.
+function spawnPedestrians() {
+  const A = EJE_VEREDA, puntos = puntosDeVereda();
+  const esquinas = preferLowPerf ? [[1, 1]] : [[1, 1], [-1, -1]];
+  let k = 0;
+  for (const cruce of SEMAFOROS) for (const [sx, sz] of esquinas) {
+    const n = makePerson(null, ROPA_PIELES[k % ROPA_PIELES.length], { variar: true });
+    n.position.set(cruce.x + sx * A, 0, cruce.z + sz * A);
+    initCitizenBrain(n, n.position.clone(), 48, { modo: 'vereda', puntos, home: { x: n.position.x, z: n.position.z } });
+    scene.add(n); npcs.push(n); k++;
   }
 }
 spawnPedestrians();
@@ -19918,6 +20098,47 @@ try { if (new URLSearchParams(location.search).has('debug')) {
       if (calle) pisaCalle.push({ id: calle.id, x: +p.x.toFixed(1), z: +p.z.toFixed(1) });
     }
     return { pisaDistrito, pisaCalle };
+  };
+  // ¿La gente camina a un destino, se queda en la vereda o en su manzana, y no va vestida igual?
+  timDump.auditPeatones = (segundos) => {
+    const pasos = Math.round((segundos == null ? 10 : segundos) / .05);
+    const antes = npcs.map(n => ({ x: n.position.x, z: n.position.z }));
+    for (let i = 0; i < pasos; i++) updateNPCs(.05);
+    const enAsfaltoMal = [], fuera = [];
+    let caminaron = 0, capuchas = 0;
+    const poleras = new Set(), pantalones = new Set(), zapatos = new Set(), cortes = new Set();
+    npcs.forEach((n, i) => {
+      const b = n.userData.brain, ropa = n.userData.ropa;
+      if (Math.hypot(n.position.x - antes[i].x, n.position.z - antes[i].z) > 1.5) caminaron++;
+      if (n.userData.capucha) capuchas++;
+      if (ropa) { poleras.add(ropa.polera); pantalones.add(ropa.pantalon); zapatos.add(ropa.zapatos); cortes.add(ropa.cortePolera + '/' + ropa.cortePantalon + '/' + ropa.corteZapato); }
+      if (b && b.modo === 'vereda' && enAsfalto(n.position.x, n.position.z) && !enCrucePeatonal(n.position.x, n.position.z))
+        enAsfaltoMal.push({ x: +n.position.x.toFixed(1), z: +n.position.z.toFixed(1) });
+      if (b && b.rect && (n.position.x < b.rect.minX - .3 || n.position.x > b.rect.maxX + .3 || n.position.z < b.rect.minZ - .3 || n.position.z > b.rect.maxZ + .3))
+        fuera.push({ x: +n.position.x.toFixed(1), z: +n.position.z.toFixed(1) });
+    });
+    const px = player.position.x, pz = player.position.z;
+    player.position.x = JAIL_POS.x; player.position.z = JAIL_POS.z;
+    for (let i = 0; i < 80; i++) updateJailFolk(.05);
+    player.position.x = px; player.position.z = pz;
+    const jailFuera = jailFolk.filter(p => {
+      const ud = p.userData.jail;
+      return Math.hypot(p.position.x - ud.ox, p.position.z - ud.oz) > ud.r + .25;
+    }).length;
+    const muestra = npcs.filter(n => n.userData.brain && n.userData.brain.modo === 'vereda').slice(0, 4).map((n, i) => ({
+      de: { x: +antes[npcs.indexOf(n)].x.toFixed(1), z: +antes[npcs.indexOf(n)].z.toFixed(1) },
+      a: { x: +n.position.x.toFixed(1), z: +n.position.z.toFixed(1) },
+      actividad: n.userData.brain.activity,
+    }));
+    return { gente: npcs.length, caminaron, capuchas, coloresPolera: poleras.size, coloresPantalon: pantalones.size, coloresZapato: zapatos.size, cortes: cortes.size, enAsfaltoMal, fuera, jailFuera, muestra };
+  };
+  timDump.ir = (x, z, y) => { player.position.set(x, y == null ? 0 : y, z); yaw = 0; };
+  timDump.mirar = (x, z, y, p, modo) => {
+    player.position.set(x, PLAYER_EYE, z);
+    yaw = y || 0; pitch = p == null ? -.2 : p;
+    cameraMode = modo == null ? 1 : modo;
+    updatePlayerCamera(.05);
+    renderer.render(scene, camera);
   };
   timDump.perfInfo = () => {
     renderer.render(scene, camera);

@@ -233,6 +233,156 @@ export function enCalle(x, z, margen = 0) {
   return false;
 }
 
+// Centro de la vereda (mitad del asfalto + mitad de la acera). Ahí caminan
+// los peatones, y coincide con la línea de los cruces pintados.
+export const EJE_VEREDA = CALLE.ancho / 2 + CALLE.vereda / 2;
+
+function acotar(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+// Solo la calzada (sin la vereda). El margen negativo deja el bordillo libre.
+export function enAsfalto(x, z) {
+  const half = CALLE.ancho / 2 - 0.15;
+  for (const av of AVENIDAS) {
+    if (av.eje === 'v') {
+      if (Math.abs(x - av.at) < half && z > av.desde - half && z < av.hasta + half) return true;
+    } else if (Math.abs(z - av.at) < half && x > av.desde - half && x < av.hasta + half) return true;
+  }
+  return false;
+}
+
+// Cebra de los nueve semáforos del centro: se puede cruzar por ahí.
+export function enCrucePeatonal(x, z) {
+  const borde = EJE_VEREDA, grueso = 1.75, alcance = EJE_VEREDA + 0.45;
+  for (const c of SEMAFOROS) {
+    if (Math.abs(Math.abs(z - c.z) - borde) <= grueso && Math.abs(x - c.x) <= alcance) return true;
+    if (Math.abs(Math.abs(x - c.x) - borde) <= grueso && Math.abs(z - c.z) <= alcance) return true;
+  }
+  return false;
+}
+
+// Si el punto está en la calzada (y no en una cebra), lo mueve a la vereda más cercana.
+export function corregirAVereda(x, z) {
+  if (!enAsfalto(x, z) || enCrucePeatonal(x, z)) return { x, z };
+  let best = null, bd = Infinity;
+  for (const av of AVENIDAS) {
+    if (av.ramal) continue;
+    for (const side of [-1, 1]) {
+      const px = av.eje === 'v' ? av.at + side * EJE_VEREDA : acotar(x, av.desde, av.hasta);
+      const pz = av.eje === 'v' ? acotar(z, av.desde, av.hasta) : av.at + side * EJE_VEREDA;
+      if (enAsfalto(px, pz) && !enCrucePeatonal(px, pz)) continue;
+      const d = (px - x) ** 2 + (pz - z) ** 2;
+      if (d < bd) { bd = d; best = { x: px, z: pz }; }
+    }
+  }
+  return best || { x, z };
+}
+
+// Red de veredas del centro: cuatro esquinas por semáforo. Las cuadras unen
+// esquinas por la acera; el cruce peatonal une las dos veredas de una misma esquina.
+let redVeredaCache = null;
+function redDeVeredas() {
+  if (redVeredaCache) return redVeredaCache;
+  const A = EJE_VEREDA, nodos = [], aristas = [], mapa = new Map();
+  const nodo = (x, z) => {
+    const k = Math.round(x * 10) + ',' + Math.round(z * 10);
+    let n = mapa.get(k);
+    if (!n) { n = { x, z, k, vecinos: [] }; mapa.set(k, n); nodos.push(n); }
+    return n;
+  };
+  const une = (a, b, cruce) => {
+    if (a === b || a.vecinos.some(v => v.n === b)) return;
+    a.vecinos.push({ n: b, cruce }); b.vecinos.push({ n: a, cruce });
+    aristas.push({ a, b, cruce });
+  };
+  for (const c of SEMAFOROS) {
+    const ne = nodo(c.x + A, c.z + A), nw = nodo(c.x - A, c.z + A);
+    const se = nodo(c.x + A, c.z - A), sw = nodo(c.x - A, c.z - A);
+    une(nw, ne, true); une(sw, se, true); une(sw, nw, true); une(se, ne, true);
+  }
+  const por = (eje) => {
+    const m = new Map();
+    for (const n of nodos) {
+      const k = Math.round(n[eje === 'z' ? 'x' : 'z'] * 10);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(n);
+    }
+    for (const lista of m.values()) {
+      lista.sort((a, b) => a[eje] - b[eje]);
+      for (let i = 0; i < lista.length - 1; i++) {
+        const gap = Math.abs(lista[i][eje] - lista[i + 1][eje]);
+        if (gap > 20 && gap < 70) une(lista[i], lista[i + 1], false);
+      }
+    }
+  };
+  por('z'); por('x');
+  redVeredaCache = { nodos, aristas };
+  return redVeredaCache;
+}
+
+function proyectarEnArista(x, z, e) {
+  const dx = e.b.x - e.a.x, dz = e.b.z - e.a.z, l2 = dx * dx + dz * dz || 1;
+  const t = acotar(((x - e.a.x) * dx + (z - e.a.z) * dz) / l2, 0, 1);
+  const px = e.a.x + dx * t, pz = e.a.z + dz * t;
+  return { e, x: px, z: pz, t, d: Math.hypot(px - x, pz - z) };
+}
+
+// Camino por la vereda (y por la cebra si hay que cruzar) entre dos puntos.
+// El resultado es una lista de esquinas: nada de cortar por el asfalto.
+export function caminoPorVereda(x0, z0, x1, z1) {
+  const { aristas } = redDeVeredas();
+  let mejorA = null, mejorB = null;
+  for (const e of aristas) {
+    const pa = proyectarEnArista(x0, z0, e), pb = proyectarEnArista(x1, z1, e);
+    if (!mejorA || pa.d < mejorA.d) mejorA = pa;
+    if (!mejorB || pb.d < mejorB.d) mejorB = pb;
+  }
+  if (!mejorA || !mejorB) return [{ x: x1, z: z1 }];
+  const empujar = (pts, x, z) => {
+    const last = pts[pts.length - 1];
+    if (!last || Math.hypot(last.x - x, last.z - z) > 0.35) pts.push({ x, z });
+  };
+  if (mejorA.e === mejorB.e) {
+    const pts = [];
+    empujar(pts, mejorA.x, mejorA.z); empujar(pts, mejorB.x, mejorB.z);
+    return pts.length ? pts : [{ x: mejorB.x, z: mejorB.z }];
+  }
+  const costo = new Map(), prev = new Map(), usados = new Set(), pendientes = [];
+  for (const n of [mejorA.e.a, mejorA.e.b]) {
+    const c = Math.hypot(n.x - mejorA.x, n.z - mejorA.z);
+    if (!costo.has(n) || c < costo.get(n)) { costo.set(n, c); prev.set(n, null); pendientes.push(n); }
+  }
+  while (pendientes.length) {
+    pendientes.sort((a, b) => costo.get(a) - costo.get(b));
+    const n = pendientes.shift();
+    if (usados.has(n)) continue;
+    usados.add(n);
+    for (const v of n.vecinos) {
+      const c = costo.get(n) + Math.hypot(v.n.x - n.x, v.n.z - n.z);
+      if (!costo.has(v.n) || c < costo.get(v.n)) { costo.set(v.n, c); prev.set(v.n, n); pendientes.push(v.n); }
+    }
+  }
+  let llega = null, mejorC = Infinity;
+  for (const n of [mejorB.e.a, mejorB.e.b]) {
+    if (!costo.has(n)) continue;
+    const c = costo.get(n) + Math.hypot(n.x - mejorB.x, n.z - mejorB.z);
+    if (c < mejorC) { mejorC = c; llega = n; }
+  }
+  if (!llega) return [{ x: mejorA.x, z: mejorA.z }, { x: mejorB.x, z: mejorB.z }];
+  const nodos = [];
+  for (let n = llega; n; n = prev.get(n)) nodos.push(n);
+  nodos.reverse();
+  if (nodos.length >= 2 && (nodos[0] === mejorA.e.a || nodos[0] === mejorA.e.b) && (nodos[1] === mejorA.e.a || nodos[1] === mejorA.e.b)) nodos.shift();
+  if (nodos.length >= 2) {
+    const pen = nodos[nodos.length - 2], ult = nodos[nodos.length - 1];
+    if (proyectarEnArista(mejorB.x, mejorB.z, { a: pen, b: ult }).d < 0.6) nodos.pop();
+  }
+  const pts = [];
+  empujar(pts, mejorA.x, mejorA.z);
+  for (const n of nodos) empujar(pts, n.x, n.z);
+  empujar(pts, mejorB.x, mejorB.z);
+  return pts;
+}
+
 // Formato que consume el juego para dibujar y para el tráfico.
 export function callesDelMapa() {
   return AVENIDAS.map(av => ({

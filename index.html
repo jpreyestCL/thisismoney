@@ -1260,7 +1260,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
-import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MEDIA_CALLE, SEMAFOROS, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan } from './src/city-map.js?v=7';
+import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=8';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -3699,7 +3699,8 @@ function initCitizenBrain(n, center, radius, extra) {
   n.userData.brain = {
     home: ex.home ? new THREE.Vector3(ex.home.x, 0, ex.home.z) : center.clone(),
     radius: radius || 18, goal: n.position.clone(), activity: 'idle',
-    thinkIn: .3 + Math.random() * 1.1, wait: .25 + Math.random() * 1.1, speed: .95 + Math.random() * .5,
+    thinkIn: .3 + Math.random() * 1.1, wait: ex.modo === 'vereda' ? 0 : .25 + Math.random() * 1.1,
+    speed: ex.modo === 'vereda' ? 1.35 + Math.random() * .45 : .95 + Math.random() * .5,
     sociable: Math.random() > .28, targetPerson: null,
     id: 'citizen-' + id, name: CITIZEN_NAMES[id % CITIZEN_NAMES.length], job: CITIZEN_JOBS[id % CITIZEN_JOBS.length], trust: 0,
     modo: ex.modo || 'manzana', puntos: ex.puntos || [], rect: ex.rect || null, camino: [], wp: 0, intentos: 0,
@@ -3728,13 +3729,38 @@ function fijarCamino(n, x, z) {
     }));
   }
   b.camino = camino && camino.length ? camino : [{ x, z }];
+  if (b.modo === 'vereda') {
+    while (b.camino.length > 1 && Math.hypot(b.camino[0].x - n.position.x, b.camino[0].z - n.position.z) < 0.45) b.camino.shift();
+  }
   b.wp = 0;
   const p = b.camino[0];
   b.goal.set(p.x, 0, p.z);
 }
+function largoCamino(camino) {
+  let L = 0;
+  for (let i = 1; i < camino.length; i++) L += Math.hypot(camino[i].x - camino[i - 1].x, camino[i].z - camino[i - 1].z);
+  return L;
+}
 function elegirLugar(n) {
   const b = n.userData.brain;
   const lista = b.puntos && b.puntos.length ? b.puntos : [{ x: b.home.x, z: b.home.z, tipo: b.modo === 'vereda' ? 'vereda' : 'patio' }];
+  if (b.modo === 'vereda') {
+    let meta = lista[(Math.random() * lista.length) | 0], camino = caminoPorVereda(n.position.x, n.position.z, meta.x, meta.z), mejor = largoCamino(camino);
+    for (let i = 0; i < 8 && mejor < 16; i++) {
+      const c = lista[(Math.random() * lista.length) | 0];
+      const cam = caminoPorVereda(n.position.x, n.position.z, c.x, c.z);
+      const L = largoCamino(cam);
+      if (L > mejor) { mejor = L; meta = c; camino = cam; }
+    }
+    b.activity = meta.tipo || 'vereda';
+    b.targetPerson = null; b.wait = 0;
+    b.pausaAlLlegar = (meta.tipo === 'plaza' || meta.tipo === 'trabajo' || meta.tipo === 'puerta') ? .8 + Math.random() * .9 : .35 + Math.random() * .55;
+    b.camino = camino.length ? camino : [{ x: meta.x, z: meta.z }];
+    while (b.camino.length > 1 && Math.hypot(b.camino[0].x - n.position.x, b.camino[0].z - n.position.z) < 0.45) b.camino.shift();
+    b.wp = 0;
+    b.goal.set(b.camino[0].x, 0, b.camino[0].z);
+    return;
+  }
   let meta = lista[(Math.random() * lista.length) | 0];
   for (let i = 0; i < 6; i++) {
     const c = lista[(Math.random() * lista.length) | 0];
@@ -3763,6 +3789,19 @@ function chooseCitizenGoal(n) {
     fijarCamino(n, lejos.x, lejos.z);
     return;
   }
+  if (b.modo === 'vereda') {
+    if (Math.random() < .16 && b.sociable) {
+      const amigos = npcs.filter(o => o !== n && o.visible && o.userData.brain && o.userData.brain.modo === 'vereda' && dist2D(o.position, n.position) < 36);
+      const friend = amigos[(Math.random() * amigos.length) | 0];
+      if (friend) {
+        b.activity = 'socialize'; b.targetPerson = friend; b.wait = 0; b.pausaAlLlegar = .9 + Math.random() * .8;
+        fijarCamino(n, friend.position.x, friend.position.z);
+        if (largoCamino(b.camino) >= 8) return;
+      }
+    }
+    elegirLugar(n);
+    return;
+  }
   const roll = Math.random();
   if (roll < .14) {
     b.activity = 'idle'; b.targetPerson = null; b.camino = []; b.wp = 0;
@@ -3775,6 +3814,54 @@ function chooseCitizenGoal(n) {
       fijarCamino(n, friend.position.x, friend.position.z);
     } else elegirLugar(n);
   } else elegirLugar(n);
+}
+// En la vereda no hay atajo: cada paso queda sobre el tramo (acera o cebra).
+function seguirVereda(n, dt) {
+  const b = n.userData.brain;
+  if (b.wait > 0) {
+    b.wait -= dt;
+    if (b.wait > 0) { swingLimbs(n, 0); n.userData.activity = b.activity; return; }
+    if (b.activity !== 'goingHome' && b.activity !== 'shelter') chooseCitizenGoal(n);
+  }
+  if (!b.camino || !b.camino.length || b.wp >= b.camino.length) chooseCitizenGoal(n);
+  const dest = b.camino && b.camino[b.wp];
+  if (!dest) { swingLimbs(n, 0); return; }
+  const prev = b.wp > 0 ? b.camino[b.wp - 1] : { x: n.position.x, z: n.position.z };
+  if (!sobreVereda(n.position.x, n.position.z)) { n.position.x = dest.x; n.position.z = dest.z; }
+  const speed = b.speed * (b.activity === 'flee' ? 2.4 : 1);
+  let r = avanzarPorTramo(n.position.x, n.position.z, prev.x, prev.z, dest.x, dest.z, speed * dt);
+  if (!sobreVereda(r.x, r.z)) {
+    const c = corregirAVereda(r.x, r.z);
+    if (sobreVereda(c.x, c.z)) r = { x: c.x, z: c.z, llego: r.llego };
+    else r = { x: n.position.x, z: n.position.z, llego: false };
+  }
+  if (citizenPointBlocked(r.x, r.z)) {
+    let libre = null;
+    for (let extra = 0.8; extra <= 2.4; extra += 0.8) {
+      const q = avanzarPorTramo(n.position.x, n.position.z, prev.x, prev.z, dest.x, dest.z, speed * dt + extra);
+      if (!citizenPointBlocked(q.x, q.z) && sobreVereda(q.x, q.z)) { libre = q; break; }
+    }
+    if (libre) r = libre;
+    else {
+      b.wp++;
+      if (b.wp >= b.camino.length) b.wait = .4;
+      swingLimbs(n, 0); n.userData.activity = b.activity; return;
+    }
+  }
+  const moved = Math.hypot(r.x - n.position.x, r.z - n.position.z) > 0.002;
+  n.position.x = r.x; n.position.z = r.z;
+  if (enCrucePeatonal(r.x, r.z)) n.userData.cruzo = true;
+  if (moved) n.rotation.y = Math.atan2(dest.x - prev.x, dest.z - prev.z);
+  b.goal.set(dest.x, 0, dest.z);
+  if (r.llego) {
+    b.wp++;
+    if (b.wp >= b.camino.length) {
+      b.wait = b.pausaAlLlegar > 0 ? b.pausaAlLlegar : .45;
+      b.pausaAlLlegar = 0;
+    } else b.goal.set(b.camino[b.wp].x, 0, b.camino[b.wp].z);
+  }
+  if (moved) swingLimbs(n, dt); else swingLimbs(n, 0);
+  n.userData.activity = b.activity;
 }
 function updateNPCs(dt) {
   if (state.planet !== 'tierra') return;
@@ -3789,6 +3876,11 @@ function updateNPCs(dt) {
       b.trabado = false; b.intentos = (b.intentos || 0) + 1;
       if (b.intentos > 4) { b.intentos = 0; b.activity = 'idle'; b.wait = 1.2; b.camino = []; b.goal.copy(n.position); }
       else chooseCitizenGoal(n);
+    }
+    if (b.modo === 'vereda') {
+      seguirVereda(n, dt);
+      if (state.phase === 'NIGHT' && dist2D(n.position, b.home) < 1.35) n.visible = false;
+      continue;
     }
 
     const dist = dist2D(n.position, b.goal);
@@ -5541,6 +5633,7 @@ function spawnPedestrians() {
     const n = makePerson(null, ROPA_PIELES[k % ROPA_PIELES.length], { variar: true });
     n.position.set(cruce.x + sx * A, 0, cruce.z + sz * A);
     initCitizenBrain(n, n.position.clone(), 48, { modo: 'vereda', puntos, home: { x: n.position.x, z: n.position.z } });
+    elegirLugar(n);
     scene.add(n); npcs.push(n); k++;
   }
 }
@@ -20404,15 +20497,25 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.auditPeatones = (segundos) => {
     const pasos = Math.round((segundos == null ? 10 : segundos) / .05);
     const antes = npcs.map(n => ({ x: n.position.x, z: n.position.z }));
-    for (let i = 0; i < pasos; i++) updateNPCs(.05);
-    const enAsfaltoMal = [], fuera = [];
-    let caminaron = 0, capuchas = 0;
+    let muestrasMal = 0;
+    for (let i = 0; i < pasos; i++) {
+      updateNPCs(.05);
+      if (i % 4 === 0) for (const n of npcs) {
+        const b = n.userData.brain;
+        if (b && b.modo === 'vereda' && n.visible && !sobreVereda(n.position.x, n.position.z)) muestrasMal++;
+      }
+    }
+    const enAsfaltoMal = [], fuera = [], enPasto = [];
+    let caminaron = 0, capuchas = 0, cruzaron = 0;
     const poleras = new Set(), pantalones = new Set(), zapatos = new Set(), cortes = new Set();
     npcs.forEach((n, i) => {
       const b = n.userData.brain, ropa = n.userData.ropa;
       if (Math.hypot(n.position.x - antes[i].x, n.position.z - antes[i].z) > 1.5) caminaron++;
       if (n.userData.capucha) capuchas++;
       if (ropa) { poleras.add(ropa.polera); pantalones.add(ropa.pantalon); zapatos.add(ropa.zapatos); cortes.add(ropa.cortePolera + '/' + ropa.cortePantalon + '/' + ropa.corteZapato); }
+      if (n.userData.cruzo) cruzaron++;
+      if (b && b.modo === 'vereda' && !sobreVereda(n.position.x, n.position.z))
+        enPasto.push({ x: +n.position.x.toFixed(1), z: +n.position.z.toFixed(1) });
       if (b && b.modo === 'vereda' && enAsfalto(n.position.x, n.position.z) && !enCrucePeatonal(n.position.x, n.position.z))
         enAsfaltoMal.push({ x: +n.position.x.toFixed(1), z: +n.position.z.toFixed(1) });
       if (b && b.rect && (n.position.x < b.rect.minX - .3 || n.position.x > b.rect.maxX + .3 || n.position.z < b.rect.minZ - .3 || n.position.z > b.rect.maxZ + .3))
@@ -20431,7 +20534,7 @@ try { if (new URLSearchParams(location.search).has('debug')) {
       a: { x: +n.position.x.toFixed(1), z: +n.position.z.toFixed(1) },
       actividad: n.userData.brain.activity,
     }));
-    return { gente: npcs.length, caminaron, capuchas, coloresPolera: poleras.size, coloresPantalon: pantalones.size, coloresZapato: zapatos.size, cortes: cortes.size, enAsfaltoMal, fuera, jailFuera, muestra };
+    return { gente: npcs.length, caminaron, capuchas, cruzaron, muestrasMal, coloresPolera: poleras.size, coloresPantalon: pantalones.size, coloresZapato: zapatos.size, cortes: cortes.size, enAsfaltoMal, enPasto, fuera, jailFuera, muestra };
   };
   timDump.ir = (x, z, y) => { player.position.set(x, y == null ? 0 : y, z); yaw = 0; };
   timDump.mirar = (x, z, y, p, modo) => {

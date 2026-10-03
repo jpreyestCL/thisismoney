@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   EJE_VEREDA, SEMAFOROS,
-  caminoPorVereda, corregirAVereda, enAsfalto, enCrucePeatonal,
+  avanzarPorTramo, caminoPorVereda, corregirAVereda, enAsfalto, enCalle, enCrucePeatonal, sobreVereda,
 } from '../src/city-map.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -59,8 +59,48 @@ test('el camino entre veredas no pisa la calzada fuera de la cebra', () => {
   }
 });
 
+test('cada tramo del camino va por la vereda o la cebra, sin diagonal', () => {
+  const A = EJE_VEREDA;
+  const pares = [
+    [A, 27.5, -A, 27.5],
+    [27.5, A, 27.5, -A],
+    [-49.2, 49.2, 49.2, -49.2],
+    [A, -20, 40, -A],
+  ];
+  let huboCebra = false;
+  for (const [x0, z0, x1, z1] of pares) {
+    const camino = caminoPorVereda(x0, z0, x1, z1);
+    assert.ok(camino.length >= 3, 'cruzar pide más de un tramo');
+    for (let k = 1; k < camino.length; k++) {
+      const a = camino[k - 1], b = camino[k];
+      assert.ok(Math.abs(a.x - b.x) < 0.2 || Math.abs(a.z - b.z) < 0.2, 'tramo diagonal');
+      for (const p of muestras(a, b)) {
+        assert.equal(sobreVereda(p.x, p.z), true, `se sale (${p.x.toFixed(1)},${p.z.toFixed(1)})`);
+        if (enCrucePeatonal(p.x, p.z) && enAsfalto(p.x, p.z)) huboCebra = true;
+        assert.equal(enCalle(p.x, p.z) || enCrucePeatonal(p.x, p.z), true);
+      }
+    }
+  }
+  assert.equal(huboCebra, true);
+});
+
+test('un paso largo sigue el tramo y no se abre al pasto', () => {
+  const a = { x: EJE_VEREDA, z: 8 }, b = { x: EJE_VEREDA, z: 40 };
+  let x = a.x, z = a.z + 1;
+  for (let i = 0; i < 12; i++) {
+    const r = avanzarPorTramo(x, z, a.x, a.z, b.x, b.z, 2.2);
+    assert.ok(Math.abs(r.x - EJE_VEREDA) < 0.05);
+    assert.equal(sobreVereda(r.x, r.z), true);
+    assert.ok(r.z >= z - 0.01);
+    x = r.x; z = r.z;
+  }
+  assert.ok(z > 20);
+});
+
 test('la gente de la ciudad camina a un destino y no sale vestida igual', () => {
   assert.match(html, /caminoPorVereda\(/);
+  assert.match(html, /seguirVereda\(/);
+  assert.match(html, /avanzarPorTramo\(/);
   assert.match(html, /corregirAVereda\(/);
   assert.match(html, /poleron/);
   assert.match(html, /capucha/);

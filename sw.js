@@ -3,7 +3,7 @@
 // - assets y CDN de three.js: caché primero (no cambian casi nunca)
 const VERSION = 'tim-v68';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg',
-  './src/game-config.js', './src/chat.js?v=5', './src/park-business.js?v=1', './src/city-map.js?v=7', './assets/img_58.png', './assets/edificio.glb', './assets/tienda.glb', './assets/papa_anim.glb'];
+  './src/game-config.js', './src/chat.js?v=5', './src/park-business.js?v=1', './src/city-map.js?v=8', './assets/img_58.png', './assets/edificio.glb', './assets/tienda.glb', './assets/papa_anim.glb'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));

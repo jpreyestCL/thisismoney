@@ -260,6 +260,11 @@ export function enCrucePeatonal(x, z) {
   return false;
 }
 
+// Acera o cebra. El pasto y la calzada (fuera de la cebra) no cuentan.
+export function sobreVereda(x, z) {
+  return enCrucePeatonal(x, z) || (enCalle(x, z) && !enAsfalto(x, z));
+}
+
 // Si el punto está en la calzada (y no en una cebra), lo mueve a la vereda más cercana.
 export function corregirAVereda(x, z) {
   if (!enAsfalto(x, z) || enCrucePeatonal(x, z)) return { x, z };
@@ -381,6 +386,18 @@ export function caminoPorVereda(x0, z0, x1, z1) {
   for (const n of nodos) empujar(pts, n.x, n.z);
   empujar(pts, mejorB.x, mejorB.z);
   return pts;
+}
+
+// Un paso a lo largo del tramo a→b. El resultado queda SOBRE el segmento:
+// no hay atajo en diagonal ni se sale hacia el pasto.
+export function avanzarPorTramo(x, z, ax, az, bx, bz, paso) {
+  const dx = bx - ax, dz = bz - az;
+  const largo = Math.hypot(dx, dz);
+  if (largo < 0.04) return { x: bx, z: bz, llego: true };
+  const ux = dx / largo, uz = dz / largo;
+  const t = acotar((x - ax) * ux + (z - az) * uz, 0, largo);
+  const av = Math.min(Math.max(0, paso), largo - t);
+  return { x: ax + ux * (t + av), z: az + uz * (t + av), llego: largo - t - av <= 0.05 };
 }
 
 // Formato que consume el juego para dibujar y para el tráfico.

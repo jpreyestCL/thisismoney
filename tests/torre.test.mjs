@@ -72,6 +72,8 @@ test('el cuerpo se sienta, se acuesta y se ducha', () => {
   assert.match(html, /swingLimbs\(playerAvatar, dt \|\| 0\.016\);\n  poseJugador\(\);/);
   assert.match(html, /cama\.acostado = \{/);
   assert.match(html, /function empezarDucha\(d\)/);
+  assert.match(html, /const DUCHA_SEG = 28/);   // el agua dura 4 veces los 7 s de antes
+  assert.match(html, /if \(torreEspera\(o, 30\)\) return true;\n    empezarDucha/);   // la espera para volver a ducharte no se alargó
   assert.match(html, /updateDucha\(dt\);/);
   assert.match(html, /if \(ducha\) \{ vy = 0;/);   // dentro de la ducha no se camina
 });

@@ -8088,8 +8088,8 @@ function amoblarDepto(dep) {
   objeto('lampara', -2.6, 8.4, 1.1);
 }
 // ---------- DUCHA: te metes, el agua cae desde la regadera y corre por tu cuerpo ----------
-const DUCHA_SEG = 7, DUCHA_GOTAS = preferLowPerf ? 70 : 160;
-let ducha = null;          // { d, t, gotas[], ruido } mientras te duchas
+const DUCHA_SEG = 28, DUCHA_VIDA = 15, DUCHA_GOTAS = preferLowPerf ? 70 : 160;   // antes 7 s: el agua y el beneficio duran 4 veces más. La espera de 30 s no cambia.
+let ducha = null;          // { d, t, vida, aviso, gotas[], ruido } mientras te duchas
 let duchaFx = null;        // gotas (InstancedMesh) + vapor, se crean la 1ª vez
 const _duchaM = new THREE.Matrix4(), _duchaQ = new THREE.Quaternion(), _duchaS = new THREE.Vector3(), _duchaP = new THREE.Vector3();
 function crearDuchaFx() {
@@ -8124,7 +8124,7 @@ function empezarDucha(d) {
   if (!duchaFx) duchaFx = crearDuchaFx();
   if (lavado) terminarLavado(false);
   if (sitOn) standUp(true);
-  ducha = { d, t: 0, gotas: [], ruido: ruidoDucha() };
+  ducha = { d, t: 0, vida: 0, aviso: DUCHA_SEG, gotas: [], ruido: ruidoDucha() };
   for (let i = 0; i < DUCHA_GOTAS; i++) { const g = {}; gotaNueva(g, d, true); ducha.gotas.push(g); }
   player.position.set(d.x, d.y + PLAYER_EYE, d.z);
   const dx = d.cabeza.x - d.x, dz = d.cabeza.z - d.z;
@@ -8132,23 +8132,40 @@ function empezarDucha(d) {
   duchaFx.gotas.count = DUCHA_GOTAS; duchaFx.charco.visible = true;
   duchaFx.charco.position.set(d.x, d.y + .11, d.z);
   for (const v of duchaFx.vapor) v.visible = true;
-  toast('🚿 Abriste la ducha… ¡agua calentita!');
+  toast('🚿 Abriste la ducha · agua calentita · ' + DUCHA_SEG + ' s');
 }
 function terminarDucha() {
-  const d = ducha.d;
+  const d = ducha.d, vida = Math.round(ducha.vida || 0);
   if (ducha.ruido) { try { ducha.ruido.gan.gain.linearRampToValueAtTime(0, audioCtx.currentTime + .3); ducha.ruido.src.stop(audioCtx.currentTime + .35); } catch (e) {} }
   ducha = null;
   duchaFx.gotas.count = 0; duchaFx.charco.visible = false;
   for (const v of duchaFx.vapor) v.visible = false;
   player.position.set(d.salida.x, d.salida.y + PLAYER_EYE, d.salida.z);
-  state.hp = Math.min(100, state.hp + 15); state.poison = 0;
-  toast('🚿 Te duchaste con agua calentita · +15 de vida ✨'); tone(880, .12, .04, 'triangle');
+  state.poison = 0;
+  toast(vida > 0 ? '🚿 Te duchaste con agua calentita · +' + vida + ' de vida ✨' : '🚿 Te duchaste con agua calentita ✨');
+  tone(880, .12, .04, 'triangle');
 }
 function updateDucha(dt) {
   if (!ducha) return;
   const d = ducha.d;
+  const previo = ducha.t;
   ducha.t += dt;
   player.position.set(d.x, d.y + PLAYER_EYE, d.z);   // dentro de la ducha no se camina
+  // La vida y la limpieza duran todo el rato bajo el agua (antes el +15 llegaba de golpe al final).
+  const tramo = Math.max(0, Math.min(ducha.t, DUCHA_SEG) - previo);
+  if (tramo > 0) {
+    const antes = state.hp;
+    state.hp = Math.min(100, state.hp + (DUCHA_VIDA / DUCHA_SEG) * tramo);
+    ducha.vida += state.hp - antes;
+  }
+  state.poison = 0;
+  const queda = Math.max(0, Math.ceil(DUCHA_SEG - ducha.t));
+  if (queda > 0 && queda !== ducha.aviso) {
+    ducha.aviso = queda;
+    const aviso = ui('toast');
+    aviso.textContent = '🚿 Bajo el agua · quedan ' + queda + ' s';
+    aviso.style.opacity = 1; toastTimer = 1.6;
+  }
   if (ducha.t >= DUCHA_SEG || !torreAdentro(0)) { terminarDucha(); return; }
   const cierre = Math.min(1, (DUCHA_SEG - ducha.t) / .6);   // el agua se corta al final
   const cuerpoTop = d.y + 2.36 * AVATAR_K;

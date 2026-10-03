@@ -107,4 +107,11 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   for (const nombre of ['Noticias del día', 'Dibujos animados', 'El partido', 'Cocina en casa', 'El clima', 'La novela']) {
     assert.ok(html.includes("nombre: '" + nombre + "'"), nombre);
   }
+  for (const fn of ['dibujarNoticias', 'dibujarDibujos', 'dibujarPartido', 'dibujarCocina', 'dibujarNovela']) {
+    assert.match(html, new RegExp('function ' + fn + '\\('));
+  }
+  assert.match(html, /arco === 'izq'/);
+  assert.match(html, /arco === 'der'/);
+  assert.match(html, /momento === 'pase'/);
+  assert.doesNotMatch(html, /Peppa|Barcelona|Real Madrid|Manchester/);
 });

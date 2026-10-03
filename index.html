@@ -7604,7 +7604,7 @@ const _tvPos = new THREE.Vector3();
 function programaActual() { return PROGRAMAS_TV[tvCanal]; }
 function asegurarTele() {
   if (tvMat) return tvMat;
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 144;
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 288;
   const ctx = cv.getContext('2d');
   tvTex = new THREE.CanvasTexture(cv); tvTex.colorSpace = THREE.SRGBColorSpace;
   tvTex.magFilter = THREE.LinearFilter; tvTex.minFilter = THREE.LinearFilter;
@@ -7618,68 +7618,481 @@ function mallaPantalla(w, h, espejo, encendida) {
   if (espejo) { const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, 1 - uv.getX(i)); }
   return new THREE.Mesh(geo, encendida ? asegurarTele() : TORRE_TELE_APAGADA);
 }
+function tvRand(n) {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+function tvCaja(ctx, x, y, w, h, r) {
+  const rr = Math.max(0, Math.min(r || 0, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
 function tvBanner(ctx, nombre) {
-  ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(0, 116, 256, 28);
-  ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText(nombre, 8, 130);
-  ctx.fillStyle = '#facc15'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'right';
-  ctx.fillText('CANAL ' + (tvCanal + 1), 248, 130);
+  ctx.fillStyle = 'rgba(0,0,0,.82)'; ctx.fillRect(0, 236, 512, 52);
+  ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 236, 512, 4);
+  ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(nombre, 16, 264);
+  ctx.fillStyle = '#facc15'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText('CANAL ' + (tvCanal + 1), 496, 264);
+}
+// Persona de los programas: cabeza, pelo, cuerpo y brazos. No es una marca.
+function tvPersona(ctx, x, y, o) {
+  const s = o.s || 1, piel = o.piel || '#fdba74', fase = o.fase || 0;
+  const bob = Math.sin(fase) * (o.bob || 0);
+  ctx.save();
+  ctx.translate(x, y + bob);
+  ctx.fillStyle = 'rgba(0,0,0,.22)';
+  ctx.beginPath(); ctx.ellipse(0, 4 * s, 16 * s, 5 * s, 0, 0, 7); ctx.fill();
+  const paso = Math.sin(fase * (o.camina ? 2.2 : 1)) * (o.camina ? 7 : 2) * s;
+  ctx.strokeStyle = o.pantalon || '#1e293b'; ctx.lineWidth = 4.5 * s; ctx.lineCap = 'round';
+  ctx.beginPath();
+  if (o.sentado) {
+    ctx.moveTo(-5 * s, -8 * s); ctx.lineTo(-6 * s, 2 * s); ctx.lineTo(-18 * s, 6 * s);
+    ctx.moveTo(5 * s, -8 * s); ctx.lineTo(6 * s, 2 * s); ctx.lineTo(16 * s, 6 * s);
+  } else {
+    ctx.moveTo(-5 * s, -10 * s); ctx.lineTo(-7 * s + paso, 10 * s);
+    ctx.moveTo(5 * s, -10 * s); ctx.lineTo(7 * s - paso, 10 * s);
+  }
+  ctx.stroke();
+  ctx.fillStyle = o.ropa || '#2563eb';
+  tvCaja(ctx, -13 * s, -40 * s, 26 * s, 32 * s, 7 * s); ctx.fill();
+  ctx.strokeStyle = '#111827'; ctx.lineWidth = 2 * s; ctx.stroke();
+  const al = o.brazoL != null ? o.brazoL : -0.5;
+  const ar = o.brazoR != null ? o.brazoR : 0.5;
+  ctx.strokeStyle = piel; ctx.lineWidth = 4.5 * s;
+  ctx.beginPath();
+  ctx.moveTo(-12 * s, -30 * s); ctx.lineTo(-12 * s + Math.sin(al) * 18 * s, -30 * s + Math.cos(al) * 18 * s);
+  ctx.moveTo(12 * s, -30 * s); ctx.lineTo(12 * s + Math.sin(ar) * 18 * s, -30 * s + Math.cos(ar) * 18 * s);
+  ctx.stroke();
+  ctx.fillStyle = piel;
+  ctx.beginPath(); ctx.arc(0, -52 * s, 13 * s, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#111827'; ctx.lineWidth = 2 * s; ctx.stroke();
+  ctx.fillStyle = o.pelo || '#292524';
+  if (o.peloTipo === 'largo') {
+    ctx.beginPath(); ctx.arc(0, -54 * s, 14 * s, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+    ctx.fillRect(-14 * s, -52 * s, 9 * s, 24 * s); ctx.fillRect(5 * s, -52 * s, 9 * s, 20 * s);
+  } else if (o.peloTipo === 'nube') {
+    ctx.fillStyle = '#e0f2fe';
+    ctx.beginPath(); ctx.arc(-7 * s, -62 * s, 9 * s, 0, 7); ctx.arc(6 * s, -64 * s, 10 * s, 0, 7); ctx.arc(0, -56 * s, 8 * s, 0, 7); ctx.fill();
+  } else if (o.peloTipo === 'hojas') {
+    ctx.fillStyle = '#65a30d';
+    ctx.beginPath(); ctx.ellipse(-11 * s, -60 * s, 8 * s, 4.5 * s, -0.7, 0, 7); ctx.ellipse(11 * s, -60 * s, 8 * s, 4.5 * s, 0.7, 0, 7); ctx.fill();
+  } else if (o.peloTipo === 'brote') {
+    ctx.fillStyle = '#16a34a';
+    ctx.fillRect(-2 * s, -72 * s, 4 * s, 12 * s);
+    ctx.beginPath(); ctx.ellipse(0, -74 * s, 7 * s, 4 * s, 0, 0, 7); ctx.fill();
+  } else if (o.peloTipo === 'gorro') {
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath(); ctx.moveTo(-12 * s, -56 * s); ctx.lineTo(0, -78 * s); ctx.lineTo(12 * s, -56 * s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(-14 * s, -58 * s, 28 * s, 6 * s);
+  } else {
+    ctx.beginPath(); ctx.arc(0, -56 * s, 13 * s, Math.PI, 0); ctx.fill();
+  }
+  const mirada = o.mira || 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-5 * s, -52 * s, 3.2 * s, 0, 7); ctx.arc(5 * s, -52 * s, 3.2 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(-5 * s + mirada, -52 * s, 1.6 * s, 0, 7); ctx.arc(5 * s + mirada, -52 * s, 1.6 * s, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#9a3412'; ctx.lineWidth = 1.6 * s;
+  ctx.beginPath();
+  if (o.boca === 'habla') ctx.ellipse(0, -45 * s, 3.2 * s, 2.4 * s, 0, 0, 7);
+  else if (o.boca === 'sorpresa') ctx.arc(0, -45 * s, 2.6 * s, 0, 7);
+  else ctx.arc(0, -46 * s, 3.4 * s, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+  ctx.restore();
+}
+function tvFutbolista(ctx, x, y, color, fase, salta) {
+  const bob = salta ? -6 : Math.sin(fase * 2) * 1.5;
+  ctx.save(); ctx.translate(x, y + bob);
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath(); ctx.ellipse(0, 14, 9, 3.2, 0, 0, 7); ctx.fill();
+  const paso = Math.sin(fase * 2) * 5;
+  ctx.strokeStyle = '#44403c'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-3, 2); ctx.lineTo(-5 + paso, 14);
+  ctx.moveTo(3, 2); ctx.lineTo(5 - paso, 14);
+  ctx.stroke();
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(-6, -1, 12, 5);
+  ctx.fillStyle = color;
+  tvCaja(ctx, -7, -14, 14, 14, 3); ctx.fill();
+  ctx.strokeStyle = '#fdba74'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-7, -8); ctx.lineTo(-12, salta ? -16 : -2 + Math.sin(fase) * 3);
+  ctx.moveTo(7, -8); ctx.lineTo(12, salta ? -16 : -2 - Math.sin(fase) * 3);
+  ctx.stroke();
+  ctx.fillStyle = '#fdba74';
+  ctx.beginPath(); ctx.arc(0, -20, 5.5, 0, 7); ctx.fill();
+  ctx.fillStyle = '#292524';
+  ctx.beginPath(); ctx.arc(0, -22, 5.5, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-2.2, -21, 1.5, 1.5); ctx.fillRect(1, -21, 1.5, 1.5);
+  ctx.restore();
+}
+function tvPelota(ctx, x, y) {
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  ctx.beginPath(); ctx.ellipse(x, y + 7, 6, 2.4, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill();
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(x, y, 2.4, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.stroke();
+}
+function tvGlobo(ctx, x, y, texto) {
+  ctx.font = 'bold 16px sans-serif';
+  const w = ctx.measureText(texto).width + 18;
+  ctx.fillStyle = '#fff';
+  tvCaja(ctx, x, y, w, 26, 8); ctx.fill();
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 16, y + 26); ctx.lineTo(x + 22, y + 36); ctx.lineTo(x + 32, y + 26); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#111'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(texto, x + 9, y + 13);
+}
+// Cada ataque dura 8 s: pases, tiro y gol. El arco sale al azar, a los dos lados.
+function estadoPartido(t) {
+  const ataque = 8, tt = Math.max(0, t);
+  const i = Math.floor(tt / ataque);
+  const u = (tt % ataque) / ataque;
+  const arco = tvRand(i * 1.7 + 0.4) < 0.5 ? 'izq' : 'der';
+  let momento = 'pase', sub = 0, k = 0;
+  if (u < 0.62) { const p = u / 0.62; sub = Math.min(2, Math.floor(p * 3)); k = (p * 3) % 1; momento = 'pase'; }
+  else if (u < 0.82) { momento = 'tiro'; k = (u - 0.62) / 0.2; }
+  else { momento = 'gol'; k = (u - 0.82) / 0.18; }
+  return { i, u, arco, momento, sub, k, equipo: arco === 'der' ? 'azul' : 'rojo' };
+}
+const TV_NOTICIAS = ['ciudad', 'clima', 'deporte', 'plata', 'transito', 'farandula', 'juego'];
+function dibujarNoticias(ctx, t) {
+  const seg = 6, tipo = TV_NOTICIAS[Math.floor(t / seg) % TV_NOTICIAS.length], lt = t % seg;
+  if (tipo === 'ciudad') {
+    const g = ctx.createLinearGradient(0, 0, 0, 236); g.addColorStop(0, '#1e3a8a'); g.addColorStop(.55, '#fb923c'); g.addColorStop(.55, '#334155'); g.addColorStop(1, '#1f2937');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#0f172a';
+    for (const [x, h, c] of [[40, 90, '#1e293b'], [110, 130, '#334155'], [190, 70, '#0f172a'], [270, 150, '#1e293b'], [360, 100, '#111827']]) {
+      ctx.fillStyle = c; ctx.fillRect(x, 150 - h, 62, h);
+      ctx.fillStyle = lt % 1 < .5 ? '#fde68a' : '#fbbf24';
+      for (let yy = 150 - h + 10; yy < 140; yy += 16) for (let xx = x + 8; xx < x + 54; xx += 14) ctx.fillRect(xx, yy, 6, 8);
+    }
+    ctx.fillStyle = '#64748b'; ctx.fillRect(0, 150, 512, 18);
+    ctx.fillStyle = '#f8fafc'; ctx.fillRect((lt * 70) % 560 - 40, 154, 36, 10);
+    tvPersona(ctx, 430, 188, { s: .85, ropa: '#1d4ed8', peloTipo: 'corto', fase: lt * 3, boca: Math.sin(lt * 8) > 0 ? 'habla' : 'sonrisa', brazoR: -0.2, brazoL: 0.9 });
+    ctx.fillStyle = '#dc2626'; tvCaja(ctx, 16, 16, 92, 28, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('EN VIVO', 28, 30);
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 188, 300, 44);
+    ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 20px sans-serif'; ctx.fillText('CIUDAD · obras en el centro', 12, 210);
+  } else if (tipo === 'clima') {
+    const g = ctx.createLinearGradient(0, 0, 0, 236); g.addColorStop(0, '#0369a1'); g.addColorStop(1, '#e0f2fe');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(90, 70, 36, 0, 7); ctx.fill();
+    for (let i = 0; i < 8; i++) { const a = i / 8 * 7 + lt; ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(90 + Math.cos(a) * 46, 70 + Math.sin(a) * 46); ctx.lineTo(90 + Math.cos(a) * 62, 70 + Math.sin(a) * 62); ctx.stroke(); }
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath(); ctx.arc(250, 78, 28, 0, 7); ctx.arc(286, 82, 32, 0, 7); ctx.arc(230, 90, 22, 0, 7); ctx.fill();
+    ctx.fillStyle = '#7dd3fc';
+    for (let i = 0; i < 10; i++) { const y = (lt * 80 + i * 22) % 120; ctx.fillRect(240 + (i % 5) * 16, 110 + y * .4, 3, 12); }
+    ctx.fillStyle = '#166534'; ctx.beginPath(); ctx.ellipse(400, 150, 70, 46, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#15803d'; ctx.beginPath(); ctx.ellipse(430, 140, 28, 18, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#0f172a'; ctx.font = 'bold 64px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('12°', 24, 200);
+    ctx.font = 'bold 22px sans-serif'; ctx.fillText('FRENTE FRÍO', 150, 190);
+  } else if (tipo === 'deporte') {
+    ctx.fillStyle = '#052e16'; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#14532d'; ctx.fillRect(40, 120, 432, 70);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(40, 120, 432, 70);
+    ctx.fillStyle = 'rgba(250,204,21,.85)';
+    for (const x of [70, 442]) { ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x - 18, 120); ctx.lineTo(x + 18, 120); ctx.fill(); }
+    ctx.fillStyle = '#111827'; tvCaja(ctx, 96, 28, 320, 78, 10); ctx.fill();
+    ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('AROMOS', 116, 52);
+    ctx.fillStyle = '#ef4444'; ctx.textAlign = 'right'; ctx.fillText('NORTE', 396, 52);
+    ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('2  –  1', 256, 86);
+    const bx = 80 + (lt * 50) % 360;
+    tvPelota(ctx, bx, 150 + Math.sin(lt * 6) * 8);
+    ctx.fillStyle = '#facc15'; ctx.fillRect(0, 196, 512, 36);
+    ctx.fillStyle = '#111'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'left'; ctx.fillText('CANCHA DEL BARRIO · minuto ' + (12 + Math.floor(lt)), 16, 214);
+  } else if (tipo === 'plata') {
+    ctx.fillStyle = '#022c22'; ctx.fillRect(0, 0, 512, 288);
+    ctx.strokeStyle = '#064e3b'; ctx.lineWidth = 1;
+    for (let y = 40; y < 200; y += 28) { ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(300, y); ctx.stroke(); }
+    ctx.fillStyle = '#34d399';
+    for (let i = 0; i < 6; i++) {
+      const h = 30 + tvRand(i + 2) * 90 + Math.sin(lt * 2 + i) * 8;
+      ctx.fillRect(56 + i * 40, 190 - h, 26, h);
+    }
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 3; ctx.beginPath();
+    for (let i = 0; i < 7; i++) { const x = 50 + i * 38, y = 160 - i * 14 - Math.sin(lt + i) * 4; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+    ctx.save(); ctx.translate(400, 100); ctx.scale(1, 0.35 + Math.abs(Math.sin(lt * 2)) * .65);
+    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(0, 0, 36, 0, 7); ctx.fill();
+    ctx.fillStyle = '#a16207'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', 0, 2);
+    ctx.restore();
+    ctx.fillStyle = '#ecfdf5'; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('LA CIUDAD GANA PLATA', 24, 214);
+  } else if (tipo === 'transito') {
+    const g = ctx.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, '#64748b'); g.addColorStop(1, '#cbd5e1');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#475569'; ctx.beginPath(); ctx.moveTo(180, 70); ctx.lineTo(332, 70); ctx.lineTo(460, 210); ctx.lineTo(52, 210); ctx.fill();
+    ctx.strokeStyle = '#f8fafc'; ctx.setLineDash([14, 12]); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(256, 78); ctx.lineTo(256, 200); ctx.stroke(); ctx.setLineDash([]);
+    for (const [x, y] of [[120, 168], [150, 188], [360, 170]]) {
+      ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.moveTo(x, y - 16); ctx.lineTo(x - 10, y); ctx.lineTo(x + 10, y); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillRect(x - 2, y - 10, 4, 6);
+    }
+    ctx.save(); ctx.translate(300, 150); ctx.rotate(-0.15);
+    ctx.fillStyle = '#b91c1c'; tvCaja(ctx, -36, -16, 72, 28, 6); ctx.fill();
+    ctx.fillStyle = '#7dd3fc'; ctx.fillRect(-20, -12, 22, 10);
+    ctx.fillStyle = '#111'; ctx.fillRect(-34, 8, 12, 8); ctx.fillRect(16, 8, 12, 8);
+    ctx.restore();
+    const luz = Math.sin(lt * 10) > 0 ? '#ef4444' : '#3b82f6';
+    ctx.fillStyle = luz; ctx.beginPath(); ctx.arc(70, 48, 14, 0, 7); ctx.fill();
+    ctx.fillStyle = '#111827'; ctx.fillRect(0, 196, 512, 36);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('TRÁNSITO · choque en la avenida', 16, 214);
+  } else if (tipo === 'farandula') {
+    ctx.fillStyle = '#3b0764'; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#7f1d1d';
+    ctx.fillRect(0, 0, 70, 230); ctx.fillRect(442, 0, 70, 230);
+    for (let i = 0; i < 6; i++) { ctx.fillStyle = '#450a0a'; ctx.fillRect(8, i * 38, 54, 8); ctx.fillRect(450, i * 38, 54, 8); }
+    const foco = 200 + Math.sin(lt) * 40;
+    ctx.fillStyle = 'rgba(250,204,21,.35)';
+    ctx.beginPath(); ctx.moveTo(foco, 0); ctx.lineTo(foco - 70, 200); ctx.lineTo(foco + 70, 200); ctx.fill();
+    tvPersona(ctx, 210, 196, { s: .8, ropa: '#f472b6', peloTipo: 'largo', pelo: '#111', fase: lt * 2, boca: 'habla', brazoL: -1.1, brazoR: 0.4 });
+    tvPersona(ctx, 310, 198, { s: .78, ropa: '#111827', peloTipo: 'corto', fase: lt * 2 + 1, brazoR: -1, brazoL: 0.2 });
+    ctx.fillStyle = '#facc15'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('ESTRENO', 256, 46);
+  } else {
+    const g = ctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, '#0f172a'); g.addColorStop(1, '#1e293b');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#fef9c3'; ctx.beginPath(); ctx.arc(430, 42, 18, 0, 7); ctx.fill();
+    ctx.fillStyle = '#14532d'; ctx.fillRect(0, 176, 512, 56);
+    ctx.fillStyle = '#b45309'; ctx.fillRect(70, 120, 90, 56);
+    ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.moveTo(60, 120); ctx.lineTo(115, 86); ctx.lineTo(170, 120); ctx.fill();
+    ctx.fillStyle = lt % .8 < .4 ? '#fde68a' : '#44403c'; ctx.fillRect(96, 138, 16, 16);
+    ctx.fillStyle = '#4ade80';
+    const mx = 280 + Math.sin(lt * 1.4) * 30;
+    ctx.beginPath(); ctx.arc(mx, 168, 14, 0, 7); ctx.fill();
+    ctx.fillRect(mx - 10, 180, 20, 16);
+    ctx.fillStyle = '#fff'; ctx.fillRect(mx - 6, 164, 4, 4); ctx.fillRect(mx + 2, 164, 4, 4);
+    ctx.fillStyle = '#fef08a'; ctx.font = 'bold 24px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText('¿Sobrevives esta noche?', 16, 214);
+  }
+}
+function dibujarDibujos(ctx, t) {
+  const ciclo = 14, u = (t % ciclo) / ciclo, avance = u * 3;
+  const cielo = ctx.createLinearGradient(0, 0, 0, 200); cielo.addColorStop(0, '#7dd3fc'); cielo.addColorStop(1, '#e0f2fe');
+  ctx.fillStyle = cielo; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(450, 42, 22, 0, 7); ctx.fill();
+  ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 188, 512, 48);
+  ctx.fillStyle = '#86efac'; for (let i = 0; i < 8; i++) ctx.fillRect(20 + i * 64, 184, 8, 14 + (i % 3) * 4);
+  const hx = 250, suelo = 196, w = 130, h = 78 * Math.min(1, Math.max(0, avance));
+  ctx.fillStyle = '#a16207'; ctx.fillRect(hx - 84, suelo, 168, 12);
+  if (avance > 0.08) {
+    ctx.fillStyle = '#fef3c7'; ctx.fillRect(hx - w / 2, suelo - h, w, h);
+    ctx.strokeStyle = '#b45309'; ctx.lineWidth = 3;
+    for (let i = 1; i < 4; i++) { const yy = suelo - h * i / 4; if (yy < suelo - 4) { ctx.beginPath(); ctx.moveTo(hx - w / 2, yy); ctx.lineTo(hx + w / 2, yy); ctx.stroke(); } }
+    ctx.strokeRect(hx - w / 2, suelo - h, w, h);
+  }
+  if (avance > 1) {
+    const techo = Math.min(1, avance - 1);
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.moveTo(hx - w / 2 - 12, suelo - h); ctx.lineTo(hx, suelo - h - 54 * techo); ctx.lineTo(hx + w / 2 + 12, suelo - h); ctx.fill();
+    ctx.strokeStyle = '#7f1d1d'; ctx.stroke();
+  }
+  if (avance > 2) {
+    ctx.fillStyle = '#92400e'; ctx.fillRect(hx - 14, suelo - 40, 28, 40);
+    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(hx + 8, suelo - 20, 3, 0, 7); ctx.fill();
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(hx + 28, suelo - 62, 26, 20);
+    ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(hx + 41, suelo - 62); ctx.lineTo(hx + 41, suelo - 42); ctx.moveTo(hx + 28, suelo - 52); ctx.lineTo(hx + 54, suelo - 52); ctx.stroke();
+  }
+  const camina = avance < 1.1;
+  const mx = camina ? 40 + avance * 90 : 150;
+  const martillo = Math.sin(t * 14) > 0 ? -1.4 : -0.2;
+  tvPersona(ctx, mx, suelo + 8, { s: .62, ropa: '#fb923c', peloTipo: 'brote', fase: t * (camina ? 6 : 2), camina, boca: 'sonrisa', brazoL: 0.4, brazoR: camina ? 0.8 : 0.2 });
+  if (camina) { ctx.fillStyle = '#f59e0b'; ctx.fillRect(mx + 16, suelo - 28, 16, 10); }
+  tvPersona(ctx, 168, suelo + 8, { s: .66, ropa: '#facc15', peloTipo: 'hojas', fase: t * 8, boca: 'habla', brazoL: 0.2, brazoR: martillo });
+  ctx.strokeStyle = '#44403c'; ctx.lineWidth = 3; ctx.beginPath();
+  const mano = martillo < -1 ? 168 + 8 : 168 + 16, manoY = martillo < -1 ? suelo - 52 : suelo - 28;
+  ctx.moveTo(mano, manoY); ctx.lineTo(mano + 4, manoY - 16); ctx.stroke();
+  ctx.fillStyle = '#57534e'; ctx.fillRect(mano - 6, manoY - 22, 16, 6);
+  tvPersona(ctx, 360, suelo + 8, { s: .64, ropa: '#38bdf8', peloTipo: 'nube', fase: t * 3, boca: 'sonrisa', brazoL: avance > 1 ? -1.3 : -0.4, brazoR: avance > 1 ? -1.1 : 0.5 });
+  ctx.fillStyle = '#111'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(avance < 1 ? 'Luma trae ladrillos' : avance < 2 ? 'Mote clava el techo' : '¡La casa quedó lista!', 16, 28);
+}
+function dibujarCocina(ctx, t) {
+  const ciclo = 11, u = (t % ciclo) / ciclo;
+  const g = ctx.createLinearGradient(0, 0, 0, 180); g.addColorStop(0, '#ffedd5'); g.addColorStop(1, '#fdba74');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#9a3412'; ctx.fillRect(0, 150, 512, 86);
+  ctx.fillStyle = '#fed7aa'; ctx.fillRect(0, 118, 512, 34);
+  for (let x = 0; x < 512; x += 34) { ctx.strokeStyle = '#c2410c'; ctx.strokeRect(x, 118, 34, 17); ctx.strokeRect(x, 135, 34, 17); }
+  ctx.fillStyle = '#7dd3fc'; ctx.fillRect(360, 28, 110, 70);
+  ctx.strokeStyle = '#fff'; ctx.strokeRect(360, 28, 110, 70);
+  ctx.fillStyle = '#44403c'; tvCaja(ctx, 300, 78, 70, 46, 8); ctx.fill();
+  ctx.fillStyle = '#1c1917'; ctx.beginPath(); ctx.ellipse(335, 86, 22, 10, 0, 0, 7); ctx.fill();
+  const corta = u < 0.28, echa = u >= 0.28 && u < 0.55, revuelve = u >= 0.55 && u < 0.82;
+  ctx.fillStyle = '#e7e5e4'; tvCaja(ctx, 40, 124, 90, 14, 3); ctx.fill();
+  if (corta) {
+    const trozos = Math.floor((u / 0.28) * 4);
+    ctx.fillStyle = '#f97316';
+    for (let i = 0; i < 4 - trozos; i++) ctx.fillRect(52 + i * 16, 112, 12, 12);
+    ctx.strokeStyle = '#d6d3d1'; ctx.lineWidth = 4;
+    const ky = 96 + Math.abs(Math.sin(t * 16)) * 18;
+    ctx.beginPath(); ctx.moveTo(70, ky); ctx.lineTo(108, ky - 8); ctx.stroke();
+  } else {
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(70, 108, 8, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(96, 110, 8, 0, 7); ctx.fill();
+  }
+  const chefBrazo = revuelve ? Math.sin(t * 8) * 0.8 : echa ? -1.2 : corta ? -0.8 : 0.4;
+  tvPersona(ctx, 210, 196, { s: .9, ropa: '#fff', peloTipo: 'gorro', pantalon: '#334155', fase: t * 2, boca: revuelve ? 'habla' : 'sonrisa', brazoL: 0.3, brazoR: chefBrazo });
+  if (revuelve) {
+    ctx.strokeStyle = '#a8a29e'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(228, 150); ctx.lineTo(320, 90 + Math.sin(t * 8) * 6); ctx.stroke();
+    ctx.fillStyle = '#44403c'; ctx.beginPath(); ctx.ellipse(328, 92 + Math.sin(t * 8) * 4, 10, 4, 0.4, 0, 7); ctx.fill();
+  }
+  if (echa) {
+    const k = (u - 0.28) / 0.27;
+    ctx.fillStyle = k < .33 ? '#f97316' : k < .66 ? '#ef4444' : '#fde68a';
+    ctx.beginPath(); ctx.arc(80 + k * 240, 120 - Math.sin(k * Math.PI) * 50, 7, 0, 7); ctx.fill();
+  }
+  if (u > 0.4) {
+    ctx.fillStyle = 'rgba(255,255,255,.75)';
+    for (let i = 0; i < 5; i++) {
+      const p = (t * 0.7 + i * 0.2) % 1;
+      ctx.beginPath(); ctx.arc(320 + Math.sin(i + t) * 10, 78 - p * 46, 4 + p * 6, 0, 7); ctx.fill();
+    }
+    ctx.fillStyle = '#fb923c';
+    ctx.beginPath(); ctx.arc(328, 96, 4 + Math.sin(t * 10) * 1.5, 0, 7); ctx.fill();
+  }
+  if (u > 0.82) {
+    const k = (u - 0.82) / 0.18;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(430, 150, 22, 8, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.ellipse(430, 146, 14 * k, 6 * k, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#e7e5e4'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(340, 90); ctx.quadraticCurveTo(380, 60, 430, 140); ctx.stroke();
+  }
+  ctx.fillStyle = '#7c2d12'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(corta ? 'Picar la zanahoria' : echa ? 'A la olla' : revuelve ? 'Revolver el guiso' : 'Servir el plato', 16, 28);
+}
+function dibujarNovela(ctx, t) {
+  const ciclo = 16, u = (t % ciclo) / ciclo, escena = Math.floor(u * 4), lt = (u * 4) % 1;
+  if (escena === 0) {
+    const g = ctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, '#4c1d95'); g.addColorStop(1, '#2e1065');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#312e81'; ctx.fillRect(0, 176, 512, 56);
+    ctx.fillStyle = '#fde68a'; ctx.fillRect(40, 40, 70, 90);
+  } else if (escena === 1) {
+    ctx.fillStyle = '#7f1d1d'; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#44403c'; tvCaja(ctx, 40, 150, 200, 36, 8); ctx.fill();
+    ctx.fillStyle = '#292524'; ctx.fillRect(40, 138, 200, 16);
+    ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.arc(430, 70, 16, 0, 7); ctx.fill();
+  } else if (escena === 2) {
+    ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#312e81'; ctx.fillRect(0, 180, 512, 52);
+    ctx.fillStyle = '#94a3b8'; ctx.fillRect(230, 40, 54, 140);
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(257, 36, 8, 0, 7); ctx.fill();
+  } else {
+    ctx.fillStyle = '#3b0764'; ctx.fillRect(0, 0, 512, 288);
+    ctx.fillStyle = '#581c87'; ctx.fillRect(0, 170, 512, 62);
+    ctx.fillStyle = '#111827'; ctx.fillRect(360, 50, 80, 120);
+  }
+  const hablaA = Math.sin(t * 6) > 0;
+  if (escena === 0) {
+    tvPersona(ctx, 180, 210, { s: .95, ropa: '#1e1b4b', pelo: '#44403c', fase: t, boca: hablaA ? 'habla' : 'sonrisa', mira: 2, brazoR: hablaA ? -0.6 : 0.3, brazoL: 0.2 });
+    tvPersona(ctx, 330, 210, { s: .92, ropa: '#be185d', peloTipo: 'largo', pelo: '#111', fase: t + 1, boca: hablaA ? 'sonrisa' : 'habla', mira: -2, brazoL: hablaA ? 0.4 : -0.7 });
+    tvGlobo(ctx, hablaA ? 150 : 300, 70, hablaA ? '¿Te quedas?' : 'Esta noche sí');
+  } else if (escena === 1) {
+    tvPersona(ctx, 120, 188, { s: .9, ropa: '#be185d', peloTipo: 'largo', sentado: true, fase: t, boca: 'habla', brazoL: -0.2, brazoR: 0.6 });
+    tvPersona(ctx, 300, 206, { s: .95, ropa: '#1e1b4b', fase: t * 2, boca: 'sonrisa', brazoR: -1.15 + Math.sin(t * 4) * 0.25, brazoL: 0.3 });
+    tvGlobo(ctx, 250, 60, '¡Escúchame!');
+  } else if (escena === 2) {
+    const ax = 80 + lt * 280, bx = 430 - lt * 280;
+    tvPersona(ctx, ax, 208, { s: .9, ropa: '#1e1b4b', camina: true, fase: t * 8, mira: 2, boca: 'sonrisa' });
+    tvPersona(ctx, bx, 208, { s: .88, ropa: '#be185d', peloTipo: 'largo', camina: true, fase: t * 8 + 1, mira: -2, boca: lt > 0.45 ? 'sorpresa' : 'sonrisa' });
+  } else {
+    const abre = Math.sin(t * 3) > 0;
+    const sep = 40 + lt * 30;
+    tvPersona(ctx, 200 - sep * 0.2, 206, { s: .92, ropa: '#1e1b4b', fase: t, boca: 'sorpresa', brazoL: -1.2, brazoR: -0.9, bob: abre ? 3 : 0 });
+    tvPersona(ctx, 320 + sep * 0.2, 206, { s: .9, ropa: '#be185d', peloTipo: 'largo', fase: t + 0.4, boca: abre ? 'sorpresa' : 'habla', brazoL: abre ? -1.3 : 0.8, brazoR: abre ? -1 : 0.2 });
+    if (abre) tvGlobo(ctx, 230, 58, '¡¿Qué?!');
+    else tvGlobo(ctx, 300, 64, 'Me voy');
+  }
+}
+function dibujarPartido(ctx, t) {
+  const est = estadoPartido(t);
+  const cielo = ctx.createLinearGradient(0, 0, 0, 70); cielo.addColorStop(0, '#0284c7'); cielo.addColorStop(1, '#7dd3fc');
+  ctx.fillStyle = cielo; ctx.fillRect(0, 0, 512, 288);
+  for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? '#16a34a' : '#15803d'; ctx.fillRect(24, 64 + i * 20, 464, 20); }
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+  ctx.strokeRect(36, 72, 440, 150);
+  ctx.beginPath(); ctx.moveTo(256, 72); ctx.lineTo(256, 222); ctx.stroke();
+  ctx.beginPath(); ctx.arc(256, 147, 28, 0, 7); ctx.stroke();
+  ctx.strokeRect(36, 110, 52, 74); ctx.strokeRect(424, 110, 52, 74);
+  const arco = (x, lado) => {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+    ctx.strokeRect(lado < 0 ? x - 16 : x, 112, 16, 56);
+    ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 1;
+    for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(lado < 0 ? x - 16 : x, 112 + i * 14); ctx.lineTo(lado < 0 ? x : x + 16, 112 + i * 14); ctx.stroke(); }
+  };
+  arco(36, -1); arco(476, 1);
+  const azul = [[.08, .5], [.22, .22], [.22, .78], [.4, .36], [.4, .68], [.56, .5]];
+  const rojo = azul.map(p => [1 - p[0], p[1]]);
+  const xy = (p, k) => ({ x: 58 + p[0] * 396 + Math.sin(t * 1.2 + k) * 5, y: 86 + p[1] * 118 + Math.cos(t * 1.1 + k) * 4 });
+  const az = azul.map(xy), ro = rojo.map(xy);
+  const atk = est.equipo === 'azul' ? az : ro;
+  const a = 1 + (est.i + est.sub) % 5, b = 1 + (a + 1 + (est.i % 3)) % 5;
+  const ease = est.k * est.k * (3 - 2 * est.k);
+  let bx, by;
+  if (est.momento === 'pase') {
+    bx = atk[a].x + (atk[b].x - atk[a].x) * ease;
+    by = atk[a].y + (atk[b].y - atk[a].y) * ease - Math.sin(est.k * Math.PI) * 16;
+  } else {
+    const origen = atk[b];
+    const gx = est.arco === 'izq' ? 28 : 484;
+    const gy = 140 + (tvRand(est.i + 3) - 0.5) * 24;
+    const kk = est.momento === 'gol' ? 1 : ease;
+    bx = origen.x + (gx - origen.x) * kk;
+    by = origen.y + (gy - origen.y) * kk - Math.sin(kk * Math.PI) * 22;
+  }
+  if (est.momento !== 'pase') {
+    const def = est.equipo === 'azul' ? ro : az;
+    def[0].y += (by - def[0].y) * 0.65;
+  }
+  const todos = az.map((p, i) => ({ ...p, color: '#2563eb', i, salta: est.momento === 'gol' && est.equipo === 'azul' && i > 0 }))
+    .concat(ro.map((p, i) => ({ ...p, color: '#dc2626', i: i + 6, salta: est.momento === 'gol' && est.equipo === 'rojo' && i > 0 })));
+  todos.sort((p, q) => p.y - q.y);
+  for (const p of todos) tvFutbolista(ctx, p.x, p.y, p.color, t * 3 + p.i, p.salta);
+  tvPelota(ctx, bx, by);
+  let gi = 0, gd = 0;
+  for (let k = 0; k < est.i; k++) { if (tvRand(k * 1.7 + 0.4) < 0.5) gi++; else gd++; }
+  if (est.momento === 'gol') { if (est.arco === 'izq') gi++; else gd++; }
+  ctx.fillStyle = 'rgba(0,0,0,.72)'; tvCaja(ctx, 156, 8, 200, 40, 8); ctx.fill();
+  ctx.fillStyle = '#93c5fd'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('AZUL', 170, 28);
+  ctx.fillStyle = '#fca5a5'; ctx.textAlign = 'right'; ctx.fillText('ROJO', 342, 28);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(gi + ' – ' + gd, 256, 28);
+  if (est.momento === 'gol') {
+    ctx.fillStyle = '#facc15'; ctx.font = 'bold 42px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(est.arco === 'izq' ? '¡GOL IZQ!' : '¡GOL DER!', 256, 118);
+  }
+}
+function dibujarClima(ctx, t) {
+  const g = ctx.createLinearGradient(0, 0, 0, 236); g.addColorStop(0, '#0369a1'); g.addColorStop(1, '#bae6fd');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(80 + Math.sin(t * 0.4) * 12, 64, 28, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f8fafc';
+  const cx = 300 + Math.sin(t * 0.3) * 20;
+  ctx.beginPath(); ctx.arc(cx, 70, 26, 0, 7); ctx.arc(cx + 30, 76, 30, 0, 7); ctx.arc(cx - 24, 80, 20, 0, 7); ctx.fill();
+  ctx.fillStyle = '#e0f2fe';
+  for (let i = 0; i < 14; i++) { const y = (t * 60 + i * 28) % 160; ctx.fillRect(40 + (i * 37) % 460, 40 + y, 2, 10); }
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.moveTo(0, 200); ctx.lineTo(80, 150); ctx.lineTo(160, 190); ctx.lineTo(260, 130); ctx.lineTo(360, 180); ctx.lineTo(512, 150); ctx.lineTo(512, 236); ctx.lineTo(0, 236); ctx.fill();
+  ctx.fillStyle = '#0f172a'; ctx.font = 'bold 54px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText((16 + Math.floor(Math.sin(t * 0.5) * 3)) + '°', 24, 120);
 }
 function dibujarPrograma(t) {
   const mat = asegurarTele(), ctx = mat.userData.ctx, p = programaActual();
-  ctx.clearRect(0, 0, 256, 144);
-  if (p.id === 'noticias') {
-    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 256, 144);
-    ctx.fillStyle = '#1e3a8a'; ctx.fillRect(0, 78, 256, 38);
-    ctx.fillStyle = '#dc2626'; ctx.fillRect(8, 8, 54, 16);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'left'; ctx.fillText('EN VIVO', 14, 20);
-    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(78, 58, 16, 0, 7); ctx.fill();
-    ctx.fillStyle = '#1d4ed8'; ctx.fillRect(62, 74, 32, 28);
-    ctx.fillStyle = '#94a3b8'; ctx.font = '12px sans-serif'; ctx.fillText('Última hora en la ciudad', 108, 96);
-    const x = ((t * 40) % 280) - 80; ctx.fillStyle = '#fef08a'; ctx.fillText('El banco abre · el partido es a las 8', x, 108);
-  } else if (p.id === 'dibujos') {
-    ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 0, 256, 144);
-    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(210, 28, 16, 0, 7); ctx.fill();
-    ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 100, 256, 44);
-    const bob = Math.sin(t * 6) * 8, x = 70 + Math.sin(t * 1.4) * 36;
-    ctx.fillStyle = '#f472b6'; ctx.fillRect(x - 16, 62 + bob, 32, 28);
-    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(x, 48 + bob, 14, 0, 7); ctx.fill();
-    ctx.fillStyle = '#111827'; ctx.fillRect(x - 8, 44 + bob, 4, 4); ctx.fillRect(x + 4, 44 + bob, 4, 4);
-    ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x - 16, 74 + bob); ctx.lineTo(x - 28, 60 + bob + Math.sin(t * 8) * 8); ctx.stroke();
-  } else if (p.id === 'partido') {
-    const g = ctx.createLinearGradient(0, 0, 0, 144); g.addColorStop(0, '#38bdf8'); g.addColorStop(.42, '#7dd3fc'); g.addColorStop(.42, '#16a34a'); g.addColorStop(1, '#15803d');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 144);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(18, 70, 220, 40); ctx.beginPath(); ctx.moveTo(128, 70); ctx.lineTo(128, 110); ctx.stroke();
-    ctx.beginPath(); ctx.arc(128, 90, 8, 0, 7); ctx.stroke();
-    const bx = 40 + (t * 28) % 180, by = 86 + Math.sin(t * 5) * 10;
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(bx, by, 4, 0, 7); ctx.fill();
-    ctx.fillStyle = '#1d4ed8'; ctx.fillRect(bx - 28, 80, 6, 14);
-    ctx.fillStyle = '#dc2626'; ctx.fillRect(bx + 16, 82, 6, 14);
-  } else if (p.id === 'cocina') {
-    ctx.fillStyle = '#7c2d12'; ctx.fillRect(0, 0, 256, 144);
-    ctx.fillStyle = '#fed7aa'; ctx.fillRect(0, 88, 256, 28);
-    ctx.fillStyle = '#44403c'; ctx.fillRect(150, 48, 46, 40);
-    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(173, 62, 6 + Math.sin(t * 8) * 2, 0, 7); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(168, 36 - (t * 12) % 20, 4, 0, 7); ctx.arc(180, 30 - (t * 10) % 18, 3, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillRect(46, 40, 28, 10); ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(60, 62, 14, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillRect(48, 74, 24, 22);
-  } else if (p.id === 'clima') {
-    const g = ctx.createLinearGradient(0, 0, 0, 144); g.addColorStop(0, '#0284c7'); g.addColorStop(1, '#bae6fd');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 144);
-    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(48 + Math.sin(t * .6) * 10, 40, 18, 0, 7); ctx.fill();
-    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(150, 48, 16, 0, 7); ctx.arc(170, 50, 18, 0, 7); ctx.arc(160, 38, 12, 0, 7); ctx.fill();
-    ctx.fillStyle = '#e0f2fe';
-    for (let i = 0; i < 8; i++) { const y = ((t * 50 + i * 18) % 90) + 20; ctx.fillRect(120 + (i % 4) * 16, y, 2, 8); }
-    ctx.fillStyle = '#0f172a'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'left'; ctx.fillText((18 + Math.floor(Math.sin(t) * 3)) + '°', 24, 100);
-  } else {
-    ctx.fillStyle = '#4c1d95'; ctx.fillRect(0, 0, 256, 144);
-    ctx.fillStyle = '#7c3aed'; ctx.fillRect(0, 0, 28, 116); ctx.fillRect(228, 0, 28, 116);
-    const cerca = 90 + Math.sin(t * 1.5) * 16;
-    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(cerca - 24, 62, 14, 0, 7); ctx.arc(cerca + 24, 62, 14, 0, 7); ctx.fill();
-    ctx.fillStyle = '#1e1b4b'; ctx.fillRect(cerca - 36, 78, 24, 30); ctx.fillStyle = '#be185d'; ctx.fillRect(cerca + 12, 78, 24, 30);
-    const s = 1 + Math.sin(t * 4) * .15; ctx.fillStyle = '#fb7185'; ctx.save(); ctx.translate(cerca, 58); ctx.scale(s, s);
-    ctx.beginPath(); ctx.moveTo(0, 6); ctx.bezierCurveTo(10, -6, 16, 6, 0, 16); ctx.bezierCurveTo(-16, 6, -10, -6, 0, 6); ctx.fill(); ctx.restore();
-  }
+  ctx.clearRect(0, 0, 512, 288);
+  if (p.id === 'noticias') dibujarNoticias(ctx, t);
+  else if (p.id === 'dibujos') dibujarDibujos(ctx, t);
+  else if (p.id === 'partido') dibujarPartido(ctx, t);
+  else if (p.id === 'cocina') dibujarCocina(ctx, t);
+  else if (p.id === 'clima') dibujarClima(ctx, t);
+  else dibujarNovela(ctx, t);
   tvBanner(ctx, p.nombre);
   if (tvTex) tvTex.needsUpdate = true;
 }
@@ -20714,6 +21127,16 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.pixelTv = () => { if (!tvMat) return null; const d = tvMat.userData.ctx.getImageData(20, 20, 1, 1).data; return { rgb: [d[0], d[1], d[2]], id: programaActual().id }; };
   timDump.lavadoInfo = () => lavado ? { t: +lavado.t.toFixed(2), dur: lavado.dur } : null;
   timDump.tickLavado = (n, dt) => { const step = dt == null ? .05 : dt; for (let i = 0; i < (n || 1); i++) updateLavado(step); updatePlayerCamera(0); if (lavado) updateLavado(0); return timDump.lavadoInfo(); };
+  timDump.pintarTv = (id, t) => {
+    const i = PROGRAMAS_TV.findIndex(p => p.id === id);
+    if (i >= 0) tvCanal = i;
+    const tiempo = t == null ? tvT : t;
+    tvT = tiempo; dibujarPrograma(tiempo);
+    const nom = ui('tvNombre'); if (nom) nom.textContent = programaActual().nombre;
+    return { id: programaActual().id, t: tiempo, partido: id === 'partido' ? estadoPartido(tiempo) : null };
+  };
+  timDump.estadoPartido = (t) => estadoPartido(t == null ? tvT : t);
+  timDump.tvCanvas = () => (tvMat && tvMat.userData.cv ? tvMat.userData.cv.toDataURL('image/png') : null);
   timDump.setCam = (m) => { cameraMode = m; };
   timDump.updateNight = updateNight;
   timDump.applyPoison = applyPoison;

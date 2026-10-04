@@ -1273,7 +1273,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';                  
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
-import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=4';
+import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=5';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -11479,7 +11479,7 @@ function mallLineas(ctx, texto, max) {
   if (act) lineas.push(act);
   return lineas;
 }
-function dibujarPersonaCine(ctx, x, y, color, nombre, bob) {
+function dibujarPersonaCine(ctx, x, y, color, nombre, bob, pose, habla) {
   const b = bob || 0;
   const ficha = nombre === 'Lila'
     ? { peloTipo: 'largo', pelo: '#3f2a1d', ropa: color, pantalon: '#4a1d38' }
@@ -11488,11 +11488,15 @@ function dibujarPersonaCine(ctx, x, y, color, nombre, bob) {
       : nombre === 'Nico'
         ? { peloTipo: 'corto', pelo: '#78350f', ropa: color, pantalon: '#44403c' }
         : { peloTipo: 'corto', pelo: '#1c1917', ropa: color, pantalon: '#1e3a8a' };
+  const propia = habla ? pose : 'corre';
+  const brazos = propia === 'frena' ? { brazoL: -1.55, brazoR: 1.55 }
+    : propia === 'salta' ? { brazoL: -2.3, brazoR: -2.3 } : {};
   tvPersona(ctx, x, y, Object.assign({
-    s: 1.28, piel: '#f0c09a', fase: b * 2.2, camina: true, bob: 0,
+    s: 1.28, piel: '#f0c09a', fase: b * 2.4 + (propia === 'corre' ? 1.2 : 0),
+    camina: propia === 'corre', sentado: propia === 'resbala', bob: 0,
     mira: nombre === 'Lila' ? 2 : -2,
-    boca: Math.abs(b) > .55 ? 'habla' : 'sonrisa',
-  }, ficha));
+    boca: habla ? 'habla' : 'sonrisa',
+  }, brazos, ficha));
   ctx.save();
   ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -11550,7 +11554,7 @@ function dibujarPropCine(ctx, o) {
     ctx.beginPath(); ctx.arc(0, 0, 16, 0, 7); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(14, 0); ctx.moveTo(0, -14); ctx.lineTo(0, 14); ctx.stroke();
   } else if (o.tipo === 'zapato') {
-    ctx.translate(o.x, o.y); ctx.rotate(Math.sin(o.a) * 0.4);
+    ctx.translate(o.x, o.y); ctx.rotate(Math.sin(o.a) * 0.4); ctx.scale(o.s || 1, o.s || 1);
     ctx.fillStyle = '#dc2626'; ctx.fillRect(-28, -8, 34, 16); ctx.fillRect(-8, -8, 22, 16);
     ctx.fillStyle = '#f8fafc'; ctx.fillRect(-28, 6, 56, 6);
   } else if (o.tipo === 'pelota') {
@@ -11583,6 +11587,49 @@ function dibujarPropCine(ctx, o) {
   }
   ctx.restore();
 }
+function fondoCanchaCine(ctx, w, h) {
+  const piso = Math.round(h * .4);
+  const cielo = ctx.createLinearGradient(0, 0, 0, piso);
+  cielo.addColorStop(0, '#0284c7'); cielo.addColorStop(1, '#7dd3fc');
+  ctx.fillStyle = cielo; ctx.fillRect(0, 0, w, piso);
+  const franja = (h - piso) / 8;
+  for (let i = 0; i < 8; i++) {
+    ctx.fillStyle = i % 2 ? '#16a34a' : '#15803d';
+    ctx.fillRect(0, piso + i * franja, w, franja + 1);
+  }
+  ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 3;
+  ctx.strokeRect(28, piso + 14, w - 56, h - piso - 78);
+  ctx.beginPath(); ctx.moveTo(w / 2, piso + 14); ctx.lineTo(w / 2, h - 64); ctx.stroke();
+  ctx.beginPath(); ctx.arc(w / 2, piso + (h - piso) * .42, 26, 0, 7); ctx.stroke();
+  ctx.lineWidth = 5;
+  ctx.strokeRect(w - 70, piso + 28, 34, 78);
+  ctx.beginPath();
+  ctx.moveTo(w - 70, piso + 28); ctx.lineTo(w - 36, piso + 28);
+  ctx.moveTo(w - 70, piso + 106); ctx.lineTo(w - 36, piso + 106);
+  ctx.stroke();
+}
+function rotuloCine(ctx, w, h, quien, texto, minuto) {
+  const aviso = quien + ': ' + texto;
+  const margen = 12, reserva = 54, maxW = w - margen * 2 - reserva;
+  let size = 16, lineas = [aviso];
+  while (size >= 10) {
+    ctx.font = 'bold ' + size + 'px sans-serif';
+    lineas = mallLineas(ctx, aviso, maxW);
+    if (lineas.length <= 3 && lineas.every(l => ctx.measureText(l).width <= maxW + 1)) break;
+    size -= 1;
+  }
+  ctx.font = 'bold ' + size + 'px sans-serif';
+  lineas = mallLineas(ctx, aviso, maxW);
+  const lh = size + 5, alto = lineas.length * lh + 12, y0 = h - alto - 4;
+  ctx.fillStyle = 'rgba(0,0,0,.84)';
+  ctx.fillRect(6, y0, w - 12, alto);
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  for (let i = 0; i < lineas.length; i++) ctx.fillText(lineas[i], margen, y0 + 6 + i * lh);
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(minuto + '/10', w - 12, y0 + 6);
+}
 function dibujarCine(esc) {
   const ctx = mallCineCtx;
   if (!ctx) return;
@@ -11600,21 +11647,16 @@ function dibujarCine(esc) {
     return;
   }
   const f = frameCine(esc, esc.lt);
-  const clase = (esc.tipo === 'cohete' || esc.tipo === 'pelota' || esc.tipo === 'arco') ? 'sala'
-    : (esc.tipo === 'globo' ? 'casa' : 'pasillo');
-  fondoLugar(ctx, f.fondo, clase);
+  if (f.lugar === 'cancha') fondoCanchaCine(ctx, w, h);
+  else fondoLugar(ctx, f.fondo, f.lugar === 'pasillo' ? 'pasillo' : 'sala');
   for (const o of f.objetos) dibujarPropCine(ctx, o);
-  for (const p of f.extra) dibujarPersonaCine(ctx, p.x, p.y, p.color, p.nombre, f.bob);
-  dibujarPersonaCine(ctx, f.lx, f.yLila, '#f472b6', 'Lila', f.bob);
-  dibujarPersonaCine(ctx, f.mx, f.yMateo, '#38bdf8', 'Mateo', -f.bob);
+  for (const p of f.extra) dibujarPersonaCine(ctx, p.x, p.y, p.color, p.nombre, f.bob, f.pose, p.nombre === esc.quien);
+  dibujarPersonaCine(ctx, f.lx, f.yLila, '#f472b6', 'Lila', f.bob, f.pose, esc.quien === 'Lila');
+  dibujarPersonaCine(ctx, f.mx, f.yMateo, '#38bdf8', 'Mateo', -f.bob, f.pose, esc.quien === 'Mateo');
   if (f.relampago) { ctx.fillStyle = 'rgba(255,255,255,.82)'; ctx.fillRect(0, 0, w, h); }
   if (f.oscuro) { ctx.fillStyle = 'rgba(0,0,0,' + (0.35 + f.oscuro * 0.4) + ')'; ctx.fillRect(0, 0, w, h); }
-  ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(8, h - 36, w - 16, 28);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
-  const aviso = esc.quien + ': ' + esc.texto;
-  ctx.fillText(aviso.length > 78 ? aviso.slice(0, 76) + '…' : aviso, 16, h - 17);
   const minuto = Math.min(10, Math.floor((mallCineT % CINE_DURACION) / 60) + 1);
-  ctx.textAlign = 'right'; ctx.fillText(minuto + '/10', w - 16, h - 17);
+  rotuloCine(ctx, w, h, esc.quien, esc.texto, minuto);
   if (mallCineTex) mallCineTex.needsUpdate = true;
 }
 function mallSentarEn(p) {

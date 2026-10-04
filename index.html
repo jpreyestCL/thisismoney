@@ -7809,6 +7809,15 @@ function proximoEstreno() {
   const sig = fichaTemporada(act.n + 1);
   return { dia: act.dia, temporada: act.n, siguiente: sig.n, i: sig.i, titulo: sig.titulo, falta: act.falta };
 }
+function fraseDiasEstreno() {
+  // El día de juego es state.night (mañana nueva = 0). El estreno cae en 0, 10, 20…
+  const dia = Math.max(0, state.night | 0);
+  const resto = dia % 10;
+  const n = resto === 0 ? 0 : 10 - resto;
+  if (n === 0) return 'Hoy es el estreno.';
+  if (n === 1) return 'Falta 1 día para el estreno.';
+  return 'Faltan ' + n + ' días para el estreno.';
+}
 function dibujarViñetaTemporada(ctx, i, lt) {
   if (i === 0) {
     ctx.fillStyle = '#312e81'; ctx.fillRect(0, 130, 512, 28);
@@ -7847,11 +7856,13 @@ function dibujarViñetaTemporada(ctx, i, lt) {
   }
 }
 function rotuloTemporada(ctx, kicker, temp) {
-  ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fillRect(0, 150, 512, 82);
-  ctx.fillStyle = '#fde047'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText(kicker, 16, 172);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 24px sans-serif';
-  ctx.fillText('Temporada ' + temp.n + ' · ' + temp.titulo, 16, 206);
+  ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(0, 132, 512, 104);
+  ctx.fillStyle = '#fde047'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(kicker, 16, 150);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif';
+  ctx.fillText('Temporada ' + temp.n + ' · ' + temp.titulo, 16, 182);
+  ctx.fillStyle = '#fde047'; ctx.font = 'bold 22px sans-serif';
+  ctx.fillText(fraseDiasEstreno(), 16, 214);
 }
 function dibujarProximoEstreno(ctx, lt) {
   const p = proximoEstreno();
@@ -8979,13 +8990,7 @@ function lineaNovela(t) {
 function lineaNoticias(t) {
   const seg = TV_NOTICIA_SEG, idx = Math.floor(t / seg), tipo = TV_NOTICIAS[idx % TV_NOTICIAS.length];
   let texto = TV_NOTICIA_VOZ[tipo] || '';
-  if (tipo === 'estreno') {
-    const temp = temporadaActual();
-    texto = 'Estreno. Ya está al aire la temporada ' + temp.n + ': ' + temp.titulo + '.';
-  } else if (tipo === 'proximo') {
-    const p = proximoEstreno();
-    texto = 'Próximo estreno. Se viene la temporada ' + p.siguiente + ': ' + p.titulo + '.';
-  }
+  if (tipo === 'estreno' || tipo === 'proximo') texto = fraseDiasEstreno();
   return { clave: 'noticias:' + idx + ':' + tipo, cortar: true, voz: 'periodista', texto };
 }
 function lineaDeLista(id, lineas, t) {

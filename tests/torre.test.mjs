@@ -135,7 +135,16 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /function diaDePartida\(\)/);
   assert.match(html, /function temporadaActual\(\)/);
   assert.match(html, /function proximoEstreno\(\)/);
+  assert.match(html, /function fraseDiasEstreno\(\)/);
   assert.match(html, /Math\.floor\(dia \/ 10\)/);
+  const fraseDias = html.slice(html.indexOf('function fraseDiasEstreno'), html.indexOf('function dibujarViñetaTemporada'));
+  assert.match(fraseDias, /state\.night/);
+  assert.ok(fraseDias.includes("'Hoy es el estreno.'"));
+  assert.ok(fraseDias.includes("'Falta 1 día para el estreno.'"));
+  assert.ok(fraseDias.includes("'Faltan ' + n + ' días para el estreno.'"));
+  assert.match(html, /tipo === 'estreno' \|\| tipo === 'proximo'\) texto = fraseDiasEstreno\(\)/);
+  assert.match(html, /ctx\.fillText\(fraseDiasEstreno\(\), 16, 214\)/);
+  assert.doesNotMatch(html, /Faltan 0 días|faltan 0 días/);
   assert.match(html, /PRÓXIMO ESTRENO/);
   assert.match(html, /TEMPORADA /);
   assert.match(html, /speechSynthesis/);

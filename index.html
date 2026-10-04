@@ -738,6 +738,18 @@
     <div id="aptList" style="display:grid; grid-template-columns:1fr 1fr; gap:7px"></div>
     <button id="aptCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
   </div>
+  <div id="mallSub" style="position:absolute; left:50%; bottom:16%; transform:translateX(-50%); display:none; z-index:8; pointer-events:none; background:rgba(0,0,0,.78); color:#fff; padding:8px 14px; border-radius:10px; font-size:16px; font-weight:700; max-width:min(90vw,680px); text-align:center;"></div>
+  <div id="mallbox" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:none; pointer-events:all; z-index:8; background:rgba(6,10,20,.96); border:2px solid #f59e0b; padding:12px 14px; border-radius:14px; text-align:center; width:min(96vw,760px); max-height:88vh; overflow:auto; flex-direction:column; gap:8px;">
+    <div style="font-size:15px; font-weight:800; color:#fbbf24">🛒 CAJA DEL SÚPER · MALL DEL SUR</div>
+    <div id="mallCartLines" style="text-align:left; max-height:18vh; overflow:auto; font-size:13px;"></div>
+    <div id="mallCartTotal" style="font-weight:800;"></div>
+    <button data-mall="pagar" style="pointer-events:all; cursor:pointer; background:#f59e0b; color:#111; border:none; padding:8px 18px; font-size:15px; font-weight:900; border-radius:8px;">PAGAR TODO EL CARRITO</button>
+    <div style="font-size:13px; font-weight:800; color:#fdba74; text-align:left;">Casas para armar</div>
+    <div id="mallCasas" style="display:grid; grid-template-columns:1fr 1fr; gap:6px;"></div>
+    <div style="font-size:13px; font-weight:800; color:#86efac; text-align:left;">Todo el catálogo de la tienda</div>
+    <div id="mallCatalogo" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; max-height:34vh; overflow:auto;"></div>
+    <button data-mall="cerrar" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
+  </div>
   <div id="questbox">
     <div style="font-size:15px; font-weight:800; color:#fbbf24">📋 MISIONES</div>
     <div style="font-size:11px; opacity:.7; margin:2px 0 8px">Del juego y del día. El callejón de Tito se desbloquea a los $20.000: te lleva a otro rincón, no está en el mapa.</div>
@@ -1260,7 +1272,8 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';   
 import { Reflector } from 'three/addons/objects/Reflector.js';                  // espejo de verdad: refleja la escena
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
-import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=8';
+import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
+import { CASAS_MALL, CINE_DURACION, COMIDAS_MALL, PALOMITAS_PRECIO, PIEZAS_CASA_MALL, casasConPrecio, escenaCine, mallAgregar, mallPuedePagar } from './src/mall.js?v=1';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -10998,6 +11011,597 @@ function buildCondominio() {
 }
 buildCondominio();
 
+// ===================================================================
+//  MALL DEL SUR: cine de 10 minutos, palomitas, súper con carrito,
+//  guardias del mall y patio de comidas. Queda al sur del anillo.
+// ===================================================================
+const mallGuardias = [];
+const mallPuestos = [];
+let mallCart = [];
+let mallCineT = 0;
+let mallVozClave = '';
+let mallVozTimer = 0;
+let mallUtter = null;
+let mallPantalla = null;
+let mallCineCtx = null;
+let mallCineTex = null;
+let mallBaldeMano = null;
+let mallBaldeSilla = null;
+let mallCarritoMesh = null;
+let mallCartelCarrito = null;
+
+function mallBloque(x, y, z, w, h, d, color, choca, bottom) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+  if (choca) {
+    const o = addObstacle(x, z, w, d, y + h / 2, 'mall');
+    if (bottom != null) o.bottom = bottom;
+  }
+  return m;
+}
+function mallLetrero(texto, color, x, y, z, escala) {
+  const s = makeSign(texto, color);
+  s.position.set(x, y, z);
+  const e = escala || .4;
+  s.scale.set(e, e, e);
+  scene.add(s);
+  return s;
+}
+function preciosMall() {
+  const p = {};
+  for (const it of SHOP) p[it.key] = it.price;
+  return p;
+}
+function casasDelMall() { return casasConPrecio(preciosMall()); }
+function dentroDelMall(x, z) {
+  const e = MALL.edificio, m = 0.9;
+  return x > e.x - e.w / 2 + m && x < e.x + e.w / 2 - m && z > e.z - e.d / 2 + m && z < e.z + e.d / 2 - m;
+}
+function mallEnPuerta() {
+  return state.planet === 'tierra' && !state.country && Math.hypot(player.position.x - MALL.puerta.x, player.position.z - MALL.puerta.z) < 4.4;
+}
+function mallBalde() {
+  const g = new THREE.Group();
+  const cubo = new THREE.Mesh(new THREE.CylinderGeometry(.16, .12, .28, 10), new THREE.MeshBasicMaterial({ color: 0xdc2626 }));
+  cubo.position.y = .14; g.add(cubo);
+  const raya = new THREE.Mesh(new THREE.CylinderGeometry(.165, .125, .06, 10), new THREE.MeshBasicMaterial({ color: 0xf8fafc }));
+  raya.position.y = .2; g.add(raya);
+  for (let i = 0; i < 7; i++) {
+    const pop = new THREE.Mesh(new THREE.SphereGeometry(.045, 6, 5), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xfde68a : 0xfbbf24 }));
+    pop.position.set((i % 3 - 1) * .06, .3, ((i % 2) - .5) * .06);
+    g.add(pop);
+  }
+  return g;
+}
+function mallPalomitasPose() {
+  const tiene = !!(state && state.mallPalomitas);
+  const sentado = !!(sitOn && sitOn.mallCine);
+  if (mallBaldeMano) mallBaldeMano.visible = tiene && !sentado && cameraMode === 0;
+  if (mallBaldeSilla) {
+    mallBaldeSilla.visible = tiene && sentado;
+    if (sentado && sitOn && sitOn.mesh) {
+      const p = sitOn.mesh.position;
+      mallBaldeSilla.position.set(p.x + .55, p.y + .15, p.z + .15);
+    }
+  }
+}
+function pararVozCine() {
+  if (mallVozTimer) { clearTimeout(mallVozTimer); mallVozTimer = 0; }
+  if (mallUtter) {
+    try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+    mallUtter = null;
+  }
+  const sub = ui('mallSub');
+  if (sub) sub.style.display = 'none';
+}
+function hablarCine(esc) {
+  if (!soundOn || !esc || !esc.texto) return;
+  const loopN = Math.floor(mallCineT / CINE_DURACION);
+  const clave = loopN + ':' + esc.i;
+  if (mallVozClave === clave) return;
+  mallVozClave = clave;
+  if (typeof cortarVozTele === 'function') cortarVozTele();
+  const texto = esc.texto;
+  const perfil = (typeof TV_VOCES !== 'undefined' && TV_VOCES[esc.voz]) || { pitch: esc.voz === 'mujer' ? 1.55 : 0.45, rate: esc.voz === 'mujer' ? 1.05 : 0.92 };
+  if (mallVozTimer) clearTimeout(mallVozTimer);
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+  mallVozTimer = setTimeout(() => {
+    mallVozTimer = 0;
+    if (!(sitOn && sitOn.mallCine) || !soundOn) return;
+    try {
+      const syn = window.speechSynthesis;
+      if (!syn || typeof SpeechSynthesisUtterance !== 'function') return;
+      const u = new SpeechSynthesisUtterance(texto);
+      u.lang = 'es-CL';
+      u.pitch = perfil.pitch;
+      u.rate = perfil.rate;
+      if (typeof fichaVoz === 'function') {
+        const f = fichaVoz(esc.voz);
+        if (f && f.voz) u.voice = f.voz;
+      }
+      mallUtter = u;
+      syn.speak(u);
+    } catch (e) {}
+  }, 320);
+}
+function mallLineas(ctx, texto, max) {
+  const palabras = String(texto || '').split(' ');
+  const lineas = [];
+  let act = '';
+  for (const p of palabras) {
+    const t = act ? act + ' ' + p : p;
+    if (ctx.measureText(t).width > max && act) { lineas.push(act); act = p; }
+    else act = t;
+  }
+  if (act) lineas.push(act);
+  return lineas;
+}
+function dibujarCine(esc) {
+  const ctx = mallCineCtx;
+  if (!ctx) return;
+  const cv = ctx.canvas;
+  const w = cv.width, h = cv.height;
+  ctx.fillStyle = '#1c1917'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#44403c'; ctx.fillRect(0, 40, w, h - 40);
+  ctx.fillStyle = '#292524'; ctx.fillRect(0, h - 70, w, 70);
+  const puertaAbierta = esc && esc.i >= 7 && esc.i < 21;
+  ctx.fillStyle = puertaAbierta ? '#44403c' : '#78350f';
+  ctx.fillRect(470, 70, 70, 210);
+  if (!puertaAbierta) { ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(525, 180, 5, 0, 7); ctx.fill(); }
+  else { ctx.strokeStyle = '#a8a29e'; ctx.strokeRect(470, 70, 18, 210); }
+  if (esc && esc.i >= 1) { ctx.fillStyle = '#b45309'; ctx.fillRect(150, 230, 54, 36); ctx.fillStyle = '#92400e'; ctx.fillRect(146, 222, 62, 12); }
+  const lamp = esc && esc.i >= 8 && esc.i < 20;
+  ctx.fillStyle = lamp ? '#fde68a' : '#57534e';
+  ctx.fillRect(300, 78, 16, 28);
+  if (lamp) { ctx.fillStyle = 'rgba(253,230,138,.35)'; ctx.beginPath(); ctx.arc(308, 150, 70, 0, 7); ctx.fill(); }
+  ctx.fillStyle = '#78350f'; ctx.fillRect(210, 214, 90, 12); ctx.fillRect(222, 226, 10, 28); ctx.fillRect(278, 226, 10, 28);
+  if (esc && esc.i >= 10) { ctx.fillStyle = '#fef3c7'; ctx.fillRect(236, 196, 36, 22); }
+  if (esc && esc.i >= 16) { ctx.fillStyle = '#f8fafc'; ctx.fillRect(248, 188, 16, 14); ctx.fillStyle = '#854d0e'; ctx.fillRect(250, 192, 12, 6); }
+  if (esc && esc.i >= 19) { ctx.fillStyle = '#dc2626'; ctx.fillRect(188, 198, 18, 16); ctx.fillStyle = '#fde68a'; ctx.fillRect(190, 192, 14, 8); }
+  ctx.fillStyle = '#7dd3fc'; ctx.fillRect(40, 78, 64, 48);
+  ctx.strokeStyle = '#0f172a'; ctx.strokeRect(40, 78, 64, 48);
+  if (esc && esc.i >= 12) { ctx.fillStyle = '#0f172a'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('CIERRA', 72, 98); ctx.fillText('DE NOCHE', 72, 112); }
+  const poner = (x, color, nombre) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(x - 16, 168, 32, 52);
+    ctx.beginPath(); ctx.arc(x, 148, 16, 0, 7); ctx.fill();
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(x - 14, 214, 12, 32); ctx.fillRect(x + 2, 214, 12, 32);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(nombre, x, 262);
+  };
+  if (esc) {
+    const lx = esc.lila[0] + (esc.lila[1] - esc.lila[0]) * esc.lt;
+    const mx = esc.mateo[0] + (esc.mateo[1] - esc.mateo[0]) * esc.lt;
+    poner(lx, '#f472b6', 'Lila');
+    poner(mx, '#38bdf8', 'Mateo');
+    ctx.font = 'bold 18px sans-serif';
+    const lineas = mallLineas(ctx, esc.texto, 460);
+    const bw = 500, bh = 18 + lineas.length * 24, bx = (w - bw) / 2, by = 8;
+    ctx.fillStyle = 'rgba(255,255,255,.94)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#111';
+    ctx.textAlign = 'center';
+    lineas.forEach((ln, i) => ctx.fillText(ln, w / 2, by + 24 + i * 24));
+    const minuto = Math.min(10, Math.floor((mallCineT % CINE_DURACION) / 60) + 1);
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(w - 150, h - 36, 140, 26);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('Minuto ' + minuto + ' de 10', w - 16, h - 18);
+  } else {
+    ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 42px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('LA NOVELA', w / 2, 150);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('Un capítulo · 10 minutos', w / 2, 196);
+    ctx.fillText('Siéntate con E', w / 2, 232);
+  }
+  if (mallCineTex) mallCineTex.needsUpdate = true;
+}
+function mallSentarEn(p) {
+  if (state.phase !== 'DAY') { toast('El cine abre de día'); return false; }
+  sitOn = { mesh: p.mesh, key: 'silla', mallCine: true, salida: p.salida };
+  yaw = Math.PI / 2; pitch = .08;
+  const m = p.mesh;
+  player.position.set(m.position.x + Math.sin(m.rotation.y) * .22, m.position.y + 1.05, m.position.z + Math.cos(m.rotation.y) * .22);
+  dibujarCine(escenaCine(mallCineT));
+  toast('🎬 Capítulo de 10 minutos. E para levantarte');
+  beep(440, .08, .04);
+  return true;
+}
+function mallLevantarse() {
+  pararVozCine();
+  const salida = sitOn && sitOn.salida;
+  sitOn = null;
+  if (salida) player.position.set(salida.x, PLAYER_EYE, salida.z);
+  toast('🚶 Te levantaste');
+  return true;
+}
+function comprarPalomitas() {
+  if (state.phase !== 'DAY') { toast('El puesto de palomitas abre de día'); return false; }
+  if (state.mallPalomitas) { toast('🍿 Ya llevas palomitas'); mallPalomitasPose(); return true; }
+  if (!state.creative && state.money < PALOMITAS_PRECIO) { toast('💸 No te alcanza. Las palomitas cuestan $' + PALOMITAS_PRECIO); return true; }
+  if (!state.creative) state.money -= PALOMITAS_PRECIO;
+  state.mallPalomitas = true;
+  mallPalomitasPose();
+  toast(state.creative ? '🍿 Palomitas (creativo, sin cobro)' : '🍿 Palomitas · $' + PALOMITAS_PRECIO);
+  beep(680, .08, .04);
+  return true;
+}
+function comprarComidaMall(comida) {
+  if (state.phase !== 'DAY') { toast('El patio de comidas abre de día'); return false; }
+  if (!state.creative && state.money < comida.price) { toast('💸 No te alcanza para ' + comida.name + ' ($' + comida.price + ')'); return true; }
+  if (!state.creative) state.money -= comida.price;
+  state.inv.food = (state.inv.food || 0) + 1;
+  toast(comida.emoji + ' ' + comida.name + ' · $' + (state.creative ? 0 : comida.price) + ' · va a tu inventario');
+  beep(620, .08, .04);
+  saveGame();
+  return true;
+}
+function mallElegirCasa(id) {
+  const casa = casasDelMall().find(c => c.id === id);
+  if (!casa) return false;
+  mallCart = mallAgregar(mallCart, { kind: 'casa', key: casa.key, id: casa.id, name: casa.name, price: casa.price, piezas: casa.piezas, color: 0xd97706 });
+  dibujarCarritoMall();
+  if (ui('mallbox') && ui('mallbox').style.display === 'flex') renderCajaMall();
+  toast('🛒 ' + casa.name + ' · $' + casa.price + ' en el carrito');
+  beep(520, .06, .04);
+  return true;
+}
+function mallElegirItem(key) {
+  const item = shopCatalog().find(it => it.key === key);
+  if (!item) return false;
+  mallCart = mallAgregar(mallCart, { kind: 'tienda', key: item.key, name: item.name, price: item.price, color: item.color || 0x38bdf8 });
+  dibujarCarritoMall();
+  if (ui('mallbox') && ui('mallbox').style.display === 'flex') renderCajaMall();
+  toast('🛒 ' + item.name + ' · $' + item.price + ' en el carrito');
+  beep(520, .06, .04);
+  return true;
+}
+function mallQuitar(i) {
+  mallCart = mallCart.filter((_, j) => j !== +i);
+  dibujarCarritoMall();
+  renderCajaMall();
+}
+function dibujarCarritoMall() {
+  if (!mallCarritoMesh) return;
+  for (let i = mallCarritoMesh.children.length - 1; i >= 0; i--) {
+    const c = mallCarritoMesh.children[i];
+    if (!c.userData.base) mallCarritoMesh.remove(c);
+  }
+  mallCart.forEach((linea, i) => {
+    if (i > 17) return;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(.32, .26, .32), new THREE.MeshBasicMaterial({ color: linea.color || 0xf59e0b }));
+    const col = i % 3, fila = Math.floor(i / 3);
+    box.position.set((col - 1) * .36, .42 + fila * .28, (fila % 2) * .08);
+    box.castShadow = true;
+    mallCarritoMesh.add(box);
+  });
+  if (mallCartelCarrito) {
+    const total = mallCart.reduce((s, l) => s + (l.price || 0), 0);
+    refreshSignText(mallCartelCarrito, mallCart.length ? ('CARRITO $' + total) : 'CARRITO VACIO', 0xfbbf24);
+  }
+}
+function renderCajaMall() {
+  const lines = ui('mallCartLines'), total = ui('mallCartTotal'), casas = ui('mallCasas'), cat = ui('mallCatalogo');
+  if (!lines) return;
+  const suma = mallCart.reduce((s, l) => s + (l.price || 0), 0);
+  lines.innerHTML = mallCart.length ? mallCart.map((l, i) =>
+    '<div style="display:flex; justify-content:space-between; gap:8px; padding:3px 0; border-bottom:1px solid rgba(255,255,255,.08);">' +
+    '<span>' + l.name + '</span><span>$' + l.price + ' <button data-mall="quitar" data-i="' + i + '" style="pointer-events:all; cursor:pointer; background:transparent; color:#fca5a5; border:none; font-weight:800;">✕</button></span></div>'
+  ).join('') : '<div style="opacity:.7">El carrito está vacío. Elige casas o cosas de la tienda.</div>';
+  total.textContent = 'Total: $' + suma + (state.creative ? ' · creativo, no se cobra' : '');
+  const btn = (attrs, texto) => '<button ' + attrs + ' style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.16); border-radius:8px; padding:7px 6px; font-size:12px; font-weight:700; text-align:left;">' + texto + '</button>';
+  casas.innerHTML = casasDelMall().map(c => btn('data-mall="casa" data-id="' + c.id + '"', c.name + ' · $' + c.price)).join('');
+  cat.innerHTML = shopCatalog().map(it => {
+    const lock = it.unlockAt && state.totalEarned < it.unlockAt ? '🔒 ' : '';
+    return btn('data-mall="item" data-key="' + it.key + '"', lock + it.name + ' · $' + it.price);
+  }).join('');
+}
+function abrirCajaMall() {
+  if (state.planet !== 'tierra' || state.phase !== 'DAY') { toast('La caja atiende de día'); return false; }
+  if (typeof closeShopInput === 'function') closeShopInput();
+  if (typeof closeMathBox === 'function') closeMathBox();
+  if (typeof closeBank === 'function') closeBank();
+  if (typeof releaseLock === 'function') releaseLock();
+  typing = true;
+  for (const k in keys) keys[k] = false;
+  renderCajaMall();
+  ui('mallbox').style.display = 'flex';
+  return true;
+}
+function cerrarCajaMall() {
+  const el = ui('mallbox');
+  if (!el || el.style.display === 'none') return;
+  el.style.display = 'none';
+  typing = algunRecuadroAbierto();
+}
+function pagarCarritoMall() {
+  const check = mallPuedePagar(state.money, mallCart, !!state.creative);
+  if (!check.ok) {
+    toast(check.razon === 'plata' ? ('💸 No te alcanza para el carrito ($' + check.total + ')') : 'El carrito está vacío');
+    return false;
+  }
+  const antesCart = mallCart.slice();
+  const quedan = [];
+  for (const linea of antesCart) {
+    if (linea.kind === 'casa') {
+      if (!state.creative) state.money -= linea.price || 0;
+      for (const [k, n] of Object.entries(linea.piezas || {})) state.inv[k] = (state.inv[k] || 0) + n;
+    } else {
+      const item = shopCatalog().find(it => it.key === linea.key);
+      if (!item) { quedan.push(linea); continue; }
+      const antes = state.money;
+      buyItem(item);
+      if (state.creative) state.money = antes;
+      else if (!(state.money < antes)) quedan.push(linea);
+    }
+  }
+  mallCart = quedan;
+  dibujarCarritoMall();
+  renderCajaMall();
+  saveGame();
+  toast(quedan.length ? '🛒 Quedó algo en el carrito que no se pudo comprar' : ('🛒 Pagaste el carrito' + (state.creative ? ' (creativo, sin cobro)' : ' · $' + check.total)));
+  beep(880, .08, .05);
+  return true;
+}
+function mallUsarPuerta() {
+  if (dentroDelMall(player.position.x, player.position.z)) {
+    if (sitOn && sitOn.mallCine) mallLevantarse();
+    player.position.set(MALL.puerta.x, PLAYER_EYE, MALL.puerta.z);
+    toast('Saliste del Mall del Sur');
+    return true;
+  }
+  if (state.phase !== 'DAY') { toast('El mall está cerrado. Abre de día.'); return true; }
+  player.position.set(MALL.adentro.x, PLAYER_EYE, MALL.adentro.z);
+  yaw = 0; pitch = 0;
+  toast('🏬 Mall del Sur · cine, súper y patio de comidas');
+  return true;
+}
+function sacarDelMall() {
+  const adentro = dentroDelMall(player.position.x, player.position.z) || !!(sitOn && sitOn.mallCine);
+  if (!adentro || state.phase !== 'NIGHT') return false;
+  pararVozCine();
+  cerrarCajaMall();
+  sitOn = null;
+  player.position.set(MALL.puerta.x, PLAYER_EYE, MALL.puerta.z);
+  vy = 0;
+  if (dad && dad.visible && dentroDelMall(dad.position.x, dad.position.z)) dad.position.set(MALL.puerta.x + 1.5, 0, MALL.puerta.z);
+  toast('🌙 El mall cierra de noche. Te sacaron a la puerta.');
+  return true;
+}
+function mallPuestoCerca() {
+  if (state.planet !== 'tierra' || state.country) return null;
+  let best = null, bd = 1e9;
+  for (const p of mallPuestos) {
+    const d = Math.hypot(player.position.x - p.x, player.position.z - p.z);
+    if (d <= p.radio && d < bd) { bd = d; best = p; }
+  }
+  return best;
+}
+function mallAccion() {
+  if (state.planet !== 'tierra' || state.country || state.driving || state.inFlight) return null;
+  if (sitOn && sitOn.mallCine) return { key: 'E', touch: '🎬', text: 'Levantarte · el capítulo dura 10 minutos' };
+  const p = mallPuestoCerca();
+  if (p) {
+    if (p.tipo === 'butaca') return { key: 'E', touch: '🎬', text: 'Sentarte · capítulo de la novela, 10 minutos' };
+    if (p.tipo === 'palomitas') return { key: 'E', touch: '🍿', text: 'Comprar palomitas · $' + PALOMITAS_PRECIO };
+    if (p.tipo === 'caja') return { key: 'E', touch: '🛒', text: 'Pagar en la caja · el carrito y toda la tienda' };
+    if (p.tipo === 'casa') return { key: 'E', touch: '🏠', text: 'Elegir ' + p.nombre + ' · $' + p.precio };
+    if (p.tipo === 'pieza') return { key: 'E', touch: '🧱', text: 'Elegir ' + p.nombre + ' · $' + p.precio };
+    if (p.tipo === 'comida') return { key: 'E', touch: p.comida.emoji, text: 'Comprar ' + p.comida.name + ' · $' + p.comida.price };
+  }
+  if (mallEnPuerta() && !dentroDelMall(player.position.x, player.position.z)) {
+    return state.phase === 'DAY'
+      ? { key: 'E', touch: '🏬', text: 'Entrar al Mall del Sur' }
+      : { key: 'E', touch: '🌙', text: 'El mall está cerrado. Abre de día.' };
+  }
+  if (dentroDelMall(player.position.x, player.position.z) && Math.hypot(player.position.x - MALL.adentro.x, player.position.z - MALL.adentro.z) < 3.2)
+    return { key: 'E', touch: '🚪', text: 'Salir del mall' };
+  return null;
+}
+function tryMall() {
+  if (state.planet !== 'tierra' || state.country || state.driving || state.inFlight) return false;
+  if (sitOn && sitOn.mallCine) return mallLevantarse();
+  const p = mallPuestoCerca();
+  if (p) {
+    if (state.phase !== 'DAY' && p.tipo !== 'butaca') { toast('El mall atiende de día'); return true; }
+    if (p.tipo === 'butaca') return mallSentarEn(p);
+    if (p.tipo === 'palomitas') return comprarPalomitas();
+    if (p.tipo === 'caja') return abrirCajaMall();
+    if (p.tipo === 'casa') return mallElegirCasa(p.id);
+    if (p.tipo === 'pieza') return mallElegirItem(p.key);
+    if (p.tipo === 'comida') return comprarComidaMall(p.comida);
+  }
+  if (mallEnPuerta() || (dentroDelMall(player.position.x, player.position.z) && Math.hypot(player.position.x - MALL.adentro.x, player.position.z - MALL.adentro.z) < 3.2))
+    return mallUsarPuerta();
+  return false;
+}
+function updateMall(dt) {
+  if (state.planet !== 'tierra') return;
+  if (state.phase === 'NIGHT') sacarDelMall();
+  for (const g of mallGuardias) {
+    if (!g.visible) continue;
+    const dest = g.userData.haciaB ? g.userData.b : g.userData.a;
+    const d = Math.hypot(g.position.x - dest.x, g.position.z - dest.z);
+    if (d < .45) g.userData.haciaB = !g.userData.haciaB;
+    else moveToward(g, dest, 1.5 * dt);
+    const mira = g.userData.haciaB ? g.userData.b : g.userData.a;
+    g.rotation.y = Math.atan2(mira.x - g.position.x, mira.z - g.position.z);
+    swingLimbs(g, dt);
+  }
+  if (sitOn && sitOn.mallCine && state.phase === 'DAY') {
+    mallCineT += dt;
+    const esc = escenaCine(mallCineT);
+    dibujarCine(esc);
+    hablarCine(esc);
+    const sub = ui('mallSub');
+    if (sub) { sub.style.display = 'block'; sub.textContent = esc.texto; }
+  }
+  mallPalomitasPose();
+}
+function mallGuardia(x, z, ax, az, bx, bz) {
+  const p = makePerson(0x1e3a8a, 0xf1c27d);
+  p.position.set(x, 0, z);
+  p.userData.mallGuardia = true;
+  p.userData.a = { x: ax, z: az };
+  p.userData.b = { x: bx, z: bz };
+  p.userData.haciaB = true;
+  const gorra = new THREE.Mesh(new THREE.BoxGeometry(.52, .12, .52), mat(0x0f172a));
+  gorra.position.y = 2.38; p.add(gorra);
+  const placa = new THREE.Mesh(new THREE.BoxGeometry(.16, .12, .04), mat(0xfacc15));
+  placa.position.set(.2, 1.5, .24); p.add(placa);
+  scene.add(p);
+  mallGuardias.push(p);
+  return p;
+}
+function buildMall() {
+  const B = MALL.edificio, h = B.h, t = .48;
+  const norte = B.z + B.d / 2, sur = B.z - B.d / 2, oeste = B.x - B.w / 2, este = B.x + B.w / 2;
+  const crema = 0xf3e6d0, rojo = 0xb91c1c, acero = 0x334155;
+  mallBloque(-25, h / 2, norte, 42, h, t, crema, true);
+  mallBloque(25, h / 2, norte, 42, h, t, crema, true);
+  mallBloque(0, 5.45, norte, 8, 3.9, t, acero, true, 3.5);
+  mallBloque(0, h / 2, sur, B.w, h, t, crema, true);
+  mallBloque(oeste, h / 2, B.z, t, h, B.d, crema, true);
+  mallBloque(este, h / 2, B.z, t, h, B.d, crema, true);
+  mallBloque(0, h - .16, B.z, B.w - .8, .32, B.d - .8, 0xe7e5e4, true, h - .4);
+  mallBloque(0, 5.6, norte + .02, 86, .55, .2, rojo, false);
+  for (const sx of [-5.2, 5.2]) mallBloque(sx, 3, norte + .55, .55, 6, .55, 0xe7e5e4, false);
+  const vidrio = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: .38, roughness: .05, metalness: .25 });
+  for (const sx of [-1.6, 1.6]) {
+    const hoja = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.1, .08), vidrio);
+    hoja.position.set(sx, 1.6, norte + .05); scene.add(hoja);
+  }
+  mallLetrero('MALL DEL SUR', 0xfbbf24, 0, 6.35, norte + .35, .85);
+  mcFloor(scene, 0, -185.2, 78, 5, 0xe2e8f0, .08);
+  mcFloor(scene, 0, -204, 7.2, 32, 0xcbd5e1, .09);
+  mcFloor(scene, -27, -206, 34, 30, 0x4c1d3a, .1);
+  mcFloor(scene, 27, -205, 34, 32, 0xf8fafc, .1);
+  mcFloor(scene, 0, -216, 72, 12, 0xfde68a, .11);
+  mcFloor(scene, 0, -182.35, 14, .9, 0xd6d3d1, .08);
+  const cv = document.createElement('canvas'); cv.width = 640; cv.height = 360;
+  const tex = new THREE.CanvasTexture(cv);
+  const pantalla = new THREE.Mesh(new THREE.PlaneGeometry(10, 5.4), new THREE.MeshBasicMaterial({ map: tex }));
+  pantalla.position.set(-44.55, 2.9, -208);
+  pantalla.rotation.y = Math.PI / 2;
+  mallCineCtx = cv.getContext('2d');
+  mallCineTex = tex;
+  pantalla.userData.cv = cv;
+  scene.add(pantalla);
+  mallPantalla = pantalla.material;
+  dibujarCine(null);
+  const marco = mallBloque(-44.7, 2.9, -208, .2, 5.8, 10.4, 0x1c1917, false);
+  marco.position.x = -44.85;
+  for (const x of [-39, -35, -31, -27]) for (const z of [-203, -208, -213]) {
+    mallBloque(x, .28, z, .7, .5, .7, 0x7f1d1d, false);
+    mallBloque(x - .28, .62, z, .12, .7, .7, 0x44403c, false);
+    const mesh = new THREE.Object3D();
+    mesh.position.set(x, .48, z);
+    mesh.rotation.y = -Math.PI / 2;
+    scene.add(mesh);
+    mallPuestos.push({ tipo: 'butaca', x, z, radio: 1.15, mesh, salida: { x: x + 1.15, y: 0, z } });
+  }
+  mallBloque(-15, .55, -188.2, 1.8, 1.1, .8, 0xdc2626, false);
+  mallBloque(-15, 1.15, -188.2, 1.5, .12, .9, 0xfef2f2, false);
+  mallLetrero('PALOMITAS $' + PALOMITAS_PRECIO, 0xfde68a, -15, 2.15, -188.2, .32);
+  mallPuestos.push({ tipo: 'palomitas', x: -15, z: -188.2, radio: 2.2 });
+  mallBloque(-9, h / 2, -209.2, t, h, 25, acero, true);
+  mallBloque(-9, h / 2, -189.2, t, h, 2.2, acero, true);
+  mallBloque(9, h / 2, -209.2, t, h, 25, acero, true);
+  mallBloque(9, h / 2, -189.2, t, h, 2.2, acero, true);
+  const casas = casasDelMall();
+  casas.forEach((c, i) => {
+    const z = -193.5 - i * 2.35;
+    mallBloque(40.2, .7, z, 1.5, 1.3, 1.5, 0xd6d3d1, false);
+    const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.7, .55, .7), mat(0xf59e0b));
+    cuerpo.position.set(40.2, 1.55, z); scene.add(cuerpo);
+    const techo = new THREE.Mesh(new THREE.ConeGeometry(.5, .35, 4), mat(0xb91c1c));
+    techo.position.set(40.2, 1.95, z); techo.rotation.y = Math.PI / 4; scene.add(techo);
+    mallLetrero(c.name + ' $' + c.price, 0xfbbf24, 40.2, 2.55, z, .28);
+    mallPuestos.push({ tipo: 'casa', id: c.id, nombre: c.name, precio: c.price, x: 38.6, z, radio: 1.7 });
+  });
+  PIEZAS_CASA_MALL.forEach((key, i) => {
+    const it = SHOP.find(s => s.key === key);
+    const z = -194 - i * 2.5;
+    mallBloque(33.2, .55, z, 1.3, 1, 1.2, (it && it.color) || 0x94a3b8, false);
+    mallLetrero((it ? it.name : key) + ' $' + (it ? it.price : 0), 0xbfdbfe, 33.2, 1.7, z, .26);
+    mallPuestos.push({ tipo: 'pieza', key, nombre: it ? it.name : key, precio: it ? it.price : 0, x: 31.6, z, radio: 1.6 });
+  });
+  mallCarritoMesh = new THREE.Group();
+  mallCarritoMesh.position.set(18, 0, -202);
+  const baseCanasto = (x, y, z, w, h, d) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(0x78716c));
+    m.position.set(x, y, z); m.userData.base = true; mallCarritoMesh.add(m);
+  };
+  baseCanasto(0, .22, 0, 1.3, .12, .9);
+  baseCanasto(0, .48, .42, 1.3, .45, .08);
+  baseCanasto(0, .48, -.42, 1.3, .45, .08);
+  baseCanasto(-.62, .48, 0, .08, .45, .9);
+  baseCanasto(.62, .48, 0, .08, .45, .9);
+  scene.add(mallCarritoMesh);
+  mallCartelCarrito = makeDynSign('CARRITO VACIO', 0xfbbf24);
+  mallCartelCarrito.position.set(18, 1.7, -202);
+  mallCartelCarrito.scale.set(.34, .34, .34);
+  scene.add(mallCartelCarrito);
+  mallBloque(16.2, .55, -210, 2.4, 1.05, .7, 0x1e293b, false);
+  const cajero = makePerson(0x166534, 0xf1c27d);
+  cajero.position.set(19.2, 0, -210);
+  cajero.rotation.y = -Math.PI / 2;
+  scene.add(cajero);
+  mallLetrero('CAJA · E', 0x4ade80, 16.2, 1.9, -210, .32);
+  mallPuestos.push({ tipo: 'caja', x: 16.2, z: -210, radio: 2.4 });
+  COMIDAS_MALL.forEach((comida, i) => {
+    const x = -28 + i * 22;
+    mallBloque(x, .6, -220, 3.2, 1.15, 1.4, 0x9a3412, false);
+    mallBloque(x, 1.35, -220.3, 3.4, .12, 1.6, 0xf97316, false);
+    mallLetrero(comida.emoji + ' ' + comida.name + ' $' + comida.price, 0xffedd5, x, 2.15, -220, .3);
+    const clerk = makePerson(0xf97316, 0xf1c27d);
+    clerk.position.set(x, 0, -221.1);
+    clerk.rotation.y = Math.PI;
+    scene.add(clerk);
+    mallPuestos.push({ tipo: 'comida', comida, x, z: -218.6, radio: 2.1 });
+  });
+  for (const x of [-26, -12, 14, 28]) {
+    mallBloque(x, .72, -214.2, 1.6, .08, 1.1, 0xf8fafc, false);
+    for (const sx of [-.6, .6]) for (const sz of [-.4, .4]) mallBloque(x + sx, .36, -214.2 + sz, .08, .7, .08, 0x78716c, false);
+    for (const sz of [-.85, .85]) mallBloque(x, .45, -214.2 + sz, .45, .45, .45, 0xfca5a5, false);
+  }
+  const luz = (x, z) => {
+    const p = new THREE.PointLight(0xfff7ed, 12, 46, 1.6);
+    p.position.set(x, 5.6, z); scene.add(p);
+    const tira = new THREE.Mesh(new THREE.BoxGeometry(3.2, .08, .4), new THREE.MeshStandardMaterial({ color: 0xfff7ed, emissive: 0xfff7ed, emissiveIntensity: .9 }));
+    tira.position.set(x, 6.7, z); scene.add(tira);
+  };
+  luz(0, -188); luz(-28, -206); luz(28, -204); luz(0, -216);
+  mallGuardia(0, -188, 0, -186.5, 0, -209);
+  mallGuardia(-18, -196, -18, -194, -18, -216);
+  mallGuardia(24, -196, 24, -193, 24, -216);
+  mallGuardia(0, -216, -8, -216, 8, -216);
+  mallGuardia(-20, -186.4, -20, -186.4, 20, -186.4);
+  mallGuardia(-12, -191.5, -14, -191.5, -6, -191.5);
+  mallBaldeMano = mallBalde();
+  mallBaldeMano.position.set(-.28, -.28, -.58);
+  mallBaldeMano.scale.set(1.7, 1.7, 1.7);
+  mallBaldeMano.visible = false;
+  camera.add(mallBaldeMano);
+  mallBaldeSilla = mallBalde();
+  mallBaldeSilla.visible = false;
+  scene.add(mallBaldeSilla);
+  const caja = ui('mallbox');
+  if (caja && !caja.dataset.listo) {
+    caja.dataset.listo = '1';
+    caja.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-mall]');
+      if (!b) return;
+      if (b.dataset.mall === 'cerrar') cerrarCajaMall();
+      else if (b.dataset.mall === 'pagar') pagarCarritoMall();
+      else if (b.dataset.mall === 'casa') mallElegirCasa(b.dataset.id);
+      else if (b.dataset.mall === 'item') mallElegirItem(b.dataset.key);
+      else if (b.dataset.mall === 'quitar') mallQuitar(b.dataset.i);
+    });
+  }
+}
+buildMall();
+
 // ---- Cierre del "mundo de la Tierra": todo lo agregado desde el marcador es terrestre ----
 scene.children.forEach(o => { if (!_preEarthChildren.has(o)) earthMeshes.push(o); });
 obstacles.slice(_preEarthObsN).forEach(o => earthObstacles.push(o));
@@ -15539,7 +16143,7 @@ const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
 let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
 // Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
-const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'liftbox', 'aptbox', 'rocketbox', 'chatbox', 'chatReply', 'stickerMake', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox', 'questbox', 'keypadbox', 'blackbox'];
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'liftbox', 'aptbox', 'mallbox', 'rocketbox', 'chatbox', 'chatReply', 'stickerMake', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox', 'questbox', 'keypadbox', 'blackbox'];
 function algunRecuadroAbierto() {
   if (typeof wheelOpen === 'function' && wheelOpen()) return true;   // el menú de la rueda también cuenta
   return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
@@ -15571,6 +16175,7 @@ function tryInteract() {
   if (tryDoor()) return;          // abrir / cerrar la puerta de tu casa
   if (tryTorre()) return;         // edificio: conserje, ascensor y puertas de los deptos
   if (tryEntrada()) return;       // entrar / salir de los edificios por la puerta
+  if (tryMall()) return;          // mall: cine, palomitas, caja, patio y la puerta
   if (tryBuyPlot()) return;       // comprar el terreno del condominio
   if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract() && !tryVendorHere() && !tryHelperHere()) { if (!tryCollectGolden() && !tryRob() && !sellHouse()) tryGardenHere(); }
 }
@@ -15589,6 +16194,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('mathbox').style.display === 'flex') { closeMathBox(); return; }   // Esc cierra los desafíos
   if (e.code === 'Escape' && ui('bankbox').style.display === 'flex') { closeBank(); return; }      // Esc cierra el banco
   if (e.code === 'Escape' && ui('aptbox').style.display === 'flex') { cerrarDeptos(); return; }
+  if (e.code === 'Escape' && ui('mallbox') && ui('mallbox').style.display === 'flex') { cerrarCajaMall(); return; }
   if (e.code === 'Escape' && torreLift.rider) { elegirPiso('abrir'); return; }                      // Esc: bajarse (si el ascensor está detenido)
   if (e.code === 'Escape' && ui('rocketbox').style.display === 'flex') { closeRocket(); return; }  // Esc cierra los cajones del cohete
   if (e.code === 'Escape' && ui('businessbox').style.display === 'block') { closeBusiness(); return; }
@@ -15892,6 +16498,7 @@ function nearKeeper() {
 }
 function openShopInput() {
   if (state.phase !== 'DAY') { toast('El vendedor solo atiende de día'); return; }
+  cerrarCajaMall();
   if (!nearKeeper()) { toast(state.planet === 'platus' ? '👽 Acércate al VENDEDOR ALIEN (cerca del cohete) y pulsa Y' : state.country ? '🛒 Busca el puesto VENDEDOR de este país y pulsa Y' : '🛒 Acércate a un VENDEDOR (centro del súper) y pulsa Y'); return; }
   closeMathBox(); closeRocket(); closeChatReply(); closeQuestPanel(); closeKeypad(); closeBlackMarket(); releaseLock();
   typing = true;
@@ -16595,6 +17202,7 @@ function startGame() {
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint();   // sin huevos/mascotas/banderita al empezar
   endEclipse(); state.coreClaimed = false; state.relics = 0; state.trophies = 0; removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
+  state.mallPalomitas = false; mallCart = []; dibujarCarritoMall(); mallPalomitasPose(); mallCineT = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
   state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.parkBusiness = null; state.worldEvent = null; state.nextWorldEvent = 45; state.foundSecrets = {}; state.secretsFound = 0; state.stamina = 100; state.blocking = false; state.dodgeCd = 0; state.invulnerable = 0; syncWorldSecrets();
@@ -17921,6 +18529,7 @@ function renderBank() {
     ((state.debt || 0) > 0 ? '<br>📉 Deuda: <b style="color:#f87171">$' + state.debt + '</b>' : '');
 }
 function openBank() {
+  cerrarCajaMall();
   closeShopInput(); closeMathBox(); closeRocket(); releaseLock();
   typing = true; for (const k in keys) keys[k] = false;
   ui('bankbox').style.display = 'flex'; renderBank();
@@ -18264,6 +18873,7 @@ function renderMathProblem() {
 }
 function openMathBox() {
   if (!state.running || (state.phase !== 'DAY' && state.phase !== 'NIGHT')) return;
+  cerrarCajaMall();
   if ((state.mathLeft || 0) <= 0) { toast('🧮 Ya resolviste los 5 desafíos de hoy. ¡Mañana hay más!'); return; }
   closeShopInput(); closeRocket(); closeChatReply(); closeQuestPanel(); closeKeypad(); closeBlackMarket(); releaseLock();
   typing = true;
@@ -20495,6 +21105,7 @@ function tryStartNight() {
 }
 function startNight() {
   state.phase = 'NIGHT'; state.nightTime = 0; state.spawnTimer = 0; state.buildMode = false;
+  sacarDelMall();   // si estabas adentro del mall, te dejan en la puerta
   state.night++;
   tutorialEvent('nightStarted');
   const duration = currentNightLength();
@@ -21740,6 +22351,7 @@ function loop() {
     updateEarthBulls(dt);                  // cinco toros del pasto, separados
     updateJailFolk(dt);                    // presos y guardias del penal
     updateTorre(dt);                       // edificio de deptos: pisos visibles, ascensor y luz
+    updateMall(dt);                        // mall: guardias, cine de 10 min y cierre de noche
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (onEarth) updateOceanExpedition(dt);
     if (state.phase === 'NIGHT') updateNight(dt);
@@ -21882,6 +22494,7 @@ function drawMinimap() {
   if (state.rocket) icon(state.rocket.position.x, state.rocket.position.z, '🚀', 13);
   // lugares con icono (la casa del tesoro NO se muestra: es secreta)
   if (state.planet !== 'platus') { icon(LUGARES.super.x, LUGARES.super.z, '🛒', 13); icon(LUGARES.armeria.x, LUGARES.armeria.z, '🔫', 13); icon(BANK_POS.x, BANK_POS.z, '🏦', 13); icon(TORRE.x, TORRE.z, '🏢', 14); icon(GAS_STATION_POS.x, GAS_STATION_POS.z, '⛽', 14); icon(ARCADE_POS.x, ARCADE_POS.z, '🎮', 15); icon(LUGARES.carcel.x, LUGARES.carcel.z, '🚔', 12); icon(SKI_RESORT.gate.x, SKI_RESORT.gate.z, '⛷️', 15); }   // súper / armería / banco / gasolinera / arcade / cárcel / esquí
+  if (state.planet === 'tierra') icon(LUGARES.mall.x, LUGARES.mall.z, '🏬', 14);
   if (state.planet !== 'platus') {   // los tres parques
     icon(CONDO_PARK.x, CONDO_PARK.z, '🌳', 13); icon(FUN_PARK.x, FUN_PARK.z, '🎡', 15); icon(WATER_PARK.x, WATER_PARK.z, '🏊', 14);
     icon(AIRPORT.x, AIRPORT.z, '✈️', 15);
@@ -22655,6 +23268,20 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.updateNight = updateNight;
   timDump.applyPoison = applyPoison;
   timDump.updatePoison = updatePoison;
+  timDump.mallCart = () => mallCart.map(l => ({ key: l.key, name: l.name, price: l.price, kind: l.kind }));
+  timDump.mallElegirCasa = mallElegirCasa;
+  timDump.mallElegir = mallElegirItem;
+  timDump.mallPagar = pagarCarritoMall;
+  timDump.mallQuitar = mallQuitar;
+  timDump.abrirCajaMall = abrirCajaMall;
+  timDump.mallCineEn = (t) => { mallCineT = t || 0; dibujarCine(escenaCine(mallCineT)); return escenaCine(mallCineT); };
+  timDump.cineLienzo = () => mallCineCtx ? mallCineCtx.canvas.toDataURL('image/png') : '';
+  timDump.comprarPalomitas = comprarPalomitas;
+  timDump.sentarCine = () => { const b = mallPuestos.find(p => p.tipo === 'butaca'); return b ? mallSentarEn(b) : false; };
+  timDump.mallDentro = () => dentroDelMall(player.position.x, player.position.z);
+  timDump.mallGuardias = () => mallGuardias.map(g => ({ x: +g.position.x.toFixed(1), z: +g.position.z.toFixed(1) }));
+  timDump.sacarDelMall = sacarDelMall;
+  timDump.updateMall = updateMall;
   window.__tim = timDump;
 } } catch (e) {}
 function netAddConn(c) {
@@ -23241,6 +23868,7 @@ function updateContextPrompt() {
     else if (torreLift.rider) action = { key: '🛗', touch: '🛗', text: 'Elige el piso en la botonera' };
     else if (torreAccion()) action = torreAccion();
     else if (entradaAccion()) action = entradaAccion();
+    else if (mallAccion()) action = mallAccion();
     else if (job && jobDog && job.id === 'dog' && !job.calm && dist2D(player.position, jobDog.position) < 3) action = { key: 'E', touch: '🐕', text: 'Calmar al perro perdido' };
     else if (job && jobCrate && job.id === 'crates' && dist2D(player.position, jobCrate.position) < 3) action = { key: 'E', touch: '📦', text: 'Abrir el cajón de Tito' };
     else {

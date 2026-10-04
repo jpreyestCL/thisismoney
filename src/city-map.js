@@ -36,6 +36,9 @@ const RAMALES = [
   { id: 'ramal_desierto_este', eje: 'h', at: -80, desde: 150, hasta: 180, ramal: 'desiertoEste' },
   { id: 'ramal_playa', eje: 'h', at: -40, desde: -162, hasta: -150, ramal: 'playa' },
   { id: 'ramal_dunas', eje: 'h', at: 100, desde: -182, hasta: -150, ramal: 'dunasNorte' },
+  // Sale de la autopista sur (z -150) y termina ANTES del edificio: el ramal
+  // puede entrar al distrito, pero la caja del mall queda al sur del asfalto.
+  { id: 'ramal_mall', eje: 'v', at: 0, desde: -174, hasta: -150, ramal: 'mall' },
 ];
 
 export const AVENIDAS = Object.freeze([...avenidasBase(), ...RAMALES].map(Object.freeze));
@@ -99,6 +102,17 @@ const TORRE = Object.freeze({
   id: 'torre', nombre: 'Edificio Mirador', icono: '🏢', x: -27.5, z: 130, w: 36, d: 24, tipo: 'residencial',
 });
 
+// Mall gigante al SUR del anillo, en terreno que no es de nadie: no toca
+// calles, veredas, manzanas, el condominio, el banco, la cárcel, el Mirador
+// ni las afueras que ya existen. El edificio va metido en el distrito; el
+// ramal llega a la puerta y se queda al norte de la fachada.
+export const MALL = Object.freeze({
+  id: 'mall', nombre: 'Mall del Sur', icono: '🏬', x: 0, z: -198, w: 108, d: 64, tipo: 'comercio',
+  edificio: Object.freeze({ x: 0, z: -203, w: 92, d: 40, h: 7.4 }),
+  puerta: Object.freeze({ x: 0, z: -180.2 }),
+  adentro: Object.freeze({ x: 0, z: -186.2 }),
+});
+
 export const DISTRITOS = Object.freeze([
   ...CENTRO_URBANO.map(([id, nombre, icono, x, z, tipo]) =>
     Object.freeze({ id, nombre, icono, x, z, w: MANZANA, d: MANZANA, tipo })),
@@ -106,6 +120,7 @@ export const DISTRITOS = Object.freeze([
     Object.freeze({ id, nombre, icono, x, z, w: BANDA, d: BANDA, tipo: 'casas' })),
   BANCO,
   TORRE,
+  MALL,
   ...AFUERAS.map(Object.freeze),
 ]);
 
@@ -138,6 +153,7 @@ export const LUGARES = Object.freeze({
   aeropuerto: Object.freeze({ x: -30, z: 220, distrito: 'aeropuerto' }),
   desiertoEste: Object.freeze({ x: 215, z: -80, distrito: 'desiertoEste' }),
   desiertoNoroeste: Object.freeze({ x: -215, z: 100, distrito: 'dunasNorte' }),
+  mall: Object.freeze({ x: MALL.adentro.x, z: MALL.adentro.z, distrito: 'mall' }),
 });
 
 // ---- EL CONDOMINIO DONDE VIVES -------------------------------------

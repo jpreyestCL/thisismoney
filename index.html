@@ -4759,6 +4759,64 @@ function buildJail() {
     scene.add(p); jailFolk.push(p);
   });
 }
+const POLICE_CELL_SEC = 60;   // arresto policial: un minuto real en celda
+const POLICE_CELL_INDEX = 2;  // tercera celda del pabellón A
+function celdaArrestoBounds() {   // misma geometría que buildJail() (pabellón + 5 celdas)
+  const cx = JAIL.x, cz = JAIL.z, pw = 29, pd = 14, pt = .6, pz = cz - 8.5, pFondo = pz - pd / 2;
+  const celdaD = 5.2, celdaZ = pFondo + celdaD / 2 + pt / 2, anchoCelda = (pw - pt * 2) / 5;
+  const ex = cx - (pw - pt * 2) / 2 + anchoCelda * (POLICE_CELL_INDEX + .5);
+  const marg = .38;
+  return {
+    minX: ex - anchoCelda / 2 + marg, maxX: ex + anchoCelda / 2 - marg,
+    minZ: celdaZ - celdaD / 2 + marg, maxZ: celdaZ + celdaD / 2 - marg - .55,
+    x: ex, z: celdaZ - .35,
+  };
+}
+function clampPlayerEnCelda() {
+  const b = celdaArrestoBounds();
+  player.position.x = THREE.MathUtils.clamp(player.position.x, b.minX, b.maxX);
+  player.position.z = THREE.MathUtils.clamp(player.position.z, b.minZ, b.maxZ);
+}
+function fmtCeldaTiempo(sec) {
+  const s = Math.max(0, Math.ceil(sec));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+function startPoliceCellArrest() {
+  if (state.cellArrest) return;
+  if (state.phase === 'JAIL' || state.phase === 'OVER') return;
+  if (state.inFlight) abortFlight();
+  state.driving = false; removeMount(); leaveParkRide(true); standUp(true);
+  state.wanted = 0; state.wantedLevel = 0; clearPolice();
+  const fine = Math.round(state.money * GAME_RULES.jailMoneyLoss);
+  clearWaves(); state.money = Math.max(0, state.money - fine); state.hp = 100;
+  if (state.phase === 'NIGHT') { state.phase = 'DAY'; state.dayTime = 0; state.nightTime = 0; }
+  const b = celdaArrestoBounds();
+  player.position.set(b.x, PLAYER_EYE, b.z);
+  vy = 0; grounded = true; yaw = Math.PI;
+  state.cellArrest = { left: POLICE_CELL_SEC };
+  ui('phase').textContent = 'Celda · ' + fmtCeldaTiempo(POLICE_CELL_SEC);
+  toast('🚔 ¡Te atrapó la policía! Celda ' + POLICE_CELL_SEC + ' s · multa $' + fine);
+  beep(90, .22, .06);
+}
+function releasePoliceCellArrest() {
+  if (!state.cellArrest) return;
+  state.cellArrest = null;
+  state.wanted = 0; state.wantedLevel = 0; clearPolice();
+  const salida = LUGARES.spawn;
+  player.position.set(salida.x, PLAYER_EYE, salida.z + 3);
+  vy = 0; grounded = true;
+  if (ui('phase').textContent.startsWith('Celda ·')) ui('phase').textContent = '';
+  toast('🔓 Cumpliste tu tiempo. Ya puedes seguir jugando.');
+  tone(440, .12, .04, 'triangle');
+  saveGame();
+}
+function updateCellArrest(dt) {
+  if (!state.cellArrest) return;
+  clampPlayerEnCelda();
+  if (dt > 0) state.cellArrest.left -= dt;
+  ui('phase').textContent = 'Celda · ' + fmtCeldaTiempo(state.cellArrest.left);
+  if (state.cellArrest.left <= 0) releasePoliceCellArrest();
+}
 // buildBank() y buildJail() se llaman más abajo, junto al condominio: los dos usan
 // los helpers de parques (mcFloor, mcBench…), que todavía no existen en esta línea.
 function puntoJailLibre(x, z) {
@@ -4874,7 +4932,10 @@ function updatePolice(dt) {
     }
   } else if (police.length || state.wantedLevel) { clearPolice(); state.wantedLevel = 0; }   // se acabó la búsqueda
 }
-function policeCatch() { state.wanted = 0; state.wantedLevel = 0; state.driving = false; clearPolice(); toast('🚔 ¡Te atrapó la policía! A la cárcel…'); goToJail(); }
+function policeCatch() {
+  if (state.planet !== 'tierra' || state.country) { state.wanted = 0; state.wantedLevel = 0; state.driving = false; clearPolice(); goToJail(); return; }
+  startPoliceCellArrest();
+}
 
 // ===================================================================
 //  MENÚ EN RUEDA (Tab) — todas las órdenes sueltas en un solo botón
@@ -10773,6 +10834,7 @@ ENTRADAS.push(
 const ENTRADA_RADIO = 2.4;
 let entrandoAhora = false;
 function entradaCerca() {
+  if (state.cellArrest) return null;
   if (state.planet !== 'tierra' || state.country || state.driving || state.underground || state.inCastle || state.inRuins || state.inArena || state.inFlight || state.mission === 'alley' || torreLift.rider || sitOn) return null;
   const pies = player.position.y - PLAYER_EYE;
   for (const en of ENTRADAS) for (const lado of ['a', 'b']) {
@@ -15503,6 +15565,7 @@ function tryGardenHere() {   // huerto: si llevas semillas planta, y si llevas l
   return false;
 }
 function tryInteract() {
+  if (state.cellArrest) return;
   if (tryAlleyInteract()) return;
   if (tryJobInteract()) return;   // recados: calmar al perro / abrir el cajón
   if (tryDoor()) return;          // abrir / cerrar la puerta de tu casa
@@ -17539,6 +17602,7 @@ function saveGame() {
       parkBusiness: state.parkBusiness || null,
       business: state.business || null, businessOrders: state.businessOrders || 0,
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
+      cellArrestLeft: state.cellArrest ? Math.max(0, state.cellArrest.left) : 0,
     };
     if (state.inFlight && flight) {   // no guardar al jugador en el cielo: al recargar aterriza
       if (flight.home) { data.country = null; data.px = AIRPORT.x; data.pz = AIRPORT.z - 6; }
@@ -18462,6 +18526,12 @@ function loadGame() {
   const spawnY = (state.planet === 'tierra' && d.px != null && inTreasureIsland(d.px, d.pz)) ? TREASURE_ISLAND.surface + PLAYER_EYE
     : enTorre && d.pisoTorre > 0 ? Math.min(d.pisoTorre, TORRE.N - 1) * TORRE.H + PLAYER_EYE : PLAYER_EYE;   // en el edificio vuelves a tu piso
   player.position.set(d.px != null ? d.px : 10, spawnY, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
+  state.cellArrest = null;
+  if ((d.cellArrestLeft || 0) > 0 && state.planet === 'tierra' && !state.country) {
+    state.cellArrest = { left: Math.min(POLICE_CELL_SEC, d.cellArrestLeft) };
+    const cb = celdaArrestoBounds();
+    player.position.set(cb.x, PLAYER_EYE, cb.z); yaw = Math.PI;
+  }
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
   dad.userData.mode = d.dadMode || 'follow';
   dad.userData.resting = false; dad.rotation.x = 0;
@@ -21422,6 +21492,7 @@ function surviveNight() {
   saveGame();   // autoguardado cada noche superada
 }
 function goToJail() {
+  if (state.cellArrest) return;
   if (state.phase === 'JAIL' || state.phase === 'OVER') return;
   if (state.inFlight) abortFlight();
   state.driving = false; removeMount(); leaveParkRide(true); standUp(true);
@@ -21691,6 +21762,7 @@ function loop() {
   updateProgramas(state.paused ? 0 : dt);
   updateLavado(state.paused ? 0 : dt);
   billboardTick += dt; if (billboardTick >= .05) { updateBillboards(billboardTick); updateGamerRGB(); billboardTick = 0; }
+  if (state.cellArrest && state.running) updateCellArrest(state.paused ? 0 : dt);
   updateFloats(dt); updateCoins(dt); updateCombo(dt); updateImpactVoxels(dt);   // feedback de combate y recompensas
   updateSky(dt);
   hudTick += dt; if (hudTick >= .067) { renderHUD(); hudTick = 0; }
@@ -22391,7 +22463,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, renderShopList, openShopInput, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, abrirDeptos, enInteriorMirador, updateDad, damagePlayer, damageDad, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, amoblarDepto, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, renderShopList, openShopInput, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, startPoliceCellArrest, updateCellArrest, releasePoliceCellArrest, celdaArrestoBounds, POLICE_CELL_SEC, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, abrirDeptos, enInteriorMirador, updateDad, damagePlayer, damageDad, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, amoblarDepto, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,

@@ -1273,7 +1273,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';                  
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
-import { CASAS_MALL, CINE_DURACION, COMIDAS_MALL, PALOMITAS_PRECIO, PIEZAS_CASA_MALL, casasConPrecio, escenaCine, mallAgregar, mallPuedePagar } from './src/mall.js?v=1';
+import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_PRECIO, casasConPrecio, escenaCine, mallAgregar, mallPuedePagar, modoEscena, puestosSuper } from './src/mall.js?v=2';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -11350,64 +11350,111 @@ function mallLineas(ctx, texto, max) {
   if (act) lineas.push(act);
   return lineas;
 }
+function dibujarPersonaCine(ctx, x, color, nombre, alto, ySuelo) {
+  const s = alto || 1;
+  const suelo = ySuelo || 214;
+  ctx.fillStyle = color;
+  ctx.fillRect(x - 16 * s, suelo - 46 * s, 32 * s, 52 * s);
+  ctx.beginPath(); ctx.arc(x, suelo - 66 * s, 16 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(x - 14 * s, suelo, 12 * s, 32 * s); ctx.fillRect(x + 2 * s, suelo, 12 * s, 32 * s);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.round(13 * s) + 'px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(nombre, x, suelo + 48 * s);
+}
 function dibujarCine(esc) {
   const ctx = mallCineCtx;
   if (!ctx) return;
   const cv = ctx.canvas;
   const w = cv.width, h = cv.height;
-  ctx.fillStyle = '#1c1917'; ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = '#44403c'; ctx.fillRect(0, 40, w, h - 40);
-  ctx.fillStyle = '#292524'; ctx.fillRect(0, h - 70, w, 70);
-  const puertaAbierta = esc && esc.i >= 7 && esc.i < 21;
-  ctx.fillStyle = puertaAbierta ? '#44403c' : '#78350f';
-  ctx.fillRect(470, 70, 70, 210);
-  if (!puertaAbierta) { ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(525, 180, 5, 0, 7); ctx.fill(); }
-  else { ctx.strokeStyle = '#a8a29e'; ctx.strokeRect(470, 70, 18, 210); }
-  if (esc && esc.i >= 1) { ctx.fillStyle = '#b45309'; ctx.fillRect(150, 230, 54, 36); ctx.fillStyle = '#92400e'; ctx.fillRect(146, 222, 62, 12); }
-  const lamp = esc && esc.i >= 8 && esc.i < 20;
-  ctx.fillStyle = lamp ? '#fde68a' : '#57534e';
-  ctx.fillRect(300, 78, 16, 28);
-  if (lamp) { ctx.fillStyle = 'rgba(253,230,138,.35)'; ctx.beginPath(); ctx.arc(308, 150, 70, 0, 7); ctx.fill(); }
-  ctx.fillStyle = '#78350f'; ctx.fillRect(210, 214, 90, 12); ctx.fillRect(222, 226, 10, 28); ctx.fillRect(278, 226, 10, 28);
-  if (esc && esc.i >= 10) { ctx.fillStyle = '#fef3c7'; ctx.fillRect(236, 196, 36, 22); }
-  if (esc && esc.i >= 16) { ctx.fillStyle = '#f8fafc'; ctx.fillRect(248, 188, 16, 14); ctx.fillStyle = '#854d0e'; ctx.fillRect(250, 192, 12, 6); }
-  if (esc && esc.i >= 19) { ctx.fillStyle = '#dc2626'; ctx.fillRect(188, 198, 18, 16); ctx.fillStyle = '#fde68a'; ctx.fillRect(190, 192, 14, 8); }
-  ctx.fillStyle = '#7dd3fc'; ctx.fillRect(40, 78, 64, 48);
-  ctx.strokeStyle = '#0f172a'; ctx.strokeRect(40, 78, 64, 48);
-  if (esc && esc.i >= 12) { ctx.fillStyle = '#0f172a'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('CIERRA', 72, 98); ctx.fillText('DE NOCHE', 72, 112); }
-  const poner = (x, color, nombre) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(x - 16, 168, 32, 52);
-    ctx.beginPath(); ctx.arc(x, 148, 16, 0, 7); ctx.fill();
-    ctx.fillStyle = '#111827';
-    ctx.fillRect(x - 14, 214, 12, 32); ctx.fillRect(x + 2, 214, 12, 32);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(nombre, x, 262);
-  };
-  if (esc) {
-    const lx = esc.lila[0] + (esc.lila[1] - esc.lila[0]) * esc.lt;
-    const mx = esc.mateo[0] + (esc.mateo[1] - esc.mateo[0]) * esc.lt;
-    poner(lx, '#f472b6', 'Lila');
-    poner(mx, '#38bdf8', 'Mateo');
-    ctx.font = 'bold 18px sans-serif';
-    const lineas = mallLineas(ctx, esc.texto, 460);
-    const bw = 500, bh = 18 + lineas.length * 24, bx = (w - bw) / 2, by = 8;
-    ctx.fillStyle = 'rgba(255,255,255,.94)';
-    ctx.fillRect(bx, by, bw, bh);
-    ctx.fillStyle = '#111';
-    ctx.textAlign = 'center';
-    lineas.forEach((ln, i) => ctx.fillText(ln, w / 2, by + 24 + i * 24));
-    const minuto = Math.min(10, Math.floor((mallCineT % CINE_DURACION) / 60) + 1);
-    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(w - 150, h - 36, 140, 26);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'right';
-    ctx.fillText('Minuto ' + minuto + ' de 10', w - 16, h - 18);
-  } else {
+  ctx.fillStyle = '#140c18'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#7f1d1d'; ctx.fillRect(0, 0, 28, h); ctx.fillRect(w - 28, 0, 28, h);
+  ctx.fillStyle = '#3f2a22'; ctx.fillRect(0, h - 86, w, 86);
+  ctx.fillStyle = '#4c1d3a';
+  for (let i = 0; i < 8; i++) ctx.fillRect(48 + i * 72, h - 78, 48, 26);
+  if (!esc) {
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(150, 48, 340, 190);
     ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 42px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('LA NOVELA', w / 2, 150);
+    ctx.fillText('LA NOVELA', w / 2, 130);
     ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif';
-    ctx.fillText('Un capítulo · 10 minutos', w / 2, 196);
-    ctx.fillText('Siéntate con E', w / 2, 232);
+    ctx.fillText('Un capítulo · 10 minutos', w / 2, 176);
+    ctx.fillText('Siéntate con E', w / 2, 210);
+    if (mallCineTex) mallCineTex.needsUpdate = true;
+    return;
   }
+  const modo = modoEscena(esc.accion);
+  const pantalla = (fondo, titulo, sub, tinta) => {
+    ctx.fillStyle = fondo; ctx.fillRect(150, 36, 340, 150);
+    ctx.strokeStyle = '#0f172a'; ctx.strokeRect(150, 36, 340, 150);
+    ctx.fillStyle = tinta || '#111'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(titulo, 320, 100);
+    if (sub) { ctx.font = 'bold 18px sans-serif'; ctx.fillText(sub, 320, 138); }
+  };
+  if (modo === 'sala') pantalla('#d1fae5', 'caracol', 'haciendo la tarea', '#166534');
+  else if (modo === 'oscuro') pantalla('#111827', 'pantalla apagada', '¿quién cortó la luz?', '#fbbf24');
+  else if (modo === 'oro') {
+    pantalla('#fef3c7', 'MAPA', 'la X está detrás', '#92400e');
+    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(250, 250, 22, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff7ed'; ctx.beginPath(); ctx.arc(250, 250, 8, 0, 7); ctx.fill();
+  } else if (modo === 'pasillo') {
+    pantalla('#1e293b', 'SOMBRA', 'se llevó un balde', '#e2e8f0');
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(80, 300); ctx.lineTo(160, 270); ctx.lineTo(240, 300); ctx.stroke();
+  } else if (modo === 'butaca') {
+    ctx.fillStyle = '#44403c'; ctx.fillRect(250, 200, 140, 70);
+    ctx.fillStyle = '#fde68a'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('butaca 7', 320, 196);
+  } else if (modo === 'capa') {
+    ctx.fillStyle = '#92400e'; ctx.beginPath(); ctx.ellipse(320, 250, 36, 22, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(290, 240); ctx.lineTo(320, 200); ctx.lineTo(350, 240); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Canela', 320, 290);
+  } else if (modo === 'nino') pantalla('#fef9c3', 'NICO', 'perdí a mi mamá', '#854d0e');
+  else if (modo === 'gato') {
+    pantalla('#ffedd5', 'GATO', 'bigotes de mantequilla', '#9a3412');
+    ctx.fillStyle = '#fdba74'; ctx.beginPath(); ctx.arc(120, 230, 20, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(108, 220, 8, 6); ctx.fillRect(124, 220, 8, 6);
+  } else if (modo === 'boleto') pantalla('#e0f2fe', 'BOLETO', 'falta la palabra', '#0c4a6e');
+  else if (modo === 'resbalon') {
+    ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.ellipse(300, 280, 50, 16, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#0ea5e9'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('¡soda!', 300, 284);
+  } else if (modo === 'puerta') {
+    ctx.fillStyle = '#78350f'; ctx.fillRect(470, 70, 78, 200);
+    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(530, 170, 6, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('cabina', 508, 60);
+  } else if (modo === 'guardia') pantalla('#1e3a8a', '¡ALTO!', 'guardia de la sala', '#fff');
+  else if (modo === 'foco') {
+    pantalla('#1c1917', 'FALTA LUZ', 'el foco se fundió', '#fde68a');
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(100, 150, 18, 0, 7); ctx.fill();
+  } else if (modo === 'abrir') {
+    ctx.fillStyle = '#fef3c7'; ctx.fillRect(470, 70, 28, 200);
+    ctx.fillStyle = '#44403c'; ctx.fillRect(500, 70, 70, 200);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('SALA', 430, 60);
+  } else if (modo === 'pantalla') pantalla('#fecdd3', 'EL HALL', 'mamá busca a Nico', '#9f1239');
+  else if (modo === 'heroes') pantalla('#fde68a', 'HÉROES', 'sala uno', '#92400e');
+  const lx = esc.lila[0] + (esc.lila[1] - esc.lila[0]) * esc.lt;
+  const mx = esc.mateo[0] + (esc.mateo[1] - esc.mateo[0]) * esc.lt;
+  const sueloMateo = modo === 'resbalon' ? 236 : 214;
+  dibujarPersonaCine(ctx, lx, '#f472b6', 'Lila', 1, 214);
+  dibujarPersonaCine(ctx, mx, '#38bdf8', 'Mateo', 1, sueloMateo);
+  if (modo === 'nino' || modo === 'capa') dibujarPersonaCine(ctx, 80, '#facc15', 'Nico', .72, 230);
+  if (modo === 'guardia') dibujarPersonaCine(ctx, 560, '#94a3b8', 'Guardia', 1.05, 206);
+  ctx.font = 'bold 16px sans-serif';
+  const lineas = mallLineas(ctx, esc.texto, 520);
+  const bw = 560, bh = 28 + lineas.length * 20, bx = (w - bw) / 2, by = 4;
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = esc.voz === 'mujer' ? '#9d174d' : '#1e3a8a';
+  ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText(esc.quien, bx + 12, by + 16);
+  ctx.fillStyle = '#111'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+  lineas.forEach((ln, i) => ctx.fillText(ln, w / 2, by + 36 + i * 20));
+  const minuto = Math.min(10, Math.floor((mallCineT % CINE_DURACION) / 60) + 1);
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(w - 158, h - 34, 148, 24);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'right';
+  ctx.fillText('Minuto ' + minuto + ' de 10', w - 16, h - 16);
   if (mallCineTex) mallCineTex.needsUpdate = true;
 }
 function mallSentarEn(p) {
@@ -11597,10 +11644,11 @@ function mallAccion() {
   const p = mallPuestoCerca();
   if (p) {
     if (p.tipo === 'butaca') return { key: 'E', touch: '🎬', text: 'Sentarte · capítulo de la novela, 10 minutos' };
+    if (p.tipo === 'sala') return { key: 'E', touch: '🚪', text: 'Entrar a la sala de cine' };
     if (p.tipo === 'palomitas') return { key: 'E', touch: '🍿', text: 'Comprar palomitas · $' + PALOMITAS_PRECIO };
     if (p.tipo === 'caja') return { key: 'E', touch: '🛒', text: 'Pagar en la caja · el carrito y toda la tienda' };
     if (p.tipo === 'casa') return { key: 'E', touch: '🏠', text: 'Elegir ' + p.nombre + ' · $' + p.precio };
-    if (p.tipo === 'pieza') return { key: 'E', touch: '🧱', text: 'Elegir ' + p.nombre + ' · $' + p.precio };
+    if (p.tipo === 'tienda' || p.tipo === 'pieza') return { key: 'E', touch: '🛒', text: 'Elegir ' + p.nombre + ' · $' + p.precio };
     if (p.tipo === 'comida') return { key: 'E', touch: p.comida.emoji, text: 'Comprar ' + p.comida.name + ' · $' + p.comida.price };
   }
   if (mallEnPuerta() && !dentroDelMall(player.position.x, player.position.z)) {
@@ -11619,10 +11667,16 @@ function tryMall() {
   if (p) {
     if (state.phase !== 'DAY' && p.tipo !== 'butaca') { toast('El mall atiende de día'); return true; }
     if (p.tipo === 'butaca') return mallSentarEn(p);
+    if (p.tipo === 'sala') {
+      player.position.set(p.adentro.x, PLAYER_EYE, p.adentro.z);
+      yaw = 0; pitch = 0;
+      toast('🎬 Entraste a la sala. Las butacas miran a la pantalla.');
+      return true;
+    }
     if (p.tipo === 'palomitas') return comprarPalomitas();
     if (p.tipo === 'caja') return abrirCajaMall();
     if (p.tipo === 'casa') return mallElegirCasa(p.id);
-    if (p.tipo === 'pieza') return mallElegirItem(p.key);
+    if (p.tipo === 'tienda' || p.tipo === 'pieza') return mallElegirItem(p.key);
     if (p.tipo === 'comida') return comprarComidaMall(p.comida);
   }
   if (mallEnPuerta() || (dentroDelMall(player.position.x, player.position.z) && Math.hypot(player.position.x - MALL.adentro.x, player.position.z - MALL.adentro.z) < 3.2))
@@ -11688,7 +11742,8 @@ function buildMall() {
   mallLetrero('MALL DEL SUR', 0xfbbf24, 0, 6.35, norte + .35, .85);
   mcFloor(scene, 0, -185.2, 78, 5, 0xe2e8f0, .08);
   mcFloor(scene, 0, -204, 7.2, 32, 0xcbd5e1, .09);
-  mcFloor(scene, -27, -206, 34, 30, 0x4c1d3a, .1);
+  mcFloor(scene, -28, -208.6, 32, 24.5, 0x2a1020, .1);
+  mcFloor(scene, -24, -189.6, 30, 12.4, 0x7f1d1d, .1);
   mcFloor(scene, 27, -205, 34, 32, 0xf8fafc, .1);
   mcFloor(scene, 0, -216, 72, 12, 0xfde68a, .11);
   mcFloor(scene, 0, -182.35, 14, .9, 0xd6d3d1, .08);
@@ -11714,32 +11769,96 @@ function buildMall() {
     scene.add(mesh);
     mallPuestos.push({ tipo: 'butaca', x, z, radio: 1.15, mesh, salida: { x: x + 1.15, y: 0, z } });
   }
-  mallBloque(-15, .55, -188.2, 1.8, 1.1, .8, 0xdc2626, false);
-  mallBloque(-15, 1.15, -188.2, 1.5, .12, .9, 0xfef2f2, false);
-  mallLetrero('PALOMITAS $' + PALOMITAS_PRECIO, 0xfde68a, -15, 2.15, -188.2, .32);
-  mallPuestos.push({ tipo: 'palomitas', x: -15, z: -188.2, radio: 2.2 });
-  mallBloque(-9, h / 2, -209.2, t, h, 25, acero, true);
-  mallBloque(-9, h / 2, -189.2, t, h, 2.2, acero, true);
+  const zPuerta = -195.6, xPuerta0 = -27.8, xPuerta1 = -23.6;
+  mallBloque(-36.5, h / 2, zPuerta, 17.4, h, t, 0x1c1917, true);
+  mallBloque(-18, h / 2, zPuerta, 11.2, h, t, 0x1c1917, true);
+  mallBloque(-12.2, h / 2, -208.25, t, h, 24.5, 0x1c1917, true);
+  mallBloque(xPuerta0, 1.6, zPuerta, .16, 3.2, .34, 0x44403c, false);
+  mallBloque(xPuerta1, 1.6, zPuerta, .16, 3.2, .34, 0x44403c, false);
+  mallBloque((xPuerta0 + xPuerta1) / 2, 3.28, zPuerta, 4.5, .24, .4, 0x44403c, true, 3.12);
+  const hojaSala = (x, giro) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1.55, 2.85, .08), mat(0x7f1d1d));
+    m.position.set(x, 1.48, zPuerta + .15); m.rotation.y = giro; scene.add(m);
+    const barra = new THREE.Mesh(new THREE.BoxGeometry(.9, .07, .08), mat(0xe7e5e4));
+    barra.position.set(0, .1, .08); m.add(barra);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.3, .04), mat(0x450a0a));
+    panel.position.set(0, -.15, .05); m.add(panel);
+  };
+  hojaSala(xPuerta0 + .85, .85);
+  hojaSala(xPuerta1 - .85, -.85);
+  mallLetrero('SALA 1', 0xfbbf24, (xPuerta0 + xPuerta1) / 2, 3.85, zPuerta + .45, .4);
+  mallPuestos.push({ tipo: 'sala', x: (xPuerta0 + xPuerta1) / 2, z: zPuerta + 1.35, radio: 1.7, adentro: { x: (xPuerta0 + xPuerta1) / 2, z: zPuerta - 1.7 } });
+  mallBloque(-21.6, .55, -187.85, 7.4, 1.1, .95, 0xdc2626, false);
+  mallBloque(-21.6, 1.18, -187.85, 7.6, .12, 1.1, 0xfef2f2, false);
+  for (const sx of [-2.4, 0, 2.4]) {
+    const balde = mallBalde();
+    balde.position.set(-21.6 + sx, 1.22, -187.7);
+    balde.scale.set(1.35, 1.35, 1.35);
+    scene.add(balde);
+  }
+  mallLetrero('PALOMITAS $' + PALOMITAS_PRECIO, 0xfde68a, -21.6, 2.35, -187.5, .38);
+  mallPuestos.push({ tipo: 'palomitas', x: -21.6, z: -186.4, radio: 2.8 });
+  const senora = (x, z, polera, pelo) => {
+    const p = makePerson(polera, 0xf1c27d);
+    p.position.set(x, 0, z);
+    p.rotation.y = 0;
+    const delantal = new THREE.Mesh(new THREE.BoxGeometry(.62, .72, .08), mat(0xf8fafc));
+    delantal.position.set(0, 1.22, .24); p.add(delantal);
+    const bolsillo = new THREE.Mesh(new THREE.BoxGeometry(.22, .16, .04), mat(0xfbcfe8));
+    bolsillo.position.set(.12, 1.05, .28); p.add(bolsillo);
+    const mono = new THREE.Mesh(new THREE.SphereGeometry(.16, 8, 8), mat(pelo));
+    mono.position.set(0, 2.42, -.06); p.add(mono);
+    scene.add(p);
+    return p;
+  };
+  senora(-24.2, -189.35, 0xdb2777, 0x9ca3af);
+  senora(-21.6, -189.55, 0xbe185d, 0x78350f);
+  senora(-18.8, -189.35, 0x9d174d, 0x1c1917);
   mallBloque(9, h / 2, -209.2, t, h, 25, acero, true);
   mallBloque(9, h / 2, -189.2, t, h, 2.2, acero, true);
   const casas = casasDelMall();
   casas.forEach((c, i) => {
-    const z = -193.5 - i * 2.35;
-    mallBloque(40.2, .7, z, 1.5, 1.3, 1.5, 0xd6d3d1, false);
-    const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.7, .55, .7), mat(0xf59e0b));
-    cuerpo.position.set(40.2, 1.55, z); scene.add(cuerpo);
-    const techo = new THREE.Mesh(new THREE.ConeGeometry(.5, .35, 4), mat(0xb91c1c));
-    techo.position.set(40.2, 1.95, z); techo.rotation.y = Math.PI / 4; scene.add(techo);
-    mallLetrero(c.name + ' $' + c.price, 0xfbbf24, 40.2, 2.55, z, .28);
-    mallPuestos.push({ tipo: 'casa', id: c.id, nombre: c.name, precio: c.price, x: 38.6, z, radio: 1.7 });
+    const x = 22.4 + i * 2.15;
+    const z = -217.3;
+    mallBloque(x, .55, z, 1.35, 1, 1.2, 0xd6d3d1, false);
+    const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(.55, .42, .55), mat(0xf59e0b));
+    cuerpo.position.set(x, 1.25, z); scene.add(cuerpo);
+    const techo = new THREE.Mesh(new THREE.ConeGeometry(.4, .28, 4), mat(0xb91c1c));
+    techo.position.set(x, 1.58, z); techo.rotation.y = Math.PI / 4; scene.add(techo);
+    mallLetrero(c.name + ' $' + c.price, 0xfbbf24, x, 2.15, z, .22);
+    mallPuestos.push({ tipo: 'casa', id: c.id, nombre: c.name, precio: c.price, x, z: z + 1.15, radio: 1.15 });
   });
-  PIEZAS_CASA_MALL.forEach((key, i) => {
-    const it = SHOP.find(s => s.key === key);
-    const z = -194 - i * 2.5;
-    mallBloque(33.2, .55, z, 1.3, 1, 1.2, (it && it.color) || 0x94a3b8, false);
-    mallLetrero((it ? it.name : key) + ' $' + (it ? it.price : 0), 0xbfdbfe, 33.2, 1.7, z, .26);
-    mallPuestos.push({ tipo: 'pieza', key, nombre: it ? it.name : key, precio: it ? it.price : 0, x: 31.6, z, radio: 1.6 });
+  const puestosTienda = puestosSuper(SHOP);
+  const porX = new Map();
+  puestosTienda.forEach(p => {
+    if (!porX.has(p.x)) porX.set(p.x, []);
+    porX.get(p.x).push(p);
   });
+  porX.forEach((fila, x) => {
+    const zs = fila.map(p => p.z);
+    const minZ = Math.min.apply(null, zs), maxZ = Math.max.apply(null, zs);
+    const largo = (maxZ - minZ) + 1.05;
+    const cz = (minZ + maxZ) / 2;
+    mallBloque(x, .42, cz, 1.05, .78, largo, 0x64748b, false);
+    mallBloque(x, .86, cz, 1.18, .08, largo + .08, 0xe2e8f0, false);
+  });
+  puestosTienda.forEach(p => {
+    const prod = makeProductMesh(p.key, p.color || 0x94a3b8);
+    if (!prod.children.length) {
+      const esPintura = String(p.key).indexOf('paint_') === 0;
+      const pieza = esPintura
+        ? new THREE.Mesh(new THREE.CylinderGeometry(.11, .11, .26, 10), mat(p.color || 0xf59e0b))
+        : new THREE.Mesh(new THREE.BoxGeometry(.3, .26, .3), mat(p.color || 0xf59e0b));
+      pieza.position.y = .16;
+      prod.add(pieza);
+    }
+    prod.scale.set(.48, .48, .48);
+    prod.position.set(p.x, 1.02, p.z);
+    scene.add(prod);
+    mallLetrero(p.name + ' $' + p.price, 0xbfdbfe, p.x, 1.72, p.z, .18);
+    mallPuestos.push({ tipo: 'tienda', key: p.key, nombre: p.name, precio: p.price, x: p.x - 1.35, z: p.z, radio: .95 });
+  });
+  mallLetrero('SÚPER GIGANTE', 0x22c55e, 32, 3.15, -190.4, .48);
   mallCarritoMesh = new THREE.Group();
   mallCarritoMesh.position.set(18, 0, -202);
   const baseCanasto = (x, y, z, w, h, d) => {
@@ -11785,13 +11904,13 @@ function buildMall() {
     const tira = new THREE.Mesh(new THREE.BoxGeometry(3.2, .08, .4), new THREE.MeshStandardMaterial({ color: 0xfff7ed, emissive: 0xfff7ed, emissiveIntensity: .9 }));
     tira.position.set(x, 6.7, z); scene.add(tira);
   };
-  luz(0, -188); luz(-28, -206); luz(28, -204); luz(0, -216);
+  luz(0, -188); luz(-28, -208); luz(-22, -188); luz(28, -204); luz(0, -216);
   mallGuardia(0, -188, 0, -186.5, 0, -209);
-  mallGuardia(-18, -196, -18, -194, -18, -216);
-  mallGuardia(24, -196, 24, -193, 24, -216);
+  mallGuardia(-23, -206, -23, -199, -23, -215);
+  mallGuardia(24.2, -198, 24.2, -193.2, 24.2, -214);
   mallGuardia(0, -216, -8, -216, 8, -216);
-  mallGuardia(-20, -186.4, -20, -186.4, 20, -186.4);
-  mallGuardia(-12, -191.5, -14, -191.5, -6, -191.5);
+  mallGuardia(-4, -185.6, -4, -185.6, 16, -185.6);
+  mallGuardia(-30, -193.4, -32, -193.4, -16, -193.4);
   mallBaldeMano = mallBalde();
   mallBaldeMano.position.set(-.28, -.28, -.58);
   mallBaldeMano.scale.set(1.7, 1.7, 1.7);
@@ -23492,6 +23611,7 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.mallQuitar = mallQuitar;
   timDump.abrirCajaMall = abrirCajaMall;
   timDump.mallCineEn = (t) => { mallCineT = t || 0; dibujarCine(escenaCine(mallCineT)); return escenaCine(mallCineT); };
+  timDump.mallInfo = () => mallPuestos.reduce((m, p) => { m[p.tipo] = (m[p.tipo] || 0) + 1; return m; }, {});
   timDump.cineLienzo = () => mallCineCtx ? mallCineCtx.canvas.toDataURL('image/png') : '';
   timDump.comprarPalomitas = comprarPalomitas;
   timDump.sentarCine = () => { const b = mallPuestos.find(p => p.tipo === 'butaca'); return b ? mallSentarEn(b) : false; };

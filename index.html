@@ -7788,10 +7788,9 @@ const TV_NOTICIA_NOMBRE = {
   estreno: 'ESTRENO', proximo: 'PRÓXIMO ESTRENO',
 };
 function diaDePartida() {
-  // Día 0 es la mañana en que empieza la partida (night 0). Al anochecer night ya sumó 1,
-  // pero esa noche sigue siendo el mismo día. El día 10 (night 10 y de día) abre la temporada 2.
-  const n = Math.max(0, state.night | 0);
-  return state.phase === 'NIGHT' ? Math.max(0, n - 1) : n;
+  // El día de juego es state.night (mañana nueva = 0). Al anochecer night ya sumó 1
+  // y ese número es el día: el 10 abre la temporada 2 aunque todavía sea de noche.
+  return Math.max(0, state.night | 0);
 }
 function fichaTemporada(n) {
   const num = Math.max(1, n | 0);
@@ -7802,21 +7801,28 @@ function fichaTemporada(n) {
 function temporadaActual() {
   const dia = diaDePartida();
   const n = Math.floor(dia / 10) + 1;
-  return Object.assign(fichaTemporada(n), { dia, falta: 10 - (dia % 10) });
+  const resto = dia % 10;
+  return Object.assign(fichaTemporada(n), { dia, falta: resto === 0 ? 0 : 10 - resto });
 }
 function proximoEstreno() {
   const act = temporadaActual();
   const sig = fichaTemporada(act.n + 1);
   return { dia: act.dia, temporada: act.n, siguiente: sig.n, i: sig.i, titulo: sig.titulo, falta: act.falta };
 }
+function temporadaQueSeEstrena() {
+  // La que viene, no la que ya está al aire. El día del estreno, esa es la que sale hoy.
+  const dia = diaDePartida();
+  const hoy = dia % 10 === 0;
+  return fichaTemporada(Math.floor(dia / 10) + (hoy ? 1 : 2));
+}
 function fraseDiasEstreno() {
-  // El día de juego es state.night (mañana nueva = 0). El estreno cae en 0, 10, 20…
   const dia = Math.max(0, state.night | 0);
   const resto = dia % 10;
   const n = resto === 0 ? 0 : 10 - resto;
-  if (n === 0) return 'Hoy es el estreno.';
-  if (n === 1) return 'Falta 1 día para el estreno.';
-  return 'Faltan ' + n + ' días para el estreno.';
+  const titulo = temporadaQueSeEstrena().titulo;
+  if (n === 0) return 'Hoy se estrena ' + titulo + '.';
+  if (n === 1) return 'Falta 1 día para el estreno de ' + titulo + '.';
+  return 'Faltan ' + n + ' días para el estreno de ' + titulo + '.';
 }
 function dibujarViñetaTemporada(ctx, i, lt) {
   if (i === 0) {
@@ -7861,15 +7867,19 @@ function rotuloTemporada(ctx, kicker, temp) {
   ctx.fillText(kicker, 16, 150);
   ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif';
   ctx.fillText('Temporada ' + temp.n + ' · ' + temp.titulo, 16, 182);
-  ctx.fillStyle = '#fde047'; ctx.font = 'bold 22px sans-serif';
+  const frase = fraseDiasEstreno();
+  let size = 20;
+  ctx.font = 'bold ' + size + 'px sans-serif';
+  while (size > 13 && ctx.measureText(frase).width > 478) { size -= 1; ctx.font = 'bold ' + size + 'px sans-serif'; }
+  ctx.fillStyle = '#fde047';
   ctx.fillText(fraseDiasEstreno(), 16, 214);
 }
 function dibujarProximoEstreno(ctx, lt) {
-  const p = proximoEstreno();
+  const p = temporadaQueSeEstrena();
   const fondos = ['#1e1b4b', '#7f1d1d', '#9d174d', '#9a3412', '#0f172a', '#14532d'];
   ctx.fillStyle = fondos[p.i]; ctx.fillRect(0, 0, 512, 288);
   dibujarViñetaTemporada(ctx, p.i, lt);
-  rotuloTemporada(ctx, 'PRÓXIMO ESTRENO', { n: p.siguiente, titulo: p.titulo });
+  rotuloTemporada(ctx, 'PRÓXIMO ESTRENO', p);
 }
 function tvRotuloNoticia(ctx, tipo) {
   const txt = TV_NOTICIA_NOMBRE[tipo] || tipo;
@@ -8032,7 +8042,7 @@ function dibujarNoticiaExtra(ctx, tipo, lt) {
   }
   if (tipo === 'proximo') { dibujarProximoEstreno(ctx, lt); return true; }
   if (tipo === 'estreno') {
-    const temp = temporadaActual();
+    const temp = temporadaQueSeEstrena();
     const fondos = ['#172554', '#7f1d1d', '#9d174d', '#9a3412', '#0f172a', '#14532d'];
     ctx.fillStyle = fondos[temp.i]; ctx.fillRect(0, 0, 512, 288);
     dibujarViñetaTemporada(ctx, temp.i, lt);
@@ -8264,11 +8274,21 @@ function dibujarCocina(ctx, t) {
   ctx.fillStyle = '#7c2d12'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(corta ? 'Picar la zanahoria' : echa ? 'A la olla' : revuelve ? 'Revolver el guiso' : 'Servir el plato', 16, 28);
 }
+let novelaTemporadaVista = 0, novelaCorteT = 0;
 function faseNovela(t) {
-  const intro = 5, ciclo = 16, tt = t % (intro + ciclo);
-  if (tt < intro) return { intro: true, k: tt / intro, escena: -1, lt: 0 };
-  const u = (tt - intro) / ciclo;
-  return { intro: false, k: 1, escena: Math.floor(u * 4), lt: (u * 4) % 1 };
+  const temp = temporadaActual();
+  if (novelaTemporadaVista !== temp.n) { novelaTemporadaVista = temp.n; novelaCorteT = t; }
+  const local = Math.max(0, t - novelaCorteT);
+  const estreno = temp.dia % 10 === 0;
+  const intro = 8, ciclo = 16;
+  if (estreno) {
+    const tt = local % (intro + ciclo);
+    if (tt < intro) return { intro: true, k: tt / intro, escena: -1, lt: 0 };
+    const u = (tt - intro) / ciclo;
+    return { intro: false, k: 1, escena: Math.min(3, Math.floor(u * 4)), lt: (u * 4) % 1 };
+  }
+  const u = (local % ciclo) / ciclo;
+  return { intro: false, k: 1, escena: Math.min(3, Math.floor(u * 4)), lt: (u * 4) % 1 };
 }
 function lineaVisibleNovela(temp, escena, t) {
   const L = temp.lineas;

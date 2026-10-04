@@ -63,7 +63,7 @@
   body.cine #bowcharge { display: none !important; }
   /* Avisos del juego: a un LADO, nunca tapando el centro / la mira */
   #toast { position: absolute; top: auto; left: auto; right: 14px; bottom: 26%; transform: none; z-index: 8;
-    background: rgba(0,0,0,.72); padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: left; max-width: min(340px, 34vw); pointer-events: none; }
+    background: rgba(0,0,0,.72); padding: 8px 14px; border-radius: 10px; font-size: 14px; font-weight: 700; opacity: 0; transition: opacity .3s; text-align: left; max-width: min(380px, 40vw); pointer-events: none; white-space: pre-wrap; }
   #toastStack { position: absolute; top: auto; left: auto; right: 14px; bottom: calc(26% + 50px); transform: none; z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: flex-end; pointer-events: none; }
   #toastStack > div { max-width: min(340px, 34vw) !important; text-align: left; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
@@ -9907,9 +9907,13 @@ function buildTorreDepto(k, s) {
 function amoblarDepto(dep) {
   if (dep.amoblado) return;
   dep.amoblado = true;
+  dep.lucesTecho = [];
   const f = dep.grupo, s = dep.s, y0 = dep.nivel * TORRE.H;
   const obs = (x0, x1, zp0, zp1, alto) => tObs(x0, x1, Math.min(s * zp0, s * zp1), Math.max(s * zp0, s * zp1), y0, y0 + alto);
-  const luzTecho = (x, zp) => tBox(f, x, 3.66, zp, .6, .05, .6, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4d6, emissiveIntensity: .85 }));
+  const luzTecho = (x, zp) => {
+    const m = tBox(f, x, 3.66, zp, .6, .05, .6, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4d6, emissiveIntensity: .85 }));
+    m.userData.luzBase = .85; dep.lucesTecho.push(m); return m;
+  };
   const blanco = 0xf8fafc, madera = 0x8b5a2b;
   // Pisos: madera en el living, el pasillo y la pieza; baldosa en la cocina y el baño
   tPiso(f, -4.47, 5.72, 8.75, 8.25, 'madera'); tPiso(f, 7.9, 2.55, 15.9, 1.9, 'madera');
@@ -9979,7 +9983,7 @@ function amoblarDepto(dep) {
   obs(1.65, 3.15, 6.55, 7.45, .8);
   tCil(f, 2.4, 3.2, 7, .01, .9, 0x111827);
   const lampara = new THREE.Mesh(new THREE.ConeGeometry(.28, .26, 16, 1, true), new THREE.MeshStandardMaterial({ color: 0x111827, emissive: 0xfde68a, emissiveIntensity: .35, side: THREE.DoubleSide }));
-  lampara.position.set(2.4, 2.65, 7); f.add(lampara);
+  lampara.position.set(2.4, 2.65, 7); lampara.userData.luzBase = .35; dep.lucesTecho.push(lampara); f.add(lampara);
   // ---------- BAÑO: espejo, lavamanos, taza, ducha y alfombra ----------
   tBox(f, 9.885, .75, 6.78, .02, 1.5, 6.1, 0xbfdbfe); tBox(f, 6.115, .75, 6.78, .02, 1.5, 6.1, 0xbfdbfe);
   tBox(f, 9.62, .42, 6, .52, .84, 1.1, blanco, true); tBox(f, 9.6, .87, 6, .58, .05, 1.16, 0xe5e7eb);
@@ -10017,7 +10021,7 @@ function amoblarDepto(dep) {
     tBox(f, vx, .27, 9.5, .5, .54, .42, madera, true); tBox(f, vx, .42, 9.28, .4, .02, .02, 0xd4a017);
     tCil(f, vx, .62, 9.5, .07, .16, 0xe5e7eb);
     const pant = new THREE.Mesh(new THREE.CylinderGeometry(.11, .16, .2, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xfde68a, emissiveIntensity: .6, side: THREE.DoubleSide }));
-    pant.position.set(vx, .8, 9.5); f.add(pant);
+    pant.position.set(vx, .8, 9.5); pant.userData.luzBase = .6; dep.lucesTecho.push(pant); f.add(pant);
     obs(vx - .25, vx + .25, 9.28, 9.72, .55);
   }
   tBox(f, 13, .025, 6.6, 2.3, .03, 1.3, 0x9333ea);
@@ -10071,6 +10075,7 @@ function amoblarDepto(dep) {
 // ---------- DUCHA: te metes, el agua cae desde la regadera y corre por tu cuerpo ----------
 const DUCHA_SEG = 28, DUCHA_VIDA = 15, DUCHA_GOTAS = preferLowPerf ? 70 : 160;   // antes 7 s: el agua y el beneficio duran 4 veces más. La espera de 30 s no cambia.
 let ducha = null;          // { d, t, vida, aviso, gotas[], ruido } mientras te duchas
+let servicioPlay = false;  // la Play del depto está abierta: gasta luz mientras juegas
 let duchaFx = null;        // gotas (InstancedMesh) + vapor, se crean la 1ª vez
 const _duchaM = new THREE.Matrix4(), _duchaQ = new THREE.Quaternion(), _duchaS = new THREE.Vector3(), _duchaP = new THREE.Vector3();
 function crearDuchaFx() {
@@ -10131,6 +10136,7 @@ function updateDucha(dt) {
   const d = ducha.d;
   const previo = ducha.t;
   ducha.t += dt;
+  anotarAgua(dt * aguaPorSegundoDucha());
   player.position.set(d.x, d.y + PLAYER_EYE, d.z);   // dentro de la ducha no se camina
   // La vida y la limpieza duran todo el rato bajo el agua (antes el +15 llegaba de golpe al final).
   const tramo = Math.max(0, Math.min(ducha.t, DUCHA_SEG) - previo);
@@ -10260,27 +10266,38 @@ function usarObjetoDepto(o) {
   if (o.tipo === 'asiento') {
     trySit({ key: o.key, torre: true, dep: o.dep, salida: o.salida, acostado: o.acostado, mesh: { position: new THREE.Vector3(o.x, o.y + o.seatY, o.z), rotation: { y: Math.atan2(o.dx, o.dz) } } });
     yaw = Math.atan2(-o.dx, -o.dz); pitch = o.acostado ? .55 : o.key === 'sofa' ? -.22 : -.05;
-    if (o.key === 'sofa' && !dep.teleOn) { setTeleDepto(dep, true); toast('📺 ' + programaActual().nombre + ' · ◀▶ o , . cambian · E para pararte'); }
+    if (o.key === 'sofa' && !dep.teleOn && puedeUsarLuz()) { setTeleDepto(dep, true); toast('📺 ' + programaActual().nombre + ' · ◀▶ o , . cambian · E para pararte'); }
     return true;
   }
   if (o.tipo === 'tele') {
+    if (!dep.teleOn && !puedeUsarLuz()) return true;
     setTeleDepto(dep, !dep.teleOn); beep(dep.teleOn ? 700 : 300, .06, .04);
     if (dep.teleOn) toast('📺 ' + programaActual().nombre + ' · ◀▶ o , . cambian');
     return true;
   }
-  if (o.tipo === 'play') return abrirMenuPlay();
+  if (o.tipo === 'play') {
+    if (!puedeUsarLuz()) return true;
+    anotarLuz(rentaDeptoSpec().play);
+    servicioPlay = true;
+    return abrirMenuPlay();
+  }
   if (o.tipo === 'lampara') {
+    if (!dep.lamparaOn && !puedeUsarLuz()) return true;
     dep.lamparaOn = !dep.lamparaOn; dep.lampara.material.emissiveIntensity = dep.lamparaOn ? .7 : 0;
     beep(600, .04, .03); return true;
   }
   if (o.tipo === 'congelador') {
+    if (!puedeUsarLuz()) return true;
     if (torreEspera(o, 40)) return true;
+    anotarLuz(rentaDeptoSpec().congelador);
     state.hunger = Math.min(100, state.hunger + 30);
     toast(['🧊 Sacaste un helado del congelador · +30 de hambre', '🧊 Te comiste un yogur bien helado · +30 de hambre', '🧊 Sacaste una paleta de agua · +30 de hambre'][Math.floor(Math.random() * 3)]);
     tone(520, .12, .04, 'triangle'); return true;
   }
   if (o.tipo === 'horno') {
+    if (!puedeUsarLuz()) return true;
     if (torreEspera(o, 60)) return true;
+    anotarLuz(rentaDeptoSpec().horno);
     dep.vidrioHorno.material.emissiveIntensity = 1.6;
     toast('🔥 Prendiste el horno… la pizza estará lista en 4 segundos');
     tone(300, .3, .04, 'sawtooth');
@@ -10294,12 +10311,14 @@ function usarObjetoDepto(o) {
   }
   if (o.tipo === 'ducha') {
     if (ducha) return true;
+    if (!puedeUsarAgua()) return true;
     if (torreEspera(o, 30)) return true;
     empezarDucha(dep.ducha);
     return true;
   }
   if (o.tipo === 'lavamanos') {
     if (lavado) { terminarLavado(false); return true; }
+    if (!puedeUsarAgua()) return true;
     empezarLavado(o); return true;
   }
   return false;
@@ -10373,6 +10392,7 @@ function updateLavado(dt) {
   const camina = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'] || keys['Space'] || Math.abs(touch.moveX) > .25 || Math.abs(touch.moveY) > .25;
   if (lejos || camina) { terminarLavado(false); return; }
   lavado.t += dt;
+  anotarAgua(dt * aguaPorSegundoLavado());
   const t = lavado.t, k = Math.min(1, t / .4) * (t > lavado.dur - .4 ? Math.max(0, (lavado.dur - t) / .4) : 1);
   const scrub = Math.sin(t * 10);
   const manos = asegurarManosLavado();
@@ -10565,11 +10585,17 @@ function updateTorre(dt) {
   torreNiveles.forEach((lg, k) => { lg.visible = k === 0 ? (cerca || adentro) : (adentro && Math.abs(k - nivel) <= 1); });
   if (adentro) for (const dep of torreDeptos) if (!dep.amoblado && Math.abs(dep.nivel - nivel) <= 1) amoblarDepto(dep);
   if (torreLuz) {   // una sola luz que te acompaña adentro (el número de luces no cambia: no recompila shaders)
-    torreLuz.intensity = adentro ? 1.8 : 0;
+    let cortadaAqui = false;
+    if (adentro && state.depto && nivel >= 1) {
+      const aqui = deptoAlrededor(player.position.x, player.position.z, nivel);
+      cortadaAqui = !!(aqui && aqui.id === state.depto && luzCortada());
+    }
+    torreLuz.intensity = adentro && !cortadaAqui ? 1.8 : 0;
     if (adentro) torreLuz.position.set(player.position.x, (torreLift.rider ? torreLift.y : nivel * TORRE.H) + 2.4, player.position.z);
   }
   updateTorreLift(dt);
   updateDucha(dt);
+  updateServiciosDepto(dt);
 }
 // ---- ASCENSOR: llamar, subirse, elegir piso con la botonera y bajarse ----
 function torreLiftNivel() { return Math.round(torreLift.y / TORRE.H); }
@@ -10711,7 +10737,8 @@ function cerrarDeptos() { ui('aptbox').style.display = 'none'; typing = algunRec
 function renderDeptos() {
   const mio = state.depto;
   ui('aptInfo').innerHTML = (mio ? '🔑 Tu depto: <b>' + mio + '</b> (piso ' + mio[0] + ')<br>' : '') +
-    'Cada depto trae <b>living</b> con sillón y tele, <b>cocina</b> con congelador, mesa y horno, <b>baño</b> con espejo y alfombra, y <b>dormitorio</b> con cama, tele con Play y ventanas.<br>Precio: <b style="color:#facc15">$' + TORRE_PRECIO + '</b>';
+    'Cada depto trae <b>living</b> con sillón y tele, <b>cocina</b> con congelador, mesa y horno, <b>baño</b> con espejo y alfombra, y <b>dormitorio</b> con cama, tele con Play y ventanas.<br>Precio: <b style="color:#facc15">$' + TORRE_PRECIO + '</b>' +
+    (mio ? '<br>Cada 5 días se cobra el agua ($' + rentaDeptoSpec().agua + ' si el uso es normal) y la luz ($' + rentaDeptoSpec().luz + '). Poco uso sale más barato y mucho uso más caro, hasta el doble.' + ((state.servicios && (state.servicios.deudaAgua || state.servicios.deudaLuz)) ? '<br><b style="color:#f87171">Cortado hasta pagar: agua $' + (state.servicios.deudaAgua || 0) + ' · luz $' + (state.servicios.deudaLuz || 0) + '</b>' : '') : '');
   const lista = (aptFoco ? torreDeptos.filter(dp => dp.id === aptFoco) : torreDeptos).slice().sort((a, b) => a.id.localeCompare(b.id));
   ui('aptList').innerHTML = lista.map(dp => {
     const tuyo = mio === dp.id;
@@ -10726,11 +10753,198 @@ function comprarDepto(id) {
   if (!state.creative && state.money < TORRE_PRECIO) { toast('💸 El depto cuesta $' + TORRE_PRECIO + ' y tienes $' + Math.floor(state.money)); beep(200, .15, .04); return; }
   if (!state.creative) addMoney(-TORRE_PRECIO);
   state.depto = dep.id;
+  state.servicios = serviciosNuevos(state.night);   // el contador de agua y luz parte de cero
   setPuertaDepto(dep, torreNivel() === dep.nivel && torreAdentro());
   toast('🔑 ¡Compraste el depto ' + dep.id + '! Piso ' + dep.id[0] + ' · toma el ascensor o la escalera');
   tone(660, .12, .05, 'triangle'); setTimeout(() => tone(990, .2, .05, 'triangle'), 120);
   if (typeof vibr === 'function') vibr(60);
   renderDeptos(); saveGame();
+}
+// --- renta-depto:inicio ---
+// Renta de agua y luz del departamento. El día de juego es state.night.
+// Cada 5 noches (5, 10, 15…; la 0 no) se cobra lo usado desde la cuenta anterior.
+// Una vida normal (ducha y lavamanos a diario, luz y tele alguna vez, y un horno,
+// el congelador o la Play de vez en cuando) cae en el precio dicho. Poco uso baja
+// hasta la mitad. Mucho uso sube en proporción, con tope del doble.
+function rentaDeptoSpec() {
+  return {
+    cada: 5,
+    agua: 500,
+    luz: 450,
+    aguaNormal: 60,     // 5 duchas completas + 10 lavados de cara
+    luzNormal: 100,     // visita con luces, lámpara y tele alguna vez
+    ducha: 8,
+    lavado: 2,
+    lucesPorS: 1 / 40,  // luces del depto mientras estás adentro
+    lamparaPorS: 1 / 60,
+    telePorS: 1 / 25,
+    playPorS: 1 / 20,
+    horno: 8,
+    congelador: 4,
+    play: 6,
+    visitaS: 5 * 5 * 60,  // 5 minutos al día, 5 días
+    teleS: 5 * 60,        // la tele, alguna vez
+  };
+}
+function precioServicio(uso, normal, base) {
+  const u = Math.max(0, Number(uso) || 0);
+  const n = Math.max(1e-9, Number(normal) || 0);
+  const b = Math.max(0, Number(base) || 0);
+  const r = u / n;
+  let factor, banda;
+  if (r < 0.6) { factor = 0.5 + 0.5 * (r / 0.6); banda = 'poco'; }
+  else if (r <= 1.4) { factor = 1; banda = 'normal'; }
+  else { factor = Math.min(2, 1 + (r - 1.4) / 0.6); banda = 'mucho'; }
+  return { precio: Math.round(b * factor), banda };
+}
+function serviciosNuevos(noche) {
+  return { agua: 0, luz: 0, ultima: noche | 0, deudaAgua: 0, deudaLuz: 0 };
+}
+function serviciosDesdeSave(raw, noche) {
+  const s = raw && typeof raw === 'object' ? raw : null;
+  if (!s) return serviciosNuevos(noche);
+  return {
+    agua: Math.max(0, Number(s.agua) || 0),
+    luz: Math.max(0, Number(s.luz) || 0),
+    ultima: Number.isFinite(+s.ultima) ? (+s.ultima | 0) : (noche | 0),
+    deudaAgua: Math.max(0, Math.round(Number(s.deudaAgua) || 0)),
+    deudaLuz: Math.max(0, Math.round(Number(s.deudaLuz) || 0)),
+  };
+}
+function serviciosParaSave() {
+  const s = state.servicios || serviciosNuevos(state.night);
+  return {
+    agua: +Number(s.agua || 0).toFixed(3),
+    luz: +Number(s.luz || 0).toFixed(3),
+    ultima: s.ultima | 0,
+    deudaAgua: s.deudaAgua | 0,
+    deudaLuz: s.deudaLuz | 0,
+  };
+}
+function asegurarServicios() {
+  if (!state.servicios) state.servicios = serviciosNuevos(state.night);
+  return state.servicios;
+}
+function aguaCortada() {
+  return !!(state.depto && !state.creative && state.servicios && state.servicios.deudaAgua > 0);
+}
+function luzCortada() {
+  return !!(state.depto && !state.creative && state.servicios && state.servicios.deudaLuz > 0);
+}
+function pagarMonto(debe) {
+  const deuda = Math.max(0, Math.round(Number(debe) || 0));
+  const disponible = Math.max(0, Math.floor(Number(state.money) || 0));
+  const pagado = Math.min(deuda, disponible);
+  state.money -= pagado;
+  if (state.money < 0) state.money = 0;
+  return { pagado, debe: deuda - pagado };
+}
+function anotarAgua(n) {
+  if (!(n > 0) || !state.depto || state.creative || aguaCortada()) return;
+  asegurarServicios();
+  state.servicios.agua += n;
+}
+function anotarLuz(n) {
+  if (!(n > 0) || !state.depto || state.creative || luzCortada()) return;
+  asegurarServicios();
+  state.servicios.luz += n;
+}
+function aguaPorSegundoDucha() { return rentaDeptoSpec().ducha / DUCHA_SEG; }
+function aguaPorSegundoLavado() { return rentaDeptoSpec().lavado / LAVADO_SEG; }
+function fraseUso(banda) {
+  return banda === 'poco' ? 'poco uso' : banda === 'mucho' ? 'mucho uso' : 'uso normal';
+}
+function textoCuentaServicio(icono, nombre, cuenta, pago, corte) {
+  let t = icono + ' ' + nombre + ' $' + cuenta.precio + ' (' + fraseUso(cuenta.banda) + ')';
+  if (pago.debe > 0) t += ' · pagaste $' + pago.pagado + ', debes $' + pago.debe + ' y ' + corte;
+  return t;
+}
+function cobrarDeudaClave(clave) {
+  asegurarServicios();
+  const r = pagarMonto(state.servicios[clave]);
+  state.servicios[clave] = r.debe;
+  return r.pagado;
+}
+function puedeUsarAgua() {
+  if (!state.depto || state.creative) return true;
+  const pagado = cobrarDeudaClave('deudaAgua');
+  if (pagado > 0 && state.servicios.deudaAgua <= 0) toast('💧 Pagaste la cuenta del agua ($' + pagado + '). Ya puedes usarla.');
+  if (state.servicios.deudaAgua > 0) {
+    toast('💧 El agua está cortada: debes $' + state.servicios.deudaAgua + '. La ducha y el lavamanos no corren hasta pagar.');
+    return false;
+  }
+  return true;
+}
+function puedeUsarLuz() {
+  if (!state.depto || state.creative) return true;
+  const pagado = cobrarDeudaClave('deudaLuz');
+  if (pagado > 0 && state.servicios.deudaLuz <= 0) toast('⚡ Pagaste la cuenta de la luz ($' + pagado + '). Ya hay electricidad.');
+  if (state.servicios.deudaLuz > 0) {
+    toast('⚡ La luz está cortada: debes $' + state.servicios.deudaLuz + '. La tele, la lámpara y los enchufes no prenden hasta pagar.');
+    return false;
+  }
+  return true;
+}
+function cobrarDeudaServicios() {
+  if (!state.depto || state.creative) return false;
+  const a = cobrarDeudaClave('deudaAgua');
+  const l = cobrarDeudaClave('deudaLuz');
+  if (!(a || l)) return false;
+  const bits = [];
+  if (a) bits.push('agua $' + a + (state.servicios.deudaAgua ? ' (aún debes $' + state.servicios.deudaAgua + ')' : ''));
+  if (l) bits.push('luz $' + l + (state.servicios.deudaLuz ? ' (aún debes $' + state.servicios.deudaLuz + ')' : ''));
+  toast('💳 Se cobró la deuda del depto: ' + bits.join(' · '));
+  if (typeof saveGame === 'function') saveGame();
+  return true;
+}
+function cobrarCuentasDepto() {
+  if (!state.depto || state.creative) return false;
+  asegurarServicios();
+  const s = state.servicios;
+  const n = state.night | 0;
+  const spec = rentaDeptoSpec();
+  if (!(n > 0 && n % spec.cada === 0 && (s.ultima | 0) < n)) return cobrarDeudaServicios();
+  const agua = precioServicio(s.agua || 0, spec.aguaNormal, spec.agua);
+  const luz = precioServicio(s.luz || 0, spec.luzNormal, spec.luz);
+  s.deudaAgua = (s.deudaAgua || 0) + agua.precio;
+  s.deudaLuz = (s.deudaLuz || 0) + luz.precio;
+  s.agua = 0; s.luz = 0; s.ultima = n;
+  const pa = pagarMonto(s.deudaAgua); s.deudaAgua = pa.debe;
+  const pl = pagarMonto(s.deudaLuz); s.deudaLuz = pl.debe;
+  toast(textoCuentaServicio('💧', 'Agua', agua, pa, 'el agua queda cortada') + '\n' + textoCuentaServicio('⚡', 'Luz', luz, pl, 'la luz queda cortada'));
+  if (typeof toastTimer !== 'undefined') toastTimer = 8;
+  if (typeof aplicarLucesDepto === 'function' && typeof deptoPorId === 'function') {
+    const dep = deptoPorId(state.depto);
+    if (dep) aplicarLucesDepto(dep);
+  }
+  if (typeof saveGame === 'function') saveGame();
+  return true;
+}
+// --- renta-depto:fin ---
+function aplicarLucesDepto(dep) {
+  if (!dep || !dep.amoblado) return;
+  const cortada = luzCortada();
+  if (dep.lucesTecho) for (const m of dep.lucesTecho) if (m.material) m.material.emissiveIntensity = cortada ? 0 : (m.userData.luzBase || 0);
+  if (dep.lampara) dep.lampara.material.emissiveIntensity = cortada ? 0 : (dep.lamparaOn ? .7 : 0);
+  if (cortada && dep.teleOn) setTeleDepto(dep, false);
+  if (cortada && dep.vidrioHorno) dep.vidrioHorno.material.emissiveIntensity = 0;
+}
+function updateServiciosDepto(dt) {
+  if (!state.depto || state.creative) return;
+  const dep = typeof deptoPorId === 'function' ? deptoPorId(state.depto) : null;
+  if (!dep || !dep.amoblado) return;
+  if (state.running && !state.paused && dt > 0 && !luzCortada()) {
+    const nivel = torreLift.rider ? torreLiftNivel() : torreNivel();
+    const aqui = deptoAlrededor(player.position.x, player.position.z, nivel);
+    if (aqui && aqui.id === dep.id) {
+      const r = rentaDeptoSpec();
+      anotarLuz(dt * r.lucesPorS);
+      if (dep.lamparaOn) anotarLuz(dt * r.lamparaPorS);
+      if (dep.teleOn) anotarLuz(dt * r.telePorS);
+      if (servicioPlay) anotarLuz(dt * r.playPorS);
+    }
+  }
+  aplicarLucesDepto(dep);
 }
 // Muebles colocables = mismas piezas que el departamento del Mirador (pie en y=0 del grupo foot).
 const DEPTO_COLOCADO_KEYS = new Set(['mesa', 'silla', 'cama', 'sofa', 'tele', 'mesa_tele', 'alfombra', 'bano', 'espejo', 'oven', 'congelador', 'lavamanos', 'ducha', 'lampara_pie', 'play']);
@@ -17193,7 +17407,7 @@ function startGame() {
   abortFlight();
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
   state.plotLegacy = false; resetPlots();   // el condominio vuelve a tener sus lotes en venta
-  state.depto = null; torreReset();         // y el edificio, sus deptos
+  state.depto = null; state.servicios = null; torreReset();         // y el edificio, sus deptos
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; state.hasBow = false; resetMeleeWeapon(); applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
   state.helperWeapon = false; state.helperArmor = false;   // los hijos empiezan sin equipo
@@ -18149,7 +18363,7 @@ function saveGame() {
     const wc = weaponVisualColor;
     const data = {
       saveVersion: GAME_RULES.saveVersion,
-      money: state.money, totalEarned: state.totalEarned, stage: state.stage, plot: state.plot || null, plotLegacy: !!state.plotLegacy, depto: state.depto || null, pisoTorre: torreAdentro() ? torreNivel() : 0,
+      money: state.money, totalEarned: state.totalEarned, stage: state.stage, plot: state.plot || null, plotLegacy: !!state.plotLegacy, depto: state.depto || null, servicios: state.depto ? serviciosParaSave() : null, pisoTorre: torreAdentro() ? torreNivel() : 0,
       hp: state.hp, dadHp: state.dadHp, hunger: state.hunger, night: state.night,
       phase: state.phase === 'NIGHT' ? 'NIGHT' : 'DAY', dayTime: state.dayTime || 0, nightTime: state.nightTime || 0, spawnTimer: state.spawnTimer || 0,
       hordeOn: !!state.hordeOn, bossNight: !!state.bossNight, nightDamage: !!state.nightDamage, pinataDone: !!state.pinataDone, coldWarned: !!state.coldWarned,
@@ -19063,6 +19277,7 @@ function loadGame() {
   resetPlots();
   if (lotePorId(d.plot)) mudarseAlLote(lotePorId(d.plot), true);
   state.depto = deptoPorId(d.depto) ? String(d.depto) : null; torreReset();
+  state.servicios = state.depto ? serviciosDesdeSave(d.servicios, state.night) : null;
   state.inv = Object.assign(freshInv(), d.inv || {});
   houseTier = d.houseTier || 0;
   setWeaponColor(d.weaponColor || 0x94a3b8);
@@ -19538,6 +19753,7 @@ function arcadeMiniClose() {
   if (miniRaf) { cancelAnimationFrame(miniRaf); miniRaf = 0; }
   for (const k of Object.keys(miniKeys)) delete miniKeys[k];
   arcadeMini = null;
+  servicioPlay = false;
   ui('arcadeGameBox').style.display = 'none';
   ui('arcadeGameMenu').style.display = 'none';
   ui('miniGameCanvas').style.display = 'none';
@@ -22082,6 +22298,7 @@ function surviveNight() {
   reward = Math.round(reward * (1 + 0.1 * Math.min(10, state.streak || 0)));   // la racha paga hasta el doble
   addMoney(reward);
   payButlerWeeklyWage();                                    // $100 cada 7 amaneceres desde la contratación
+  cobrarCuentasDepto();                                     // agua y luz del depto, cada 5 noches
   if (state.baseGenerator && state.planet === 'platus') {   // generador de la base espacial: renta pasiva por noche sobrevivida en Platus
     const gen = 300 + 100 * state.stage; addMoney(gen);
     setTimeout(() => toast('⚡ +$' + gen + ' del GENERADOR de tu base espacial'), 5000);
@@ -23282,6 +23499,42 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.mallGuardias = () => mallGuardias.map(g => ({ x: +g.position.x.toFixed(1), z: +g.position.z.toFixed(1) }));
   timDump.sacarDelMall = sacarDelMall;
   timDump.updateMall = updateMall;
+  timDump.fotoCuenta = (modo) => {
+    state.creative = false;
+    state.paused = true;
+    state.running = true;
+    state.phase = 'DAY';
+    state.dayTime = 200;
+    const dep = deptoPorId('201');
+    state.depto = '201';
+    state.night = 5;
+    state.money = 20000;
+    state.servicios = serviciosNuevos(0);
+    const spec = rentaDeptoSpec();
+    if (modo === 'poco') { state.servicios.agua = 0; state.servicios.luz = 0; }
+    else if (modo === 'mucho') { state.servicios.agua = spec.aguaNormal * 3; state.servicios.luz = spec.luzNormal * 3; }
+    else { state.servicios.agua = spec.aguaNormal; state.servicios.luz = spec.luzNormal; }
+    if (dep && !dep.amoblado) amoblarDepto(dep);
+    if (dep) torreNiveles[dep.nivel].visible = true;
+    const y = (dep ? dep.nivel : 1) * TORRE.H + PLAYER_EYE;
+    player.position.set(TORRE.x - 6.1, y, TORRE.z - 6.1);
+    yaw = Math.PI / 2; pitch = -0.18; cameraMode = 0; vy = 0; grounded = true;
+    if (torreLuz) { torreLuz.intensity = 1.8; torreLuz.position.set(player.position.x, y + 0.7, player.position.z); }
+    ui('toastStack').replaceChildren();
+    cobrarCuentasDepto();
+    shownMoney = state.money;
+    renderHUD();
+    state.paused = true;
+    toastTimer = 60;
+    const aviso = ui('toast'); aviso.style.opacity = '1';
+    const intro = ui('intro'); if (intro) intro.style.display = 'none';
+    ui('start').classList.add('hidden'); ui('hud').style.display = 'block';
+    updatePlayerCamera(0); renderer.render(scene, camera);
+    return { toast: aviso.textContent, money: state.money, deudaAgua: state.servicios.deudaAgua, deudaLuz: state.servicios.deudaLuz };
+  };
+  timDump.cobrarCuentasDepto = cobrarCuentasDepto;
+  timDump.puedeUsarAgua = puedeUsarAgua;
+  timDump.puedeUsarLuz = puedeUsarLuz;
   window.__tim = timDump;
 } } catch (e) {}
 function netAddConn(c) {

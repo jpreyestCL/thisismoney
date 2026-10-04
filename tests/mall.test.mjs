@@ -92,7 +92,7 @@ test('el juego engancha el mall sin tocar la celda, el depto ni la tele', () => 
   assert.match(html, /const ESTRENO_NOVELA = 'La novela'/);
   assert.match(html, /city-map\.js\?v=9/);
   assert.match(html, /mall\.js\?v=1/);
-  assert.match(sw, /const VERSION = 'tim-v78'/);
+  assert.match(sw, /const VERSION = 'tim-v79'/);
   assert.match(sw, /city-map\.js\?v=9/);
   assert.match(sw, /mall\.js\?v=1/);
 });

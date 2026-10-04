@@ -2,6 +2,7 @@
 // departamentos numerados de $10000 con living, cocina, baño y pieza.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { DISTRITOS, LUGARES, callesDelMapa, rectCalle, rectDistrito, seCruzan, validarMapa } from '../src/city-map.js';
 
@@ -111,7 +112,7 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /function updateLavado\(/);
   assert.match(html, /id="tvbar"/);
   assert.match(html, /id="lavadofx"/);
-  assert.match(html, /if \(o\.tipo === 'play'\) return abrirMenuPlay\(\)/);
+  assert.match(html, /o\.tipo === 'play'[\s\S]{0,220}abrirMenuPlay\(\)/);
   for (const nombre of ['Noticias del día', 'Dibujos animados', 'El partido', 'Cocina en casa', 'El clima', 'La novela', 'Documental', 'Concurso', 'El huerto', 'Buenos días', 'Música', 'Comedia']) {
     assert.ok(html.includes("nombre: '" + nombre + "'"), nombre);
   }
@@ -221,4 +222,151 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.doesNotMatch(html, /const NOVELA_ESCENA_SEG = 16/);
   assert.doesNotMatch(html, /if \(escena === 2\) return null/);
   assert.match(html, /return L\[escena\] \|\| L\[0\]/);
+});
+
+test('el depto cobra agua y luz cada 5 días: poco, normal, mucho, y sin plata se corta', () => {
+  const ini = html.indexOf('// --- renta-depto:inicio ---');
+  const fin = html.indexOf('// --- renta-depto:fin ---');
+  assert.ok(ini > 0 && fin > ini, 'falta el bloque de la renta');
+  const avisos = [];
+  const state = { depto: '201', creative: false, night: 0, money: 20000, servicios: null };
+  const ctx = vm.createContext({ state, toast: (m) => avisos.push(String(m)), saveGame() {} });
+  vm.runInContext(html.slice(ini, fin), ctx);
+  const run = (code) => vm.runInContext(code, ctx);
+  const spec = run('rentaDeptoSpec()');
+  const aguaUso = 5 * spec.ducha + 10 * spec.lavado;
+  const luzUso = spec.visitaS * spec.lucesPorS + spec.visitaS * spec.lamparaPorS + spec.teleS * spec.telePorS;
+  assert.equal(aguaUso, spec.aguaNormal, 'la vida normal de agua es el uso de referencia');
+  const cuenta = (uso, normal, base) => run(`precioServicio(${uso}, ${normal}, ${base})`);
+  const aguaN = cuenta(aguaUso, spec.aguaNormal, spec.agua);
+  const luzN = cuenta(luzUso, spec.luzNormal, spec.luz);
+  assert.equal(aguaN.precio, 500);
+  assert.equal(aguaN.banda, 'normal');
+  assert.equal(luzN.precio, 450);
+  assert.equal(luzN.banda, 'normal');
+  const luzCon = luzUso + spec.horno + spec.congelador + spec.play;
+  const luzExtra = cuenta(luzCon, spec.luzNormal, spec.luz);
+  assert.equal(luzExtra.precio, 450, 'horno, congelador y Play de vez en cuando siguen en el precio dicho');
+  assert.equal(luzExtra.banda, 'normal');
+  const pocoA = cuenta(0, spec.aguaNormal, spec.agua);
+  const pocoL = cuenta(0, spec.luzNormal, spec.luz);
+  assert.equal(pocoA.precio, 250);
+  assert.equal(pocoA.banda, 'poco');
+  assert.equal(pocoL.precio, 225);
+  assert.equal(pocoL.banda, 'poco');
+  const muchoA = cuenta(spec.aguaNormal * 3, spec.aguaNormal, spec.agua);
+  const muchoL = cuenta(spec.luzNormal * 3, spec.luzNormal, spec.luz);
+  assert.equal(muchoA.precio, 1000);
+  assert.equal(muchoA.banda, 'mucho');
+  assert.equal(muchoL.precio, 900);
+  assert.equal(muchoL.banda, 'mucho');
+  assert.equal(run('precioServicio(rentaDeptoSpec().aguaNormal * 20, rentaDeptoSpec().aguaNormal, rentaDeptoSpec().agua)').precio, 1000, 'el tope es el doble');
+
+  state.servicios = run('serviciosNuevos(0)');
+  state.servicios.agua = aguaUso;
+  state.servicios.luz = luzUso;
+  state.night = 0;
+  assert.equal(run('cobrarCuentasDepto()'), false, 'la noche 0 no cobra');
+  assert.equal(state.money, 20000);
+  state.night = 4;
+  assert.equal(run('cobrarCuentasDepto()'), false, 'antes del día 5 no cobra');
+  assert.equal(state.money, 20000);
+
+  state.night = 5;
+  avisos.length = 0;
+  assert.equal(run('cobrarCuentasDepto()'), true);
+  assert.equal(state.money, 20000 - 950);
+  assert.equal(state.servicios.agua, 0);
+  assert.equal(state.servicios.luz, 0);
+  assert.equal(state.servicios.ultima, 5);
+  assert.equal(state.servicios.deudaAgua, 0);
+  assert.equal(state.servicios.deudaLuz, 0);
+  assert.match(avisos[0], /Agua \$500 \(uso normal\)/);
+  assert.match(avisos[0], /Luz \$450 \(uso normal\)/);
+  state.servicios.agua = aguaUso;
+  state.money = 20000;
+  assert.equal(run('cobrarCuentasDepto()'), false, 'la misma noche no se cobra dos veces');
+  assert.equal(state.money, 20000);
+
+  state.creative = true;
+  state.night = 10;
+  state.servicios.ultima = 5;
+  state.money = 100;
+  assert.equal(run('cobrarCuentasDepto()'), false);
+  assert.equal(state.money, 100, 'en creativo no se cobra');
+  assert.equal(run('puedeUsarAgua()'), true);
+  assert.equal(run('puedeUsarLuz()'), true);
+  state.creative = false;
+  state.depto = null;
+  assert.equal(run('cobrarCuentasDepto()'), false, 'sin departamento no hay cuenta');
+  state.depto = '201';
+
+  state.night = 10;
+  state.money = 0;
+  state.servicios = run('serviciosNuevos(5)');
+  state.servicios.agua = spec.aguaNormal;
+  state.servicios.luz = spec.luzNormal;
+  avisos.length = 0;
+  assert.equal(run('cobrarCuentasDepto()'), true);
+  assert.equal(state.money, 0, 'sin plata la cuenta no queda en cero');
+  assert.equal(state.servicios.deudaAgua, 500);
+  assert.equal(state.servicios.deudaLuz, 450);
+  assert.match(avisos[0], /debes \$500/);
+  assert.match(avisos[0], /debes \$450/);
+  avisos.length = 0;
+  assert.equal(run('puedeUsarAgua()'), false, 'el agua cortada no corre');
+  assert.match(avisos.at(-1), /agua está cortada/);
+  avisos.length = 0;
+  assert.equal(run('puedeUsarLuz()'), false, 'la luz cortada no prende');
+  assert.match(avisos.at(-1), /luz está cortada/);
+
+  state.money = 500;
+  assert.equal(run('puedeUsarAgua()'), true, 'al usar el depto se cobra la deuda del agua');
+  assert.equal(state.money, 0);
+  assert.equal(state.servicios.deudaAgua, 0);
+  assert.equal(state.servicios.deudaLuz, 450);
+  assert.equal(run('puedeUsarLuz()'), false);
+
+  state.night = 11;
+  state.money = 450;
+  avisos.length = 0;
+  assert.equal(run('cobrarCuentasDepto()'), true, 'al amanecer se cobra la deuda pendiente');
+  assert.equal(state.money, 0);
+  assert.equal(state.servicios.deudaLuz, 0);
+  assert.match(avisos[0], /deuda del depto/);
+
+  state.night = 15;
+  state.money = 100;
+  state.servicios = run('serviciosNuevos(10)');
+  state.servicios.agua = spec.aguaNormal;
+  state.servicios.luz = spec.luzNormal;
+  run('cobrarCuentasDepto()');
+  assert.equal(state.money, 0);
+  assert.equal(state.servicios.deudaAgua, 400, 'el pago parcial no perdona el resto');
+  assert.equal(state.servicios.deudaLuz, 450);
+
+  state.money = 50000;
+  state.night = 20;
+  state.servicios = run('serviciosNuevos(15)');
+  run('cobrarCuentasDepto()');
+  assert.equal(state.money, 50000 - 250 - 225, 'poco uso sale a la mitad');
+  state.night = 25;
+  state.servicios.agua = spec.aguaNormal * 3;
+  state.servicios.luz = spec.luzNormal * 3;
+  state.money = 50000;
+  avisos.length = 0;
+  run('cobrarCuentasDepto()');
+  assert.equal(state.money, 50000 - 1000 - 900, 'mucho uso llega al doble');
+  assert.match(avisos[0], /mucho uso/);
+
+  const guardado = run('serviciosParaSave()');
+  const cargado = run(`serviciosDesdeSave(${JSON.stringify(guardado)}, 30)`);
+  assert.equal(cargado.ultima, guardado.ultima);
+  assert.equal(cargado.deudaAgua, 0);
+  assert.equal(cargado.deudaLuz, 0);
+  assert.match(html, /servicios: state\.depto \? serviciosParaSave\(\) : null/);
+  assert.match(html, /state\.servicios = state\.depto \? serviciosDesdeSave\(d\.servicios, state\.night\) : null/);
+  assert.match(html, /state\.servicios = serviciosNuevos\(state\.night\)/);
+  assert.match(html, /cobrarCuentasDepto\(\);[^\n]*agua y luz del depto/);
+  assert.match(html, /const TORRE_PRECIO = 10000/);
 });

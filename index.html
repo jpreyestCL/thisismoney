@@ -8515,35 +8515,34 @@ function dibujarPrograma(t) {
   if (tvTex) tvTex.needsUpdate = true;
 }
 function cambiarPrograma(dir) {
+  // Solo cancela si de verdad había una frase en el aire. Un cancel() vacío se come la siguiente.
   cortarVozTele();
   tvCanal = (tvCanal + (dir || 1) + PROGRAMAS_TV.length) % PROGRAMAS_TV.length;
   dibujarPrograma(tvT);
   const nom = ui('tvNombre'); if (nom) nom.textContent = programaActual().nombre;
   toast('📺 ' + programaActual().nombre);
   beep(480 + tvCanal * 50, .05, .03);
-  actualizarVozTele();
+  hablarTeleEnGesto();
   return programaActual();
 }
+// Antes la tele solo se oía a 3,4 m de la pantalla (3,6 en una tele colocada). El sillón del
+// depto ya queda más lejos, y el dormitorio está a ~22 m. Ahora cuenta todo el departamento.
+const TV_OIR_RADIO = 24;
 function teleCerca() {
   if (sitOn && sitOn.torre && sitOn.key === 'sofa' && sitOn.dep && sitOn.dep.teleOn) return sitOn.dep;
-  if (torreAdentro(1)) {
-    const k = torreNivel();
-    for (const dep of torreDeptos) if (dep.nivel === k && dep.amoblado && deptoPantallaCerca(dep)) return dep;
-  }
+  const dep = deptoAlrededor(player.position.x, player.position.z, torreNivel());
+  if (dep && dep.amoblado && dep.teleOn) return dep;
   for (const o of placed) {
     if (!o.mesh || !o.mesh.visible || o.key !== 'tele' || !o.tvOn) continue;
-    if (dist2D(player.position, o.mesh.position) < 3.6) return o;
+    if (dist2D(player.position, o.mesh.position) < TV_OIR_RADIO) return o;
   }
   return null;
 }
+// Distancia a la pantalla. El depto no la usa: 24 m desde la tele también tapa el pasillo.
 function deptoPantallaCerca(dep) {
-  const cercaDe = (mesh, radio) => {
-    if (!mesh) return false;
-    mesh.getWorldPosition(_tvPos);
-    return dist2D(player.position, _tvPos) < radio && Math.abs(player.position.y - _tvPos.y) < 2.6;
-  };
-  if (dep.teleOn && cercaDe(dep.tele, 3.4)) return true;
-  return cercaDe(dep.teleJuego, 2.5);
+  if (!dep || !dep.teleOn || !dep.tele) return false;
+  dep.tele.getWorldPosition(_tvPos);
+  return dist2D(player.position, _tvPos) < TV_OIR_RADIO && Math.abs(player.position.y - _tvPos.y) < 3.2;
 }
 function viendoTele() {
   return !!(teleCerca() && state.running && !state.paused && !typing && !state.cinematic && !state.driving);
@@ -8573,6 +8572,9 @@ function updateProgramas(dt) {
   dibujarPrograma(tvT);
 }
 let tvVoz = null, tvPendiente = null, tvVozTimer = 0, tvVozRota = false, tvVozElegida, tvUltimaLocucion = null;
+// Chrome borra el utterance si nadie lo retiene y la tele queda muda. tvUtterancePrev guarda
+// la anterior un rato más, por si el cancel() todavía la está usando.
+let tvUtterance = null, tvUtterancePrev = null, tvReintentoTimer = 0, tvResumeLlamado = false, tvEnCola = false;
 const tvFrases = [];
 const TV_NOTICIA_VOZ = {
   ciudad: 'Noticias de la ciudad. Hay obras en el centro.',
@@ -8737,12 +8739,31 @@ function perfilVozTele() {
     noticiaSeg: TV_NOTICIA_SEG,
   };
 }
+function prepararVozTele() {
+  try {
+    const syn = window.speechSynthesis;
+    if (syn && syn.resume) { syn.resume(); tvResumeLlamado = true; }
+  } catch (e) {}
+}
+function teleHablando() {
+  // tvUtterance solo retiene el objeto. Cancelar antes de speak() deja la tele muda.
+  if (tvEnCola) return true;
+  try {
+    const syn = window.speechSynthesis;
+    return !!(syn && (syn.speaking || syn.pending));
+  } catch (e) { return false; }
+}
 function cortarVozTele() {
+  const habia = teleHablando();
   tvVoz = null;
   tvPendiente = null;
   tvEsperandoVoces = null;
+  tvEnCola = false;
   if (tvVozTimer) { clearTimeout(tvVozTimer); tvVozTimer = 0; }
   if (tvVocesTimer) { clearTimeout(tvVocesTimer); tvVocesTimer = 0; }
+  if (tvReintentoTimer) { clearTimeout(tvReintentoTimer); tvReintentoTimer = 0; }
+  if (tvUtterance) { tvUtterancePrev = tvUtterance; tvUtterance = null; }
+  if (!habia) return;
   tvCanceladoEn = performance.now();
   try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
 }
@@ -8773,6 +8794,7 @@ function hablarAhora(linea) {
     tvPendiente = null;
     tvEsperandoVoces = null;
     const u = new SpeechSynthesisUtterance(linea.texto);
+    tvUtterance = u;
     u.volume = 1;
     u.pitch = ficha.pitch;
     u.rate = ficha.rate;
@@ -8781,6 +8803,7 @@ function hablarAhora(linea) {
     if (u.voice && !vozEsEspanol(u.voice)) { try { u.voice = null; } catch (e) {} }
     tvUltimaLocucion = { texto: linea.texto, marca: ficha.marca, name: vozEs ? ficha.name : null, lang: u.lang, voiceURI: (u.voice && u.voice.voiceURI) || null, pitch: u.pitch, rate: u.rate, volume: u.volume, empezo: false, voiceURIReal: null };
     u.onstart = () => {
+      if (tvReintentoTimer) { clearTimeout(tvReintentoTimer); tvReintentoTimer = 0; }
       if (!tvUltimaLocucion || tvUltimaLocucion.texto !== linea.texto) return;
       const real = u.voice;
       if (real && /^en([_-]|$)/i.test(real.lang || '')) { cortarVozTele(); avisarSinVozEspanol(); return; }
@@ -8793,6 +8816,8 @@ function hablarAhora(linea) {
     u.onerror = (ev) => {
       const err = ev && ev.error;
       if (err === 'interrupted' || err === 'canceled') return;
+      if (tvUtterance === u) { tvUtterancePrev = u; tvUtterance = null; }
+      tvEnCola = false;
       if (!tvVoz || tvVoz.clave !== linea.clave) return;
       const evitar = (linea.evitar || []).concat(vozEs && vozEs.voiceURI ? [vozEs.voiceURI] : []);
       tvVoz = null;
@@ -8804,6 +8829,7 @@ function hablarAhora(linea) {
       avisarSinVozEspanol();
     };
     u.onend = () => {
+      if (tvUtterance === u) { tvUtterancePrev = u; tvUtterance = null; tvEnCola = false; }
       if (!tvVoz || tvVoz.clave !== linea.clave) return;
       tvVoz = null;
       const sig = tvPendiente;
@@ -8812,13 +8838,26 @@ function hablarAhora(linea) {
     };
     const lanzar = () => {
       tvVozTimer = 0;
-      if (!tvVoz || tvVoz.clave !== linea.clave || !tvPuedeHablar()) return;
+      if (!tvVoz || tvVoz.clave !== linea.clave || !tvPuedeHablar() || tvUtterance !== u) return;
       try {
         tvFrases.push(linea.texto);
         if (tvFrases.length > 24) tvFrases.shift();
-        if (syn.resume) syn.resume();
+        prepararVozTele();
+        tvEnCola = true;
         syn.speak(u);
-      } catch (e) { tvVoz = null; }
+        if (!linea.reintento) {
+          const texto = linea.texto, clave = linea.clave;
+          if (tvReintentoTimer) clearTimeout(tvReintentoTimer);
+          tvReintentoTimer = setTimeout(() => {
+            tvReintentoTimer = 0;
+            if (tvUtterance !== u || !tvVoz || tvVoz.clave !== clave) return;
+            if (tvUltimaLocucion && tvUltimaLocucion.texto === texto && tvUltimaLocucion.empezo) return;
+            if (!tvPuedeHablar()) return;
+            cortarVozTele();
+            hablarAhora(Object.assign({}, linea, { forzar: true, sinVoz: true, reintento: true }));
+          }, 800);
+        }
+      } catch (e) { tvVoz = null; tvEnCola = false; }
     };
     const desdeCorte = tvCanceladoEn ? performance.now() - tvCanceladoEn : 9999;
     if (desdeCorte < 300) tvVozTimer = setTimeout(lanzar, Math.ceil(300 - desdeCorte));
@@ -8836,6 +8875,16 @@ function actualizarVozTele() {
   hablarAhora(linea);
   return tvVoz;
 }
+function hablarTeleEnGesto() {
+  if (!tvPuedeHablar()) return;
+  prepararVozTele();
+  const linea = lineaDeLaTele(tvT);
+  if (!linea || !linea.texto) return;
+  if (tvVoz && tvVoz.clave === linea.clave && (tvEnCola || tvUtterance)) return;
+  // forzar: en el celular getVoices() llega vacío y un timer de 800 ms ya no es el gesto.
+  // Se habla ahora, con voz es-* si hay, y si no con lang es-CL y la voz sin asignar.
+  hablarAhora(Object.assign({}, linea, { forzar: true }));
+}
 function encenderTeleMueble(o) {
   if (!o || o.key !== 'tele' || o.tvOn) return false;
   o.tvOn = true;
@@ -8847,7 +8896,7 @@ function alternarTeleMueble(o) {
   if (!o || o.key !== 'tele') return false;
   o.tvOn = !o.tvOn;
   if (o.pantalla) o.pantalla.material = o.tvOn ? asegurarTele() : TORRE_TELE_APAGADA;
-  if (o.tvOn) dibujarPrograma(tvT);
+  if (o.tvOn) { dibujarPrograma(tvT); hablarTeleEnGesto(); }
   else cortarVozTele();
   beep(o.tvOn ? 700 : 300, .06, .04);
   toast(o.tvOn ? '📺 ' + programaActual().nombre + ' · , y . cambian' : '📺 Apagaste la tele');
@@ -9457,7 +9506,7 @@ const TORRE_OBJ_ICONO = { asiento: '🪑', tele: '📺', play: '🎮', congelado
 function setTeleDepto(dep, on) {
   dep.teleOn = on;
   if (dep.tele) dep.tele.material = on ? asegurarTele() : TORRE_TELE_APAGADA;
-  if (on) dibujarPrograma(tvT);
+  if (on) { dibujarPrograma(tvT); hablarTeleEnGesto(); }
   else cortarVozTele();
 }
 function torreEspera(o, seg) {   // true si todavía no se puede volver a usar
@@ -21826,6 +21875,9 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.lineaTele = (t) => lineaDeLaTele(t == null ? tvT : t);
   timDump.frasesTele = () => tvFrases.slice();
   timDump.actualizarVozTele = () => ({ voz: actualizarVozTele(), frases: tvFrases.slice(), viendo: !!viendoTele(), locucion: tvUltimaLocucion });
+  timDump.oirTele = () => ({ radio: TV_OIR_RADIO, retenida: tvUtterance instanceof SpeechSynthesisUtterance, prev: tvUtterancePrev instanceof SpeechSynthesisUtterance, resume: tvResumeLlamado, enCola: tvEnCola, locucion: tvUltimaLocucion, viendo: !!viendoTele(), cerca: !!teleCerca(), texto: tvUtterance ? tvUtterance.text : null, lang: tvUtterance ? tvUtterance.lang : null });
+  timDump.prenderTele = (id) => { const dep = deptoPorId(id || '201'); if (!dep) return null; if (!dep.amoblado) amoblarDepto(dep); setTeleDepto(dep, true); return timDump.oirTele(); };
+  timDump.apagarTele = (id) => { const dep = deptoPorId(id || '201'); if (!dep) return null; setTeleDepto(dep, false); return true; };
   timDump.perfilVozTele = perfilVozTele;
   timDump.estadoPartido = (t) => estadoPartido(t == null ? tvT : t);
   timDump.tvCanvas = () => (tvMat && tvMat.userData.cv ? tvMat.userData.cv.toDataURL('image/png') : null);

@@ -152,6 +152,17 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /function teleCerca\(\) \{[\s\S]*?deptoAlrededor\(player\.position/);
   assert.match(html, /function hablarTeleEnGesto\(/);
   assert.match(html, /sinVoz: true, reintento: true/);
+  assert.match(html, /texto: habla\[1\]/);
+  assert.match(html, /function lineaYaDicha/);
+  assert.match(html, /tvLineaOida = linea\.clave/);
+  assert.doesNotMatch(html, /habla\[0\] \+ ' dice: '/);
+  assert.match(html, /if \(id === 'noticias'\) return 'periodista'/);
+  assert.match(html, /if \(id === 'partido'\) return 'comentarista'/);
+  assert.match(html, /tvTextoOido === linea\.texto/);
+  assert.match(html, /tvTextoPedido = linea\.texto/);
+  assert.ok(html.includes('Noticias de la ciudad. Hay obras en el centro.'));
+  assert.ok(html.includes('El clima. Llega un frente frío, con doce grados.'));
+  assert.doesNotMatch(html, /el periodista dice|periodista dice/);
   const cercaFn = html.slice(html.indexOf('function teleCerca'), html.indexOf('function deptoPantallaCerca'));
   assert.match(cercaFn, /sitOn\.key === 'sofa'/);
   assert.match(cercaFn, /TV_OIR_RADIO/);

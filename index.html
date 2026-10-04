@@ -8575,6 +8575,7 @@ let tvVoz = null, tvPendiente = null, tvVozTimer = 0, tvVozRota = false, tvVozEl
 // Chrome borra el utterance si nadie lo retiene y la tele queda muda. tvUtterancePrev guarda
 // la anterior un rato más, por si el cancel() todavía la está usando.
 let tvUtterance = null, tvUtterancePrev = null, tvReintentoTimer = 0, tvResumeLlamado = false, tvEnCola = false;
+let tvLineaHecha = null, tvLineaOida = null, tvTextoOido = null, tvTextoPedido = null, tvReintentoHecho = null;
 const tvFrases = [];
 const TV_NOTICIA_VOZ = {
   ciudad: 'Noticias de la ciudad. Hay obras en el centro.',
@@ -8619,7 +8620,8 @@ function lineaNovela(t) {
   if (fase.intro) return { clave: 'novela:cartel:' + temp.n + ':' + vuelta, cortar: true, voz: 'mujer', texto: 'Estreno. Temporada ' + temp.n + '. ' + temp.titulo + '.' };
   const habla = lineaVisibleNovela(temp, fase.escena, t);
   if (!habla) return null;
-  return { clave: 'novela:' + temp.n + ':' + vuelta + ':' + fase.escena + ':' + habla[1], cortar: false, voz: habla[0] === 'Lila' ? 'mujer' : 'hombre', texto: habla[0] + ' dice: ' + habla[1] };
+  // Solo el texto del globo. La escena no va en la clave: si la frase no cambia, no se vuelve a decir.
+  return { clave: 'novela:' + temp.n + ':' + vuelta + ':' + habla[1], cortar: false, voz: habla[0] === 'Lila' ? 'mujer' : 'hombre', texto: habla[1] };
 }
 function lineaNoticias(t) {
   const seg = TV_NOTICIA_SEG, idx = Math.floor(t / seg), tipo = TV_NOTICIAS[idx % TV_NOTICIAS.length];
@@ -8767,8 +8769,35 @@ function cortarVozTele() {
   tvCanceladoEn = performance.now();
   try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
 }
+function vozDeLaLinea(linea) {
+  const id = programaActual().id;
+  if (id === 'noticias') return 'periodista';
+  if (id === 'partido') return 'comentarista';
+  if (id === 'novela') return linea && linea.voz === 'hombre' ? 'hombre' : 'mujer';
+  return 'periodista';
+}
+function lineaYaDicha(linea) {
+  if (!linea) return false;
+  if (tvLineaOida === linea.clave || tvTextoOido === linea.texto || tvTextoPedido === linea.texto) return true;
+  if (tvLineaHecha === linea.clave) return true;
+  if (tvEnCola && tvVoz && tvVoz.texto === linea.texto) return true;
+  return false;
+}
 function hablarAhora(linea) {
   if (tvVozRota || !linea || !linea.texto || !soundOn) return;
+  const respaldo = !!(linea.evitar || linea.sinVoz || linea.intentos);
+  if (linea.reintento) {
+    if (tvLineaOida === linea.clave || tvReintentoHecho === linea.clave || tvTextoOido === linea.texto) return;
+    tvReintentoHecho = linea.clave;
+  } else if (!respaldo) {
+    if (tvLineaOida === linea.clave || tvTextoOido === linea.texto) return;
+    if (tvEnCola && tvVoz && tvVoz.texto === linea.texto) return;
+    if (!linea.forzar && (tvLineaHecha === linea.clave || tvTextoPedido === linea.texto)) return;
+    if (linea.forzar && tvEnCola && tvVoz && tvVoz.clave === linea.clave) return;
+    tvLineaHecha = linea.clave;
+    tvTextoPedido = linea.texto;
+    tvReintentoHecho = null;
+  }
   try {
     const syn = window.speechSynthesis;
     if (!syn || typeof syn.speak !== 'function' || typeof SpeechSynthesisUtterance !== 'function') { tvVozRota = true; return; }
@@ -8787,7 +8816,7 @@ function hablarAhora(linea) {
       }, 800);
       return;
     }
-    const ficha = fichaVoz(linea.voz || 'periodista', linea.evitar);
+    const ficha = fichaVoz(vozDeLaLinea(linea), linea.evitar);
     const vozEs = !linea.sinVoz && ficha.voz && vozEsEspanol(ficha.voz) ? ficha.voz : null;
     if (tvVozTimer) { clearTimeout(tvVozTimer); tvVozTimer = 0; }
     tvVoz = { clave: linea.clave, texto: linea.texto };
@@ -8803,6 +8832,8 @@ function hablarAhora(linea) {
     if (u.voice && !vozEsEspanol(u.voice)) { try { u.voice = null; } catch (e) {} }
     tvUltimaLocucion = { texto: linea.texto, marca: ficha.marca, name: vozEs ? ficha.name : null, lang: u.lang, voiceURI: (u.voice && u.voice.voiceURI) || null, pitch: u.pitch, rate: u.rate, volume: u.volume, empezo: false, voiceURIReal: null };
     u.onstart = () => {
+      tvLineaOida = linea.clave;
+      tvTextoOido = linea.texto;
       if (tvReintentoTimer) { clearTimeout(tvReintentoTimer); tvReintentoTimer = 0; }
       if (!tvUltimaLocucion || tvUltimaLocucion.texto !== linea.texto) return;
       const real = u.voice;
@@ -8816,6 +8847,8 @@ function hablarAhora(linea) {
     u.onerror = (ev) => {
       const err = ev && ev.error;
       if (err === 'interrupted' || err === 'canceled') return;
+      if (tvReintentoTimer) { clearTimeout(tvReintentoTimer); tvReintentoTimer = 0; }
+      if (tvLineaOida === linea.clave) return;
       if (tvUtterance === u) { tvUtterancePrev = u; tvUtterance = null; }
       tvEnCola = false;
       if (!tvVoz || tvVoz.clave !== linea.clave) return;
@@ -8838,6 +8871,7 @@ function hablarAhora(linea) {
     };
     const lanzar = () => {
       tvVozTimer = 0;
+      if (linea.reintento && (tvLineaOida === linea.clave || (tvUltimaLocucion && tvUltimaLocucion.empezo))) return;
       if (!tvVoz || tvVoz.clave !== linea.clave || !tvPuedeHablar() || tvUtterance !== u) return;
       try {
         tvFrases.push(linea.texto);
@@ -8850,10 +8884,11 @@ function hablarAhora(linea) {
           if (tvReintentoTimer) clearTimeout(tvReintentoTimer);
           tvReintentoTimer = setTimeout(() => {
             tvReintentoTimer = 0;
-            if (tvUtterance !== u || !tvVoz || tvVoz.clave !== clave) return;
+            if (tvLineaOida === clave || tvReintentoHecho === clave) return;
             if (tvUltimaLocucion && tvUltimaLocucion.texto === texto && tvUltimaLocucion.empezo) return;
-            if (!tvPuedeHablar()) return;
-            cortarVozTele();
+            let ocupada = false;
+            try { ocupada = !!(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)); } catch (e) {}
+            if (ocupada || !tvPuedeHablar()) return;
             hablarAhora(Object.assign({}, linea, { forzar: true, sinVoz: true, reintento: true }));
           }, 800);
         }
@@ -8869,6 +8904,7 @@ function actualizarVozTele() {
   if (!tvPuedeHablar()) { if (tvVoz || tvVozTimer || tvPendiente) cortarVozTele(); return tvVoz; }
   const linea = lineaDeLaTele(tvT);
   if (!linea) return tvVoz;
+  if (lineaYaDicha(linea)) return tvVoz;
   if (tvVoz && tvVoz.clave === linea.clave) return tvVoz;
   if (tvPendiente && tvPendiente.clave === linea.clave) return tvVoz;
   if (tvVoz && !linea.cortar) { tvPendiente = linea; return tvVoz; }
@@ -8879,7 +8915,7 @@ function hablarTeleEnGesto() {
   if (!tvPuedeHablar()) return;
   prepararVozTele();
   const linea = lineaDeLaTele(tvT);
-  if (!linea || !linea.texto) return;
+  if (!linea || !linea.texto || lineaYaDicha(linea)) return;
   if (tvVoz && tvVoz.clave === linea.clave && (tvEnCola || tvUtterance)) return;
   // forzar: en el celular getVoices() llega vacío y un timer de 800 ms ya no es el gesto.
   // Se habla ahora, con voz es-* si hay, y si no con lang es-CL y la voz sin asignar.

@@ -7597,6 +7597,12 @@ const PROGRAMAS_TV = [
   { id: 'cocina', nombre: 'Cocina en casa' },
   { id: 'clima', nombre: 'El clima' },
   { id: 'novela', nombre: 'La novela' },
+  { id: 'documental', nombre: 'Documental' },
+  { id: 'concurso', nombre: 'Concurso' },
+  { id: 'huerto', nombre: 'El huerto' },
+  { id: 'buenosdias', nombre: 'Buenos días' },
+  { id: 'musica', nombre: 'Música' },
+  { id: 'comedia', nombre: 'Comedia' },
 ];
 const TORRE_TELE_APAGADA = new THREE.MeshBasicMaterial({ color: 0x0b0b0f });
 let tvCanal = 2, tvT = 0, tvTex = null, tvMat = null;
@@ -7764,13 +7770,14 @@ function estadoPartido(t) {
 }
 const ESTRENO_NOVELA = 'La novela';
 // Cada ficha es una temporada distinta: otro título y otras frases en pantalla.
+// Cada temporada es una historia de cuatro escenas: la siguiente contesta a la anterior.
 const TEMPORADAS_NOVELA = [
-  { titulo: 'El secreto del pasaje', lineas: [['Vera', '¿Te quedas?'], ['Lila', 'Esta noche sí'], ['Lila', '¡Escúchame!'], ['Vera', '¡¿Qué?!'], ['Lila', 'Me voy']] },
-  { titulo: 'Vera vuelve', lineas: [['Vera', 'Volví al pasaje'], ['Lila', 'Pensé que no volvías'], ['Lila', 'Siéntate conmigo'], ['Vera', 'Esta vez me quedo']] },
-  { titulo: 'La casa de Lila', lineas: [['Lila', 'Hay que subir la pared'], ['Vera', 'El techo, ahora'], ['Lila', 'Pinta la puerta'], ['Vera', 'Esta casa es nuestra']] },
-  { titulo: 'Cartas de Platus', lineas: [['Vera', 'Te escribo desde aquí'], ['Lila', 'El cohete sale hoy'], ['Vera', 'Llegó tu carta'], ['Lila', 'Te espero en Platus']] },
-  { titulo: 'El turno de noche', lineas: [['Vera', 'Ya es de noche'], ['Lila', 'No apagues la luz'], ['Vera', 'Quedémonos despiertos'], ['Lila', 'Pasó el turno']] },
-  { titulo: 'Hermanos del huerto', lineas: [['Vera', 'Entierra la semilla'], ['Lila', 'Échale agua'], ['Vera', 'Ya hay manzanas'], ['Lila', 'La cosecha es hoy']] },
+  { titulo: 'El secreto del pasaje', lineas: [['Lila', 'Voy a esconder esto.'], ['Vera', '¿Esconder qué?'], ['Lila', 'Esto, detrás de la caja.'], ['Vera', 'Ya lo encontré.']] },
+  { titulo: 'Vera vuelve', lineas: [['Vera', 'Volví al pasaje.'], ['Lila', 'Pensé que no volvías.'], ['Vera', 'Me fui porque tenía miedo.'], ['Lila', 'Quédate. Eso ya pasó.']] },
+  { titulo: 'La casa de Lila', lineas: [['Lila', 'Esta casa es mía.'], ['Vera', 'Yo vivo aquí también.'], ['Lila', '¿Y de quién es, entonces?'], ['Vera', 'De las dos. Nos quedamos.']] },
+  { titulo: 'Cartas de Platus', lineas: [['Vera', 'Llegó una carta.'], ['Lila', 'Escribe desde Platus.'], ['Vera', '¿Le contestamos o no?'], ['Lila', 'Sí. Le contesto ahora.']] },
+  { titulo: 'El turno de noche', lineas: [['Vera', 'Yo cubro el turno.'], ['Lila', '¿Sigues despierta?'], ['Lila', 'Siéntate. Yo te relevo.'], ['Vera', 'Gracias. Ya descanso.']] },
+  { titulo: 'Hermanos del huerto', lineas: [['Vera', 'El huerto es mío.'], ['Lila', 'No. También es mío.'], ['Vera', 'Se secó por la pelea.'], ['Lila', 'Lo regamos. Ya está.']] },
 ];
 const TV_NOTICIAS = ['ciudad', 'clima', 'deporte', 'plata', 'transito', 'farandula', 'juego', 'incendio', 'asalto', 'politica', 'ciencia', 'salud', 'escuela', 'playa', 'aeropuerto', 'carcel', 'banco', 'mascota', 'extremo', 'estreno', 'proximo'];
 const TV_NOTICIA_SEG = 15;
@@ -8254,13 +8261,135 @@ function faseNovela(t) {
 }
 function lineaVisibleNovela(temp, escena, t) {
   const L = temp.lineas;
-  if (temp.i === 0) {
-    if (escena === 0) return L[Math.sin(t * 6) > 0 ? 0 : 1];
-    if (escena === 1) return L[2];
-    if (escena === 2) return null;
-    return L[Math.sin(t * 3) > 0 ? 3 : 4];
-  }
+  if (escena < 0 || !L.length) return null;
   return L[escena] || L[0];
+}
+let novelaHablaX = 220;
+function tvVera(ctx, x, y, o) {
+  tvPersona(ctx, x, y, Object.assign({ s: .9, ropa: '#1e1b4b', pelo: '#44403c' }, o));
+}
+function tvLila(ctx, x, y, o) {
+  tvPersona(ctx, x, y, Object.assign({ s: .88, ropa: '#be185d', peloTipo: 'largo', pelo: '#111' }, o));
+}
+function tvCajon(ctx, x, y) {
+  ctx.fillStyle = '#a16207'; ctx.fillRect(x, y, 34, 22);
+  ctx.strokeStyle = '#451a03'; ctx.lineWidth = 2; ctx.strokeRect(x, y, 34, 22);
+  ctx.fillStyle = '#fde68a'; ctx.fillRect(x + 13, y + 8, 8, 6);
+}
+function tvMaleta(ctx, x, y) {
+  ctx.fillStyle = '#92400e'; ctx.fillRect(x, y, 36, 24);
+  ctx.strokeStyle = '#451a03'; ctx.lineWidth = 2; ctx.strokeRect(x, y, 36, 24);
+  ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x + 10, y); ctx.lineTo(x + 10, y - 10); ctx.lineTo(x + 26, y - 10); ctx.lineTo(x + 26, y); ctx.stroke();
+}
+function tvCarta(ctx, x, y, gira) {
+  ctx.save(); ctx.translate(x, y); if (gira) ctx.rotate(-0.15);
+  ctx.fillStyle = '#fff7ed'; ctx.fillRect(0, 0, 40, 28);
+  ctx.strokeStyle = '#7c2d12'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, 40, 28);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(20, 14); ctx.lineTo(40, 0); ctx.stroke();
+  ctx.restore();
+}
+function tvCasaFachada(ctx, x, abierta) {
+  ctx.fillStyle = '#fbcfe8'; ctx.fillRect(x, 78, 160, 112);
+  ctx.fillStyle = '#9d174d'; ctx.beginPath(); ctx.moveTo(x - 14, 78); ctx.lineTo(x + 80, 28); ctx.lineTo(x + 174, 78); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillRect(x + 16, 96, 32, 26); ctx.fillRect(x + 112, 96, 32, 26);
+  ctx.strokeStyle = '#9d174d'; ctx.lineWidth = 2; ctx.strokeRect(x + 16, 96, 32, 26); ctx.strokeRect(x + 112, 96, 32, 26);
+  if (abierta) {
+    ctx.fillStyle = '#1c1917'; ctx.fillRect(x + 62, 112, 40, 78);
+    ctx.fillStyle = '#9f1239'; ctx.fillRect(x + 100, 114, 10, 74);
+  } else {
+    ctx.fillStyle = '#9f1239'; ctx.fillRect(x + 62, 112, 40, 78);
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(x + 92, 154, 4, 0, 7); ctx.fill();
+  }
+}
+function tvLampara(ctx, x, y, on) {
+  ctx.strokeStyle = '#334155'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 62); ctx.stroke();
+  if (on) { ctx.fillStyle = 'rgba(253,224,71,.28)'; ctx.beginPath(); ctx.arc(x, y - 74, 40, 0, 7); ctx.fill(); }
+  ctx.fillStyle = on ? '#fde68a' : '#1e293b';
+  ctx.beginPath(); ctx.arc(x, y - 74, 14, 0, 7); ctx.fill();
+}
+function tvPlanta(ctx, x, y, seca) {
+  ctx.fillStyle = '#78350f'; ctx.fillRect(x - 14, y, 28, 16);
+  ctx.fillStyle = seca ? '#a8a29e' : '#166534';
+  ctx.fillRect(x - 2, y - 36, 4, 36);
+  ctx.fillStyle = seca ? '#78716c' : '#22c55e';
+  ctx.beginPath(); ctx.arc(x, y - 42, seca ? 14 : 18, 0, 7); ctx.fill();
+  if (!seca) { ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(x + 8, y - 50, 5, 0, 7); ctx.fill(); }
+}
+function tvGloboEn(ctx, x, texto, y) {
+  ctx.font = 'bold 16px sans-serif';
+  const w = ctx.measureText(texto).width + 18;
+  let gx = x - w * 0.42;
+  if (gx < 8) gx = 8;
+  if (gx + w > 504) gx = 504 - w;
+  tvGlobo(ctx, gx, y == null ? 22 : y, texto);
+}
+function faseCanal(t, n, seg) {
+  seg = seg || 4;
+  const u = (Math.max(0, t) % (seg * n)) / seg;
+  return { escena: Math.floor(u), lt: u % 1 };
+}
+const DOC_LINEAS = [
+  'Este zorro vive en el campo.',
+  'Camina buscando comida.',
+  'Encuentra agua y bebe.',
+];
+const MUSICA_LINEAS = [
+  'Sube la cantante al escenario.',
+  'Canta la primera estrofa.',
+  'El público corea con ella.',
+  'Saluda y termina la canción.',
+];
+const COMEDIA_LINEAS = [
+  'Entra un hombre a la tienda.',
+  'Pide pan y no trae plata.',
+  'El vendedor le fía el pan.',
+  'Los dos se ríen del apuro.',
+];
+const CONCURSO_LINEAS = [
+  '¿Cuánto es dos más tres?',
+  'Cinco.',
+  'Correcto. Ganaste el punto.',
+  '¿De qué color es el pasto?',
+  'Azul.',
+  'Incorrecto. Perdiste.',
+];
+const HUERTO_LINEAS = [
+  'Planta la semilla.',
+  'Le echa agua.',
+  'Cosecha la manzana.',
+];
+const DIAS_LINEAS = [
+  'En la avenida hay obras.',
+  'Hay que salir temprano.',
+  'Quedamos en eso.',
+];
+function tvRelato(ctx, texto) {
+  ctx.font = 'bold 16px sans-serif';
+  const w = Math.min(480, ctx.measureText(texto).width + 22);
+  const x = (512 - w) / 2;
+  ctx.fillStyle = 'rgba(0,0,0,.72)';
+  tvCaja(ctx, x, 8, w, 30, 8); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(texto, 256, 23);
+}
+function tvBicho(ctx, x, y, bebe) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = '#65a30d';
+  ctx.beginPath(); ctx.ellipse(0, 0, 34, 16, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(26, -6, 11, 0, 7); ctx.fill();
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(30, -8, 2, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#3f6212'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let i = 0; i < 6; i++) {
+    const lx = -22 + i * 9;
+    ctx.beginPath(); ctx.moveTo(lx, 8); ctx.lineTo(lx + (i % 2 ? 7 : -7), bebe ? 18 : 26); ctx.stroke();
+  }
+  if (bebe) {
+    ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(34, 2); ctx.lineTo(48, 14); ctx.stroke();
+  }
+  ctx.restore();
 }
 function dibujarCartelEstreno(ctx, k, temp) {
   temp = temp || temporadaActual();
@@ -8283,144 +8412,189 @@ function dibujarCartelEstreno(ctx, k, temp) {
     tvPersona(ctx, 362, 214, { s: .5, ropa: '#be185d', peloTipo: 'largo', fase: 1, boca: 'sonrisa' });
   }
 }
+function fondoNovela(ctx, arriba, suelo) {
+  const g = ctx.createLinearGradient(0, 0, 0, 236);
+  g.addColorStop(0, arriba); g.addColorStop(1, suelo);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
+}
+function tvBanco(ctx, x, y, w) {
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(x, y, w, 12);
+  ctx.fillRect(x + 8, y + 12, 8, 18);
+  ctx.fillRect(x + w - 16, y + 12, 8, 18);
+}
 function dibujarEscenaTemporadaUno(ctx, escena, lt, t) {
-  const hablaA = Math.sin(t * 6) > 0;
+  fondoNovela(ctx, '#312e81', '#1e1b4b');
+  ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, 64, 210); ctx.fillRect(448, 0, 64, 210);
+  ctx.fillStyle = '#4338ca'; ctx.fillRect(8, 36, 28, 22); ctx.fillRect(472, 70, 28, 22);
+  ctx.fillStyle = '#44403c'; ctx.fillRect(0, 196, 512, 92);
   if (escena === 0) {
-    const g = ctx.createLinearGradient(0, 0, 0, 220); g.addColorStop(0, '#4c1d95'); g.addColorStop(1, '#2e1065');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 288);
-    ctx.fillStyle = '#312e81'; ctx.fillRect(0, 176, 512, 56);
-    ctx.fillStyle = '#fde68a'; ctx.fillRect(40, 40, 70, 90);
-    tvPersona(ctx, 180, 210, { s: .95, ropa: '#1e1b4b', pelo: '#44403c', fase: t, boca: hablaA ? 'habla' : 'sonrisa', mira: 2, brazoR: hablaA ? -0.6 : 0.3, brazoL: 0.2 });
-    tvPersona(ctx, 330, 210, { s: .92, ropa: '#be185d', peloTipo: 'largo', pelo: '#111', fase: t + 1, boca: hablaA ? 'sonrisa' : 'habla', mira: -2, brazoL: hablaA ? 0.4 : -0.7 });
+    tvLila(ctx, 250, 206, { fase: t, boca: 'habla', mira: -2, brazoL: 0.85 });
+    tvCajon(ctx, 214, 162);
+    novelaHablaX = 250;
   } else if (escena === 1) {
-    ctx.fillStyle = '#7f1d1d'; ctx.fillRect(0, 0, 512, 288);
-    ctx.fillStyle = '#44403c'; tvCaja(ctx, 40, 150, 200, 36, 8); ctx.fill();
-    ctx.fillStyle = '#292524'; ctx.fillRect(40, 138, 200, 16);
-    ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.arc(430, 70, 16, 0, 7); ctx.fill();
-    tvPersona(ctx, 120, 188, { s: .9, ropa: '#be185d', peloTipo: 'largo', sentado: true, fase: t, boca: 'habla', brazoL: -0.2, brazoR: 0.6 });
-    tvPersona(ctx, 300, 206, { s: .95, ropa: '#1e1b4b', fase: t * 2, boca: 'sonrisa', brazoR: -1.15 + Math.sin(t * 4) * 0.25, brazoL: 0.3 });
+    tvCajon(ctx, 214, 162);
+    tvLila(ctx, 250, 206, { fase: t, boca: 'sorpresa', mira: 2 });
+    tvVera(ctx, 120, 206, { fase: t, boca: 'habla', mira: 2 });
+    novelaHablaX = 120;
   } else if (escena === 2) {
-    ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, 512, 288);
-    ctx.fillStyle = '#312e81'; ctx.fillRect(0, 180, 512, 52);
-    ctx.fillStyle = '#94a3b8'; ctx.fillRect(230, 40, 54, 140);
-    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(257, 36, 8, 0, 7); ctx.fill();
-    const ax = 80 + lt * 280, bx = 430 - lt * 280;
-    tvPersona(ctx, ax, 208, { s: .9, ropa: '#1e1b4b', camina: true, fase: t * 8, mira: 2, boca: 'sonrisa' });
-    tvPersona(ctx, bx, 208, { s: .88, ropa: '#be185d', peloTipo: 'largo', camina: true, fase: t * 8 + 1, mira: -2, boca: lt > 0.45 ? 'sorpresa' : 'sonrisa' });
+    tvCajon(ctx, 92, 164);
+    ctx.fillStyle = '#57534e'; ctx.fillRect(118, 148, 58, 54);
+    tvLila(ctx, 200, 206, { fase: t, boca: 'habla', mira: -2, brazoL: 1.15 });
+    tvVera(ctx, 340, 206, { fase: t, boca: 'sonrisa', mira: -2 });
+    novelaHablaX = 200;
   } else {
-    const abre = Math.sin(t * 3) > 0;
-    ctx.fillStyle = '#3b0764'; ctx.fillRect(0, 0, 512, 288);
-    ctx.fillStyle = '#581c87'; ctx.fillRect(0, 170, 512, 62);
-    ctx.fillStyle = '#111827'; ctx.fillRect(360, 50, 80, 120);
-    const sep = 40 + lt * 30;
-    tvPersona(ctx, 200 - sep * 0.2, 206, { s: .92, ropa: '#1e1b4b', fase: t, boca: 'sorpresa', brazoL: -1.2, brazoR: -0.9, bob: abre ? 3 : 0 });
-    tvPersona(ctx, 320 + sep * 0.2, 206, { s: .9, ropa: '#be185d', peloTipo: 'largo', fase: t + 0.4, boca: abre ? 'sorpresa' : 'habla', brazoL: abre ? -1.3 : 0.8, brazoR: abre ? -1 : 0.2 });
+    tvCajon(ctx, 230, 158);
+    tvVera(ctx, 250, 206, { fase: t, boca: 'habla', mira: -2, brazoL: 0.7 });
+    tvLila(ctx, 360, 206, { fase: t, boca: 'sorpresa', mira: -2 });
+    novelaHablaX = 250;
   }
 }
 function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
-  const cielos = [
-    ['#57534e', '#44403c', '#14532d', '#451a03'],
-    ['#fbcfe8', '#f9a8d4', '#be185d', '#fce7f3'],
-    ['#fdba74', '#fb923c', '#fff7ed', '#9a3412'],
-    ['#020617', '#0f172a', '#1e293b', '#334155'],
-    ['#166534', '#14532d', '#4ade80', '#713f12'],
-  ][i - 1];
-  ctx.fillStyle = cielos[escena]; ctx.fillRect(0, 0, 512, 288);
-  if (i === 1 && escena === 0) {
-    ctx.fillStyle = '#292524'; ctx.fillRect(0, 168, 512, 18);
-    ctx.fillStyle = '#a16207'; ctx.fillRect(70, 140, 28, 18);
-    tvPersona(ctx, 40 + lt * 220, 200, { s: .9, ropa: '#1e1b4b', camina: true, fase: t * 6, boca: 'habla' });
-    tvPersona(ctx, 400, 200, { s: .88, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sorpresa' });
-  } else if (i === 1 && escena === 1) {
-    ctx.fillStyle = '#e7e5e4'; ctx.fillRect(180, 70, 140, 120);
-    ctx.fillStyle = '#44403c'; ctx.fillRect(230, 120, 40, 70);
-    tvPersona(ctx, 250, 188, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
-    tvPersona(ctx, 360, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'sonrisa' });
-  } else if (i === 1 && escena === 2) {
-    ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 170, 512, 50);
-    ctx.fillStyle = '#a16207'; ctx.fillRect(160, 150, 160, 16);
-    tvPersona(ctx, 190, 168, { s: .8, ropa: '#1e1b4b', sentado: true, fase: t, boca: 'habla' });
-    tvPersona(ctx, 290, 168, { s: .8, ropa: '#be185d', peloTipo: 'largo', sentado: true, fase: t + 1, boca: 'sonrisa' });
-  } else if (i === 1) {
-    ctx.fillStyle = '#78350f'; ctx.fillRect(0, 180, 512, 40);
-    tvPersona(ctx, 210, 206, { s: .95, ropa: '#1e1b4b', fase: t, boca: 'habla', brazoL: -0.8 });
-    tvPersona(ctx, 290, 206, { s: .92, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sonrisa', brazoR: 0.8 });
-  } else if (i === 2 && escena === 0) {
-    const h = 30 + lt * 70;
-    ctx.fillStyle = '#fde68a'; ctx.fillRect(180, 180 - h, 140, h);
-    ctx.strokeStyle = '#9a3412'; ctx.strokeRect(180, 180 - h, 140, h);
-    tvPersona(ctx, 120, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t * 3, boca: 'habla', brazoR: -1.1 });
-  } else if (i === 2 && escena === 1) {
-    ctx.fillStyle = '#be185d'; ctx.beginPath(); ctx.moveTo(160, 120); ctx.lineTo(250, 50); ctx.lineTo(340, 120); ctx.fill();
-    ctx.fillStyle = '#fbcfe8'; ctx.fillRect(175, 120, 150, 70);
-    tvPersona(ctx, 400, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'habla', brazoR: -1.2 });
-  } else if (i === 2 && escena === 2) {
-    ctx.fillStyle = '#fbcfe8'; ctx.fillRect(190, 80, 120, 110);
-    ctx.fillStyle = lt % 1 < .5 ? '#facc15' : '#be185d'; ctx.fillRect(228, 130, 36, 60);
-    tvPersona(ctx, 140, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
-  } else if (i === 2) {
-    ctx.fillStyle = '#f9a8d4'; ctx.fillRect(150, 90, 200, 90);
-    ctx.fillStyle = '#fff'; ctx.fillRect(230, 140, 30, 40);
-    tvPersona(ctx, 180, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'sonrisa' });
-    tvPersona(ctx, 340, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
-  } else if (i === 3 && escena === 0) {
-    ctx.fillStyle = '#fff7ed'; ctx.fillRect(160, 90, 110, 80);
-    ctx.strokeStyle = '#7c2d12'; ctx.strokeRect(160, 90, 110, 80);
-    ctx.fillStyle = '#44403c'; ctx.fillRect(176, 110, 78, 4); ctx.fillRect(176, 126, 60, 4);
-    tvPersona(ctx, 340, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'habla', brazoR: -0.4 });
-  } else if (i === 3 && escena === 1) {
-    ctx.fillStyle = '#fdba74'; ctx.beginPath(); ctx.arc(80, 60, 28, 0, 7); ctx.fill();
-    const y = 70 - lt * 30;
-    ctx.fillStyle = '#f8fafc'; ctx.fillRect(300, y, 16, 50);
-    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(292, y); ctx.lineTo(308, y - 18); ctx.lineTo(324, y); ctx.fill();
-    tvPersona(ctx, 180, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
-  } else if (i === 3 && escena === 2) {
-    ctx.fillStyle = '#fff'; ctx.fillRect(200, 80, 90, 70);
-    ctx.fillStyle = '#7c2d12'; ctx.fillRect(214, 96, 62, 3); ctx.fillRect(214, 110, 40, 3);
-    tvPersona(ctx, 160, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'habla' });
-    tvPersona(ctx, 360, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sonrisa' });
-  } else if (i === 3) {
-    ctx.fillStyle = '#fdba74'; ctx.beginPath(); ctx.arc(420, 50, 24, 0, 7); ctx.fill();
-    tvPersona(ctx, 200, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'habla' });
-    tvPersona(ctx, 300, 206, { s: .88, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sonrisa' });
-  } else if (i === 4 && escena === 0) {
-    ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(90, 70, 26, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(250, 90, 36, 0, 7); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(250, 90); ctx.lineTo(250, 70); ctx.moveTo(250, 90); ctx.lineTo(268, 98); ctx.stroke();
-    tvPersona(ctx, 380, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'habla' });
-  } else if (i === 4 && escena === 1) {
-    ctx.fillStyle = '#fde68a'; ctx.fillRect(200, 60, 80, 100);
-    ctx.fillStyle = lt % 1 < .5 ? '#fef9c3' : '#0f172a'; ctx.fillRect(214, 78, 52, 40);
-    tvPersona(ctx, 140, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
-  } else if (i === 4 && escena === 2) {
-    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(420, 48, 16, 0, 7); ctx.fill();
-    tvPersona(ctx, 200, 206, { s: .9, ropa: '#1e1b4b', fase: t, boca: 'habla' });
-    tvPersona(ctx, 300, 206, { s: .88, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'sonrisa' });
-  } else if (i === 4) {
-    ctx.fillStyle = '#fde68a'; ctx.fillRect(0, 150, 512, 70);
-    ctx.fillStyle = '#38bdf8'; ctx.fillRect(0, 0, 512, 150);
-    tvPersona(ctx, 220, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'sonrisa' });
-    tvPersona(ctx, 310, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
-  } else if (escena === 0) {
-    ctx.fillStyle = '#78350f'; ctx.fillRect(180, 160, 140, 24);
-    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(250, 156, 8, 0, 7); ctx.fill();
-    tvPersona(ctx, 120, 206, { s: .85, ropa: '#1e1b4b', fase: t * 2, boca: 'habla', brazoR: 1.1 });
+  if (i === 1) {
+    if (escena < 2) {
+      fondoNovela(ctx, '#78716c', '#44403c');
+      ctx.fillStyle = '#a8a29e'; ctx.fillRect(0, 186, 512, 18);
+      ctx.fillStyle = '#57534e'; ctx.fillRect(0, 204, 512, 84);
+      tvCasaFachada(ctx, 300, escena === 1);
+      if (escena === 0) {
+        const x = 30 + lt * 110;
+        tvMaleta(ctx, x, 162);
+        tvVera(ctx, x + 46, 200, { camina: true, fase: t * 6, boca: 'habla', mira: 2 });
+        novelaHablaX = x + 46;
+      } else {
+        tvMaleta(ctx, 150, 166);
+        tvVera(ctx, 186, 206, { fase: t, boca: 'sonrisa', mira: 2 });
+        tvLila(ctx, 390, 200, { fase: t, boca: 'habla', mira: -2 });
+        novelaHablaX = 390;
+      }
+    } else {
+      ctx.fillStyle = '#f5f5f4'; ctx.fillRect(0, 0, 512, 288);
+      ctx.fillStyle = '#e7e5e4'; ctx.fillRect(0, 196, 512, 92);
+      tvBanco(ctx, 130, 168, 240);
+      tvMaleta(ctx, 36, 172);
+      if (escena === 2) {
+        tvVera(ctx, 190, 174, { sentado: true, fase: t, boca: 'habla', mira: 2 });
+        tvLila(ctx, 310, 174, { sentado: true, fase: t, boca: 'sonrisa', mira: -2 });
+        novelaHablaX = 190;
+      } else {
+        tvVera(ctx, 190, 174, { sentado: true, fase: t, boca: 'sonrisa', mira: 2 });
+        tvLila(ctx, 310, 174, { sentado: true, fase: t, boca: 'habla', mira: -2 });
+        novelaHablaX = 310;
+      }
+    }
+    return;
+  }
+  if (i === 2) {
+    fondoNovela(ctx, '#fce7f3', '#f9a8d4');
+    ctx.fillStyle = '#fbcfe8'; ctx.fillRect(0, 196, 512, 92);
+    if (escena === 0) {
+      tvCasaFachada(ctx, 250, false);
+      tvLila(ctx, 180, 206, { fase: t, boca: 'habla', mira: 2, brazoL: -1.05, brazoR: -0.7 });
+      tvVera(ctx, 90, 206, { fase: t, boca: 'sonrisa', mira: 2 });
+      novelaHablaX = 180;
+    } else if (escena === 1) {
+      tvCasaFachada(ctx, 240, false);
+      tvVera(ctx, 250, 206, { fase: t, boca: 'habla', mira: 2, brazoR: 2.05 });
+      tvLila(ctx, 120, 206, { fase: t, boca: 'sorpresa', mira: 2 });
+      novelaHablaX = 250;
+    } else if (escena === 2) {
+      tvCasaFachada(ctx, 160, false);
+      tvVera(ctx, 150, 206, { fase: t, boca: 'habla', mira: 2 });
+      tvLila(ctx, 300, 206, { fase: t, boca: 'habla', mira: -2, brazoL: -1.1, brazoR: -0.8 });
+      novelaHablaX = 300;
+    } else {
+      tvCasaFachada(ctx, 170, true);
+      tvVera(ctx, 214, 206, { fase: t, boca: 'habla', mira: 2 });
+      tvLila(ctx, 286, 206, { fase: t, boca: 'sonrisa', mira: -2 });
+      novelaHablaX = 214;
+    }
+    return;
+  }
+  if (i === 3) {
+    fondoNovela(ctx, '#fdba74', '#9a3412');
+    ctx.fillStyle = '#fed7aa'; ctx.fillRect(0, 196, 512, 92);
+    ctx.fillStyle = '#fb923c'; ctx.beginPath(); ctx.arc(70, 48, 22, 0, 7); ctx.fill();
+    if (escena === 0) {
+      tvCarta(ctx, 230, 150, true);
+      tvVera(ctx, 180, 206, { fase: t, boca: 'habla', mira: 2, brazoR: 0.9 });
+      tvLila(ctx, 330, 206, { fase: t, boca: 'sorpresa', mira: -2 });
+      novelaHablaX = 180;
+    } else if (escena === 1) {
+      tvCarta(ctx, 300, 118, false);
+      tvLila(ctx, 250, 206, { fase: t, boca: 'habla', mira: 2, brazoR: -1.35 });
+      tvVera(ctx, 120, 206, { fase: t, boca: 'sonrisa', mira: 2 });
+      novelaHablaX = 250;
+    } else if (escena === 2) {
+      tvCarta(ctx, 250, 158, false);
+      tvVera(ctx, 190, 206, { fase: t, boca: 'habla', mira: 2 });
+      tvLila(ctx, 330, 206, { fase: t, boca: 'sonrisa', mira: -2 });
+      novelaHablaX = 190;
+    } else {
+      ctx.fillStyle = '#fff'; ctx.fillRect(250, 150, 90, 10);
+      ctx.fillStyle = '#44403c'; ctx.fillRect(268, 138, 4, 18);
+      tvCarta(ctx, 200, 156, false);
+      tvLila(ctx, 250, 168, { sentado: true, fase: t, boca: 'habla', mira: 2, brazoR: 1.05 });
+      tvVera(ctx, 120, 206, { fase: t, boca: 'sonrisa', mira: 2 });
+      novelaHablaX = 250;
+    }
+    return;
+  }
+  if (i === 4) {
+    fondoNovela(ctx, '#020617', '#0f172a');
+    ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(78, 52, 18, 0, 7); ctx.fill();
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 196, 512, 92);
+    if (escena === 0) {
+      tvLampara(ctx, 400, 196, true);
+      tvBanco(ctx, 80, 176, 120);
+      tvLila(ctx, 140, 168, { sentado: true, fase: t, boca: 'sonrisa' });
+      tvVera(ctx, 320, 206, { fase: t, boca: 'habla', mira: -2 });
+      novelaHablaX = 320;
+    } else if (escena === 1) {
+      tvLampara(ctx, 400, 196, true);
+      tvBanco(ctx, 80, 176, 120);
+      tvLila(ctx, 140, 168, { sentado: true, fase: t, boca: 'habla', mira: 2 });
+      tvVera(ctx, 320, 206, { fase: t, boca: 'sonrisa', mira: -2 });
+      novelaHablaX = 140;
+    } else if (escena === 2) {
+      tvLampara(ctx, 400, 196, true);
+      tvBanco(ctx, 80, 176, 120);
+      tvVera(ctx, 300, 206, { fase: t, boca: 'sonrisa', mira: -2 });
+      tvLila(ctx, 180, 206, { fase: t, boca: 'habla', mira: 2, brazoR: 0.4 });
+      novelaHablaX = 180;
+    } else {
+      tvLampara(ctx, 400, 196, true);
+      tvBanco(ctx, 80, 176, 120);
+      tvVera(ctx, 140, 168, { sentado: true, fase: t, boca: 'habla', mira: 2 });
+      tvLila(ctx, 300, 206, { fase: t, boca: 'sonrisa', mira: -2 });
+      novelaHablaX = 140;
+    }
+    return;
+  }
+  fondoNovela(ctx, '#86efac', '#166534');
+  ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 188, 512, 100);
+  if (escena === 0) {
+    tvPlanta(ctx, 400, 188, false);
+    tvVera(ctx, 160, 206, { fase: t, boca: 'habla', mira: 2, brazoL: -1.1 });
+    tvLila(ctx, 280, 206, { fase: t, boca: 'sorpresa', mira: -2 });
+    novelaHablaX = 160;
   } else if (escena === 1) {
-    ctx.fillStyle = '#22c55e'; ctx.fillRect(200, 150, 16, 40);
-    ctx.fillStyle = '#38bdf8';
-    for (let k = 0; k < 5; k++) ctx.fillRect(188 + k * 8, 130 + (lt * 20 + k * 7) % 30, 3, 10);
-    tvPersona(ctx, 280, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla', brazoL: -0.2 });
+    tvPlanta(ctx, 400, 188, false);
+    tvVera(ctx, 120, 206, { fase: t, boca: 'sorpresa', mira: 2 });
+    tvLila(ctx, 250, 206, { fase: t, boca: 'habla', mira: -2, brazoL: -1.2, brazoR: -0.85 });
+    novelaHablaX = 250;
   } else if (escena === 2) {
-    ctx.fillStyle = '#166534'; ctx.fillRect(230, 90, 18, 90);
-    ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(239, 80, 36, 0, 7); ctx.fill();
-    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(220, 70, 6, 0, 7); ctx.arc(250, 64, 6, 0, 7); ctx.fill();
-    tvPersona(ctx, 140, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'habla' });
+    tvPlanta(ctx, 256, 188, true);
+    tvVera(ctx, 160, 206, { fase: t, boca: 'habla', mira: 2 });
+    tvLila(ctx, 340, 206, { fase: t, boca: 'sorpresa', mira: -2 });
+    novelaHablaX = 160;
   } else {
-    ctx.fillStyle = '#a16207'; ctx.fillRect(300, 140, 70, 40);
-    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(320, 132, 8, 0, 7); ctx.arc(345, 128, 8, 0, 7); ctx.fill();
-    tvPersona(ctx, 160, 206, { s: .85, ropa: '#1e1b4b', fase: t, boca: 'sonrisa' });
-    tvPersona(ctx, 230, 206, { s: .85, ropa: '#be185d', peloTipo: 'largo', fase: t, boca: 'habla' });
+    tvPlanta(ctx, 256, 188, false);
+    ctx.fillStyle = '#38bdf8';
+    for (let k = 0; k < 4; k++) ctx.fillRect(300 + k * 6, 150 + (lt * 24 + k * 8) % 28, 3, 10);
+    tvVera(ctx, 160, 206, { fase: t, boca: 'sonrisa', mira: 2 });
+    tvLila(ctx, 300, 206, { fase: t, boca: 'habla', mira: -2, brazoR: 0.7 });
+    novelaHablaX = 300;
   }
 }
 function dibujarNovela(ctx, t) {
@@ -8429,7 +8603,7 @@ function dibujarNovela(ctx, t) {
   if (temp.i === 0) dibujarEscenaTemporadaUno(ctx, fase.escena, fase.lt, t);
   else dibujarEscenaTemporadaNueva(ctx, temp.i, fase.escena, fase.lt, t);
   const habla = lineaVisibleNovela(temp, fase.escena, t);
-  if (habla) tvGlobo(ctx, temp.i === 0 && fase.escena === 0 && Math.sin(t * 6) > 0 ? 150 : 250, 48, habla[1]);
+  if (habla) tvGloboEn(ctx, novelaHablaX, habla[1]);
 }
 function dibujarPartido(ctx, t) {
   const est = estadoPartido(t);
@@ -8502,6 +8676,131 @@ function dibujarClima(ctx, t) {
   ctx.fillStyle = '#0f172a'; ctx.font = 'bold 54px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.fillText((16 + Math.floor(Math.sin(t * 0.5) * 3)) + '°', 24, 120);
 }
+function tvZorro(ctx, x, y, bebe) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = '#fff7ed';
+  ctx.beginPath(); ctx.moveTo(-28, 2); ctx.quadraticCurveTo(-78, -28, -46, 18); ctx.fill();
+  ctx.fillStyle = '#ea580c';
+  ctx.beginPath(); ctx.ellipse(0, 4, 34, 16, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(26, -6, 13, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(18, -14); ctx.lineTo(22, -30); ctx.lineTo(30, -12); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(28, -12); ctx.lineTo(38, -28); ctx.lineTo(40, -10); ctx.fill();
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(32, -8, 2, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#9a3412'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-8, 16); ctx.lineTo(-12, 30);
+  ctx.moveTo(10, 16); ctx.lineTo(8, 30);
+  if (bebe) { ctx.moveTo(38, 0); ctx.lineTo(52, 16); }
+  ctx.stroke();
+  ctx.restore();
+}
+function dibujarDocumental(ctx, t) {
+  const f = faseCanal(t, DOC_LINEAS.length), e = f.escena;
+  const cielo = ctx.createLinearGradient(0, 0, 0, 160); cielo.addColorStop(0, '#7dd3fc'); cielo.addColorStop(1, '#bbf7d0');
+  ctx.fillStyle = cielo; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 168, 512, 120);
+  ctx.fillStyle = '#166534';
+  for (let i = 0; i < 8; i++) ctx.fillRect(30 + i * 60, 150, 8, 28);
+  if (e === 2) {
+    ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.ellipse(360, 186, 50, 14, 0, 0, 7); ctx.fill();
+  }
+  const x = e === 0 ? 180 : e === 1 ? 80 + f.lt * 200 : 280;
+  tvZorro(ctx, x, e === 2 ? 150 : 142, e === 2);
+  tvRelato(ctx, DOC_LINEAS[e]);
+}
+function dibujarMusica(ctx, t) {
+  const f = faseCanal(t, MUSICA_LINEAS.length), e = f.escena;
+  ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#312e81'; ctx.fillRect(80, 150, 352, 24);
+  ctx.fillStyle = '#fbbf24'; ctx.fillRect(70, 174, 372, 14);
+  if (e >= 2) {
+    for (let i = 0; i < 6; i++) {
+      tvPersona(ctx, 70 + i * 70, 220, { s: .35, ropa: i % 2 ? '#f97316' : '#38bdf8', fase: t + i, boca: 'sonrisa', brazoL: -1.1, brazoR: -0.9 });
+    }
+  }
+  const sx = e === 0 ? 40 + f.lt * 160 : 230;
+  tvPersona(ctx, sx, 168, { s: .8, ropa: '#e11d48', peloTipo: 'largo', fase: t * (e === 1 ? 4 : 1), boca: e === 1 || e === 2 ? 'habla' : 'sonrisa', camina: e === 0, brazoL: e === 3 ? -1.3 : 0.3, brazoR: e === 3 ? -1.1 : 0.5 });
+  if (e === 1 || e === 2) {
+    ctx.fillStyle = '#fde68a'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('♪', 300, 90 + Math.sin(t * 6) * 8);
+    ctx.fillText('♫', 340, 70 + Math.cos(t * 5) * 6);
+  }
+  tvRelato(ctx, MUSICA_LINEAS[e]);
+}
+function dibujarComedia(ctx, t) {
+  const f = faseCanal(t, COMEDIA_LINEAS.length), e = f.escena;
+  ctx.fillStyle = '#fef3c7'; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#92400e'; ctx.fillRect(0, 190, 512, 98);
+  ctx.fillStyle = '#78350f'; ctx.fillRect(300, 90, 140, 100);
+  ctx.fillStyle = '#fde68a'; ctx.fillRect(318, 108, 104, 12);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('PAN', 370, 118);
+  if (e === 0) {
+    const x = 20 + f.lt * 140;
+    tvPersona(ctx, x, 200, { s: .8, ropa: '#1d4ed8', camina: true, fase: t * 6, boca: 'sonrisa', mira: 2 });
+  } else if (e === 1) {
+    tvPersona(ctx, 180, 200, { s: .8, ropa: '#1d4ed8', fase: t, boca: 'habla', mira: 2 });
+    tvPersona(ctx, 340, 190, { s: .75, ropa: '#fff', pantalon: '#44403c', fase: t, boca: 'sonrisa', mira: -2 });
+  } else if (e === 2) {
+    ctx.fillStyle = '#fde68a'; ctx.fillRect(250, 160, 28, 16);
+    tvPersona(ctx, 180, 200, { s: .8, ropa: '#1d4ed8', fase: t, boca: 'sonrisa', mira: 2, brazoR: 0.8 });
+    tvPersona(ctx, 340, 190, { s: .75, ropa: '#fff', pantalon: '#44403c', fase: t, boca: 'habla', mira: -2, brazoL: 1.1 });
+  } else {
+    tvPersona(ctx, 180, 200, { s: .8, ropa: '#1d4ed8', fase: t, boca: 'sonrisa', mira: 2, brazoL: -1.2, brazoR: -0.9 });
+    tvPersona(ctx, 320, 190, { s: .75, ropa: '#fff', pantalon: '#44403c', fase: t, boca: 'sonrisa', mira: -2, brazoL: -1.1, brazoR: -0.8 });
+  }
+  tvRelato(ctx, COMEDIA_LINEAS[e]);
+}
+function dibujarConcurso(ctx, t) {
+  const f = faseCanal(t, CONCURSO_LINEAS.length), e = f.escena, paso = e % 3, ronda = e < 3 ? 0 : 1;
+  const gano = ronda === 0;
+  ctx.fillStyle = '#4c1d95'; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#5b21b6'; ctx.fillRect(0, 190, 512, 98);
+  ctx.fillStyle = '#111827'; tvCaja(ctx, 116, 16, 280, 64, 8); ctx.fill();
+  ctx.fillStyle = paso === 2 ? (gano ? '#4ade80' : '#f87171') : '#f8fafc';
+  ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(CONCURSO_LINEAS[e], 256, 48);
+  const hostHabla = paso !== 1;
+  tvPersona(ctx, 96, 206, { s: .82, ropa: '#1d4ed8', fase: t, boca: hostHabla ? 'habla' : 'sonrisa', mira: 2, brazoR: paso === 2 && gano ? -1.3 : 0.4 });
+  tvPersona(ctx, 400, 206, { s: .82, ropa: '#facc15', fase: t, boca: paso === 1 ? 'habla' : (paso === 2 && !gano ? 'sorpresa' : 'sonrisa'), mira: -2, brazoL: paso === 1 ? -0.8 : 0.3 });
+  tvGloboEn(ctx, hostHabla ? 96 : 400, CONCURSO_LINEAS[e], 88);
+}
+function dibujarHuertoTv(ctx, t) {
+  const f = faseCanal(t, HUERTO_LINEAS.length), e = f.escena;
+  const cielo = ctx.createLinearGradient(0, 0, 0, 180); cielo.addColorStop(0, '#7dd3fc'); cielo.addColorStop(1, '#bbf7d0');
+  ctx.fillStyle = cielo; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#166534'; ctx.fillRect(0, 188, 512, 100);
+  ctx.fillStyle = '#78350f'; ctx.fillRect(150, 176, 200, 28);
+  if (e === 0) {
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(250, 168 - f.lt * 10, 6, 0, 7); ctx.fill();
+    tvPersona(ctx, 210, 200, { s: .86, ropa: '#15803d', peloTipo: 'gorro', fase: t, boca: 'habla', mira: 2, brazoR: 1.2 });
+  } else if (e === 1) {
+    ctx.fillStyle = '#16a34a'; ctx.fillRect(246, 150, 6, 28);
+    ctx.beginPath(); ctx.arc(249, 146, 10, 0, 7); ctx.fill();
+    ctx.fillStyle = '#38bdf8';
+    for (let k = 0; k < 4; k++) ctx.fillRect(236 + k * 7, 132 + (f.lt * 20 + k * 6) % 24, 3, 8);
+    tvPersona(ctx, 180, 200, { s: .86, ropa: '#15803d', peloTipo: 'gorro', fase: t, boca: 'habla', mira: 2, brazoR: 0.55 });
+  } else {
+    ctx.fillStyle = '#166534'; ctx.fillRect(246, 110, 8, 68);
+    ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(250, 100, 28, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(262, 88, 7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#a16207'; ctx.fillRect(320, 168, 40, 18);
+    tvPersona(ctx, 190, 200, { s: .86, ropa: '#15803d', peloTipo: 'gorro', fase: t, boca: 'habla', mira: 2, brazoR: -1.15 });
+  }
+  tvGloboEn(ctx, e === 1 ? 180 : 200, HUERTO_LINEAS[e], 28);
+}
+function dibujarBuenosDias(ctx, t) {
+  const f = faseCanal(t, DIAS_LINEAS.length), e = f.escena;
+  ctx.fillStyle = '#f5f5f4'; ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = '#e7e5e4'; ctx.fillRect(0, 188, 512, 100);
+  ctx.fillStyle = '#7dd3fc'; ctx.fillRect(360, 28, 110, 72);
+  ctx.strokeStyle = '#44403c'; ctx.lineWidth = 4; ctx.strokeRect(360, 28, 110, 72);
+  ctx.beginPath(); ctx.moveTo(415, 28); ctx.lineTo(415, 100); ctx.moveTo(360, 64); ctx.lineTo(470, 64); ctx.stroke();
+  ctx.fillStyle = '#a16207'; tvCaja(ctx, 90, 168, 250, 34, 8); ctx.fill();
+  ctx.fillStyle = '#78350f'; ctx.fillRect(80, 198, 270, 16);
+  tvPersona(ctx, 160, 178, { s: .78, ropa: '#1d4ed8', sentado: true, fase: t, boca: e === 1 ? 'sonrisa' : 'habla', mira: 2 });
+  tvPersona(ctx, 270, 178, { s: .78, ropa: '#f97316', sentado: true, fase: t + 1, boca: e === 1 ? 'habla' : 'sonrisa', mira: -2 });
+  tvGloboEn(ctx, e === 1 ? 270 : 160, DIAS_LINEAS[e], 36);
+}
 function dibujarPrograma(t) {
   const mat = asegurarTele(), ctx = mat.userData.ctx, p = programaActual();
   ctx.clearRect(0, 0, 512, 288);
@@ -8510,6 +8809,12 @@ function dibujarPrograma(t) {
   else if (p.id === 'partido') dibujarPartido(ctx, t);
   else if (p.id === 'cocina') dibujarCocina(ctx, t);
   else if (p.id === 'clima') dibujarClima(ctx, t);
+  else if (p.id === 'documental') dibujarDocumental(ctx, t);
+  else if (p.id === 'concurso') dibujarConcurso(ctx, t);
+  else if (p.id === 'huerto') dibujarHuertoTv(ctx, t);
+  else if (p.id === 'buenosdias') dibujarBuenosDias(ctx, t);
+  else if (p.id === 'musica') dibujarMusica(ctx, t);
+  else if (p.id === 'comedia') dibujarComedia(ctx, t);
   else dibujarNovela(ctx, t);
   tvBanner(ctx, p.nombre);
   if (tvTex) tvTex.needsUpdate = true;
@@ -8635,11 +8940,27 @@ function lineaNoticias(t) {
   }
   return { clave: 'noticias:' + idx + ':' + tipo, cortar: true, voz: 'periodista', texto };
 }
+function lineaDeLista(id, lineas, t) {
+  const texto = lineas[faseCanal(t, lineas.length).escena];
+  return { clave: id + ':' + texto, cortar: false, voz: 'periodista', texto };
+}
+function lineaDocumental(t) { return lineaDeLista('documental', DOC_LINEAS, t); }
+function lineaConcurso(t) { return lineaDeLista('concurso', CONCURSO_LINEAS, t); }
+function lineaHuertoTv(t) { return lineaDeLista('huerto', HUERTO_LINEAS, t); }
+function lineaBuenosDias(t) { return lineaDeLista('buenosdias', DIAS_LINEAS, t); }
+function lineaMusica(t) { return lineaDeLista('musica', MUSICA_LINEAS, t); }
+function lineaComedia(t) { return lineaDeLista('comedia', COMEDIA_LINEAS, t); }
 function lineaDeLaTele(t) {
   const id = programaActual().id;
   if (id === 'partido') return lineaPartido(t);
   if (id === 'novela') return lineaNovela(t);
   if (id === 'noticias') return lineaNoticias(t);
+  if (id === 'documental') return lineaDocumental(t);
+  if (id === 'concurso') return lineaConcurso(t);
+  if (id === 'huerto') return lineaHuertoTv(t);
+  if (id === 'buenosdias') return lineaBuenosDias(t);
+  if (id === 'musica') return lineaMusica(t);
+  if (id === 'comedia') return lineaComedia(t);
   return null;
 }
 function tvPuedeHablar() {

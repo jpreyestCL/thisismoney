@@ -104,12 +104,20 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   assert.match(html, /id="tvbar"/);
   assert.match(html, /id="lavadofx"/);
   assert.match(html, /if \(o\.tipo === 'play'\) return abrirMenuPlay\(\)/);
-  for (const nombre of ['Noticias del día', 'Dibujos animados', 'El partido', 'Cocina en casa', 'El clima', 'La novela']) {
+  for (const nombre of ['Noticias del día', 'Dibujos animados', 'El partido', 'Cocina en casa', 'El clima', 'La novela', 'Documental', 'Concurso', 'El huerto', 'Buenos días', 'Música', 'Comedia']) {
     assert.ok(html.includes("nombre: '" + nombre + "'"), nombre);
   }
-  for (const fn of ['dibujarNoticias', 'dibujarDibujos', 'dibujarPartido', 'dibujarCocina', 'dibujarNovela']) {
+  for (const fn of ['dibujarNoticias', 'dibujarDibujos', 'dibujarPartido', 'dibujarCocina', 'dibujarNovela', 'dibujarDocumental', 'dibujarConcurso', 'dibujarHuertoTv', 'dibujarBuenosDias', 'dibujarMusica', 'dibujarComedia']) {
     assert.match(html, new RegExp('function ' + fn + '\\('));
   }
+  for (const frase of ['Este zorro vive en el campo.', '¿Cuánto es dos más tres?', 'Correcto. Ganaste el punto.', 'Incorrecto. Perdiste.', 'Planta la semilla.', 'Le echa agua.', 'Cosecha la manzana.', 'En la avenida hay obras.', 'Hay que salir temprano.', 'Sube la cantante al escenario.', 'Entra un hombre a la tienda.']) {
+    assert.ok(html.includes("'" + frase + "'"), frase);
+  }
+  assert.match(html, /if \(id === 'documental'\) return lineaDocumental/);
+  assert.match(html, /if \(id === 'musica'\) return lineaMusica/);
+  assert.match(html, /if \(id === 'comedia'\) return lineaComedia/);
+  assert.match(html, /if \(id === 'buenosdias'\) return lineaBuenosDias/);
+  assert.match(html, /voz: 'periodista', texto/);
   assert.match(html, /arco === 'izq'/);
   assert.match(html, /arco === 'der'/);
   assert.match(html, /momento === 'pase'/);
@@ -183,7 +191,9 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   for (const titulo of ['El secreto del pasaje', 'Vera vuelve', 'La casa de Lila', 'Cartas de Platus', 'El turno de noche', 'Hermanos del huerto']) {
     assert.ok(html.includes("titulo: '" + titulo + "'"), titulo);
   }
-  for (const frase of ['¿Te quedas?', 'Volví al pasaje', 'Hay que subir la pared', 'Te escribo desde aquí', 'Ya es de noche', 'Entierra la semilla']) {
+  for (const frase of ['Voy a esconder esto.', 'Volví al pasaje.', 'Pensé que no volvías.', 'Esta casa es mía.', 'Llegó una carta.', 'Yo cubro el turno.', 'El huerto es mío.']) {
     assert.ok(html.includes("'" + frase + "'"), frase);
   }
+  assert.doesNotMatch(html, /if \(escena === 2\) return null/);
+  assert.match(html, /return L\[escena\] \|\| L\[0\]/);
 });

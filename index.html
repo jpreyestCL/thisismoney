@@ -1273,7 +1273,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';                  
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
-import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=3';
+import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=4';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -11423,6 +11423,34 @@ function dibujarPropCine(ctx, o) {
     ctx.strokeStyle = '#111'; ctx.lineWidth = 6;
     ctx.beginPath(); ctx.arc(0, 0, 16, 0, 7); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(14, 0); ctx.moveTo(0, -14); ctx.lineTo(0, 14); ctx.stroke();
+  } else if (o.tipo === 'zapato') {
+    ctx.translate(o.x, o.y); ctx.rotate(Math.sin(o.a) * 0.4);
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(-28, -8, 34, 16); ctx.fillRect(-8, -8, 22, 16);
+    ctx.fillStyle = '#f8fafc'; ctx.fillRect(-28, 6, 56, 6);
+  } else if (o.tipo === 'pelota') {
+    ctx.translate(o.x, o.y);
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(0, 0, 18, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 3; ctx.stroke();
+  } else if (o.tipo === 'banana') {
+    ctx.translate(o.x, o.y); ctx.rotate(o.a * 0.2);
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.arc(0, 0, 22, 0.4, 2.6); ctx.stroke();
+  } else if (o.tipo === 'arco') {
+    ctx.translate(o.x, o.y);
+    ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 6;
+    ctx.strokeRect(-26, -32, 52, 40);
+  } else if (o.tipo === 'silbato') {
+    ctx.translate(o.x, o.y); ctx.rotate(o.a * 0.15);
+    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(-16, -6, 28, 12);
+    ctx.beginPath(); ctx.arc(14, 0, 8, 0, 7); ctx.fill();
+  } else if (o.tipo === 'globo') {
+    ctx.translate(o.x, o.y);
+    ctx.fillStyle = '#f472b6'; ctx.beginPath(); ctx.arc(0, -8, 16, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#111'; ctx.beginPath(); ctx.moveTo(0, 8); ctx.lineTo(0, 28); ctx.stroke();
+  } else if (o.tipo === 'cohete') {
+    ctx.translate(o.x, o.y); ctx.rotate(-0.4);
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(0, -28); ctx.lineTo(14, 16); ctx.lineTo(-14, 16); ctx.fill();
+    ctx.fillStyle = '#ef4444'; ctx.fillRect(-8, 16, 16, 8);
   } else {
     ctx.fillStyle = o.color || '#fde68a';
     ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, 7); ctx.fill();

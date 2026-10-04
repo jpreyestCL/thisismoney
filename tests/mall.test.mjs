@@ -87,6 +87,8 @@ test('el capítulo del cine dura 10 minutos y la voz no dice «dice»', () => {
   assert.ok(CINE_ESCENAS.some(e => e.accion === 'alto'));
   assert.ok(CINE_ESCENAS.some(e => e.accion === 'final'));
   assert.ok(letras > 2500, 'el capítulo tiene que tener bastante texto');
+  assert.ok(CINE_DURACION / CINE_ESCENAS.length <= 5, 'la frase siguiente tiene que llegar enseguida');
+  assert.equal(CINE_ESCENAS.some(e => /balde|carrito/i.test(e.texto)), false);
   assert.equal(PALOMITAS_PRECIO, 80);
   for (let i = 0; i < CINE_ESCENAS.length; i++) {
     const esc = CINE_ESCENAS[i];
@@ -136,7 +138,7 @@ test('el juego engancha el mall sin tocar la celda, el depto ni la tele', () => 
   assert.match(html, /const TORRE_PRECIO = 10000/);
   assert.match(html, /const ESTRENO_NOVELA = 'La novela'/);
   assert.match(html, /city-map\.js\?v=9/);
-  assert.match(html, /mall\.js\?v=3/);
+  assert.match(html, /mall\.js\?v=4/);
   assert.match(html, /bocadoDeBolsa/);
   assert.match(html, /dobleDeBolsa/);
   assert.match(html, /function usarComer\(/);
@@ -144,7 +146,7 @@ test('el juego engancha el mall sin tocar la celda, el depto ni la tele', () => 
   assert.match(html, /puestosSuper\(SHOP\)/);
   assert.match(html, /tipo: 'sala'/);
   assert.match(html, /tipo: 'tienda'/);
-  assert.match(sw, /const VERSION = 'tim-v81'/);
+  assert.match(sw, /const VERSION = 'tim-v82'/);
   assert.match(sw, /city-map\.js\?v=9/);
-  assert.match(sw, /mall\.js\?v=3/);
+  assert.match(sw, /mall\.js\?v=4/);
 });

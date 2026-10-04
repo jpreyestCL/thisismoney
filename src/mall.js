@@ -46,12 +46,12 @@ export const CASAS_MALL = Object.freeze([
   Object.freeze({ id: 'garaje', name: 'Casa con garaje', piezas: Object.freeze({ wallWood: 6, wallDoor: 1, door: 1, roof: 1 }) }),
 ]);
 
-// Capítulo de cine, unos 10 minutos. Cada escena es un cuadro distinto y
-// alguien se mueve: persecución, caída, puerta, susto y un giro al final.
+// Capítulo de cine, unos 10 minutos seguidos. Cada frase dura 5 segundos
+// y en ese rato alguien corre: la carrera de los zapatos que se salen de la peli.
 // La voz dice solo `texto`: hombre grave o mujer aguda, sin «dice».
 // lila/mateo son [desde, hasta] en la pantalla; el final de una es el inicio de la otra.
-function escena(quien, voz, texto, accion, lila, mateo) {
-  return Object.freeze({ quien, voz, texto, accion, lila: Object.freeze(lila), mateo: Object.freeze(mateo) });
+function escena(quien, voz, texto, accion, lila, mateo, tipo) {
+  return Object.freeze({ quien, voz, texto, accion, tipo: tipo || 'zapato', lila: Object.freeze(lila), mateo: Object.freeze(mateo) });
 }
 
 function rebotarX(x, lo, hi) {
@@ -65,56 +65,126 @@ function rebotarX(x, lo, hi) {
 }
 
 const NOVELA_FILAS = Object.freeze([
-  ['Lila', 'mujer', '¡La puerta de la sala se abre de un golpe y yo cruzo corriendo con el balde rojo!', 'llegar'],
-  ['Mateo', 'hombre', '¡El balde se me escapa y rueda solo por el pasillo! Lo persigo antes de que se vacíe.', 'perseguir'],
-  ['Mateo', 'hombre', 'Pisé una palomita, salí volando y el maíz me llovió encima como una tormenta dulce.', 'tropiezo'],
-  ['Lila', 'mujer', 'Una palomita rebota en tu ceja, se queda ahí y te queda de corona por un segundo.', 'ceja'],
-  ['Lila', 'mujer', 'Caemos en las butacas. En la pantalla, un caracol enorme avanza más lento que el reloj.', 'sentarse'],
-  ['Mateo', 'hombre', 'El caracol se agranda de golpe, sale de la pantalla y se va patinando por la sala.', 'caracol'],
-  ['Lila', 'mujer', '¡Se apagó todo! Un brillo negro cruza la sala y yo salto de la butaca sin querer.', 'apagon'],
-  ['Mateo', 'hombre', 'Una sombra se lleva el balde y corre en puntillas. Si es un fantasma, tiene prisa.', 'sombra'],
-  ['Lila', 'mujer', 'La palomita dorada rebota de butaca en butaca y deja un rastro brillante en el piso.', 'rebote'],
-  ['Mateo', 'hombre', 'Al reventar, la palomita abre un mapita chico. La X queda justo detrás de la pantalla.', 'mapa'],
-  ['Lila', 'mujer', 'Detrás de la tela se enciende una X enorme. Alumbra el pasillo y nos señala el camino.', 'equis'],
-  ['Mateo', 'hombre', '¡Agáchate! El balde pasa volando sobre nuestras cabezas y casi nos peina el pelo.', 'agachar'],
-  ['Lila', 'mujer', 'Mateo estornuda tan fuerte que el soplido nos empuja de vuelta tres butacas enteras.', 'estornudo'],
-  ['Mateo', 'hombre', '¡Un perrito con capa de servilleta galopa por el pasillo como si fuera un héroe!', 'perrito'],
-  ['Nico', 'hombre', '¡Soy Nico! Me perdí cuando fui al baño y Canela se puso la capa para buscarme.', 'nino'],
-  ['Lila', 'mujer', 'Canela aspira las palomitas del suelo con la nariz. En dos saltos deja el pasillo limpio.', 'hambre'],
-  ['Mateo', 'hombre', 'Un gato mantecoso le pega un zarpazo al balde y lo deja girando como un trompo.', 'gato'],
-  ['Lila', 'mujer', 'La mantequilla sale en estrellas amarillas y se pega en el techo como un cielo nuevo.', 'estrellas'],
-  ['Mateo', 'hombre', 'Mi boleto se suelta, vuela y me da de lleno en la cara. Quedo viendo la sala al revés.', 'boleto'],
-  ['Lila', 'mujer', 'Echamos a correr. El balde nos gana la carrera y dobla la esquina antes que nosotros.', 'carrera'],
-  ['Mateo', 'hombre', 'Hay un charco de soda. Mis zapatos patinan y cruzo el pasillo sentado en el piso.', 'resbalon'],
-  ['Lila', 'mujer', 'Empujamos la puertita de la cabina. Tiembla, suena un golpe seco y se queda cerrada.', 'empujar'],
-  ['Guardia', 'hombre', '¡Alto ahí! El guardia salta al frente del pasillo y nos tapa el camino con los brazos.', 'alto'],
-  ['Lila', 'mujer', 'Mateo, la cola de Canela sale por tu chaqueta y saluda a todo el mundo sin permiso.', 'cola'],
-  ['Nico', 'hombre', 'Canela ladra tan fuerte que las butacas vibran y la gorra del guardia da un saltito.', 'ladrido'],
-  ['Lila', 'mujer', '¡No hay fantasma! El freno del carrito de palomitas se soltó y el carro anda solo.', 'giro'],
-  ['Mateo', 'hombre', 'El carrito rueda por el pasillo con las ruedas chillando y nadie lo está empujando.', 'carrito'],
-  ['Mateo', 'hombre', 'Me aferré al manubrio y el carrito me arrastra. Mis zapatos dejan dos rayas en el piso.', 'arrastre'],
-  ['Lila', 'mujer', '¡Se zafó una rueda! Sale disparada, pasa entre las butacas y corre más que el carro.', 'rueda'],
-  ['Lila', 'mujer', 'Salto una fila de butacas para atajar la rueda y aterrizo justo al lado del perrito.', 'salto'],
-  ['Mateo', 'hombre', 'Tres palomitas me quedan en el aire. Las malabareo un segundo y se me caen todas.', 'malabares'],
-  ['Nico', 'hombre', '¡Miren la pantalla! Nos está filmando en vivo, con el carro, el perro y la capa.', 'camara'],
-  ['Guardia', 'hombre', 'Mi gorra sale volando. El perro la caza en el aire y se la pone como si fuera suya.', 'gorra'],
-  ['Nico', 'hombre', '¡Canela, esa gorra no! Corro detrás del perro y la capa me queda enorme atrás.', 'persigue2'],
-  ['Mateo', 'hombre', 'El carrito choca una butaca, la levanta de lado y sigue con la butaca montada encima.', 'choque'],
-  ['Lila', 'mujer', 'Las ruedas derrapan, sale humo de mantequilla y el carro dibuja una curva en el piso.', 'freno'],
-  ['Lila', 'mujer', 'La puerta de la cabina se abre sola. Adentro hay una palanca roja con un cartel chico.', 'palanca'],
-  ['Mateo', 'hombre', 'Bajo la palanca de un tirón. El carrito frena en seco y la rueda suelta da una vuelta.', 'palanca2'],
-  ['Lila', 'mujer', 'La puerta del hall se abre y aparece la mamá de Nico con otro balde entre las manos.', 'mama'],
-  ['Nico', 'hombre', 'Corro hacia mamá. La capa sale volando y Canela la pesca antes de que toque el suelo.', 'abrazo'],
-  ['Mateo', 'hombre', 'Del techo cae una lluvia de palomitas. Nos cubrimos y terminamos llenos de maíz.', 'lluvia'],
-  ['Lila', 'mujer', 'El caracol de la peli vuelve, ahora con la capa de servilleta, y cruza la pantalla.', 'capa2'],
-  ['Mateo', 'hombre', 'El caracol guiña un ojo enorme, hace una reverencia y se mete otra vez en la tela.', 'guino'],
-  ['Guardia', 'hombre', '¡Tres baldes llenos saltan del carro! Uno para Nico, uno para Canela y uno para ustedes.', 'premio'],
-  ['Lila', 'mujer', 'Las butacas rechinan al unísono, como si la sala entera se estuviera riendo con nosotros.', 'risa'],
-  ['Mateo', 'hombre', 'Canela rompe la cinta de llegada. La gorra le cae en la cabeza y queda de campeona.', 'meta'],
-  ['Guardia', 'hombre', 'Bajan las luces. El carrito queda quieto, la rueda vuelve a su eje y la sala respira.', 'silencio'],
-  ['Lila', 'mujer', 'Ahora sí nos sentamos de verdad. El balde queda entre los dos y nadie corre más.', 'sentar'],
-  ['Mateo', 'hombre', 'La última palomita dorada cae despacito y se queda justo en mi rodilla, sin rebotar.', 'rebote2'],
-  ['Lila', 'mujer', 'Se apagan las luces de la sala. Si mañana hay otro misterio, yo llego primero a la puerta.', 'final'],
+  ['Lila', 'mujer', '¡Llegué corriendo! En la pantalla hay una carrera de zapatos enormes.', 'llegar', 'zapato'],
+  ['Mateo', 'hombre', 'El campeón va primero y sus zapatos rojos le sacan la lengua al segundo.', 'pista', 'zapato'],
+  ['Lila', 'mujer', '¡Se salieron de la tela! Caen en el pasillo y arrancan sin pedir permiso.', 'saltan', 'zapato'],
+  ['Mateo', 'hombre', 'Nos retan a una carrera. Si ganan, la peli se queda en pausa para siempre.', 'reto', 'zapato'],
+  ['Lila', 'mujer', 'Me tiro a atarles los cordones y me arrastran de rodillas por la alfombra.', 'amarra', 'zapato'],
+  ['Mateo', 'hombre', 'Doy vueltas a una butaca. Ellos ya completaron tres y van por la cuarta.', 'vueltas', 'zapato'],
+  ['Nico', 'hombre', '¡Espérenme! Mi calcetín se soltó y quiere correr su propia carrera.', 'calcetin', 'globo'],
+  ['Lila', 'mujer', 'El calcetín le tapó un ojo al zapato rojo y ahora va en zigzag.', 'zigzag', 'zapato'],
+  ['Mateo', 'hombre', 'Chocan de frente, rebotan y se piden perdón con una venia ridícula.', 'venia', 'zapato'],
+  ['Guardia', 'hombre', '¡Alto ahí! En mi sala se camina. Ellos le hacen burla y aceleran más.', 'alto', 'silbato'],
+  ['Lila', 'mujer', 'El guardia sopla el silbato y el silbato se cree el árbitro del mundo.', 'pitazo', 'silbato'],
+  ['Mateo', 'hombre', 'Cada pitazo los pone más rápidos. Guardia, cuéntales un chiste malísimo.', 'chiste', 'silbato'],
+  ['Guardia', 'hombre', '¿Qué hace un zapato en el espacio? Da una vuelta y se marea al sol.', 'espacio', 'silbato'],
+  ['Lila', 'mujer', 'Se ríen tanto que se desatan solos. ¡Ahora sí, a atraparlos en el aire!', 'carcajada', 'zapato'],
+  ['Mateo', 'hombre', 'Agarro uno. El otro me hace una zancadilla y salgo volando de verdad.', 'zancadilla', 'zapato'],
+  ['Lila', 'mujer', 'Pasas sobre dos butacas y aterrizas sentado al revés. Punto para nosotros.', 'reves', 'zapato'],
+  ['Nico', 'hombre', 'Mis dos medias se aliaron con ellos. Ahora el equipo enemigo tiene refuerzos.', 'medias', 'globo'],
+  ['Lila', 'mujer', 'Entonces corremos juntos: tú, yo, Nico y el guardia, en una sola fila.', 'equipo', 'zapato'],
+  ['Guardia', 'hombre', 'Corro con la gorra en la mano. La gorra también quiere inscribirse.', 'trote', 'silbato'],
+  ['Mateo', 'hombre', 'La gorra despega, planea sobre las luces y se pone sola en el zapato líder.', 'planeo', 'globo'],
+  ['Lila', 'mujer', 'Con gorra se cree campeón y empieza a firmar autógrafos en el aire.', 'autografo', 'zapato'],
+  ['Mateo', 'hombre', 'El otro zapato se pone celoso y le quita la gorra de un puntapié.', 'celoso', 'zapato'],
+  ['Nico', 'hombre', 'Se pelean la gorra, dan saltos y se olvidan de que nosotros seguimos corriendo.', 'pelea', 'globo'],
+  ['Lila', 'mujer', '¡Vamos primeros! Doblo en la fila siete y casi piso la mano de Mateo.', 'ventaja', 'zapato'],
+  ['Mateo', 'hombre', 'Tomo la curva agachado. Un cordón suelto me roza la oreja como un látigo.', 'curva', 'zapato'],
+  ['Guardia', 'hombre', '¡Cuidado con la salida! Si cruzan la puerta, la peli no vuelve a andar.', 'salida', 'silbato'],
+  ['Lila', 'mujer', 'Me planto en la salida con los brazos abiertos. Ellos frenan y resbalan.', 'bloqueo', 'zapato'],
+  ['Mateo', 'hombre', 'Resbalan, giran como trompos y quedan mirando hacia la pantalla otra vez.', 'trompo', 'zapato'],
+  ['Nico', 'hombre', '¡Eso! Les hago porra con el calcetín. Se ofenden y arrancan de vuelta.', 'porra', 'globo'],
+  ['Lila', 'mujer', 'Los persigo por el pasillo central. Las butacas aplauden solas a nuestro paso.', 'persecucion', 'zapato'],
+  ['Mateo', 'hombre', 'Un banquillo de la peli se cae de la pantalla y rueda entre mis pies.', 'banquillo', 'pelota'],
+  ['Lila', 'mujer', 'Salto el banquillo, Mateo lo patea sin querer y nos adelanta por la derecha.', 'brinco', 'zapato'],
+  ['Guardia', 'hombre', 'El silbato saca una tarjeta amarilla imaginaria y nos la muestra muy serio.', 'tarjeta', 'silbato'],
+  ['Nico', 'hombre', 'Me río tan fuerte que tropiezo, ruedo y adelanto igual, de pura suerte.', 'tropiezo', 'globo'],
+  ['Lila', 'mujer', 'La suerte también corre. Hoy va con nosotros y lleva una capa invisible.', 'suerte', 'zapato'],
+  ['Mateo', 'hombre', '¿Capa invisible? Entonces ¿por qué le veo los cordones flotando atrás?', 'capa', 'globo'],
+  ['Lila', 'mujer', 'Porque los cordones no se enteraron de que la capa era invisible. Sigan.', 'cordones', 'zapato'],
+  ['Nico', 'hombre', 'Conozco un atajo por la fila de adelante. ¡Agáchense, que el techo es bajo!', 'atajo', 'globo'],
+  ['Mateo', 'hombre', 'Me agacho tarde. Un zapato me pasa por arriba y me despeina la chasquilla.', 'despeine', 'zapato'],
+  ['Lila', 'mujer', 'Quedas con la chasquilla parada. Pareces un superhéroe con prisa y sin capa.', 'heroe', 'zapato'],
+  ['Guardia', 'hombre', 'Si son superhéroes, yo soy el árbitro. Y el árbitro también puede ganar.', 'arbitro', 'silbato'],
+  ['Mateo', 'hombre', 'El guardia abre los brazos. Los zapatos rebotan en su pancita como en un muro.', 'barrera', 'pelota'],
+  ['Lila', 'mujer', '¡Boing! Salen disparados hacia la pantalla. Nico, no te quedes mirando.', 'boing', 'zapato'],
+  ['Nico', 'hombre', '¡Miren el piso! De la peli se cayó una cáscara de plátano gigante.', 'cascara', 'banana'],
+  ['Mateo', 'hombre', 'La piso, salgo en tobogán y atravieso media sala sentado y gritando.', 'piso', 'banana'],
+  ['Lila', 'mujer', 'Te sigo en el mismo tobogán. ¡Esto es más rápido que cualquier zapato!', 'tobogan', 'banana'],
+  ['Guardia', 'hombre', 'Yo no me subo. Resbalo igual, porque el piso quedó brillante como una pista.', 'brillo', 'silbato'],
+  ['Nico', 'hombre', 'Quedamos los cuatro en fila, como bolos, y un zapato nos derriba a todos.', 'bolos', 'banana'],
+  ['Lila', 'mujer', 'Me levanto de un salto, agarro la cáscara y se la pongo de sombrero al líder.', 'sombrero', 'banana'],
+  ['Mateo', 'hombre', 'Con sombrero de plátano pierde el estilo y corre más lento, de vergüenza.', 'verguenza', 'banana'],
+  ['Nico', 'hombre', 'La vergüenza dura poco. Se sacude el sombrero y nos saca otra vez la lengua.', 'lengua', 'globo'],
+  ['Lila', 'mujer', 'Les saco la lengua de vuelta y acelero. La meta es la pantalla, no la puerta.', 'meta', 'arco'],
+  ['Mateo', 'hombre', 'Si llegamos a la pantalla antes que ellos, la carrera se juega adentro.', 'adentro', 'cohete'],
+  ['Guardia', 'hombre', 'La pantalla nos jala como una aspiradora gigante. ¡Sujétense de algo!', 'jalon', 'cohete'],
+  ['Lila', 'mujer', '¡Estamos dentro de la peli! Todo es enorme y nosotros quedamos chiquititos.', 'mini', 'cohete'],
+  ['Mateo', 'hombre', 'Soy del tamaño de una hormiga con zapatillas. El campeón ni nos ve todavía.', 'hormiga', 'cohete'],
+  ['Nico', 'hombre', '¡Eh, campeón, aquí abajo! Mi voz sale fina y él se agacha a buscarnos.', 'grito', 'cohete'],
+  ['Lila', 'mujer', 'Su dedo es una columna. Corremos entre los dedos antes de que nos aplaste.', 'dedo', 'cohete'],
+  ['Mateo', 'hombre', 'Hay un túnel de cordones. Entro primero y salgo por el otro zapato, mareado.', 'tunel', 'zapato'],
+  ['Guardia', 'hombre', 'Yo también entré. Mi silbato, chiquito, pita como un pajarito enojado.', 'pajaro', 'silbato'],
+  ['Lila', 'mujer', 'El pajarito nos guía. Cada pitazo corto significa doblar a la izquierda.', 'guia', 'silbato'],
+  ['Mateo', 'hombre', 'Doblo a la izquierda y casi choco con una letra gigante de los créditos.', 'letra', 'cohete'],
+  ['Nico', 'hombre', 'La letra R se cae y nos sirve de resbalín. Bajamos gritando de gusto.', 'resbalin', 'cohete'],
+  ['Lila', 'mujer', 'Al final del resbalín hay una pelota de playa, más alta que nosotros.', 'playa', 'pelota'],
+  ['Mateo', 'hombre', 'La empujamos entre los tres. Rueda despacito y aplasta un hilito de pasto.', 'empuje', 'pelota'],
+  ['Guardia', 'hombre', 'Ese pasto es la cancha. Al fondo veo un arco del tamaño de un edificio.', 'cancha', 'arco'],
+  ['Lila', 'mujer', '¡Ese arco es la meta! Si metemos la pelota, los zapatos tienen que volver.', 'volver', 'arco'],
+  ['Mateo', 'hombre', 'Empujo con el hombro. La pelota apenas se mueve y yo quedo hundido en ella.', 'hombro', 'pelota'],
+  ['Nico', 'hombre', 'Me lanzo de cabeza, suavecito, y la pelota da un bote enorme hacia el arco.', 'bote', 'pelota'],
+  ['Lila', 'mujer', '¡Sigue, sigue! Corro al lado de la pelota y la apuro con las dos manos.', 'apuro', 'pelota'],
+  ['Guardia', 'hombre', 'Soplo el silbato tan fuerte que el viento la empuja los últimos metros.', 'viento', 'silbato'],
+  ['Mateo', 'hombre', '¡Gol! La pelota entra, el arco se sacude y las luces de la cancha parpadean.', 'gol', 'arco'],
+  ['Lila', 'mujer', 'Los zapatos rojos aparecen, se miran y empiezan a aplaudir con las lengüetas.', 'lenguetas', 'zapato'],
+  ['Nico', 'hombre', 'Hacen una reverencia. Creo que acaban de aceptarnos como campeones de verdad.', 'reverencia', 'globo'],
+  ['Mateo', 'hombre', 'Una corona de papel cae del cielo de la peli y me queda chueca, pero me queda.', 'corona', 'globo'],
+  ['Guardia', 'hombre', 'El silbato anuncia el resultado: niños cuatro, zapatos tres. Y se pone a llorar.', 'resultado', 'silbato'],
+  ['Lila', 'mujer', 'No llores, silbato. Tú también corriste. Te vamos a dibujar en la copa.', 'copa', 'silbato'],
+  ['Mateo', 'hombre', 'La copa es la pelota, con nuestros nombres escritos en marcador imaginario.', 'nombres', 'pelota'],
+  ['Nico', 'hombre', 'Escribo Nico con letra enorme. La pelota se ríe y la letra se pone dorada.', 'dorado', 'globo'],
+  ['Lila', 'mujer', 'Todo se pone dorado. Los zapatos se atan solos y vuelven a los pies del campeón.', 'atan', 'zapato'],
+  ['Mateo', 'hombre', 'El campeón nos guiña un ojo, arranca y esta vez la carrera sigue en la tela.', 'guino', 'cohete'],
+  ['Guardia', 'hombre', 'La pantalla nos devuelve de un tirón. Caemos en las butacas, todavía chiquitos.', 'tiron', 'cohete'],
+  ['Lila', 'mujer', 'Crezco de golpe y casi golpeo el techo con la cabeza. Ya tengo mi tamaño.', 'crecer', 'cohete'],
+  ['Mateo', 'hombre', 'Yo crezco y me enredo en mi propia polera. Salgo de ahí como de un saco.', 'saco', 'cohete'],
+  ['Nico', 'hombre', 'Mi calcetín vuelve a mi pie, pide perdón y se queda quieto por fin.', 'perdon', 'globo'],
+  ['Lila', 'mujer', 'En la pantalla, los zapatos corren donde deben: adentro, no por nuestra sala.', 'ensala', 'zapato'],
+  ['Mateo', 'hombre', 'El marcador muestra nuestros nombres al lado del campeón. Salimos en la peli.', 'marcador', 'pelota'],
+  ['Guardia', 'hombre', 'Saco una foto con el silbato. Sale movida, porque nadie se quedó quieto.', 'foto', 'silbato'],
+  ['Nico', 'hombre', 'Miran los créditos: especialista en calcetines, Nico. Yo aplaudo solo.', 'creditos', 'globo'],
+  ['Lila', 'mujer', 'Aplaudimos todos. Hasta las butacas hacen clac clac, como si tuvieran manos.', 'aplauso', 'zapato'],
+  ['Mateo', 'hombre', 'El clac clac sigue el ritmo de la carrera. La sala entera es una hinchada.', 'hinchada', 'zapato'],
+  ['Guardia', 'hombre', 'Yo hincho por los niños. Se me cae la gorra y la dejo, porque ya cumplió.', 'hincho', 'silbato'],
+  ['Lila', 'mujer', 'La gorra rueda sola hasta la pantalla, saluda y se queda de mascota.', 'mascota', 'globo'],
+  ['Mateo', 'hombre', 'La mascota de la peli ahora es una gorra. Mejor final que el de la sinopsis.', 'sinopsis', 'globo'],
+  ['Nico', 'hombre', 'La sinopsis era aburrida. La de verdad tuvo tobogán, gol y un silbato llorón.', 'lloron', 'silbato'],
+  ['Lila', 'mujer', 'Mañana pido la de los cohetes. Si se salen, esta vez yo salgo primera.', 'cohetes', 'cohete'],
+  ['Mateo', 'hombre', 'Si se sale un cohete, yo le pongo nombre y lo llevo a dar una vuelta a la sala.', 'vuelta', 'cohete'],
+  ['Guardia', 'hombre', 'Mañana las normas cambian: se puede correr, siempre que al final haya un gol.', 'normas', 'silbato'],
+  ['Nico', 'hombre', 'Trato hecho. Yo traigo el calcetín de la suerte y un chiste peor que el de hoy.', 'trato', 'globo'],
+  ['Lila', 'mujer', 'Último relevo: le paso el ritmo a Mateo y él se lo pasa a Nico sin parar.', 'relevo', 'zapato'],
+  ['Mateo', 'hombre', 'Recibo la posta, giro y se la entrego al guardia, que pita y sigue corriendo.', 'posta', 'zapato'],
+  ['Guardia', 'hombre', 'Nunca corrí tan contento. El silbato va en mi bolsillo, dando botes de gusto.', 'bolsillo', 'silbato'],
+  ['Nico', 'hombre', 'Los botes del silbato suenan a canción. La sala la tararea sin que nadie la enseñe.', 'cancion', 'silbato'],
+  ['Lila', 'mujer', 'Tarareo yo también y mis pies siguen el compás. Ya no hay nadie parado.', 'compas', 'zapato'],
+  ['Mateo', 'hombre', 'Brinco una butaca, luego otra, y la tercera me devuelve el salto como trampolín.', 'trampolin', 'zapato'],
+  ['Lila', 'mujer', 'Uso el mismo trampolín, doy una voltereta y aterrizo de pie, con los brazos arriba.', 'voltereta', 'zapato'],
+  ['Nico', 'hombre', 'Mi voltereta sale chueca y termino aplaudiendo igual, porque el intento fue grande.', 'chueca', 'globo'],
+  ['Guardia', 'hombre', 'El intento cuenta. En mi libreta anoto: equipo completo, cero zapatos sueltos.', 'libreta', 'silbato'],
+  ['Lila', 'mujer', 'La libreta se cierra sola de un golpe, como si también estuviera apurada.', 'cierra', 'zapato'],
+  ['Mateo', 'hombre', 'El apuro ahora es bueno: queremos ver el final antes de que se acabe la tarde.', 'tarde', 'zapato'],
+  ['Nico', 'hombre', 'La tarde cabe en la sala. Afuera puede esperar. Adentro vamos ganando.', 'ganando', 'globo'],
+  ['Lila', 'mujer', 'Vamos ganando y no paramos de movernos, ni para celebrar. Celebramos corriendo.', 'corriendo', 'zapato'],
+  ['Mateo', 'hombre', 'Festejo con un baile cortito: dos pasos, un giro y un dedo apuntando al cielo.', 'baile', 'pelota'],
+  ['Guardia', 'hombre', 'Bailo el mismo paso, muy tieso, y el silbato se muere de risa en el bolsillo.', 'tieso', 'silbato'],
+  ['Nico', 'hombre', 'La risa del silbato es un pitido agudo. Hasta los zapatos de la peli lo copian.', 'copian', 'zapato'],
+  ['Lila', 'mujer', 'Si ellos copian nuestra risa, la carrera de mañana va a ser un chiste con piernas.', 'piernas', 'zapato'],
+  ['Mateo', 'hombre', 'Un chiste con piernas es mi deporte favorito. Sobre todo si termino de pie.', 'deporte', 'zapato'],
+  ['Guardia', 'hombre', 'De pie y en movimiento. Así se mira una peli en esta sala, desde hoy.', 'depie', 'silbato'],
+  ['Nico', 'hombre', 'Desde hoy traigo calcetines extra, por si alguno quiere volver a ser corredor.', 'extra', 'globo'],
+  ['Lila', 'mujer', 'Se apagan las luces de la carrera y se prenden las nuestras. Ganamos, equipo.', 'final', 'zapato'],
 ]);
 
 function armarNovela(filas) {
@@ -122,27 +192,19 @@ function armarNovela(filas) {
   return filas.map((f, i) => {
     const dir = i % 2 === 0 ? 1 : -1;
     const l0 = lx, m0 = mx;
-    lx = rebotarX(l0 + dir * (52 + (i % 5) * 16), 86, 520);
-    mx = rebotarX(m0 - dir * (46 + (i % 4) * 20), 72, 540);
+    lx = rebotarX(l0 + dir * (64 + (i % 5) * 18), 86, 520);
+    mx = rebotarX(m0 - dir * (58 + (i % 4) * 22), 72, 540);
     if (Math.abs(lx - l0) < 28) lx = rebotarX(l0 + (l0 < 300 ? 96 : -96), 86, 520);
     if (Math.abs(mx - m0) < 28) mx = rebotarX(m0 + (m0 < 300 ? 96 : -96), 72, 540);
-    return escena(f[0], f[1], f[2], f[3], [l0, lx], [m0, mx]);
+    return escena(f[0], f[1], f[2], f[3], [l0, lx], [m0, mx], f[4]);
   });
 }
 
 export const CINE_ESCENAS = Object.freeze(armarNovela(NOVELA_FILAS));
 
-const FONDO_CINE = Object.freeze({
-  llegar: '#3b0764', perseguir: '#7c2d12', tropiezo: '#9a3412', ceja: '#854d0e', sentarse: '#1e3a8a',
-  caracol: '#166534', apagon: '#020617', sombra: '#1e1b4b', rebote: '#a16207', mapa: '#92400e',
-  equis: '#7f1d1d', agachar: '#334155', estornudo: '#0e7490', perrito: '#9f1239', nino: '#a16207',
-  hambre: '#b45309', gato: '#c2410c', estrellas: '#1d4ed8', boleto: '#0369a1', carrera: '#b91c1c',
-  resbalon: '#0284c7', empujar: '#44403c', alto: '#1e3a8a', cola: '#be185d', ladrido: '#7c3aed',
-  giro: '#6d28d9', carrito: '#dc2626', arrastre: '#ea580c', rueda: '#ca8a04', salto: '#db2777',
-  malabares: '#d97706', camara: '#0f766e', gorra: '#1d4ed8', persigue2: '#c026d3', choque: '#991b1b',
-  freno: '#57534e', palanca: '#78350f', palanca2: '#b45309', mama: '#be123c', abrazo: '#e11d48',
-  lluvia: '#d97706', capa2: '#15803d', guino: '#4d7c0f', premio: '#ca8a04', risa: '#db2777',
-  meta: '#16a34a', silencio: '#0f172a', sentar: '#312e81', rebote2: '#a16207', final: '#020617',
+const FONDO_FIJO = Object.freeze({
+  llegar: '#14532d', saltan: '#16a34a', persecucion: '#c2410c', cascara: '#ca8a04',
+  gol: '#1d4ed8', alto: '#1e3a8a', final: '#020617', piso: '#eab308', tobogan: '#f59e0b',
 });
 
 export function modoEscena(accion) {
@@ -150,61 +212,43 @@ export function modoEscena(accion) {
 }
 
 function fondoDe(accion) {
-  return FONDO_CINE[accion] || '#111827';
+  if (FONDO_FIJO[accion]) return FONDO_FIJO[accion];
+  let h = 2166136261;
+  for (let i = 0; i < accion.length; i++) h = Math.imul(h ^ accion.charCodeAt(i), 16777619);
+  const r = 48 + (h & 160);
+  const g = 36 + ((h >>> 8) & 130);
+  const b = 48 + ((h >>> 16) & 150);
+  const hex = n => n.toString(16).padStart(2, '0');
+  return '#' + hex(r) + hex(g) + hex(b);
 }
-
-const CON_PUERTA = new Set(['llegar', 'empujar', 'palanca', 'mama', 'final']);
-const CON_BALDE = new Set(['perseguir', 'agachar', 'carrera', 'hambre', 'premio', 'sentar']);
-const CON_MAIZ = new Set(['tropiezo', 'ceja', 'rebote', 'lluvia', 'malabares', 'rebote2', 'estrellas']);
-const CON_SOMBRA = new Set(['apagon', 'sombra']);
-const CON_CARRITO = new Set(['giro', 'carrito', 'arrastre', 'choque', 'freno', 'palanca2']);
-const CON_TELON = new Set(['equis', 'caracol', 'capa2', 'guino', 'camara', 'silencio', 'sentarse', 'mapa']);
-const CON_PALANCA = new Set(['palanca', 'palanca2']);
-const CON_PERRO = new Set(['perrito', 'nino', 'cola', 'ladrido', 'gorra', 'persigue2', 'abrazo', 'meta', 'hambre']);
-const CON_RUEDA = new Set(['rueda', 'salto']);
-const CON_NICO = new Set(['nino', 'hambre', 'ladrido', 'persigue2', 'abrazo']);
-const CON_GUARDIA = new Set(['alto', 'cola', 'gorra', 'premio', 'silencio']);
 
 export function cineObjetos(accion, u) {
   const t = Math.max(0, Math.min(1, u || 0));
-  const lista = [];
-  if (CON_PUERTA.has(accion)) lista.push({ tipo: 'puerta', x: 508, y: 168, a: +(t * 1.2).toFixed(3) });
-  if (CON_BALDE.has(accion)) lista.push({ tipo: 'balde', x: Math.round(70 + t * 460), y: Math.round(236 - Math.sin(t * Math.PI) * 36), a: +(t * 10).toFixed(3) });
-  if (CON_MAIZ.has(accion)) lista.push({ tipo: 'maiz', x: Math.round(90 + t * 380), y: Math.round(24 + t * 230), a: +(t * 8).toFixed(3) });
-  if (CON_SOMBRA.has(accion)) lista.push({ tipo: 'sombra', x: Math.round(200 + Math.sin(t * 12) * 150), y: 176, a: +t.toFixed(3) });
-  if (CON_CARRITO.has(accion)) lista.push({ tipo: 'carrito', x: Math.round(64 + t * 470), y: 228, a: +Math.sin(t * 18).toFixed(3) });
-  if (CON_TELON.has(accion)) lista.push({ tipo: 'telon', x: Math.round(120 + t * 360), y: 78, a: +t.toFixed(3) });
-  if (CON_PALANCA.has(accion)) lista.push({ tipo: 'palanca', x: 470, y: 188, a: +(-0.9 + t * 1.7).toFixed(3) });
-  if (CON_PERRO.has(accion)) lista.push({ tipo: 'perro', x: Math.round(48 + t * 500), y: 246, a: +Math.sin(t * 16).toFixed(3) });
-  if (CON_RUEDA.has(accion)) lista.push({ tipo: 'rueda', x: Math.round(36 + t * 540), y: Math.round(246 - Math.abs(Math.sin(t * 9)) * 48), a: +(t * 12).toFixed(3) });
-  lista.push({
-    tipo: 'blob',
-    x: Math.round(40 + t * 520),
-    y: Math.round(58 + Math.sin(t * Math.PI * 4) * 34 + 40),
-    a: +t.toFixed(3),
-    color: '#fde68a',
-  });
-  return lista;
+  const esc = CINE_ESCENAS.find(e => e.accion === accion);
+  const tipo = (esc && esc.tipo) || 'zapato';
+  const x = Math.round(28 + t * 560);
+  const y = Math.round(188 - Math.abs(Math.sin(t * Math.PI * 2)) * 70);
+  return [
+    { tipo, x, y, a: +(t * 9).toFixed(3) },
+    { tipo: 'blob', x: Math.round(50 + ((t * 1.35) % 1) * 500), y: Math.round(64 + Math.sin(t * Math.PI * 6) * 28 + 24), a: +t.toFixed(3), color: '#f8fafc' },
+  ];
 }
 
-// Un cuadro del capítulo. `lt` va de 0 a 1 dentro de la escena.
+// Un cuadro del capítulo. `lt` va de 0 a 1 dentro de la escena y nadie se queda quieto.
 export function frameCine(esc, lt) {
   const t = Math.max(0, Math.min(1, lt == null ? (esc.lt || 0) : lt));
   const accion = esc.accion;
-  const bob = Math.sin(t * Math.PI * 18);
-  const lx = esc.lila[0] + (esc.lila[1] - esc.lila[0]) * t + bob * 7;
-  const mx = esc.mateo[0] + (esc.mateo[1] - esc.mateo[0]) * t - bob * 7;
-  let yLila = 252 + bob * 8;
-  let yMateo = 252 - bob * 6;
-  if (accion === 'tropiezo') yMateo = t > 0.42 ? 252 + (t - 0.42) * 70 : 252 - bob * 6;
-  if (accion === 'salto') yLila = 252 - Math.sin(t * Math.PI) * 78;
-  if (accion === 'agachar' || accion === 'resbalon') yMateo = 252 + 18 + Math.abs(bob) * 6;
-  if (accion === 'apagon' && t > 0.2 && t < 0.45) { yLila -= 36; yMateo -= 28; }
+  const bob = Math.sin(t * Math.PI * 16);
+  const salto = Math.abs(bob);
+  const lx = esc.lila[0] + (esc.lila[1] - esc.lila[0]) * t + bob * 12;
+  const mx = esc.mateo[0] + (esc.mateo[1] - esc.mateo[0]) * t - bob * 12;
+  let yLila = 246 - salto * 26;
+  let yMateo = 246 - salto * 22;
+  if (esc.tipo === 'banana') yMateo = 246 + t * 42;
+  if (accion === 'saltan' || accion === 'brinco' || accion === 'voltereta') yLila = 246 - Math.sin(t * Math.PI) * 88;
   const extra = [];
-  if (CON_NICO.has(accion)) extra.push({ nombre: 'Nico', color: '#facc15', x: Math.round(60 + t * 280), y: 262 });
-  if (CON_GUARDIA.has(accion)) extra.push({ nombre: 'Guardia', color: '#94a3b8', x: Math.round(560 - t * 180), y: 246 });
-  let relampago = 0;
-  if (accion === 'apagon') relampago = t > 0.12 && t < 0.38 ? 1 : 0;
+  if (esc.quien === 'Nico') extra.push({ nombre: 'Nico', color: '#facc15', x: Math.round(48 + t * 300), y: Math.round(258 - salto * 18) });
+  if (esc.quien === 'Guardia') extra.push({ nombre: 'Guardia', color: '#94a3b8', x: Math.round(560 - t * 200), y: Math.round(244 - salto * 16) });
   return {
     accion,
     fondo: fondoDe(accion),
@@ -213,8 +257,8 @@ export function frameCine(esc, lt) {
     yLila: Math.round(yLila),
     yMateo: Math.round(yMateo),
     bob: +bob.toFixed(3),
-    relampago,
-    oscuro: accion === 'apagon' && t >= 0.38 ? 1 : (accion === 'final' || accion === 'silencio' ? 0.45 : 0),
+    relampago: accion === 'gol' && t > 0.55 && t < 0.8 ? 1 : 0,
+    oscuro: accion === 'final' ? 0.35 : 0,
     extra,
     objetos: cineObjetos(accion, t),
   };

@@ -79,6 +79,14 @@ test('el cuerpo se sienta, se acuesta y se ducha', () => {
   assert.match(html, /if \(ducha\) \{ vy = 0;/);   // dentro de la ducha no se camina
 });
 
+test('los muebles del depto están en el súper y usan el mismo builder al colocar', () => {
+  const deptoShop = ['mesa', 'silla', 'cama', 'sofa', 'tele', 'mesa_tele', 'alfombra', 'bano', 'espejo', 'congelador', 'lavamanos', 'ducha', 'lampara_pie', 'play'];
+  for (const k of deptoShop) assert.match(html, new RegExp("key: '" + k + "'"), 'falta en DECOR_ITEMS: ' + k);
+  assert.match(html, /key: 'oven'/);   // horno de cocina (STORE_A)
+  assert.match(html, /function buildColocadoDepto\(/);
+  assert.match(html, /const DEPTO_SUPER_SHOP_KEYS/);
+});
+
 test('los muebles del depto se usan con E', () => {
   for (const t of ['tele', 'play', 'congelador', 'horno', 'lavamanos', 'ducha', 'lampara']) assert.match(html, new RegExp("objeto\\('" + t + "'"));
   for (const k of ['sofa', 'silla', 'bano', 'cama']) assert.match(html, new RegExp("asiento\\('" + k + "'"));

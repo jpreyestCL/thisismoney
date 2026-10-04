@@ -6,7 +6,7 @@ import {
   AVENIDAS, DISTRITOS, MALL, callesDelMapa, enCalle, rectCalle, rectDistrito, seCruzan, validarMapa,
 } from '../src/city-map.js';
 import {
-  CINE_DURACION, CINE_ESCENAS, PALOMITAS_PRECIO, SUPER_FILAS, SUPER_PASO, casasConPrecio, cineContinuo, escenaCine, mallAgregar, mallPuedePagar, mallTotal, modoEscena, puestosSuper,
+  CINE_DURACION, CINE_ESCENAS, PALOMITAS_HAMBRE, PALOMITAS_PRECIO, SUPER_FILAS, SUPER_PASO, bocadoDeBolsa, casasConPrecio, cineContinuo, dobleDeBolsa, escenaCine, firmaCuadro, mallAgregar, mallPuedePagar, mallTotal, modoEscena, puestosSuper,
 } from '../src/mall.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -88,6 +88,19 @@ test('el capítulo del cine dura 10 minutos y la voz no dice «dice»', () => {
   assert.ok(CINE_ESCENAS.some(e => e.accion === 'final'));
   assert.ok(letras > 2500, 'el capítulo tiene que tener bastante texto');
   assert.equal(PALOMITAS_PRECIO, 80);
+  for (let i = 0; i < CINE_ESCENAS.length; i++) {
+    const esc = CINE_ESCENAS[i];
+    assert.notEqual(firmaCuadro(esc, 0.12), firmaCuadro(esc, 0.82), esc.accion + ' se queda quieta');
+    assert.ok(Math.abs(esc.lila[1] - esc.lila[0]) >= 28 || Math.abs(esc.mateo[1] - esc.mateo[0]) >= 28, esc.accion + ' no camina');
+    if (i > 0) {
+      assert.notEqual(esc.accion, CINE_ESCENAS[i - 1].accion);
+      assert.notEqual(firmaCuadro(esc, 0.5), firmaCuadro(CINE_ESCENAS[i - 1], 0.5));
+    }
+  }
+  assert.equal(new Set(CINE_ESCENAS.map(e => e.accion)).size, CINE_ESCENAS.length);
+  assert.deepEqual(bocadoDeBolsa(6), { qty: 5, hambre: PALOMITAS_HAMBRE, acaba: false });
+  assert.deepEqual(dobleDeBolsa(6), { qty: 0, hambre: PALOMITAS_HAMBRE * 6, acaba: true });
+  assert.equal(bocadoDeBolsa(1).acaba, true);
 });
 
 test('el súper pone en góndolas todo el catálogo, sin encimar', () => {
@@ -123,12 +136,15 @@ test('el juego engancha el mall sin tocar la celda, el depto ni la tele', () => 
   assert.match(html, /const TORRE_PRECIO = 10000/);
   assert.match(html, /const ESTRENO_NOVELA = 'La novela'/);
   assert.match(html, /city-map\.js\?v=9/);
-  assert.match(html, /mall\.js\?v=2/);
+  assert.match(html, /mall\.js\?v=3/);
+  assert.match(html, /bocadoDeBolsa/);
+  assert.match(html, /dobleDeBolsa/);
+  assert.match(html, /function usarComer\(/);
   assert.match(html, /SALA 1/);
   assert.match(html, /puestosSuper\(SHOP\)/);
   assert.match(html, /tipo: 'sala'/);
   assert.match(html, /tipo: 'tienda'/);
-  assert.match(sw, /const VERSION = 'tim-v80'/);
+  assert.match(sw, /const VERSION = 'tim-v81'/);
   assert.match(sw, /city-map\.js\?v=9/);
-  assert.match(sw, /mall\.js\?v=2/);
+  assert.match(sw, /mall\.js\?v=3/);
 });

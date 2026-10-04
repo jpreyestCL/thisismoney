@@ -1273,7 +1273,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';                  
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
-import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_PRECIO, casasConPrecio, escenaCine, mallAgregar, mallPuedePagar, modoEscena, puestosSuper } from './src/mall.js?v=2';
+import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=3';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -11280,19 +11280,30 @@ function mallBalde() {
   cubo.position.y = .14; g.add(cubo);
   const raya = new THREE.Mesh(new THREE.CylinderGeometry(.165, .125, .06, 10), new THREE.MeshBasicMaterial({ color: 0xf8fafc }));
   raya.position.y = .2; g.add(raya);
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < PALOMITAS_BOCADOS; i++) {
     const pop = new THREE.Mesh(new THREE.SphereGeometry(.045, 6, 5), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xfde68a : 0xfbbf24 }));
-    pop.position.set((i % 3 - 1) * .06, .3, ((i % 2) - .5) * .06);
+    pop.position.set((i % 3 - 1) * .07, .36 + (i > 2 ? .055 : 0), (i % 2 === 0 ? .05 : -.04));
+    pop.userData.pop = true;
+    pop.userData.popi = i;
     g.add(pop);
   }
   return g;
 }
+function pintarPalomitas(g, qty) {
+  if (!g) return;
+  for (const c of g.children) if (c.userData && c.userData.pop) c.visible = c.userData.popi < qty;
+}
 function mallPalomitasPose() {
-  const tiene = !!(state && state.mallPalomitas);
+  const qty = (state && state.mallPalomitas) ? (state.mallPalomitasQty | 0) : 0;
+  const tiene = qty > 0;
   const sentado = !!(sitOn && sitOn.mallCine);
-  if (mallBaldeMano) mallBaldeMano.visible = tiene && !sentado && cameraMode === 0;
+  if (mallBaldeMano) {
+    mallBaldeMano.visible = tiene && !sentado && cameraMode === 0;
+    pintarPalomitas(mallBaldeMano, qty);
+  }
   if (mallBaldeSilla) {
     mallBaldeSilla.visible = tiene && sentado;
+    pintarPalomitas(mallBaldeSilla, qty);
     if (sentado && sitOn && sitOn.mesh) {
       const p = sitOn.mesh.position;
       mallBaldeSilla.position.set(p.x + .55, p.y + .15, p.z + .15);
@@ -11350,28 +11361,81 @@ function mallLineas(ctx, texto, max) {
   if (act) lineas.push(act);
   return lineas;
 }
-function dibujarPersonaCine(ctx, x, color, nombre, alto, ySuelo) {
-  const s = alto || 1;
-  const suelo = ySuelo || 214;
+function dibujarPersonaCine(ctx, x, y, color, nombre, bob) {
+  const paso = bob || 0;
+  ctx.save();
+  ctx.translate(x, y);
   ctx.fillStyle = color;
-  ctx.fillRect(x - 16 * s, suelo - 46 * s, 32 * s, 52 * s);
-  ctx.beginPath(); ctx.arc(x, suelo - 66 * s, 16 * s, 0, 7); ctx.fill();
+  ctx.fillRect(-15, -86, 30, 46);
+  ctx.beginPath(); ctx.arc(0, -104, 15, 0, 7); ctx.fill();
   ctx.fillStyle = '#111827';
-  ctx.fillRect(x - 14 * s, suelo, 12 * s, 32 * s); ctx.fillRect(x + 2 * s, suelo, 12 * s, 32 * s);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold ' + Math.round(13 * s) + 'px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(nombre, x, suelo + 48 * s);
+  ctx.fillRect(-13, -42, 11, 30 + paso * 10);
+  ctx.fillRect(2, -42, 11, 30 - paso * 10);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(nombre, 0, 4);
+  ctx.restore();
+}
+function dibujarPropCine(ctx, o) {
+  ctx.save();
+  if (o.tipo === 'puerta') {
+    ctx.translate(o.x, o.y); ctx.rotate(o.a);
+    ctx.fillStyle = '#78350f'; ctx.fillRect(0, -70, 16, 140);
+    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(12, 0, 4, 0, 7); ctx.fill();
+  } else if (o.tipo === 'balde') {
+    ctx.translate(o.x, o.y); ctx.rotate(o.a * 0.15);
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(-16, -8, 32, 28);
+    ctx.fillStyle = '#f8fafc'; ctx.fillRect(-16, 2, 32, 6);
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(0, -12, 10, 0, 7); ctx.fill();
+  } else if (o.tipo === 'maiz') {
+    ctx.fillStyle = '#fde68a';
+    ctx.beginPath(); ctx.arc(o.x, o.y, 11, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(o.x + 22, o.y - 30, 8, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(o.x - 18, o.y - 16, 7, 0, 7); ctx.fill();
+  } else if (o.tipo === 'sombra') {
+    ctx.fillStyle = 'rgba(0,0,0,.72)';
+    ctx.beginPath(); ctx.ellipse(o.x, o.y, 46, 70, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.arc(o.x - 10, o.y - 20, 4, 0, 7); ctx.arc(o.x + 10, o.y - 20, 4, 0, 7); ctx.fill();
+  } else if (o.tipo === 'carrito') {
+    ctx.translate(o.x, o.y);
+    ctx.fillStyle = '#dc2626'; ctx.fillRect(-34, -26, 68, 30);
+    ctx.fillStyle = '#111';
+    ctx.beginPath(); ctx.arc(-18, 8, 8, 0, 7); ctx.arc(18, 8, 8, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(0, -30, 12, 0, 7); ctx.fill();
+  } else if (o.tipo === 'telon') {
+    ctx.fillStyle = '#7f1d1d'; ctx.fillRect(o.x - 70, 36, 54, 90);
+    ctx.fillStyle = '#991b1b'; ctx.fillRect(o.x + 16, 36, 54, 90);
+    ctx.fillStyle = '#fde68a'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('X', o.x, 88);
+  } else if (o.tipo === 'palanca') {
+    ctx.translate(o.x, o.y); ctx.rotate(o.a);
+    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(0, 20); ctx.lineTo(0, -36); ctx.stroke();
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(0, -36, 8, 0, 7); ctx.fill();
+  } else if (o.tipo === 'perro') {
+    ctx.translate(o.x, o.y);
+    ctx.fillStyle = '#92400e'; ctx.beginPath(); ctx.ellipse(0, 0, 28, 16, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(24, -10, 10, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(-8, -8); ctx.lineTo(6, -28); ctx.lineTo(18, -4); ctx.fill();
+  } else if (o.tipo === 'rueda') {
+    ctx.translate(o.x, o.y); ctx.rotate(o.a);
+    ctx.strokeStyle = '#111'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(0, 0, 16, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(14, 0); ctx.moveTo(0, -14); ctx.lineTo(0, 14); ctx.stroke();
+  } else {
+    ctx.fillStyle = o.color || '#fde68a';
+    ctx.beginPath(); ctx.arc(o.x, o.y, 12, 0, 7); ctx.fill();
+  }
+  ctx.restore();
 }
 function dibujarCine(esc) {
   const ctx = mallCineCtx;
   if (!ctx) return;
   const cv = ctx.canvas;
   const w = cv.width, h = cv.height;
-  ctx.fillStyle = '#140c18'; ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = '#7f1d1d'; ctx.fillRect(0, 0, 28, h); ctx.fillRect(w - 28, 0, 28, h);
-  ctx.fillStyle = '#3f2a22'; ctx.fillRect(0, h - 86, w, 86);
-  ctx.fillStyle = '#4c1d3a';
-  for (let i = 0; i < 8; i++) ctx.fillRect(48 + i * 72, h - 78, 48, 26);
   if (!esc) {
+    ctx.fillStyle = '#140c18'; ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#1e293b'; ctx.fillRect(150, 48, 340, 190);
     ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 42px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('LA NOVELA', w / 2, 130);
@@ -11381,80 +11445,23 @@ function dibujarCine(esc) {
     if (mallCineTex) mallCineTex.needsUpdate = true;
     return;
   }
-  const modo = modoEscena(esc.accion);
-  const pantalla = (fondo, titulo, sub, tinta) => {
-    ctx.fillStyle = fondo; ctx.fillRect(150, 36, 340, 150);
-    ctx.strokeStyle = '#0f172a'; ctx.strokeRect(150, 36, 340, 150);
-    ctx.fillStyle = tinta || '#111'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(titulo, 320, 100);
-    if (sub) { ctx.font = 'bold 18px sans-serif'; ctx.fillText(sub, 320, 138); }
-  };
-  if (modo === 'sala') pantalla('#d1fae5', 'caracol', 'haciendo la tarea', '#166534');
-  else if (modo === 'oscuro') pantalla('#111827', 'pantalla apagada', '¿quién cortó la luz?', '#fbbf24');
-  else if (modo === 'oro') {
-    pantalla('#fef3c7', 'MAPA', 'la X está detrás', '#92400e');
-    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(250, 250, 22, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff7ed'; ctx.beginPath(); ctx.arc(250, 250, 8, 0, 7); ctx.fill();
-  } else if (modo === 'pasillo') {
-    pantalla('#1e293b', 'SOMBRA', 'se llevó un balde', '#e2e8f0');
-    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(80, 300); ctx.lineTo(160, 270); ctx.lineTo(240, 300); ctx.stroke();
-  } else if (modo === 'butaca') {
-    ctx.fillStyle = '#44403c'; ctx.fillRect(250, 200, 140, 70);
-    ctx.fillStyle = '#fde68a'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('butaca 7', 320, 196);
-  } else if (modo === 'capa') {
-    ctx.fillStyle = '#92400e'; ctx.beginPath(); ctx.ellipse(320, 250, 36, 22, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = '#f8fafc'; ctx.beginPath(); ctx.moveTo(290, 240); ctx.lineTo(320, 200); ctx.lineTo(350, 240); ctx.fill();
-    ctx.fillStyle = '#111'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Canela', 320, 290);
-  } else if (modo === 'nino') pantalla('#fef9c3', 'NICO', 'perdí a mi mamá', '#854d0e');
-  else if (modo === 'gato') {
-    pantalla('#ffedd5', 'GATO', 'bigotes de mantequilla', '#9a3412');
-    ctx.fillStyle = '#fdba74'; ctx.beginPath(); ctx.arc(120, 230, 20, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillRect(108, 220, 8, 6); ctx.fillRect(124, 220, 8, 6);
-  } else if (modo === 'boleto') pantalla('#e0f2fe', 'BOLETO', 'falta la palabra', '#0c4a6e');
-  else if (modo === 'resbalon') {
-    ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.ellipse(300, 280, 50, 16, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = '#0ea5e9'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('¡soda!', 300, 284);
-  } else if (modo === 'puerta') {
-    ctx.fillStyle = '#78350f'; ctx.fillRect(470, 70, 78, 200);
-    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(530, 170, 6, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('cabina', 508, 60);
-  } else if (modo === 'guardia') pantalla('#1e3a8a', '¡ALTO!', 'guardia de la sala', '#fff');
-  else if (modo === 'foco') {
-    pantalla('#1c1917', 'FALTA LUZ', 'el foco se fundió', '#fde68a');
-    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(100, 150, 18, 0, 7); ctx.fill();
-  } else if (modo === 'abrir') {
-    ctx.fillStyle = '#fef3c7'; ctx.fillRect(470, 70, 28, 200);
-    ctx.fillStyle = '#44403c'; ctx.fillRect(500, 70, 70, 200);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'left';
-    ctx.fillText('SALA', 430, 60);
-  } else if (modo === 'pantalla') pantalla('#fecdd3', 'EL HALL', 'mamá busca a Nico', '#9f1239');
-  else if (modo === 'heroes') pantalla('#fde68a', 'HÉROES', 'sala uno', '#92400e');
-  const lx = esc.lila[0] + (esc.lila[1] - esc.lila[0]) * esc.lt;
-  const mx = esc.mateo[0] + (esc.mateo[1] - esc.mateo[0]) * esc.lt;
-  const sueloMateo = modo === 'resbalon' ? 236 : 214;
-  dibujarPersonaCine(ctx, lx, '#f472b6', 'Lila', 1, 214);
-  dibujarPersonaCine(ctx, mx, '#38bdf8', 'Mateo', 1, sueloMateo);
-  if (modo === 'nino' || modo === 'capa') dibujarPersonaCine(ctx, 80, '#facc15', 'Nico', .72, 230);
-  if (modo === 'guardia') dibujarPersonaCine(ctx, 560, '#94a3b8', 'Guardia', 1.05, 206);
-  ctx.font = 'bold 16px sans-serif';
-  const lineas = mallLineas(ctx, esc.texto, 520);
-  const bw = 560, bh = 28 + lineas.length * 20, bx = (w - bw) / 2, by = 4;
-  ctx.fillStyle = 'rgba(255,255,255,.95)';
-  ctx.fillRect(bx, by, bw, bh);
-  ctx.fillStyle = esc.voz === 'mujer' ? '#9d174d' : '#1e3a8a';
-  ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
-  ctx.fillText(esc.quien, bx + 12, by + 16);
-  ctx.fillStyle = '#111'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-  lineas.forEach((ln, i) => ctx.fillText(ln, w / 2, by + 36 + i * 20));
+  const f = frameCine(esc, esc.lt);
+  ctx.fillStyle = f.fondo; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, h - 118, w, 118);
+  ctx.fillStyle = '#4c1d3a';
+  for (let i = 0; i < 8; i++) ctx.fillRect(36 + i * 74, h - 108, 46, 22);
+  for (const o of f.objetos) dibujarPropCine(ctx, o);
+  for (const p of f.extra) dibujarPersonaCine(ctx, p.x, p.y, p.color, p.nombre, f.bob);
+  dibujarPersonaCine(ctx, f.lx, f.yLila, '#f472b6', 'Lila', f.bob);
+  dibujarPersonaCine(ctx, f.mx, f.yMateo, '#38bdf8', 'Mateo', -f.bob);
+  if (f.relampago) { ctx.fillStyle = 'rgba(255,255,255,.82)'; ctx.fillRect(0, 0, w, h); }
+  if (f.oscuro) { ctx.fillStyle = 'rgba(0,0,0,' + (0.35 + f.oscuro * 0.4) + ')'; ctx.fillRect(0, 0, w, h); }
+  ctx.fillStyle = 'rgba(0,0,0,.72)'; ctx.fillRect(8, h - 36, w - 16, 28);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'left';
+  const aviso = esc.quien + ': ' + esc.texto;
+  ctx.fillText(aviso.length > 78 ? aviso.slice(0, 76) + '…' : aviso, 16, h - 17);
   const minuto = Math.min(10, Math.floor((mallCineT % CINE_DURACION) / 60) + 1);
-  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(w - 158, h - 34, 148, 24);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'right';
-  ctx.fillText('Minuto ' + minuto + ' de 10', w - 16, h - 16);
+  ctx.textAlign = 'right'; ctx.fillText(minuto + '/10', w - 16, h - 17);
   if (mallCineTex) mallCineTex.needsUpdate = true;
 }
 function mallSentarEn(p) {
@@ -11478,10 +11485,11 @@ function mallLevantarse() {
 }
 function comprarPalomitas() {
   if (state.phase !== 'DAY') { toast('El puesto de palomitas abre de día'); return false; }
-  if (state.mallPalomitas) { toast('🍿 Ya llevas palomitas'); mallPalomitasPose(); return true; }
+  if (state.mallPalomitas && (state.mallPalomitasQty | 0) > 0) { toast('🍿 Ya llevas palomitas'); mallPalomitasPose(); return true; }
   if (!state.creative && state.money < PALOMITAS_PRECIO) { toast('💸 No te alcanza. Las palomitas cuestan $' + PALOMITAS_PRECIO); return true; }
   if (!state.creative) state.money -= PALOMITAS_PRECIO;
   state.mallPalomitas = true;
+  state.mallPalomitasQty = PALOMITAS_BOCADOS;
   mallPalomitasPose();
   toast(state.creative ? '🍿 Palomitas (creativo, sin cobro)' : '🍿 Palomitas · $' + PALOMITAS_PRECIO);
   beep(680, .08, .04);
@@ -16601,7 +16609,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyJ') tryCollectGolden();
   // Números (fila de arriba o teclado numérico): 0 = slot 10 (la pestaña de muebles tiene 9 piezas)
   { const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code); if (m) selectSlot(+m[1] || 10); }
-  if (e.code === 'KeyQ') { if (!sportSecondaryAction()) eatFood(); }
+  if (e.code === 'KeyQ' && !e.repeat) usarComer();
   if (e.code === 'KeyI') toggleHelp();   // abrir/cerrar el menú de ayuda
   if (e.code === 'KeyK') { if (e.shiftKey) cycleCrop(1); else plantSeed(); }
   if (e.code === 'BracketRight') cycleCrop(1);
@@ -16800,6 +16808,29 @@ function setBuildCat(cat) {
   if (!BUILD_CATS[cat]) return;
   buildCat = cat;
   const key = catKeys()[0]; if (key) selectBuildKey(key);
+}
+let palomitasToque = 0;
+function usarComer() {
+  if (sportSecondaryAction()) return;
+  const ahora = performance.now();
+  const seguido = ahora - palomitasToque < 450;
+  const qty = (state.mallPalomitas && (state.mallPalomitasQty | 0) > 0) ? (state.mallPalomitasQty | 0) : 0;
+  if (qty > 0) {
+    const res = seguido ? dobleDeBolsa(qty) : bocadoDeBolsa(qty);
+    palomitasToque = seguido ? 0 : ahora;
+    state.mallPalomitasQty = res.qty;
+    state.hunger = Math.min(100, (state.hunger || 0) + (res.hambre || 0));
+    if (res.acaba || res.qty <= 0) {
+      state.mallPalomitas = false;
+      state.mallPalomitasQty = 0;
+      toast(seguido ? '🍿 Te comiste la bolsa entera de una' : '🍿 Se acabó la bolsa, bocado a bocado');
+    } else toast('🍿 Comes un poco. La bolsa sigue');
+    mallPalomitasPose();
+    beep(520, .06, .04);
+    return;
+  }
+  if (seguido) { palomitasToque = 0; return; }
+  eatFood();
 }
 function eatFood() {
   if ((state.inv.food || 0) <= 0) { toast('No tienes comida (cómprala en el SÚPER)'); return; }
@@ -17408,7 +17439,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'aim': if (!toggleAim()) toast('🔭 La mira es de las armas de fuego (cómpralas en el mercado negro)'); break;
       case 'wheel': toggleWheel(); break;
       case 'shop': openShopInput(); break;
-      case 'eat': if (!sportSecondaryAction()) eatFood(); break;
+      case 'eat': usarComer(); break;
       case 'night': tryStartNight(); break;
       case 'build': state.buildMode = !state.buildMode; if (!state.buildMode) { activeBlueprintId = null; blueprintGhost.visible = false; } toast(state.buildMode ? '🔨 Modo construir ON · abre 📐 planos o elige una pieza' : 'Modo construir OFF'); break;
       case 'blueprints': openBlueprintPanel(); break;
@@ -17535,7 +17566,7 @@ function startGame() {
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint();   // sin huevos/mascotas/banderita al empezar
   endEclipse(); state.coreClaimed = false; state.relics = 0; state.trophies = 0; removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   state.inv = freshInv(); selectedCrop = 'apple'; state.poison = 0; state.dadPoison = 0;
-  state.mallPalomitas = false; mallCart = []; dibujarCarritoMall(); mallPalomitasPose(); mallCineT = 0;
+  state.mallPalomitas = false; state.mallPalomitasQty = 0; mallCart = []; dibujarCarritoMall(); mallPalomitasPose(); mallCineT = 0;
   state.wanted = 0; state.wantedLevel = 0; clearPolice(); victims.forEach(v => v.userData.robbed = false);
   state.streak = 0; state.bestiary = {}; state.recordShown = false; state.unlocked = {}; state.album = {}; state.albumDone = false;
   state.tutorial = { step: 0, complete: false }; state.chapter = 0; state.chapterFlags = {}; state.reputation = 0; state.medals = {}; state.blueprints = {}; state.citizenFavors = {}; state.sportGame = null; state.business = null; state.businessOrders = 0; state.parkBusiness = null; state.worldEvent = null; state.nextWorldEvent = 45; state.foundSecrets = {}; state.secretsFound = 0; state.stamina = 100; state.blocking = false; state.dodgeCd = 0; state.invulnerable = 0; syncWorldSecrets();
@@ -23611,6 +23642,8 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.mallQuitar = mallQuitar;
   timDump.abrirCajaMall = abrirCajaMall;
   timDump.mallCineEn = (t) => { mallCineT = t || 0; dibujarCine(escenaCine(mallCineT)); return escenaCine(mallCineT); };
+  timDump.mallCineAccion = (accion, lt) => { mallCineT = tiempoDeEscena(accion, lt == null ? 0.55 : lt); const esc = escenaCine(mallCineT); dibujarCine(esc); return esc; };
+  timDump.comer = () => { usarComer(); return { palomitas: !!state.mallPalomitas, qty: state.mallPalomitasQty || 0, hambre: state.hunger, comida: state.inv.food || 0 }; };
   timDump.mallInfo = () => mallPuestos.reduce((m, p) => { m[p.tipo] = (m[p.tipo] || 0) + 1; return m; }, {});
   timDump.cineLienzo = () => mallCineCtx ? mallCineCtx.canvas.toDataURL('image/png') : '';
   timDump.comprarPalomitas = comprarPalomitas;

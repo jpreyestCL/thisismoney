@@ -7770,14 +7770,38 @@ function estadoPartido(t) {
 }
 const ESTRENO_NOVELA = 'La novela';
 // Cada ficha es una temporada distinta: otro título y otras frases en pantalla.
-// Cada temporada es una historia de cuatro escenas: la siguiente contesta a la anterior.
+// Cada temporada es un episodio de doce escenas: lo que una dice provoca lo que la otra hace.
 const TEMPORADAS_NOVELA = [
-  { titulo: 'El secreto del pasaje', lineas: [['Lila', 'Voy a esconder esto.'], ['Vera', '¿Esconder qué?'], ['Lila', 'Esto, detrás de la caja.'], ['Vera', 'Ya lo encontré.']] },
-  { titulo: 'Vera vuelve', lineas: [['Vera', 'Volví al pasaje.'], ['Lila', 'Pensé que no volvías.'], ['Vera', 'Me fui porque tenía miedo.'], ['Lila', 'Quédate. Eso ya pasó.']] },
-  { titulo: 'La casa de Lila', lineas: [['Lila', 'Esta casa es mía.'], ['Vera', 'Yo vivo aquí también.'], ['Lila', '¿Y de quién es, entonces?'], ['Vera', 'De las dos. Nos quedamos.']] },
-  { titulo: 'Cartas de Platus', lineas: [['Vera', 'Llegó una carta.'], ['Lila', 'Escribe desde Platus.'], ['Vera', '¿Le contestamos o no?'], ['Lila', 'Sí. Le contesto ahora.']] },
-  { titulo: 'El turno de noche', lineas: [['Vera', 'Yo cubro el turno.'], ['Lila', '¿Sigues despierta?'], ['Lila', 'Siéntate. Yo te relevo.'], ['Vera', 'Gracias. Ya descanso.']] },
-  { titulo: 'Hermanos del huerto', lineas: [['Vera', 'El huerto es mío.'], ['Lila', 'No. También es mío.'], ['Vera', 'Se secó por la pelea.'], ['Lila', 'Lo regamos. Ya está.']] },
+  { titulo: 'El secreto del pasaje', lineas: [
+    ['Lila', 'Voy a esconder esto.'], ['Vera', '¿Esconder qué?'], ['Lila', 'Esto, detrás de la caja.'], ['Vera', 'Ya lo encontré.'],
+    ['Lila', 'Devuélvemelo.'], ['Vera', 'Hay una llave.'], ['Lila', 'Es del pasaje.'], ['Vera', '¿Quién más la quiere?'],
+    ['Lila', 'Entiérrala.'], ['Vera', 'Aquí, bajo la losa.'], ['Lila', 'Tapa el hueco.'], ['Vera', 'Nadie la ve.'],
+  ] },
+  { titulo: 'Vera vuelve', lineas: [
+    ['Vera', 'Volví al pasaje.'], ['Lila', 'Pensé que no volvías.'], ['Vera', 'Me fui porque tenía miedo.'], ['Lila', 'Quédate. Eso ya pasó.'],
+    ['Lila', 'Te guardé pan.'], ['Vera', 'Gracias. Tenía hambre.'], ['Lila', '¿La dejas en la puerta?'], ['Vera', 'Me da miedo soltarla.'],
+    ['Lila', 'La pongo a tu lado.'], ['Vera', 'Ya. La escondo bajo el banco.'], ['Lila', 'Si te asustas, me llamas.'], ['Vera', 'Me quedo esta noche.'],
+  ] },
+  { titulo: 'La casa de Lila', lineas: [
+    ['Lila', 'Esta casa es mía.'], ['Vera', 'Yo vivo aquí también.'], ['Lila', '¿Y de quién es, entonces?'], ['Vera', 'De las dos. Nos quedamos.'],
+    ['Lila', 'Entonces escribimos las dos.'], ['Vera', 'No tengo lápiz.'], ['Lila', 'Toma el mío.'], ['Vera', 'Pongo los dos nombres.'],
+    ['Lila', 'Se lee desde la calle.'], ['Vera', 'Falta el buzón.'], ['Lila', 'Ya cabe la tarjeta.'], ['Vera', 'Esta noche las dos.'],
+  ] },
+  { titulo: 'Cartas de Platus', lineas: [
+    ['Vera', 'Llegó una carta.'], ['Lila', 'Escribe desde Platus.'], ['Vera', '¿Le contestamos o no?'], ['Lila', 'Sí. Le contesto ahora.'],
+    ['Vera', 'Léeme la primera línea.'], ['Lila', 'Allá hace frío.'], ['Vera', '¿Y la casa?'], ['Lila', 'Le cuento que sigue.'],
+    ['Vera', 'Agrega que no viajamos.'], ['Lila', 'Ya la doblé.'], ['Vera', 'La llevo al buzón.'], ['Lila', 'Que salga hoy.'],
+  ] },
+  { titulo: 'El turno de noche', lineas: [
+    ['Vera', 'Yo cubro el turno.'], ['Lila', '¿Sigues despierta?'], ['Lila', 'Siéntate. Yo te relevo.'], ['Vera', 'Gracias. Ya descanso.'],
+    ['Lila', 'Echo la tranca.'], ['Vera', 'La llave, déjala cerca.'], ['Lila', 'Queda en el clavo.'], ['Lila', 'Eso fue el viento.'],
+    ['Vera', 'Vi pasar una sombra.'], ['Lila', 'No hay nadie afuera.'], ['Vera', 'Entonces duermo.'], ['Lila', 'Yo miro hasta el alba.'],
+  ] },
+  { titulo: 'Hermanos del huerto', lineas: [
+    ['Vera', 'El huerto es mío.'], ['Lila', 'No. También es mío.'], ['Vera', 'Se secó por la pelea.'], ['Lila', 'Lo regamos. Ya está.'],
+    ['Vera', 'La de atrás sigue gris.'], ['Lila', 'Llené el balde.'], ['Vera', 'En la raíz, no arriba.'], ['Lila', 'Así se empapa.'],
+    ['Lila', 'Tómalo. Te toca.'], ['Vera', 'Esta ya bebe.'], ['Vera', 'Lo suelto. Sin pelea.'], ['Lila', 'Salió una hoja nueva.'],
+  ] },
 ];
 const TV_NOTICIAS = ['ciudad', 'clima', 'deporte', 'plata', 'transito', 'farandula', 'juego', 'incendio', 'asalto', 'politica', 'ciencia', 'salud', 'escuela', 'playa', 'aeropuerto', 'carcel', 'banco', 'mascota', 'extremo', 'estreno', 'proximo'];
 const TV_NOTICIA_SEG = 15;
@@ -8280,15 +8304,16 @@ function faseNovela(t) {
   if (novelaTemporadaVista !== temp.n) { novelaTemporadaVista = temp.n; novelaCorteT = t; }
   const local = Math.max(0, t - novelaCorteT);
   const estreno = temp.dia % 10 === 0;
-  const intro = 8, ciclo = 16;
+  const n = Math.max(1, temp.lineas.length);
+  const intro = 8, ciclo = 4 * n;
   if (estreno) {
     const tt = local % (intro + ciclo);
     if (tt < intro) return { intro: true, k: tt / intro, escena: -1, lt: 0 };
     const u = (tt - intro) / ciclo;
-    return { intro: false, k: 1, escena: Math.min(3, Math.floor(u * 4)), lt: (u * 4) % 1 };
+    return { intro: false, k: 1, escena: Math.min(n - 1, Math.floor(u * n)), lt: (u * n) % 1 };
   }
   const u = (local % ciclo) / ciclo;
-  return { intro: false, k: 1, escena: Math.min(3, Math.floor(u * 4)), lt: (u * 4) % 1 };
+  return { intro: false, k: 1, escena: Math.min(n - 1, Math.floor(u * n)), lt: (u * n) % 1 };
 }
 function lineaVisibleNovela(temp, escena, t) {
   const L = temp.lineas;
@@ -8497,64 +8522,165 @@ function tvBanco(ctx, x, y, w) {
   ctx.fillRect(x + 8, y + 12, 8, 18);
   ctx.fillRect(x + w - 16, y + 12, 8, 18);
 }
-function dibujarEscenaTemporadaUno(ctx, escena, lt, t) {
+function pasoNovela(ctx, t, quien, x, y, extra, globo) {
+  const o = Object.assign({ fase: t }, extra || {});
+  if (quien === 'Lila') tvLila(ctx, x, y, o);
+  else tvVera(ctx, x, y, o);
+  if (globo) novelaHablaX = x;
+}
+function tvLlave(ctx, x, y) {
+  ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 5, y); ctx.lineTo(x + 16, y); ctx.moveTo(x + 12, y); ctx.lineTo(x + 12, y + 4); ctx.stroke();
+}
+function tvCajaGrande(ctx, x, y) {
+  ctx.fillStyle = '#57534e'; ctx.fillRect(x, y, 58, 54);
+  ctx.strokeStyle = '#292524'; ctx.lineWidth = 2; ctx.strokeRect(x, y, 58, 54);
+}
+function tvBalde(ctx, x, y, agua) {
+  ctx.fillStyle = agua ? '#38bdf8' : '#64748b';
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 26, y); ctx.lineTo(x + 20, y + 20); ctx.lineTo(x + 6, y + 20); ctx.fill();
+  ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x + 4, y); ctx.quadraticCurveTo(x + 13, y - 12, x + 22, y); ctx.stroke();
+}
+function tvBuzon(ctx, x, y, abierto) {
+  ctx.fillStyle = '#94a3b8'; ctx.fillRect(x + 12, y + 16, 4, 28);
+  ctx.fillStyle = '#1d4ed8'; ctx.fillRect(x, y, 28, 16);
+  ctx.fillStyle = abierto ? '#dbeafe' : '#1e3a8a';
+  ctx.beginPath(); ctx.moveTo(x - 2, y); ctx.lineTo(x + 14, y + (abierto ? -8 : 8)); ctx.lineTo(x + 30, y); ctx.fill();
+}
+function tvPan(ctx, x, y) {
+  ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.ellipse(x, y, 14, 8, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#b45309'; ctx.stroke();
+}
+function fondoPasajeNoche(ctx) {
   fondoNovela(ctx, '#312e81', '#1e1b4b');
   ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, 64, 210); ctx.fillRect(448, 0, 64, 210);
   ctx.fillStyle = '#4338ca'; ctx.fillRect(8, 36, 28, 22); ctx.fillRect(472, 70, 28, 22);
   ctx.fillStyle = '#44403c'; ctx.fillRect(0, 196, 512, 92);
-  if (escena === 0) {
-    tvLila(ctx, 250, 206, { fase: t, boca: 'habla', mira: -2, brazoL: 0.85 });
+}
+function dibujarEscenaTemporadaUno(ctx, escena, lt, t) {
+  fondoPasajeNoche(ctx);
+  const e = escena | 0;
+  if (e === 0) {
+    pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: -2, brazoL: 0.85 }, true);
     tvCajon(ctx, 214, 162);
-    novelaHablaX = 250;
-  } else if (escena === 1) {
+  } else if (e === 1) {
     tvCajon(ctx, 214, 162);
-    tvLila(ctx, 250, 206, { fase: t, boca: 'sorpresa', mira: 2 });
-    tvVera(ctx, 120, 206, { fase: t, boca: 'habla', mira: 2 });
-    novelaHablaX = 120;
-  } else if (escena === 2) {
+    pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'sorpresa', mira: 2 });
+    pasoNovela(ctx, t, 'Vera', 120, 206, { boca: 'habla', mira: 2 }, true);
+  } else if (e === 2) {
     tvCajon(ctx, 92, 164);
-    ctx.fillStyle = '#57534e'; ctx.fillRect(118, 148, 58, 54);
-    tvLila(ctx, 200, 206, { fase: t, boca: 'habla', mira: -2, brazoL: 1.15 });
-    tvVera(ctx, 340, 206, { fase: t, boca: 'sonrisa', mira: -2 });
-    novelaHablaX = 200;
-  } else {
+    tvCajaGrande(ctx, 118, 148);
+    pasoNovela(ctx, t, 'Lila', 200, 206, { boca: 'habla', mira: -2, brazoL: 1.15 }, true);
+    pasoNovela(ctx, t, 'Vera', 340, 206, { boca: 'sonrisa', mira: -2 });
+  } else if (e === 3) {
     tvCajon(ctx, 230, 158);
-    tvVera(ctx, 250, 206, { fase: t, boca: 'habla', mira: -2, brazoL: 0.7 });
-    tvLila(ctx, 360, 206, { fase: t, boca: 'sorpresa', mira: -2 });
-    novelaHablaX = 250;
+    pasoNovela(ctx, t, 'Vera', 250, 206, { boca: 'habla', mira: -2, brazoL: 0.7 }, true);
+    pasoNovela(ctx, t, 'Lila', 360, 206, { boca: 'sorpresa', mira: -2 });
+  } else if (e === 4) {
+    tvCajon(ctx, 300, 150);
+    pasoNovela(ctx, t, 'Vera', 280, 206, { boca: 'sonrisa', mira: -2, brazoR: 0.4 });
+    pasoNovela(ctx, t, 'Lila', 160, 206, { boca: 'habla', mira: 2, brazoR: -1.2 }, true);
+  } else if (e === 5) {
+    tvLlave(ctx, 250, 150);
+    tvCajon(ctx, 210, 168);
+    pasoNovela(ctx, t, 'Vera', 230, 206, { boca: 'habla', mira: 2, brazoR: 1.1 }, true);
+    pasoNovela(ctx, t, 'Lila', 360, 206, { boca: 'sorpresa', mira: -2 });
+  } else if (e === 6) {
+    tvLlave(ctx, 188, 158);
+    pasoNovela(ctx, t, 'Lila', 200, 206, { boca: 'habla', mira: -2, brazoL: 0.9 }, true);
+    pasoNovela(ctx, t, 'Vera', 330, 206, { boca: 'sonrisa', mira: -2 });
+    ctx.fillStyle = '#1e1b4b'; ctx.fillRect(430, 120, 18, 76);
+  } else if (e === 7) {
+    tvLlave(ctx, 250, 160);
+    pasoNovela(ctx, t, 'Vera', 220, 206, { boca: 'habla', mira: -2 }, true);
+    pasoNovela(ctx, t, 'Lila', 340, 206, { boca: 'sorpresa', mira: 1 });
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(40, 90, 36, 110);
+  } else if (e === 8) {
+    pasoNovela(ctx, t, 'Lila', 180, 206, { boca: 'habla', mira: 2, brazoR: 1.3 }, true);
+    pasoNovela(ctx, t, 'Vera', 300, 206, { boca: 'sonrisa', mira: 2 });
+    ctx.fillStyle = '#292524'; ctx.fillRect(250, 188, 40, 10);
+  } else if (e === 9) {
+    ctx.fillStyle = '#292524'; ctx.fillRect(200, 186, 50, 12);
+    tvCajon(ctx, 208, 164);
+    pasoNovela(ctx, t, 'Vera', 230, 206, { boca: 'habla', mira: 2, brazoR: 1.15 }, true);
+    pasoNovela(ctx, t, 'Lila', 360, 206, { boca: 'sonrisa', mira: -2 });
+  } else if (e === 10) {
+    ctx.fillStyle = '#292524'; ctx.fillRect(180, 188, 44, 10);
+    tvCajaGrande(ctx, 168, 134);
+    pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: -2, brazoL: 1.2 }, true);
+    pasoNovela(ctx, t, 'Vera', 380, 206, { boca: 'sonrisa', mira: -2 });
+  } else {
+    tvCajaGrande(ctx, 200, 140);
+    pasoNovela(ctx, t, 'Vera', 250, 206, { boca: 'habla', mira: 2 }, true);
+    pasoNovela(ctx, t, 'Lila', 360, 206, { boca: 'sonrisa', mira: -2 });
   }
 }
 function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
+  const e = escena | 0;
   if (i === 1) {
-    if (escena < 2) {
+    if (e < 2) {
       fondoNovela(ctx, '#78716c', '#44403c');
       ctx.fillStyle = '#a8a29e'; ctx.fillRect(0, 186, 512, 18);
       ctx.fillStyle = '#57534e'; ctx.fillRect(0, 204, 512, 84);
-      tvCasaFachada(ctx, 300, escena === 1);
-      if (escena === 0) {
+      tvCasaFachada(ctx, 300, e === 1);
+      if (e === 0) {
         const x = 30 + lt * 110;
         tvMaleta(ctx, x, 162);
         tvVera(ctx, x + 46, 200, { camina: true, fase: t * 6, boca: 'habla', mira: 2 });
         novelaHablaX = x + 46;
       } else {
         tvMaleta(ctx, 150, 166);
-        tvVera(ctx, 186, 206, { fase: t, boca: 'sonrisa', mira: 2 });
-        tvLila(ctx, 390, 200, { fase: t, boca: 'habla', mira: -2 });
-        novelaHablaX = 390;
+        pasoNovela(ctx, t, 'Vera', 186, 206, { boca: 'sonrisa', mira: 2 });
+        pasoNovela(ctx, t, 'Lila', 390, 200, { boca: 'habla', mira: -2 }, true);
       }
     } else {
       ctx.fillStyle = '#f5f5f4'; ctx.fillRect(0, 0, 512, 288);
       ctx.fillStyle = '#e7e5e4'; ctx.fillRect(0, 196, 512, 92);
       tvBanco(ctx, 130, 168, 240);
-      tvMaleta(ctx, 36, 172);
-      if (escena === 2) {
-        tvVera(ctx, 190, 174, { sentado: true, fase: t, boca: 'habla', mira: 2 });
-        tvLila(ctx, 310, 174, { sentado: true, fase: t, boca: 'sonrisa', mira: -2 });
-        novelaHablaX = 190;
+      if (e === 2) {
+        tvMaleta(ctx, 36, 172);
+        pasoNovela(ctx, t, 'Vera', 190, 174, { sentado: true, boca: 'habla', mira: 2 }, true);
+        pasoNovela(ctx, t, 'Lila', 310, 174, { sentado: true, boca: 'sonrisa', mira: -2 });
+      } else if (e === 3) {
+        tvMaleta(ctx, 36, 172);
+        pasoNovela(ctx, t, 'Vera', 190, 174, { sentado: true, boca: 'sonrisa', mira: 2 });
+        pasoNovela(ctx, t, 'Lila', 310, 174, { sentado: true, boca: 'habla', mira: -2 }, true);
+      } else if (e === 4) {
+        tvMaleta(ctx, 36, 172);
+        tvPan(ctx, 250, 150);
+        pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: -2, brazoR: 0.8 }, true);
+        pasoNovela(ctx, t, 'Vera', 190, 174, { sentado: true, boca: 'sonrisa', mira: 2 });
+      } else if (e === 5) {
+        tvPan(ctx, 210, 140);
+        tvMaleta(ctx, 36, 172);
+        pasoNovela(ctx, t, 'Vera', 190, 174, { sentado: true, boca: 'habla', mira: 2, brazoR: 0.6 }, true);
+        pasoNovela(ctx, t, 'Lila', 320, 206, { boca: 'sonrisa', mira: -2 });
+      } else if (e === 6) {
+        tvMaleta(ctx, 40, 168);
+        pasoNovela(ctx, t, 'Lila', 120, 206, { boca: 'habla', mira: -2, brazoL: -1.2 }, true);
+        pasoNovela(ctx, t, 'Vera', 250, 174, { sentado: true, boca: 'sorpresa', mira: -2 });
+      } else if (e === 7) {
+        tvMaleta(ctx, 70, 166);
+        pasoNovela(ctx, t, 'Vera', 190, 174, { sentado: true, boca: 'habla', mira: -2 }, true);
+        pasoNovela(ctx, t, 'Lila', 330, 206, { boca: 'sonrisa', mira: -2 });
+      } else if (e === 8) {
+        tvMaleta(ctx, 168, 150);
+        pasoNovela(ctx, t, 'Lila', 200, 206, { boca: 'habla', mira: 2, brazoR: 0.9 }, true);
+        pasoNovela(ctx, t, 'Vera', 300, 174, { sentado: true, boca: 'sonrisa', mira: -2 });
+      } else if (e === 9) {
+        tvMaleta(ctx, 200, 158);
+        pasoNovela(ctx, t, 'Vera', 230, 206, { boca: 'habla', mira: 2, brazoR: 1.2 }, true);
+        pasoNovela(ctx, t, 'Lila', 360, 206, { boca: 'sonrisa', mira: -2 });
+      } else if (e === 10) {
+        tvMaleta(ctx, 210, 160);
+        pasoNovela(ctx, t, 'Lila', 250, 174, { sentado: true, boca: 'habla', mira: 2 }, true);
+        pasoNovela(ctx, t, 'Vera', 340, 174, { sentado: true, boca: 'sonrisa', mira: -2 });
       } else {
-        tvVera(ctx, 190, 174, { sentado: true, fase: t, boca: 'sonrisa', mira: 2 });
-        tvLila(ctx, 310, 174, { sentado: true, fase: t, boca: 'habla', mira: -2 });
-        novelaHablaX = 310;
+        tvMaleta(ctx, 250, 162);
+        pasoNovela(ctx, t, 'Vera', 220, 174, { sentado: true, boca: 'habla', mira: 2 }, true);
+        pasoNovela(ctx, t, 'Lila', 340, 174, { sentado: true, boca: 'sonrisa', mira: -2 });
       }
     }
     return;
@@ -8562,26 +8688,51 @@ function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
   if (i === 2) {
     fondoNovela(ctx, '#fce7f3', '#f9a8d4');
     ctx.fillStyle = '#fbcfe8'; ctx.fillRect(0, 196, 512, 92);
-    if (escena === 0) {
-      tvCasaFachada(ctx, 250, false);
-      tvLila(ctx, 180, 206, { fase: t, boca: 'habla', mira: 2, brazoL: -1.05, brazoR: -0.7 });
-      tvVera(ctx, 90, 206, { fase: t, boca: 'sonrisa', mira: 2 });
-      novelaHablaX = 180;
-    } else if (escena === 1) {
-      tvCasaFachada(ctx, 240, false);
-      tvVera(ctx, 250, 206, { fase: t, boca: 'habla', mira: 2, brazoR: 2.05 });
-      tvLila(ctx, 120, 206, { fase: t, boca: 'sorpresa', mira: 2 });
-      novelaHablaX = 250;
-    } else if (escena === 2) {
-      tvCasaFachada(ctx, 160, false);
-      tvVera(ctx, 150, 206, { fase: t, boca: 'habla', mira: 2 });
-      tvLila(ctx, 300, 206, { fase: t, boca: 'habla', mira: -2, brazoL: -1.1, brazoR: -0.8 });
-      novelaHablaX = 300;
+    const puerta = e === 3 || e === 11;
+    tvCasaFachada(ctx, e >= 7 ? 150 : 240, puerta || e >= 9);
+    if (e === 0) {
+      pasoNovela(ctx, t, 'Lila', 180, 206, { boca: 'habla', mira: 2, brazoL: -1.05, brazoR: -0.7 }, true);
+      pasoNovela(ctx, t, 'Vera', 90, 206, { boca: 'sonrisa', mira: 2 });
+    } else if (e === 1) {
+      pasoNovela(ctx, t, 'Vera', 250, 206, { boca: 'habla', mira: 2, brazoR: 2.05 }, true);
+      pasoNovela(ctx, t, 'Lila', 120, 206, { boca: 'sorpresa', mira: 2 });
+    } else if (e === 2) {
+      pasoNovela(ctx, t, 'Vera', 150, 206, { boca: 'habla', mira: 2 });
+      pasoNovela(ctx, t, 'Lila', 300, 206, { boca: 'habla', mira: -2, brazoL: -1.1, brazoR: -0.8 }, true);
+    } else if (e === 3) {
+      pasoNovela(ctx, t, 'Vera', 214, 206, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 286, 206, { boca: 'sonrisa', mira: -2 });
+    } else if (e === 4) {
+      ctx.fillStyle = '#fff'; ctx.fillRect(200, 150, 70, 36);
+      pasoNovela(ctx, t, 'Lila', 230, 206, { boca: 'habla', mira: 2, brazoR: 0.7 }, true);
+      pasoNovela(ctx, t, 'Vera', 360, 206, { boca: 'sonrisa', mira: -2 });
+    } else if (e === 5) {
+      pasoNovela(ctx, t, 'Vera', 200, 206, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 340, 206, { boca: 'sorpresa', mira: -2 });
+    } else if (e === 6) {
+      ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(300, 140); ctx.lineTo(300, 168); ctx.stroke();
+      pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: 2, brazoR: 1.1 }, true);
+      pasoNovela(ctx, t, 'Vera', 140, 206, { boca: 'sonrisa', mira: 2 });
+    } else if (e === 7) {
+      ctx.fillStyle = '#1e1b4b'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'left'; ctx.fillText('Vera y Lila', 168, 130);
+      pasoNovela(ctx, t, 'Vera', 230, 206, { boca: 'habla', mira: 2, brazoR: 1.3 }, true);
+      pasoNovela(ctx, t, 'Lila', 360, 206, { boca: 'sonrisa', mira: -2 });
+    } else if (e === 8) {
+      pasoNovela(ctx, t, 'Lila', 180, 206, { boca: 'habla', mira: -2 }, true);
+      pasoNovela(ctx, t, 'Vera', 320, 206, { boca: 'sonrisa', mira: -2 });
+    } else if (e === 9) {
+      tvBuzon(ctx, 400, 160, false);
+      pasoNovela(ctx, t, 'Vera', 300, 206, { boca: 'habla', mira: 2, brazoR: 1.2 }, true);
+      pasoNovela(ctx, t, 'Lila', 160, 206, { boca: 'sonrisa', mira: 2 });
+    } else if (e === 10) {
+      tvBuzon(ctx, 390, 158, true);
+      ctx.fillStyle = '#fff'; ctx.fillRect(398, 150, 14, 10);
+      pasoNovela(ctx, t, 'Lila', 280, 206, { boca: 'habla', mira: 2, brazoR: 0.8 }, true);
+      pasoNovela(ctx, t, 'Vera', 140, 206, { boca: 'sonrisa', mira: 2 });
     } else {
-      tvCasaFachada(ctx, 170, true);
-      tvVera(ctx, 214, 206, { fase: t, boca: 'habla', mira: 2 });
-      tvLila(ctx, 286, 206, { fase: t, boca: 'sonrisa', mira: -2 });
-      novelaHablaX = 214;
+      pasoNovela(ctx, t, 'Vera', 210, 206, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 290, 206, { boca: 'sonrisa', mira: -2 });
     }
     return;
   }
@@ -8589,86 +8740,166 @@ function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
     fondoNovela(ctx, '#fdba74', '#9a3412');
     ctx.fillStyle = '#fed7aa'; ctx.fillRect(0, 196, 512, 92);
     ctx.fillStyle = '#fb923c'; ctx.beginPath(); ctx.arc(70, 48, 22, 0, 7); ctx.fill();
-    if (escena === 0) {
-      tvCarta(ctx, 230, 150, true);
-      tvVera(ctx, 180, 206, { fase: t, boca: 'habla', mira: 2, brazoR: 0.9 });
-      tvLila(ctx, 330, 206, { fase: t, boca: 'sorpresa', mira: -2 });
-      novelaHablaX = 180;
-    } else if (escena === 1) {
+    const mesa = e >= 3 && e <= 9;
+    if (mesa) { ctx.fillStyle = '#fff'; ctx.fillRect(230, 156, 100, 10); ctx.fillStyle = '#44403c'; ctx.fillRect(248, 166, 6, 30); ctx.fillRect(310, 166, 6, 30); }
+    if (e === 0) {
+      tvCarta(ctx, 230, 140, true);
+      pasoNovela(ctx, t, 'Vera', 180, 206, { boca: 'habla', mira: 2, brazoR: 0.9 }, true);
+      pasoNovela(ctx, t, 'Lila', 330, 206, { boca: 'sorpresa', mira: -2 });
+    } else if (e === 1) {
       tvCarta(ctx, 300, 118, false);
-      tvLila(ctx, 250, 206, { fase: t, boca: 'habla', mira: 2, brazoR: -1.35 });
-      tvVera(ctx, 120, 206, { fase: t, boca: 'sonrisa', mira: 2 });
-      novelaHablaX = 250;
-    } else if (escena === 2) {
-      tvCarta(ctx, 250, 158, false);
-      tvVera(ctx, 190, 206, { fase: t, boca: 'habla', mira: 2 });
-      tvLila(ctx, 330, 206, { fase: t, boca: 'sonrisa', mira: -2 });
-      novelaHablaX = 190;
+      pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: 2, brazoR: -1.35 }, true);
+      pasoNovela(ctx, t, 'Vera', 120, 206, { boca: 'sonrisa', mira: 2 });
+    } else if (e === 2) {
+      tvCarta(ctx, 250, 148, false);
+      pasoNovela(ctx, t, 'Vera', 190, 206, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 330, 206, { boca: 'sonrisa', mira: -2 });
+    } else if (e === 3) {
+      tvCarta(ctx, 250, 128, false);
+      pasoNovela(ctx, t, 'Lila', 280, 168, { sentado: true, boca: 'habla', mira: 2, brazoR: 1.05 }, true);
+      pasoNovela(ctx, t, 'Vera', 140, 206, { boca: 'sonrisa', mira: 2 });
+    } else if (e === 4) {
+      tvCarta(ctx, 250, 128, false);
+      pasoNovela(ctx, t, 'Vera', 160, 206, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 280, 168, { sentado: true, boca: 'sonrisa', mira: -2 });
+    } else if (e === 5) {
+      tvCarta(ctx, 255, 124, false);
+      pasoNovela(ctx, t, 'Lila', 280, 168, { sentado: true, boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Vera', 150, 206, { boca: 'sorpresa', mira: 2 });
+    } else if (e === 6) {
+      tvCarta(ctx, 250, 128, false);
+      pasoNovela(ctx, t, 'Vera', 170, 206, { boca: 'habla', mira: 2, brazoR: 0.7 }, true);
+      pasoNovela(ctx, t, 'Lila', 280, 168, { sentado: true, boca: 'sonrisa', mira: -2 });
+    } else if (e === 7) {
+      tvCarta(ctx, 268, 130, false);
+      pasoNovela(ctx, t, 'Lila', 280, 168, { sentado: true, boca: 'habla', mira: 2, brazoR: 1.1 }, true);
+      pasoNovela(ctx, t, 'Vera', 150, 206, { boca: 'sonrisa', mira: 2 });
+    } else if (e === 8) {
+      tvCarta(ctx, 268, 130, false);
+      pasoNovela(ctx, t, 'Vera', 180, 206, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 300, 168, { sentado: true, boca: 'sonrisa', mira: -2 });
+    } else if (e === 9) {
+      tvCarta(ctx, 300, 140, true);
+      pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: 2, brazoR: 0.6 }, true);
+      pasoNovela(ctx, t, 'Vera', 140, 206, { boca: 'sonrisa', mira: 2 });
+    } else if (e === 10) {
+      tvBuzon(ctx, 400, 158, true);
+      tvCarta(ctx, 360, 150, false);
+      pasoNovela(ctx, t, 'Vera', 280, 206, { boca: 'habla', mira: 2, brazoR: 1.15 }, true);
+      pasoNovela(ctx, t, 'Lila', 140, 206, { boca: 'sonrisa', mira: 2 });
     } else {
-      ctx.fillStyle = '#fff'; ctx.fillRect(250, 150, 90, 10);
-      ctx.fillStyle = '#44403c'; ctx.fillRect(268, 138, 4, 18);
-      tvCarta(ctx, 200, 156, false);
-      tvLila(ctx, 250, 168, { sentado: true, fase: t, boca: 'habla', mira: 2, brazoR: 1.05 });
-      tvVera(ctx, 120, 206, { fase: t, boca: 'sonrisa', mira: 2 });
-      novelaHablaX = 250;
+      tvBuzon(ctx, 400, 158, false);
+      pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Vera', 120, 206, { boca: 'sonrisa', mira: 2 });
     }
     return;
   }
   if (i === 4) {
     fondoNovela(ctx, '#020617', '#0f172a');
+    if (e >= 11) { ctx.fillStyle = '#fb923c'; ctx.fillRect(0, 150, 512, 46); }
     ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(78, 52, 18, 0, 7); ctx.fill();
     ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 196, 512, 92);
-    if (escena === 0) {
-      tvLampara(ctx, 400, 196, true);
-      tvBanco(ctx, 80, 176, 120);
-      tvLila(ctx, 140, 168, { sentado: true, fase: t, boca: 'sonrisa' });
-      tvVera(ctx, 320, 206, { fase: t, boca: 'habla', mira: -2 });
-      novelaHablaX = 320;
-    } else if (escena === 1) {
-      tvLampara(ctx, 400, 196, true);
-      tvBanco(ctx, 80, 176, 120);
-      tvLila(ctx, 140, 168, { sentado: true, fase: t, boca: 'habla', mira: 2 });
-      tvVera(ctx, 320, 206, { fase: t, boca: 'sonrisa', mira: -2 });
-      novelaHablaX = 140;
-    } else if (escena === 2) {
-      tvLampara(ctx, 400, 196, true);
-      tvBanco(ctx, 80, 176, 120);
-      tvVera(ctx, 300, 206, { fase: t, boca: 'sonrisa', mira: -2 });
-      tvLila(ctx, 180, 206, { fase: t, boca: 'habla', mira: 2, brazoR: 0.4 });
-      novelaHablaX = 180;
+    tvLampara(ctx, 400, 196, e !== 10);
+    tvBanco(ctx, 80, 176, 120);
+    if (e === 0) {
+      pasoNovela(ctx, t, 'Lila', 140, 168, { sentado: true, boca: 'sonrisa' });
+      pasoNovela(ctx, t, 'Vera', 320, 206, { boca: 'habla', mira: -2 }, true);
+    } else if (e === 1) {
+      pasoNovela(ctx, t, 'Lila', 140, 168, { sentado: true, boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Vera', 320, 206, { boca: 'sonrisa', mira: -2 });
+    } else if (e === 2) {
+      pasoNovela(ctx, t, 'Vera', 300, 206, { boca: 'sonrisa', mira: -2 });
+      pasoNovela(ctx, t, 'Lila', 180, 206, { boca: 'habla', mira: 2, brazoR: 0.4 }, true);
+    } else if (e === 3) {
+      pasoNovela(ctx, t, 'Vera', 140, 168, { sentado: true, boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 300, 206, { boca: 'sonrisa', mira: -2 });
+    } else if (e === 4) {
+      ctx.fillStyle = '#334155'; ctx.fillRect(20, 120, 16, 76);
+      pasoNovela(ctx, t, 'Lila', 80, 206, { boca: 'habla', mira: -2, brazoL: -1.1 }, true);
+      pasoNovela(ctx, t, 'Vera', 200, 168, { sentado: true, boca: 'sonrisa' });
+    } else if (e === 5) {
+      tvLlave(ctx, 250, 150);
+      pasoNovela(ctx, t, 'Vera', 160, 168, { sentado: true, boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 320, 206, { boca: 'sonrisa', mira: -2 });
+    } else if (e === 6) {
+      tvLlave(ctx, 360, 118);
+      ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(360, 124); ctx.lineTo(360, 150); ctx.stroke();
+      pasoNovela(ctx, t, 'Lila', 300, 206, { boca: 'habla', mira: 2, brazoR: 1.2 }, true);
+      pasoNovela(ctx, t, 'Vera', 140, 168, { sentado: true, boca: 'sonrisa' });
+    } else if (e === 7) {
+      ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2;
+      for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.moveTo(40 + k * 14, 40); ctx.lineTo(30 + k * 14, 90); ctx.stroke(); }
+      pasoNovela(ctx, t, 'Lila', 180, 206, { boca: 'habla', mira: -2 }, true);
+      pasoNovela(ctx, t, 'Vera', 140, 168, { sentado: true, boca: 'sonrisa' });
+    } else if (e === 8) {
+      ctx.fillStyle = '#0f172a'; ctx.fillRect(430, 80, 28, 70);
+      pasoNovela(ctx, t, 'Vera', 160, 190, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 300, 206, { boca: 'sorpresa', mira: 2 });
+    } else if (e === 9) {
+      pasoNovela(ctx, t, 'Lila', 340, 206, { boca: 'habla', mira: 2, brazoR: 0.5 }, true);
+      pasoNovela(ctx, t, 'Vera', 180, 190, { boca: 'sorpresa', mira: 2 });
+    } else if (e === 10) {
+      pasoNovela(ctx, t, 'Vera', 140, 168, { sentado: true, boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Lila', 300, 206, { boca: 'sonrisa', mira: -2 });
     } else {
-      tvLampara(ctx, 400, 196, true);
-      tvBanco(ctx, 80, 176, 120);
-      tvVera(ctx, 140, 168, { sentado: true, fase: t, boca: 'habla', mira: 2 });
-      tvLila(ctx, 300, 206, { fase: t, boca: 'sonrisa', mira: -2 });
-      novelaHablaX = 140;
+      pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: 2 }, true);
+      pasoNovela(ctx, t, 'Vera', 140, 168, { sentado: true, boca: 'sonrisa' });
     }
     return;
   }
   fondoNovela(ctx, '#86efac', '#166534');
   ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 188, 512, 100);
-  if (escena === 0) {
-    tvPlanta(ctx, 400, 188, false);
-    tvVera(ctx, 160, 206, { fase: t, boca: 'habla', mira: 2, brazoL: -1.1 });
-    tvLila(ctx, 280, 206, { fase: t, boca: 'sorpresa', mira: -2 });
-    novelaHablaX = 160;
-  } else if (escena === 1) {
-    tvPlanta(ctx, 400, 188, false);
-    tvVera(ctx, 120, 206, { fase: t, boca: 'sorpresa', mira: 2 });
-    tvLila(ctx, 250, 206, { fase: t, boca: 'habla', mira: -2, brazoL: -1.2, brazoR: -0.85 });
-    novelaHablaX = 250;
-  } else if (escena === 2) {
-    tvPlanta(ctx, 256, 188, true);
-    tvVera(ctx, 160, 206, { fase: t, boca: 'habla', mira: 2 });
-    tvLila(ctx, 340, 206, { fase: t, boca: 'sorpresa', mira: -2 });
-    novelaHablaX = 160;
-  } else {
-    tvPlanta(ctx, 256, 188, false);
+  const secaAtras = e === 4 || e === 5 || e === 6;
+  tvPlanta(ctx, 120, 188, e <= 2 || e === 4);
+  tvPlanta(ctx, 400, 188, secaAtras || e < 7);
+  if (e >= 9) tvPlanta(ctx, 260, 188, false);
+  if (e === 0) {
+    pasoNovela(ctx, t, 'Vera', 160, 206, { boca: 'habla', mira: 2, brazoL: -1.1 }, true);
+    pasoNovela(ctx, t, 'Lila', 280, 206, { boca: 'sorpresa', mira: -2 });
+  } else if (e === 1) {
+    pasoNovela(ctx, t, 'Vera', 120, 206, { boca: 'sorpresa', mira: 2 });
+    pasoNovela(ctx, t, 'Lila', 250, 206, { boca: 'habla', mira: -2, brazoL: -1.2, brazoR: -0.85 }, true);
+  } else if (e === 2) {
+    pasoNovela(ctx, t, 'Vera', 200, 206, { boca: 'habla', mira: 2 }, true);
+    pasoNovela(ctx, t, 'Lila', 340, 206, { boca: 'sorpresa', mira: -2 });
+  } else if (e === 3) {
     ctx.fillStyle = '#38bdf8';
     for (let k = 0; k < 4; k++) ctx.fillRect(300 + k * 6, 150 + (lt * 24 + k * 8) % 28, 3, 10);
-    tvVera(ctx, 160, 206, { fase: t, boca: 'sonrisa', mira: 2 });
-    tvLila(ctx, 300, 206, { fase: t, boca: 'habla', mira: -2, brazoR: 0.7 });
-    novelaHablaX = 300;
+    pasoNovela(ctx, t, 'Vera', 160, 206, { boca: 'sonrisa', mira: 2 });
+    pasoNovela(ctx, t, 'Lila', 300, 206, { boca: 'habla', mira: -2, brazoR: 0.7 }, true);
+  } else if (e === 4) {
+    pasoNovela(ctx, t, 'Vera', 340, 206, { boca: 'habla', mira: 2, brazoR: 1.1 }, true);
+    pasoNovela(ctx, t, 'Lila', 200, 206, { boca: 'sonrisa', mira: 2 });
+  } else if (e === 5) {
+    tvBalde(ctx, 180, 168, true);
+    pasoNovela(ctx, t, 'Lila', 220, 206, { boca: 'habla', mira: -2, brazoL: 0.8 }, true);
+    pasoNovela(ctx, t, 'Vera', 340, 206, { boca: 'sonrisa', mira: -2 });
+  } else if (e === 6) {
+    tvBalde(ctx, 300, 166, true);
+    pasoNovela(ctx, t, 'Vera', 250, 206, { boca: 'habla', mira: 2, brazoR: 1.2 }, true);
+    pasoNovela(ctx, t, 'Lila', 140, 206, { boca: 'sonrisa', mira: 2 });
+  } else if (e === 7) {
+    tvBalde(ctx, 360, 160, true);
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(392, 150, 4, 28);
+    pasoNovela(ctx, t, 'Lila', 330, 206, { boca: 'habla', mira: 2, brazoR: 0.9 }, true);
+    pasoNovela(ctx, t, 'Vera', 180, 206, { boca: 'sonrisa', mira: 2 });
+  } else if (e === 8) {
+    tvBalde(ctx, 200, 164, true);
+    pasoNovela(ctx, t, 'Lila', 230, 206, { boca: 'habla', mira: 2, brazoR: 0.7 }, true);
+    pasoNovela(ctx, t, 'Vera', 340, 206, { boca: 'sonrisa', mira: -2 });
+  } else if (e === 9) {
+    tvBalde(ctx, 230, 162, false);
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(250, 140, 4, 30);
+    pasoNovela(ctx, t, 'Vera', 200, 206, { boca: 'habla', mira: 2, brazoR: 1 }, true);
+    pasoNovela(ctx, t, 'Lila', 340, 206, { boca: 'sonrisa', mira: -2 });
+  } else if (e === 10) {
+    tvBalde(ctx, 250, 176, false);
+    pasoNovela(ctx, t, 'Vera', 180, 206, { boca: 'habla', mira: 2 }, true);
+    pasoNovela(ctx, t, 'Lila', 340, 206, { boca: 'sonrisa', mira: -2 });
+  } else {
+    ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.ellipse(260, 150, 10, 16, -0.4, 0, 7); ctx.fill();
+    pasoNovela(ctx, t, 'Lila', 220, 206, { boca: 'habla', mira: 2, brazoR: 0.5 }, true);
+    pasoNovela(ctx, t, 'Vera', 340, 206, { boca: 'sonrisa', mira: -2 });
   }
 }
 function dibujarNovela(ctx, t) {

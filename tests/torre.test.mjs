@@ -205,9 +205,12 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   for (const titulo of ['El secreto del pasaje', 'Vera vuelve', 'La casa de Lila', 'Cartas de Platus', 'El turno de noche', 'Hermanos del huerto']) {
     assert.ok(html.includes("titulo: '" + titulo + "'"), titulo);
   }
-  for (const frase of ['Voy a esconder esto.', 'Volví al pasaje.', 'Pensé que no volvías.', 'Esta casa es mía.', 'Llegó una carta.', 'Yo cubro el turno.', 'El huerto es mío.']) {
+  for (const frase of ['Voy a esconder esto.', 'Volví al pasaje.', 'Pensé que no volvías.', 'Esta casa es mía.', 'Llegó una carta.', 'Yo cubro el turno.', 'El huerto es mío.', 'Hay una llave.', 'Te guardé pan.', 'Pongo los dos nombres.', 'La llevo al buzón.', 'Echo la tranca.', 'Salió una hoja nueva.']) {
     assert.ok(html.includes("'" + frase + "'"), frase);
   }
+  assert.match(html, /const intro = 8, ciclo = 4 \* n/);
+  assert.match(html, /Math\.min\(n - 1, Math\.floor\(u \* n\)\)/);
+  assert.doesNotMatch(html, /const NOVELA_ESCENA_SEG = 16/);
   assert.doesNotMatch(html, /if \(escena === 2\) return null/);
   assert.match(html, /return L\[escena\] \|\| L\[0\]/);
 });

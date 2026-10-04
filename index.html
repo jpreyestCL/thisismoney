@@ -1551,6 +1551,10 @@ function fillGrassChunk() {   // se reparte de a poco (no traba el juego al move
       if (typeof onRoadAt === 'function' && onRoadAt(x, z)) continue;               // en la calle tampoco
       if (typeof insideStoreFloor === 'function' && insideStoreFloor(x, z)) continue;
       if (typeof inNoGrassZone === 'function' && inNoGrassZone(x, z)) continue;   // parques, canchas y plazas
+      if (typeof MALL !== 'undefined' && MALL.edificio) {   // el mall es piso: ni una brizna adentro ni en el zócalo
+        const em = MALL.edificio;
+        if (Math.abs(x - em.x) <= em.w / 2 + 1.15 && Math.abs(z - em.z) <= em.d / 2 + 1.15) continue;
+      }
       if (waterZoneAt(x, z)) continue;                               // mar y piscina del parque acuático
       const y = mountainHeightAt(x, z);
       if (y > 8) continue;                                          // en los cerros altos no
@@ -7726,69 +7730,131 @@ function tvBanner(ctx, nombre) {
   ctx.fillText('CANAL ' + (tvCanal + 1), 496, 264);
 }
 // Persona de los programas: cabeza, pelo, cuerpo y brazos. No es una marca.
+function tvMiembro(ctx, x1, y1, x2, y2, grosor, color) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+  const nx = -dy / L * grosor, ny = dx / L * grosor;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x1 + nx, y1 + ny); ctx.lineTo(x2 + nx, y2 + ny);
+  ctx.lineTo(x2 - nx, y2 - ny); ctx.lineTo(x1 - nx, y1 - ny);
+  ctx.closePath(); ctx.fill();
+}
+function tvMano(ctx, x, y, s, piel, ang) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(ang || 0);
+  ctx.fillStyle = piel;
+  ctx.beginPath(); ctx.ellipse(0, 1.4 * s, 4.2 * s, 3.1 * s, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(90, 45, 30, .55)'; ctx.lineWidth = Math.max(.7, 1.1 * s); ctx.lineCap = 'round';
+  for (let i = -1.5; i <= 1.5; i++) {
+    ctx.beginPath(); ctx.moveTo(i * 1.35 * s, -.2 * s); ctx.lineTo(i * 1.55 * s, -4.2 * s); ctx.stroke();
+  }
+  ctx.fillStyle = piel;
+  ctx.beginPath(); ctx.ellipse(-3.2 * s, .4 * s, 1.5 * s, 2.2 * s, -.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function tvBrazo(ctx, sx, sy, ang, s, piel, manga) {
+  const len = 20 * s;
+  const hx = sx + Math.sin(ang) * len, hy = sy + Math.cos(ang) * len;
+  const mx = sx + Math.sin(ang) * len * .46, my = sy + Math.cos(ang) * len * .46;
+  tvMiembro(ctx, sx, sy, mx, my, 4.2 * s, manga);
+  tvMiembro(ctx, mx, my, hx, hy, 3.1 * s, piel);
+  tvMano(ctx, hx, hy, s, piel, ang);
+}
+function tvZapato(ctx, x, y, s, lado) {
+  ctx.fillStyle = '#1c1917';
+  ctx.beginPath(); ctx.ellipse(x + lado * 2.2 * s, y, 7 * s, 3.1 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f8fafc'; ctx.fillRect(x - 2 * s, y - 1.5 * s, 5.5 * s, 1.6 * s);
+}
 function tvPersona(ctx, x, y, o) {
-  const s = o.s || 1, piel = o.piel || '#fdba74', fase = o.fase || 0;
+  const s = o.s || 1, piel = o.piel || '#f0c09a', fase = o.fase || 0;
   const bob = Math.sin(fase) * (o.bob || 0);
+  const ropa = o.ropa || '#2563eb', pantalon = o.pantalon || '#1e293b', pelo = o.pelo || '#292524';
+  const paso = Math.sin(fase * (o.camina ? 2.2 : 1)) * (o.camina ? 1 : .12);
   ctx.save();
   ctx.translate(x, y + bob);
   ctx.fillStyle = 'rgba(0,0,0,.22)';
-  ctx.beginPath(); ctx.ellipse(0, 4 * s, 16 * s, 5 * s, 0, 0, 7); ctx.fill();
-  const paso = Math.sin(fase * (o.camina ? 2.2 : 1)) * (o.camina ? 7 : 2) * s;
-  ctx.strokeStyle = o.pantalon || '#1e293b'; ctx.lineWidth = 4.5 * s; ctx.lineCap = 'round';
-  ctx.beginPath();
+  ctx.beginPath(); ctx.ellipse(0, 6 * s, 18 * s, 5 * s, 0, 0, 7); ctx.fill();
   if (o.sentado) {
-    ctx.moveTo(-5 * s, -8 * s); ctx.lineTo(-6 * s, 2 * s); ctx.lineTo(-18 * s, 6 * s);
-    ctx.moveTo(5 * s, -8 * s); ctx.lineTo(6 * s, 2 * s); ctx.lineTo(16 * s, 6 * s);
+    tvMiembro(ctx, -5 * s, -12 * s, -22 * s, 2 * s, 4.4 * s, pantalon);
+    tvMiembro(ctx, -22 * s, 2 * s, -16 * s, 9 * s, 3.4 * s, pantalon);
+    tvZapato(ctx, -16 * s, 10 * s, s, -1);
+    tvMiembro(ctx, 5 * s, -12 * s, 20 * s, 2 * s, 4.4 * s, pantalon);
+    tvMiembro(ctx, 20 * s, 2 * s, 15 * s, 9 * s, 3.4 * s, pantalon);
+    tvZapato(ctx, 15 * s, 10 * s, s, 1);
   } else {
-    ctx.moveTo(-5 * s, -10 * s); ctx.lineTo(-7 * s + paso, 10 * s);
-    ctx.moveTo(5 * s, -10 * s); ctx.lineTo(7 * s - paso, 10 * s);
+    const izq = paso, der = -paso;
+    tvMiembro(ctx, -5 * s, -14 * s, -6 * s + izq * 8 * s, 1 * s, 4.6 * s, pantalon);
+    tvMiembro(ctx, -6 * s + izq * 8 * s, 1 * s, -4 * s - izq * 4 * s, 12 * s, 3.5 * s, pantalon);
+    tvZapato(ctx, -4 * s - izq * 4 * s, 13 * s, s, -1);
+    tvMiembro(ctx, 5 * s, -14 * s, 6 * s + der * 8 * s, 1 * s, 4.6 * s, pantalon);
+    tvMiembro(ctx, 6 * s + der * 8 * s, 1 * s, 4 * s - der * 4 * s, 12 * s, 3.5 * s, pantalon);
+    tvZapato(ctx, 4 * s - der * 4 * s, 13 * s, s, 1);
   }
-  ctx.stroke();
-  ctx.fillStyle = o.ropa || '#2563eb';
-  tvCaja(ctx, -13 * s, -40 * s, 26 * s, 32 * s, 7 * s); ctx.fill();
-  ctx.strokeStyle = '#111827'; ctx.lineWidth = 2 * s; ctx.stroke();
-  const al = o.brazoL != null ? o.brazoL : -0.5;
-  const ar = o.brazoR != null ? o.brazoR : 0.5;
-  ctx.strokeStyle = piel; ctx.lineWidth = 4.5 * s;
-  ctx.beginPath();
-  ctx.moveTo(-12 * s, -30 * s); ctx.lineTo(-12 * s + Math.sin(al) * 18 * s, -30 * s + Math.cos(al) * 18 * s);
-  ctx.moveTo(12 * s, -30 * s); ctx.lineTo(12 * s + Math.sin(ar) * 18 * s, -30 * s + Math.cos(ar) * 18 * s);
-  ctx.stroke();
+  ctx.fillStyle = ropa;
+  tvCaja(ctx, -15 * s, -46 * s, 30 * s, 34 * s, 8 * s); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.fillRect(-14 * s, -45 * s, 8 * s, 32 * s);
+  ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.fillRect(4 * s, -44 * s, 10 * s, 30 * s);
+  ctx.fillStyle = '#111827'; ctx.fillRect(-16 * s, -16 * s, 32 * s, 4 * s);
+  ctx.fillStyle = '#fbbf24'; ctx.fillRect(-2 * s, -16 * s, 4 * s, 4 * s);
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath(); ctx.moveTo(-7 * s, -46 * s); ctx.lineTo(0, -36 * s); ctx.lineTo(7 * s, -46 * s); ctx.closePath(); ctx.fill();
+  const al = o.brazoL != null ? o.brazoL : (o.camina ? -0.55 + paso * .35 : -0.45);
+  const ar = o.brazoR != null ? o.brazoR : (o.camina ? 0.55 - paso * .35 : 0.45);
+  tvBrazo(ctx, -13 * s, -36 * s, al, s, piel, ropa);
+  tvBrazo(ctx, 13 * s, -36 * s, ar, s, piel, ropa);
   ctx.fillStyle = piel;
-  ctx.beginPath(); ctx.arc(0, -52 * s, 13 * s, 0, 7); ctx.fill();
-  ctx.strokeStyle = '#111827'; ctx.lineWidth = 2 * s; ctx.stroke();
-  ctx.fillStyle = o.pelo || '#292524';
+  ctx.fillRect(-4.2 * s, -52 * s, 8.4 * s, 8 * s);
+  ctx.beginPath(); ctx.ellipse(0, -66 * s, 14.5 * s, 16.5 * s, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-14 * s, -66 * s, 3.2 * s, 4.6 * s, 0, 0, 7); ctx.ellipse(14 * s, -66 * s, 3.2 * s, 4.6 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = pelo;
   if (o.peloTipo === 'largo') {
-    ctx.beginPath(); ctx.arc(0, -54 * s, 14 * s, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
-    ctx.fillRect(-14 * s, -52 * s, 9 * s, 24 * s); ctx.fillRect(5 * s, -52 * s, 9 * s, 20 * s);
+    ctx.beginPath(); ctx.ellipse(0, -70 * s, 16 * s, 13 * s, 0, Math.PI, 0); ctx.fill();
+    ctx.fillRect(-16 * s, -70 * s, 9 * s, 32 * s); ctx.fillRect(7 * s, -70 * s, 9 * s, 28 * s);
+    ctx.beginPath(); ctx.ellipse(-12 * s, -40 * s, 5 * s, 6 * s, 0, 0, 7); ctx.ellipse(12 * s, -44 * s, 5 * s, 5 * s, 0, 0, 7); ctx.fill();
   } else if (o.peloTipo === 'nube') {
     ctx.fillStyle = '#e0f2fe';
-    ctx.beginPath(); ctx.arc(-7 * s, -62 * s, 9 * s, 0, 7); ctx.arc(6 * s, -64 * s, 10 * s, 0, 7); ctx.arc(0, -56 * s, 8 * s, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(-8 * s, -78 * s, 10 * s, 0, 7); ctx.arc(7 * s, -80 * s, 11 * s, 0, 7); ctx.arc(0, -72 * s, 9 * s, 0, 7); ctx.fill();
   } else if (o.peloTipo === 'hojas') {
     ctx.fillStyle = '#65a30d';
-    ctx.beginPath(); ctx.ellipse(-11 * s, -60 * s, 8 * s, 4.5 * s, -0.7, 0, 7); ctx.ellipse(11 * s, -60 * s, 8 * s, 4.5 * s, 0.7, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-12 * s, -78 * s, 9 * s, 5 * s, -.7, 0, 7); ctx.ellipse(12 * s, -78 * s, 9 * s, 5 * s, .7, 0, 7); ctx.fill();
   } else if (o.peloTipo === 'brote') {
     ctx.fillStyle = '#16a34a';
-    ctx.fillRect(-2 * s, -72 * s, 4 * s, 12 * s);
-    ctx.beginPath(); ctx.ellipse(0, -74 * s, 7 * s, 4 * s, 0, 0, 7); ctx.fill();
+    ctx.fillRect(-2.2 * s, -90 * s, 4.4 * s, 14 * s);
+    ctx.beginPath(); ctx.ellipse(0, -92 * s, 8 * s, 4.5 * s, 0, 0, 7); ctx.fill();
   } else if (o.peloTipo === 'gorro') {
-    ctx.fillStyle = '#f8fafc';
-    ctx.beginPath(); ctx.moveTo(-12 * s, -56 * s); ctx.lineTo(0, -78 * s); ctx.lineTo(12 * s, -56 * s); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(-14 * s, -58 * s, 28 * s, 6 * s);
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath(); ctx.ellipse(0, -74 * s, 15 * s, 8 * s, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(-16 * s, -76 * s, 32 * s, 6 * s);
+    ctx.fillStyle = '#fbbf24'; ctx.fillRect(-4 * s, -82 * s, 8 * s, 6 * s);
   } else {
-    ctx.beginPath(); ctx.arc(0, -56 * s, 13 * s, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -74 * s, 15 * s, 10 * s, 0, Math.PI, 0); ctx.fill();
+    ctx.fillRect(-14 * s, -74 * s, 28 * s, 6 * s);
   }
   const mirada = o.mira || 0;
   ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(-5 * s, -52 * s, 3.2 * s, 0, 7); ctx.arc(5 * s, -52 * s, 3.2 * s, 0, 7); ctx.fill();
-  ctx.fillStyle = '#111';
-  ctx.beginPath(); ctx.arc(-5 * s + mirada, -52 * s, 1.6 * s, 0, 7); ctx.arc(5 * s + mirada, -52 * s, 1.6 * s, 0, 7); ctx.fill();
-  ctx.strokeStyle = '#9a3412'; ctx.lineWidth = 1.6 * s;
+  ctx.beginPath(); ctx.ellipse(-5.4 * s, -67 * s, 3.6 * s, 4 * s, 0, 0, 7); ctx.ellipse(5.4 * s, -67 * s, 3.6 * s, 4 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3f2a22';
+  ctx.beginPath(); ctx.arc(-5.4 * s + mirada, -67 * s, 1.9 * s, 0, 7); ctx.arc(5.4 * s + mirada, -67 * s, 1.9 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-6.2 * s + mirada, -68 * s, .7 * s, 0, 7); ctx.arc(4.6 * s + mirada, -68 * s, .7 * s, 0, 7); ctx.fill();
+  ctx.strokeStyle = pelo; ctx.lineWidth = 1.5 * s; ctx.lineCap = 'round';
   ctx.beginPath();
-  if (o.boca === 'habla') ctx.ellipse(0, -45 * s, 3.2 * s, 2.4 * s, 0, 0, 7);
-  else if (o.boca === 'sorpresa') ctx.arc(0, -45 * s, 2.6 * s, 0, 7);
-  else ctx.arc(0, -46 * s, 3.4 * s, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.moveTo(-8.4 * s, -72 * s); ctx.quadraticCurveTo(-5.2 * s, -74.5 * s, -2.2 * s, -71.4 * s);
+  ctx.moveTo(2.2 * s, -71.4 * s); ctx.quadraticCurveTo(5.2 * s, -74.5 * s, 8.4 * s, -72 * s);
   ctx.stroke();
+  ctx.strokeStyle = 'rgba(120, 70, 48, .8)'; ctx.lineWidth = 1.2 * s;
+  ctx.beginPath(); ctx.moveTo(0, -65 * s); ctx.quadraticCurveTo(2.2 * s, -60 * s, 0, -58.4 * s); ctx.stroke();
+  ctx.fillStyle = 'rgba(244, 114, 182, .38)';
+  ctx.beginPath(); ctx.ellipse(-8.2 * s, -61 * s, 2.6 * s, 1.5 * s, 0, 0, 7); ctx.ellipse(8.2 * s, -61 * s, 2.6 * s, 1.5 * s, 0, 0, 7); ctx.fill();
+  if (o.boca === 'habla') {
+    ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.ellipse(0, -56 * s, 3.6 * s, 2.8 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(-2.6 * s, -57.4 * s, 5.2 * s, 1.3 * s);
+  } else if (o.boca === 'sorpresa') {
+    ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.arc(0, -56 * s, 2.5 * s, 0, 7); ctx.fill();
+  } else {
+    ctx.strokeStyle = '#9a3412'; ctx.lineWidth = 1.6 * s;
+    ctx.beginPath(); ctx.arc(0, -57.5 * s, 3.8 * s, .15 * Math.PI, .85 * Math.PI); ctx.stroke();
+  }
   ctx.restore();
 }
 function tvFutbolista(ctx, x, y, color, fase, salta) {
@@ -8632,11 +8698,69 @@ function tvPan(ctx, x, y) {
   ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.ellipse(x, y, 14, 8, 0, 0, 7); ctx.fill();
   ctx.strokeStyle = '#b45309'; ctx.stroke();
 }
+function fondoLugar(ctx, pared, clase) {
+  const w = ctx.canvas.width, h = ctx.canvas.height, piso = Math.round(h * .52);
+  ctx.fillStyle = pared || '#44403c';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(0,0,0,.30)';
+  ctx.fillRect(0, 0, w, Math.round(h * .1));
+  ctx.fillStyle = 'rgba(0,0,0,.22)';
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(w * .1, piso * .55); ctx.lineTo(w * .1, h); ctx.lineTo(0, h); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(w, 0); ctx.lineTo(w * .9, piso * .55); ctx.lineTo(w * .9, h); ctx.lineTo(w, h); ctx.fill();
+  if (clase === 'casa') {
+    const hx = w * .58, hy = h * .16, hw = w * .26, hh = piso - hy;
+    ctx.fillStyle = '#fbcfe8'; ctx.fillRect(hx, hy, hw, hh);
+    ctx.fillStyle = '#9d174d';
+    ctx.beginPath(); ctx.moveTo(hx - w * .02, hy); ctx.lineTo(hx + hw * .5, h * .04); ctx.lineTo(hx + hw + w * .02, hy); ctx.fill();
+    ctx.fillStyle = '#fff7ed';
+    ctx.fillRect(hx + hw * .12, hy + hh * .18, hw * .22, hh * .22);
+    ctx.fillRect(hx + hw * .64, hy + hh * .18, hw * .22, hh * .22);
+    ctx.strokeStyle = '#9d174d'; ctx.lineWidth = Math.max(2, w / 220);
+    ctx.strokeRect(hx + hw * .12, hy + hh * .18, hw * .22, hh * .22);
+    ctx.strokeRect(hx + hw * .64, hy + hh * .18, hw * .22, hh * .22);
+    ctx.fillStyle = '#7f1d1d'; ctx.fillRect(hx + hw * .4, hy + hh * .42, hw * .22, hh * .58);
+    ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(hx + hw * .56, hy + hh * .72, Math.max(2, w * .006), 0, 7); ctx.fill();
+  } else if (clase === 'sala') {
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(w * .26, h * .12, w * .48, h * .28);
+    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = Math.max(3, w / 140);
+    ctx.strokeRect(w * .26, h * .12, w * .48, h * .28);
+    ctx.fillStyle = '#7f1d1d';
+    for (let i = 0; i < 6; i++) ctx.fillRect(w * .18 + i * w * .11, piso - h * .08, w * .07, h * .045);
+  } else {
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(w * .12, h * .16, w * .14, h * .26);
+    ctx.fillRect(w * .74, h * .16, w * .14, h * .26);
+    ctx.strokeStyle = '#1c1917'; ctx.lineWidth = Math.max(3, w / 170);
+    ctx.strokeRect(w * .12, h * .16, w * .14, h * .26);
+    ctx.strokeRect(w * .74, h * .16, w * .14, h * .26);
+    ctx.strokeStyle = 'rgba(255,255,255,.45)';
+    ctx.beginPath(); ctx.moveTo(w * .19, h * .16); ctx.lineTo(w * .19, h * .42); ctx.moveTo(w * .12, h * .29); ctx.lineTo(w * .26, h * .29); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w * .81, h * .16); ctx.lineTo(w * .81, h * .42); ctx.moveTo(w * .74, h * .29); ctx.lineTo(w * .88, h * .29); ctx.stroke();
+    ctx.fillStyle = '#44403c'; ctx.fillRect(w * .43, h * .18, w * .14, piso - h * .18);
+    ctx.fillStyle = '#292524'; ctx.fillRect(w * .43, h * .18, w * .03, piso - h * .18);
+    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.arc(w * .54, (h * .18 + piso) / 2, Math.max(3, w * .008), 0, 7); ctx.fill();
+  }
+  const madera = clase !== 'pasillo';
+  ctx.fillStyle = madera ? '#9a6744' : '#d6d3d1';
+  ctx.fillRect(0, piso, w, h - piso);
+  ctx.strokeStyle = madera ? 'rgba(62, 32, 12, .4)' : 'rgba(87, 83, 78, .55)';
+  ctx.lineWidth = 1;
+  const fila = Math.max(8, Math.round(h * .045));
+  for (let y = piso; y < h; y += fila) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  if (!madera) {
+    const col = Math.max(16, Math.round(w * .055));
+    for (let x = 0; x < w; x += col) { ctx.beginPath(); ctx.moveTo(x, piso); ctx.lineTo(x, h); ctx.stroke(); }
+  } else {
+    ctx.strokeStyle = 'rgba(255, 220, 180, .18)';
+    for (let y = piso + 4; y < h; y += fila) { ctx.beginPath(); ctx.moveTo(12, y); ctx.lineTo(w * .4, y + 1); ctx.stroke(); }
+  }
+  ctx.fillStyle = 'rgba(0,0,0,.38)';
+  ctx.fillRect(0, piso - Math.max(4, h * .018), w, Math.max(4, h * .018));
+}
 function fondoPasajeNoche(ctx) {
-  fondoNovela(ctx, '#312e81', '#1e1b4b');
-  ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, 64, 210); ctx.fillRect(448, 0, 64, 210);
-  ctx.fillStyle = '#4338ca'; ctx.fillRect(8, 36, 28, 22); ctx.fillRect(472, 70, 28, 22);
-  ctx.fillStyle = '#44403c'; ctx.fillRect(0, 196, 512, 92);
+  fondoLugar(ctx, '#312e81', 'pasillo');
+  ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(430, 36, 13, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fde68a'; ctx.fillRect(78, 52, 16, 20); ctx.fillRect(430, 58, 16, 20);
 }
 function dibujarEscenaTemporadaUno(ctx, escena, lt, t) {
   fondoPasajeNoche(ctx);
@@ -8700,9 +8824,7 @@ function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
   const e = escena | 0;
   if (i === 1) {
     if (e < 2) {
-      fondoNovela(ctx, '#78716c', '#44403c');
-      ctx.fillStyle = '#a8a29e'; ctx.fillRect(0, 186, 512, 18);
-      ctx.fillStyle = '#57534e'; ctx.fillRect(0, 204, 512, 84);
+      fondoLugar(ctx, '#78716c', 'pasillo');
       tvCasaFachada(ctx, 300, e === 1);
       if (e === 0) {
         const x = 30 + lt * 110;
@@ -8715,8 +8837,7 @@ function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
         pasoNovela(ctx, t, 'Lila', 390, 200, { boca: 'habla', mira: -2 }, true);
       }
     } else {
-      ctx.fillStyle = '#f5f5f4'; ctx.fillRect(0, 0, 512, 288);
-      ctx.fillStyle = '#e7e5e4'; ctx.fillRect(0, 196, 512, 92);
+      fondoLugar(ctx, '#f5f5f4', 'sala');
       tvBanco(ctx, 130, 168, 240);
       if (e === 2) {
         tvMaleta(ctx, 36, 172);
@@ -8765,8 +8886,7 @@ function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
     return;
   }
   if (i === 2) {
-    fondoNovela(ctx, '#fce7f3', '#f9a8d4');
-    ctx.fillStyle = '#fbcfe8'; ctx.fillRect(0, 196, 512, 92);
+    fondoLugar(ctx, '#fce7f3', 'casa');
     const puerta = e === 3 || e === 11;
     tvCasaFachada(ctx, e >= 7 ? 150 : 240, puerta || e >= 9);
     if (e === 0) {
@@ -8816,8 +8936,7 @@ function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
     return;
   }
   if (i === 3) {
-    fondoNovela(ctx, '#fdba74', '#9a3412');
-    ctx.fillStyle = '#fed7aa'; ctx.fillRect(0, 196, 512, 92);
+    fondoLugar(ctx, '#fdba74', 'casa');
     ctx.fillStyle = '#fb923c'; ctx.beginPath(); ctx.arc(70, 48, 22, 0, 7); ctx.fill();
     const mesa = e >= 3 && e <= 9;
     if (mesa) { ctx.fillStyle = '#fff'; ctx.fillRect(230, 156, 100, 10); ctx.fillStyle = '#44403c'; ctx.fillRect(248, 166, 6, 30); ctx.fillRect(310, 166, 6, 30); }
@@ -8874,10 +8993,9 @@ function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
     return;
   }
   if (i === 4) {
-    fondoNovela(ctx, '#020617', '#0f172a');
+    fondoLugar(ctx, '#0f172a', 'sala');
     if (e >= 11) { ctx.fillStyle = '#fb923c'; ctx.fillRect(0, 150, 512, 46); }
     ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(78, 52, 18, 0, 7); ctx.fill();
-    ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 196, 512, 92);
     tvLampara(ctx, 400, 196, e !== 10);
     tvBanco(ctx, 80, 176, 120);
     if (e === 0) {
@@ -8926,8 +9044,8 @@ function dibujarEscenaTemporadaNueva(ctx, i, escena, lt, t) {
     }
     return;
   }
-  fondoNovela(ctx, '#86efac', '#166534');
-  ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 188, 512, 100);
+  fondoLugar(ctx, '#86efac', 'casa');
+  ctx.fillStyle = '#4ade80'; ctx.fillRect(70, 214, 110, 30); ctx.fillRect(330, 214, 110, 30);
   const secaAtras = e === 4 || e === 5 || e === 6;
   tvPlanta(ctx, 120, 188, e <= 2 || e === 4);
   tvPlanta(ctx, 400, 188, secaAtras || e < 7);
@@ -11362,19 +11480,27 @@ function mallLineas(ctx, texto, max) {
   return lineas;
 }
 function dibujarPersonaCine(ctx, x, y, color, nombre, bob) {
-  const paso = bob || 0;
+  const b = bob || 0;
+  const ficha = nombre === 'Lila'
+    ? { peloTipo: 'largo', pelo: '#3f2a1d', ropa: color, pantalon: '#4a1d38' }
+    : nombre === 'Guardia'
+      ? { peloTipo: 'gorro', pelo: '#0f172a', ropa: '#334155', pantalon: '#1e293b' }
+      : nombre === 'Nico'
+        ? { peloTipo: 'corto', pelo: '#78350f', ropa: color, pantalon: '#44403c' }
+        : { peloTipo: 'corto', pelo: '#1c1917', ropa: color, pantalon: '#1e3a8a' };
+  tvPersona(ctx, x, y, Object.assign({
+    s: 1.28, piel: '#f0c09a', fase: b * 2.2, camina: true, bob: 0,
+    mira: nombre === 'Lila' ? 2 : -2,
+    boca: Math.abs(b) > .55 ? 'habla' : 'sonrisa',
+  }, ficha));
   ctx.save();
-  ctx.translate(x, y);
-  ctx.fillStyle = color;
-  ctx.fillRect(-15, -86, 30, 46);
-  ctx.beginPath(); ctx.arc(0, -104, 15, 0, 7); ctx.fill();
-  ctx.fillStyle = '#111827';
-  ctx.fillRect(-13, -42, 11, 30 + paso * 10);
-  ctx.fillRect(2, -42, 11, 30 - paso * 10);
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(nombre).width;
+  ctx.fillStyle = 'rgba(0,0,0,.55)';
+  ctx.fillRect(x - tw / 2 - 7, y + 10, tw + 14, 18);
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(nombre, 0, 4);
+  ctx.fillText(nombre, x, y + 19);
   ctx.restore();
 }
 function dibujarPropCine(ctx, o) {
@@ -11474,10 +11600,9 @@ function dibujarCine(esc) {
     return;
   }
   const f = frameCine(esc, esc.lt);
-  ctx.fillStyle = f.fondo; ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, h - 118, w, 118);
-  ctx.fillStyle = '#4c1d3a';
-  for (let i = 0; i < 8; i++) ctx.fillRect(36 + i * 74, h - 108, 46, 22);
+  const clase = (esc.tipo === 'cohete' || esc.tipo === 'pelota' || esc.tipo === 'arco') ? 'sala'
+    : (esc.tipo === 'globo' ? 'casa' : 'pasillo');
+  fondoLugar(ctx, f.fondo, clase);
   for (const o of f.objetos) dibujarPropCine(ctx, o);
   for (const p of f.extra) dibujarPersonaCine(ctx, p.x, p.y, p.color, p.nombre, f.bob);
   dibujarPersonaCine(ctx, f.lx, f.yLila, '#f472b6', 'Lila', f.bob);
@@ -11757,6 +11882,42 @@ function mallGuardia(x, z, ax, az, bx, bz) {
   mallGuardias.push(p);
   return p;
 }
+function texMall(tipo) {
+  const N = 64, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const g = cv.getContext('2d');
+  if (tipo === 'madera') {
+    g.fillStyle = '#8b5a38'; g.fillRect(0, 0, N, N);
+    for (let y = 0; y < N; y += 16) {
+      g.fillStyle = y % 32 ? '#a36b45' : '#935e3a';
+      g.fillRect(0, y, N, 15);
+    }
+    g.strokeStyle = 'rgba(62, 32, 12, .55)'; g.lineWidth = 2;
+    for (let y = 0; y < N; y += 16) { g.beginPath(); g.moveTo(0, y); g.lineTo(N, y); g.stroke(); }
+    g.strokeStyle = 'rgba(255, 214, 170, .22)'; g.lineWidth = 1;
+    for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(4, 4 + i * 10); g.lineTo(46, 6 + i * 10); g.stroke(); }
+  } else {
+    g.fillStyle = '#a8a29e'; g.fillRect(0, 0, N, N);
+    const cel = (x, y, c) => { g.fillStyle = c; g.fillRect(x + 2, y + 2, 28, 28); };
+    cel(0, 0, '#e7e5e4'); cel(32, 0, '#d6d3d1'); cel(0, 32, '#d6d3d1'); cel(32, 32, '#e7e5e4');
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+function pisoMall(x, z, w, d, tipo, yTop) {
+  const tex = texMall(tipo);
+  tex.repeat.set(Math.max(1, w / 1.7), Math.max(1, d / 1.7));
+  const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: .88, metalness: 0 });
+  const alto = .26, top = yTop == null ? .05 : yTop;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, alto, d), mat);
+  m.position.set(x, top - alto / 2, z);
+  m.receiveShadow = true;
+  scene.add(m);
+  addNoGrassZone(x, z, w, d);
+  return m;
+}
 function buildMall() {
   const B = MALL.edificio, h = B.h, t = .48;
   const norte = B.z + B.d / 2, sur = B.z - B.d / 2, oeste = B.x - B.w / 2, este = B.x + B.w / 2;
@@ -11776,13 +11937,16 @@ function buildMall() {
     hoja.position.set(sx, 1.6, norte + .05); scene.add(hoja);
   }
   mallLetrero('MALL DEL SUR', 0xfbbf24, 0, 6.35, norte + .35, .85);
-  mcFloor(scene, 0, -185.2, 78, 5, 0xe2e8f0, .08);
-  mcFloor(scene, 0, -204, 7.2, 32, 0xcbd5e1, .09);
-  mcFloor(scene, -28, -208.6, 32, 24.5, 0x2a1020, .1);
-  mcFloor(scene, -24, -189.6, 30, 12.4, 0x7f1d1d, .1);
-  mcFloor(scene, 27, -205, 34, 32, 0xf8fafc, .1);
-  mcFloor(scene, 0, -216, 72, 12, 0xfde68a, .11);
-  mcFloor(scene, 0, -182.35, 14, .9, 0xd6d3d1, .08);
+  // Una sola losa de baldosa tapa el verde del mundo. Encima, madera o baldosa por local.
+  pisoMall(B.x, B.z, B.w - .2, B.d - .2, 'baldosa', .04);
+  addNoGrassZone(B.x, B.z, B.w + 2.2, B.d + 2.2);
+  pisoMall(0, -185.2, 78, 5, 'baldosa', .09);
+  pisoMall(0, -204, 7.2, 32, 'madera', .1);
+  pisoMall(-28, -208.6, 32, 24.5, 'madera', .11);
+  pisoMall(-24, -189.6, 30, 12.4, 'madera', .11);
+  pisoMall(27, -205, 34, 32, 'baldosa', .11);
+  pisoMall(0, -216, 72, 12, 'madera', .12);
+  pisoMall(0, -182.35, 14, .9, 'baldosa', .08);
   const cv = document.createElement('canvas'); cv.width = 640; cv.height = 360;
   const tex = new THREE.CanvasTexture(cv);
   const pantalla = new THREE.Mesh(new THREE.PlaneGeometry(10, 5.4), new THREE.MeshBasicMaterial({ map: tex }));

@@ -8347,6 +8347,7 @@ const COMEDIA_LINEAS = [
   'El vendedor le fía el pan.',
   'Los dos se ríen del apuro.',
 ];
+// Cada ronda son tres frases distintas: pregunta, respuesta y cierre. Ninguna se repite.
 const CONCURSO_LINEAS = [
   '¿Cuánto es dos más tres?',
   'Cinco.',
@@ -8354,6 +8355,48 @@ const CONCURSO_LINEAS = [
   '¿De qué color es el pasto?',
   'Azul.',
   'Incorrecto. Perdiste.',
+  '¿Cuánto es diez menos cuatro?',
+  'Seis.',
+  'Correcto. Diez menos cuatro son seis.',
+  '¿Cuánto es siete más uno?',
+  'Ocho.',
+  'Correcto. Siete más uno son ocho.',
+  '¿Cuánto es doce menos cinco?',
+  'Siete.',
+  'Correcto. Quedan siete.',
+  '¿Cuánto es cuatro más cuatro?',
+  'Nueve.',
+  'Incorrecto. Cuatro más cuatro son ocho.',
+  '¿Dónde está el banco de la ciudad?',
+  'En el centro.',
+  'Correcto. El banco queda en el centro.',
+  '¿Cuánto vale el terreno de la casa?',
+  'Mil.',
+  'Correcto. El terreno vale mil.',
+  '¿Dónde esconde Lila el cajón?',
+  'En el pasaje.',
+  'Correcto. El secreto está en el pasaje.',
+  '¿Quién llega con la maleta?',
+  'Vera.',
+  'Correcto. Vera vuelve con la maleta.',
+  '¿Qué animal muestra el documental?',
+  'Un zorro.',
+  'Correcto. Es el zorro del campo.',
+  '¿Cuánto es veinte menos diez?',
+  'Diez.',
+  'Correcto. Veinte menos diez son diez.',
+  '¿La cancha de fútbol no tiene pasto?',
+  'No tiene.',
+  'Incorrecto. Esa cancha sí tiene pasto.',
+  '¿Cuánto es tres más seis?',
+  'Son nueve.',
+  'Correcto. Tres más seis son nueve.',
+  '¿Quién se queda despierta en el turno?',
+  'Vera, primero.',
+  'Correcto. Vera empieza el turno.',
+  '¿Cuánto es quince menos seis?',
+  'Quedan nueve.',
+  'Correcto. Quince menos seis son nueve.',
 ];
 const HUERTO_LINEAS = [
   'Planta la semilla.',
@@ -8751,14 +8794,19 @@ function dibujarComedia(ctx, t) {
   tvRelato(ctx, COMEDIA_LINEAS[e]);
 }
 function dibujarConcurso(ctx, t) {
-  const f = faseCanal(t, CONCURSO_LINEAS.length), e = f.escena, paso = e % 3, ronda = e < 3 ? 0 : 1;
-  const gano = ronda === 0;
+  const f = faseCanal(t, CONCURSO_LINEAS.length), e = f.escena, paso = e % 3;
+  const resultado = CONCURSO_LINEAS[e - paso + 2] || '';
+  const gano = resultado.indexOf('Incorrecto') !== 0;
   ctx.fillStyle = '#4c1d95'; ctx.fillRect(0, 0, 512, 288);
   ctx.fillStyle = '#5b21b6'; ctx.fillRect(0, 190, 512, 98);
-  ctx.fillStyle = '#111827'; tvCaja(ctx, 116, 16, 280, 64, 8); ctx.fill();
+  ctx.fillStyle = '#111827'; tvCaja(ctx, 90, 16, 332, 64, 8); ctx.fill();
   ctx.fillStyle = paso === 2 ? (gano ? '#4ade80' : '#f87171') : '#f8fafc';
-  ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(CONCURSO_LINEAS[e], 256, 48);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const frase = CONCURSO_LINEAS[e];
+  let tam = 18;
+  ctx.font = 'bold ' + tam + 'px sans-serif';
+  while (tam > 12 && ctx.measureText(frase).width > 300) { tam -= 1; ctx.font = 'bold ' + tam + 'px sans-serif'; }
+  ctx.fillText(frase, 256, 48);
   const hostHabla = paso !== 1;
   tvPersona(ctx, 96, 206, { s: .82, ropa: '#1d4ed8', fase: t, boca: hostHabla ? 'habla' : 'sonrisa', mira: 2, brazoR: paso === 2 && gano ? -1.3 : 0.4 });
   tvPersona(ctx, 400, 206, { s: .82, ropa: '#facc15', fase: t, boca: paso === 1 ? 'habla' : (paso === 2 && !gano ? 'sorpresa' : 'sonrisa'), mira: -2, brazoL: paso === 1 ? -0.8 : 0.3 });

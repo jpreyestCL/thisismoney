@@ -110,7 +110,7 @@ test('la tele pasa programas y el lavamanos anima el lavado', () => {
   for (const fn of ['dibujarNoticias', 'dibujarDibujos', 'dibujarPartido', 'dibujarCocina', 'dibujarNovela', 'dibujarDocumental', 'dibujarConcurso', 'dibujarHuertoTv', 'dibujarBuenosDias', 'dibujarMusica', 'dibujarComedia']) {
     assert.match(html, new RegExp('function ' + fn + '\\('));
   }
-  for (const frase of ['Este zorro vive en el campo.', '¿Cuánto es dos más tres?', 'Correcto. Ganaste el punto.', 'Incorrecto. Perdiste.', 'Planta la semilla.', 'Le echa agua.', 'Cosecha la manzana.', 'En la avenida hay obras.', 'Hay que salir temprano.', 'Sube la cantante al escenario.', 'Entra un hombre a la tienda.']) {
+  for (const frase of ['Este zorro vive en el campo.', '¿Cuánto es dos más tres?', 'Correcto. Ganaste el punto.', 'Incorrecto. Perdiste.', '¿Cuánto es diez menos cuatro?', '¿Dónde está el banco de la ciudad?', '¿Quién llega con la maleta?', '¿Qué animal muestra el documental?', 'Planta la semilla.', 'Le echa agua.', 'Cosecha la manzana.', 'En la avenida hay obras.', 'Hay que salir temprano.', 'Sube la cantante al escenario.', 'Entra un hombre a la tienda.']) {
     assert.ok(html.includes("'" + frase + "'"), frase);
   }
   assert.match(html, /if \(id === 'documental'\) return lineaDocumental/);

@@ -1273,7 +1273,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';                  
 import { PARK, CAMPAIGNS, newPark, parkDate, startCampaign, maintainPark, settleParkDay, parkReport } from './src/park-business.js?v=1';
 import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nightDuration, roadmapFor } from './src/game-config.js?v=9';
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
-import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=5';
+import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -7781,6 +7781,31 @@ function tvPersona(ctx, x, y, o) {
     tvMiembro(ctx, 5 * s, -12 * s, 20 * s, 2 * s, 4.4 * s, pantalon);
     tvMiembro(ctx, 20 * s, 2 * s, 15 * s, 9 * s, 3.4 * s, pantalon);
     tvZapato(ctx, 15 * s, 10 * s, s, 1);
+  } else if (o.andar) {
+    const pierna = (lado) => {
+      const a = fase + (lado < 0 ? 0 : Math.PI);
+      const adel = Math.sin(a);
+      const alza = Math.max(0, Math.cos(a)) * 16 * s;
+      const caderaX = lado * 6 * s;
+      const pieX = lado * 14 * s;
+      const pieY = 8 * s + adel * 18 * s - alza;
+      const rodX = lado * 8 * s;
+      const rodY = -4 * s + Math.max(0, adel) * 6 * s;
+      tvMiembro(ctx, caderaX, -14 * s, rodX, rodY, 7.2 * s, '#0f172a');
+      tvMiembro(ctx, rodX, rodY, pieX, pieY - 2 * s, 5.6 * s, '#0f172a');
+      tvMiembro(ctx, caderaX, -14 * s, rodX, rodY, 5 * s, pantalon);
+      tvMiembro(ctx, rodX, rodY, pieX, pieY - 2 * s, 3.8 * s, pantalon);
+      const zs = s * (adel > .15 ? 1.45 : .82);
+      ctx.fillStyle = 'rgba(0,0,0,.35)';
+      ctx.beginPath(); ctx.ellipse(pieX, pieY + alza + 3 * s, 8 * zs, 2.4 * zs, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath(); ctx.ellipse(pieX, pieY, 10 * zs, 4.4 * zs, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = adel > .15 ? '#ef4444' : '#1e293b';
+      ctx.fillRect(pieX - 7 * zs, pieY - 3.4 * zs, 9 * zs, 3.6 * zs);
+    };
+    const izqAdelante = Math.sin(fase) >= 0;
+    pierna(izqAdelante ? 1 : -1);
+    pierna(izqAdelante ? -1 : 1);
   } else {
     const izq = paso, der = -paso;
     tvMiembro(ctx, -5 * s, -14 * s, -6 * s + izq * 8 * s, 1 * s, 4.6 * s, pantalon);
@@ -11479,8 +11504,7 @@ function mallLineas(ctx, texto, max) {
   if (act) lineas.push(act);
   return lineas;
 }
-function dibujarPersonaCine(ctx, x, y, color, nombre, bob, pose, habla) {
-  const b = bob || 0;
+function dibujarPersonaCine(ctx, x, y, color, nombre, fasePaso, pose, habla) {
   const ficha = nombre === 'Lila'
     ? { peloTipo: 'largo', pelo: '#3f2a1d', ropa: color, pantalon: '#4a1d38' }
     : nombre === 'Guardia'
@@ -11489,11 +11513,14 @@ function dibujarPersonaCine(ctx, x, y, color, nombre, bob, pose, habla) {
         ? { peloTipo: 'corto', pelo: '#78350f', ropa: color, pantalon: '#44403c' }
         : { peloTipo: 'corto', pelo: '#1c1917', ropa: color, pantalon: '#1e3a8a' };
   const propia = habla ? pose : 'corre';
+  const anda = propia === 'corre';
+  const swing = anda ? Math.sin(fasePaso || 0) : 0;
   const brazos = propia === 'frena' ? { brazoL: -1.55, brazoR: 1.55 }
-    : propia === 'salta' ? { brazoL: -2.3, brazoR: -2.3 } : {};
+    : propia === 'salta' ? { brazoL: -2.3, brazoR: -2.3 }
+      : anda ? { brazoL: -0.35 - swing * .85, brazoR: 0.35 - swing * .85 } : {};
   tvPersona(ctx, x, y, Object.assign({
-    s: 1.28, piel: '#f0c09a', fase: b * 2.4 + (propia === 'corre' ? 1.2 : 0),
-    camina: propia === 'corre', sentado: propia === 'resbala', bob: 0,
+    s: 1.62, piel: '#f0c09a', fase: anda ? fasePaso : 0,
+    andar: anda, camina: false, sentado: propia === 'resbala', bob: 0,
     mira: nombre === 'Lila' ? 2 : -2,
     boca: habla ? 'habla' : 'sonrisa',
   }, brazos, ficha));
@@ -11502,9 +11529,9 @@ function dibujarPersonaCine(ctx, x, y, color, nombre, bob, pose, habla) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const tw = ctx.measureText(nombre).width;
   ctx.fillStyle = 'rgba(0,0,0,.55)';
-  ctx.fillRect(x - tw / 2 - 7, y + 10, tw + 14, 18);
+  ctx.fillRect(x - tw / 2 - 7, y - 158, tw + 14, 18);
   ctx.fillStyle = '#fff';
-  ctx.fillText(nombre, x, y + 19);
+  ctx.fillText(nombre, x, y - 149);
   ctx.restore();
 }
 function dibujarPropCine(ctx, o) {
@@ -11650,9 +11677,9 @@ function dibujarCine(esc) {
   if (f.lugar === 'cancha') fondoCanchaCine(ctx, w, h);
   else fondoLugar(ctx, f.fondo, f.lugar === 'pasillo' ? 'pasillo' : 'sala');
   for (const o of f.objetos) dibujarPropCine(ctx, o);
-  for (const p of f.extra) dibujarPersonaCine(ctx, p.x, p.y, p.color, p.nombre, f.bob, f.pose, p.nombre === esc.quien);
-  dibujarPersonaCine(ctx, f.lx, f.yLila, '#f472b6', 'Lila', f.bob, f.pose, esc.quien === 'Lila');
-  dibujarPersonaCine(ctx, f.mx, f.yMateo, '#38bdf8', 'Mateo', -f.bob, f.pose, esc.quien === 'Mateo');
+  for (const p of f.extra) dibujarPersonaCine(ctx, p.x, p.y, p.color, p.nombre, f.paso, f.pose, p.nombre === esc.quien);
+  dibujarPersonaCine(ctx, f.lx, f.yLila, '#f472b6', 'Lila', f.paso, f.pose, esc.quien === 'Lila');
+  dibujarPersonaCine(ctx, f.mx, f.yMateo, '#38bdf8', 'Mateo', f.paso + Math.PI, f.pose, esc.quien === 'Mateo');
   if (f.relampago) { ctx.fillStyle = 'rgba(255,255,255,.82)'; ctx.fillRect(0, 0, w, h); }
   if (f.oscuro) { ctx.fillStyle = 'rgba(0,0,0,' + (0.35 + f.oscuro * 0.4) + ')'; ctx.fillRect(0, 0, w, h); }
   const minuto = Math.min(10, Math.floor((mallCineT % CINE_DURACION) / 60) + 1);

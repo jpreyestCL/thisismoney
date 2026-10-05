@@ -138,7 +138,7 @@ test('el juego engancha el mall sin tocar la celda, el depto ni la tele', () => 
   assert.match(html, /const TORRE_PRECIO = 10000/);
   assert.match(html, /const ESTRENO_NOVELA = 'La novela'/);
   assert.match(html, /city-map\.js\?v=9/);
-  assert.match(html, /mall\.js\?v=5/);
+  assert.match(html, /mall\.js\?v=6/);
   assert.match(html, /bocadoDeBolsa/);
   assert.match(html, /dobleDeBolsa/);
   assert.match(html, /function usarComer\(/);
@@ -146,7 +146,7 @@ test('el juego engancha el mall sin tocar la celda, el depto ni la tele', () => 
   assert.match(html, /puestosSuper\(SHOP\)/);
   assert.match(html, /tipo: 'sala'/);
   assert.match(html, /tipo: 'tienda'/);
-  assert.match(sw, /const VERSION = 'tim-v84'/);
+  assert.match(sw, /const VERSION = 'tim-v85'/);
   assert.match(sw, /city-map\.js\?v=9/);
-  assert.match(sw, /mall\.js\?v=5/);
+  assert.match(sw, /mall\.js\?v=6/);
 });

@@ -615,6 +615,11 @@
   <div id="waterfx" style="position:absolute;inset:0;background:rgba(14,116,144,.22);box-shadow:inset 0 0 140px 35px rgba(8,47,73,.75);opacity:0;transition:opacity .2s;pointer-events:none"></div>
   <div id="missions" style="position:absolute; top:66px; left:12px; background:rgba(0,0,0,.42); padding:6px 10px; border-radius:10px; font-size:11px; line-height:1.7; pointer-events:none; max-width:46vw;"></div>
   <div id="phase"></div>
+  <div id="celdaLadron" style="display:none; position:absolute; top:16%; left:50%; transform:translateX(-50%); z-index:6; pointer-events:none; text-align:center; background:rgba(15,23,42,.9); border:2px solid #f87171; border-radius:14px; padding:12px 22px; min-width:240px;">
+    <div style="font-size:13px; letter-spacing:.14em; color:#fecaca;">CELDA</div>
+    <div id="celdaReloj" style="font-size:44px; font-weight:800; color:#fff; line-height:1.1;">10:00</div>
+    <div style="font-size:13px; color:#fecaca;">Te quitaron todo el dinero. No sales antes.</div>
+  </div>
   <div id="combo"></div>
   <div id="escape"></div>
   <div id="objective">Objetivo</div>
@@ -696,6 +701,7 @@
         <button class="bankBtn" id="pauseWatch" style="grid-column:1 / span 2;">⌚ Modo reloj</button>
         <button class="bankBtn" id="pauseFps" style="grid-column:1 / span 2;">🎞️ Detalle: ALTO</button>
       </div>
+      <button class="btn" id="pauseLadron" type="button" style="width:100%; margin-top:12px; background:linear-gradient(90deg,#7f1d1d,#b91c1c); border:2px solid #fecaca;">MODO LADRÓN</button>
       <div id="pauseCreativeRow" style="display:none; align-items:center; justify-content:center; gap:8px; margin-top:12px; padding:8px; background:rgba(168,85,247,.18); border-radius:10px;">
         <button class="bankBtn" id="pauseStageDown" style="width:44px;">➖</button>
         <span style="font-weight:800; font-size:14px;">🎨 ⭐ Etapa <b id="pauseStageVal">1</b></span>
@@ -888,6 +894,7 @@
         <button class="btn secondary" id="cloudLoginBtn">🌐 CONTINUAR CON CLAVE</button>
         <button class="btn" id="startBtn">NUEVA PARTIDA</button>
         <button class="btn secondary" id="creativeBtn">MODO CREATIVO</button>
+        <button class="btn" id="modoLadronBtn" type="button" aria-pressed="false" style="background:linear-gradient(90deg,#7f1d1d,#b91c1c); border:2px solid #fecaca;">MODO LADRÓN</button>
         <button class="btn secondary" id="startGuideBtn">VER GUÍA</button>
         <button class="btn secondary" id="startRankingBtn">🌎 RANKING MUNDIAL</button>
         <button class="btn secondary" id="friendsBtn">🌐 JUGAR CON AMIGOS</button>
@@ -1275,6 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
+import { CELDA_LADRON_SEG, DELATA_CERCA, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, comprarRopa, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, oficialMuere, pagarTito, puedeComprarRopa, precioArmaTito, ropaPorId, tickDelatar, tickPersecucion, titoPuedeDarArma } from './src/modo-ladron.js?v=1';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -2068,6 +2076,7 @@ function applyPlayerArmor() {
   }
   viewmodel.userData.bracer.visible = !!tier;
   if (tier) viewmodel.userData.bracer.material = mat(ARMOR_TIERS[tier].color);
+  aplicarRopaPuesta();
 }
 
 function replaceToolInMount(mount, kind, color, scale, flip) {
@@ -2576,7 +2585,14 @@ const ALIEN_TECH = [
   { key: 'minero',        name: 'Minero automático', price: 1400, color: 0xf59e0b, alien: true },   // mina solo, incluso sin jugar
 ];
 // El vendedor de Platus ofrece TODO lo de la Tierra (menos autos/motos) + la tecnología alien exclusiva
-function shopCatalog() { return state.planet === 'platus' ? SHOP.filter(it => !it.car && !it.helicopter && it.key !== 'moto').concat(ALIEN_TECH) : SHOP; }
+function ropaDeTienda() {
+  if (!puedeComprarRopa(state)) return [];
+  return ROPA.map(r => ({ key: 'ropa_' + r.id, name: r.name, price: r.price, ropa: r.id, color: r.color }));
+}
+function shopCatalog() {
+  const base = state.planet === 'platus' ? SHOP.filter(it => !it.car && !it.helicopter && it.key !== 'moto').concat(ALIEN_TECH) : SHOP;
+  return base.concat(ropaDeTienda());
+}
 
 // Dibuja un producto que se parece a lo que es
 function makeProductMesh(key, color) {
@@ -3565,9 +3581,16 @@ function closeBlackMarket() { const el = ui('blackbox'); if (el) el.style.displa
 function renderBlackMarket() {
   const list = ui('blackList'), money = ui('blackMoney'); if (!list) return;
   if (money) money.textContent = state.creative ? '$∞' : '$' + state.money;
-  list.innerHTML = BLACK_MARKET.map(it => {
+  const debe = state.modoLadron ? deudaTito(state.night || 0, state.titoPagadoHasta || 0) : 0;
+  const pago = state.modoLadron
+    ? '<button type="button" data-bm="tito-pagar" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(250,204,21,.16); border:1px solid #facc15; color:#fef3c7; border-radius:9px; padding:8px 10px;"><b>🕶️ Pagarle a Tito</b> · ' + (debe > 0 ? '$' + debe + ' (cada 2 días)' : 'estás al día') + '<br><span style="opacity:.75; font-size:11px">Las armas te las deja gratis. Si no pagas, no te da más.</span></button>'
+    : '';
+  list.innerHTML = pago + BLACK_MARKET.map(it => {
     const have = (it.gadget && !GADGET_HAND[it.gadget] && state.gadgets && state.gadgets[it.gadget]) || (GUN_SPECS[it.key] && state.guns && state.guns[it.key]) || (!GUN_SPECS[it.key] && it.dmg && state.weaponName === it.name);
-    return '<button type="button" data-bm="' + it.key + '" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(127,29,29,.2); border:1px solid #7f1d1d; color:#fecaca; border-radius:9px; padding:8px 10px;"><b style="color:#fecaca">' + it.icon + ' ' + it.name + '</b> · $' + it.price + (have ? (GUN_SPECS[it.key] ? ' · ya la tienes (toca para llevarla en la mano)' : ' · ya lo tienes') : '') + (it.ammo ? ' · llevas ' + (state.ammo || 0) + ' balas' : '') + (GADGET_HAND[it.gadget] ? ' · tienes ' + ((state.gadgetCharges || {})[it.gadget] || 0) : '') + '<br><span style="opacity:.75; font-size:11px">' + it.blurb + (GUN_SPECS[it.key] ? '<br>💥 daño ' + GUN_SPECS[it.key].dmg + ' · 🎯 cabeza x' + GUN_SPECS[it.key].head + ' (' + Math.round(GUN_SPECS[it.key].dmg * GUN_SPECS[it.key].head) + ') · 📏 ' + GUN_SPECS[it.key].range + ' m · ⏱️ ' + GUN_SPECS[it.key].rate + ' s' : '') + '</span></button>';
+    const esArma = !!(GUN_SPECS[it.key] || (it.dmg && !it.gadget && !it.ammo));
+    const gratis = !!(state.modoLadron && esArma);
+    const precioTxt = gratis ? 'GRATIS' : ('$' + it.price);
+    return '<button type="button" data-bm="' + it.key + '" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(127,29,29,.2); border:1px solid #7f1d1d; color:#fecaca; border-radius:9px; padding:8px 10px;"><b style="color:#fecaca">' + it.icon + ' ' + it.name + '</b> · ' + precioTxt + (have ? (GUN_SPECS[it.key] ? ' · ya la tienes (toca para llevarla en la mano)' : ' · ya lo tienes') : '') + (it.ammo ? ' · llevas ' + (state.ammo || 0) + ' balas' : '') + (GADGET_HAND[it.gadget] ? ' · tienes ' + ((state.gadgetCharges || {})[it.gadget] || 0) : '') + '<br><span style="opacity:.75; font-size:11px">' + it.blurb + (GUN_SPECS[it.key] ? '<br>💥 daño ' + GUN_SPECS[it.key].dmg + ' · 🎯 cabeza x' + GUN_SPECS[it.key].head + ' (' + Math.round(GUN_SPECS[it.key].dmg * GUN_SPECS[it.key].head) + ') · 📏 ' + GUN_SPECS[it.key].range + ' m · ⏱️ ' + GUN_SPECS[it.key].rate + ' s' : '') + '</span></button>';
   }).join('');
 }
 function applyBlackMarketGadget(item) {
@@ -4804,26 +4827,41 @@ function startPoliceCellArrest() {
   if (state.inFlight) abortFlight();
   state.driving = false; removeMount(); leaveParkRide(true); standUp(true);
   state.wanted = 0; state.wantedLevel = 0; clearPolice();
-  const fine = Math.round(state.money * GAME_RULES.jailMoneyLoss);
-  clearWaves(); state.money = Math.max(0, state.money - fine); state.hp = 100;
+  clearWaves();
+  let segundos = POLICE_CELL_SEC;
+  let aviso;
+  if (state.modoLadron) {
+    const a = arrestoLadron(state.money);
+    state.money = a.money;
+    segundos = a.segundos;
+    aviso = '🚔 Te atraparon. Te quitaron toda la plata ($' + a.quitado + '). Celda de 10 minutos. No sales antes.';
+  } else {
+    const fine = Math.round(state.money * GAME_RULES.jailMoneyLoss);
+    state.money = Math.max(0, state.money - fine);
+    aviso = '🚔 ¡Te atrapó la policía! Celda ' + POLICE_CELL_SEC + ' s · multa $' + fine;
+  }
+  state.hp = 100;
   if (state.phase === 'NIGHT') { state.phase = 'DAY'; state.dayTime = 0; state.nightTime = 0; }
   const b = celdaArrestoBounds();
   player.position.set(b.x, PLAYER_EYE, b.z);
   vy = 0; grounded = true; yaw = Math.PI;
-  state.cellArrest = { left: POLICE_CELL_SEC };
-  ui('phase').textContent = 'Celda · ' + fmtCeldaTiempo(POLICE_CELL_SEC);
-  toast('🚔 ¡Te atrapó la policía! Celda ' + POLICE_CELL_SEC + ' s · multa $' + fine);
+  state.cellArrest = { left: segundos, ladron: !!state.modoLadron };
+  ui('phase').textContent = 'Celda · ' + fmtCeldaTiempo(segundos);
+  if (state.cellArrest.ladron) mostrarCeldaLadron(true, segundos);
+  toast(aviso);
   beep(90, .22, .06);
 }
 function releasePoliceCellArrest() {
   if (!state.cellArrest) return;
+  const eraLadron = !!state.cellArrest.ladron;
   state.cellArrest = null;
   state.wanted = 0; state.wantedLevel = 0; clearPolice();
+  mostrarCeldaLadron(false);
   const salida = LUGARES.spawn;
   player.position.set(salida.x, PLAYER_EYE, salida.z + 3);
   vy = 0; grounded = true;
   if (ui('phase').textContent.startsWith('Celda ·')) ui('phase').textContent = '';
-  toast('🔓 Cumpliste tu tiempo. Ya puedes seguir jugando.');
+  toast(eraLadron ? '🔓 Saliste de la celda. Sigues en modo ladrón, sin plata.' : '🔓 Cumpliste tu tiempo. Ya puedes seguir jugando.');
   tone(440, .12, .04, 'triangle');
   saveGame();
 }
@@ -4832,7 +4870,14 @@ function updateCellArrest(dt) {
   clampPlayerEnCelda();
   if (dt > 0) state.cellArrest.left -= dt;
   ui('phase').textContent = 'Celda · ' + fmtCeldaTiempo(state.cellArrest.left);
+  if (state.cellArrest.ladron) mostrarCeldaLadron(true, state.cellArrest.left);
   if (state.cellArrest.left <= 0) releasePoliceCellArrest();
+}
+function mostrarCeldaLadron(on, sec) {
+  const el = ui('celdaLadron'); if (!el) return;
+  el.style.display = on ? 'block' : 'none';
+  const reloj = ui('celdaReloj');
+  if (on && reloj) reloj.textContent = fmtCeldaTiempo(sec);
 }
 // buildBank() y buildJail() se llaman más abajo, junto al condominio: los dos usan
 // los helpers de parques (mcFloor, mcBench…), que todavía no existen en esta línea.
@@ -4901,12 +4946,17 @@ function setPoliceCar(p, driving) {
 }
 // Te vuelves BUSCADO. Cada delito SUMA estrellas (1-5): más estrellas = más policías, más rápidos y por más tiempo.
 function becomeWanted(sec, stars) {
+  if (state.modoLadron) {
+    state.ladronChase = tickPersecucion(state.ladronChase, 0, true);
+    return;
+  }
   stars = stars || 1;
   state.wantedLevel = Math.min(5, (state.wantedLevel || 0) + stars);
   state.wanted = Math.max(state.wanted, sec + state.wantedLevel * 5);
   if (police.length === 0 && state.policeDelay <= 0) state.policeDelay = Math.max(2, 8 - state.wantedLevel);
 }
 function updatePolice(dt) {
+  if (state.modoLadron) { updatePoliciaLadron(dt); return; }
   if (state.planet === 'platus') { if (police.length) clearPolice(); state.wanted = 0; state.wantedLevel = 0; return; }   // en Platus NO hay policía
   if (state.wanted > 0) {
     state.wanted -= dt * (state.gadgets && state.gadgets.capa ? 1.8 : 1);
@@ -4952,6 +5002,313 @@ function updatePolice(dt) {
 function policeCatch() {
   if (state.planet !== 'tierra' || state.country) { state.wanted = 0; state.wantedLevel = 0; state.driving = false; clearPolice(); goToJail(); return; }
   startPoliceCellArrest();
+}
+
+// ===================================================================
+//  MODO LADRÓN — solo corre si state.modoLadron está activo.
+//  Fuera de ese modo, la policía, la celda de 1 minuto, el mall y Tito
+//  siguen como estaban.
+// ===================================================================
+let menuModoLadron = false;
+try { menuModoLadron = localStorage.getItem('tim_modo_ladron') === '1'; } catch (e) {}
+const farolesLadron = [];
+let texSeBusca = null;
+function pintarBotonLadron() {
+  const onMenu = !!menuModoLadron;
+  const onJuego = !!state.modoLadron;
+  const b = ui('modoLadronBtn');
+  if (b) {
+    const on = state.running ? onJuego : onMenu;
+    b.textContent = on ? 'MODO LADRÓN: SÍ' : 'MODO LADRÓN';
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.style.boxShadow = on ? '0 0 0 3px #fecaca' : '';
+  }
+  const p = ui('pauseLadron');
+  if (p) p.textContent = onJuego ? 'MODO LADRÓN: SÍ' : 'MODO LADRÓN';
+}
+function setModoLadron(on, avisar) {
+  state.modoLadron = !!on;
+  if (!state.modoLadron) {
+    state.ladronChase = null;
+    state.delataAcum = 0;
+    if (typeof clearPolice === 'function') clearPolice();
+    if (typeof mallGuardias !== 'undefined') {
+      for (const g of mallGuardias) {
+        g.visible = true; g.userData.muerto = false; g.userData.persigue = false; g.userData.hp = VIDA_POLICIA;
+      }
+    }
+  }
+  asegurarFaroles(!!state.modoLadron);
+  aplicarRopaPuesta();
+  pintarBotonLadron();
+  if (avisar) toast(state.modoLadron
+    ? '🦹 MODO LADRÓN: si te ven, te persiguen 3 minutos. Roba tiendas con E, cómprate ropa y no olvides pagarle a Tito.'
+    : 'Volviste al juego normal.');
+  if (state.running && state.phase !== 'OVER') saveGame();
+}
+function texturaSeBusca() {
+  if (texSeBusca) return texSeBusca;
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 340;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#f7f1df'; g.fillRect(0, 0, 256, 340);
+  g.strokeStyle = '#1c1917'; g.lineWidth = 10; g.strokeRect(8, 8, 240, 324);
+  g.fillStyle = '#b91c1c'; g.font = 'bold 46px sans-serif'; g.textAlign = 'center';
+  g.fillText('SE BUSCA', 128, 62);
+  g.fillStyle = '#3b2b1f'; g.fillRect(78, 84, 100, 28);
+  g.fillStyle = '#e0ac69'; g.fillRect(78, 104, 100, 100);
+  g.fillStyle = '#f8fafc'; g.fillRect(96, 132, 22, 16); g.fillRect(138, 132, 22, 16);
+  g.fillStyle = '#1f2937'; g.fillRect(104, 134, 10, 12); g.fillRect(146, 134, 10, 12);
+  g.fillStyle = '#7f3a35'; g.fillRect(112, 176, 32, 8);
+  g.fillStyle = '#111827'; g.font = 'bold 28px sans-serif';
+  g.fillText('LADRÓN', 128, 250);
+  g.font = '18px sans-serif'; g.fillText('Si lo ves, avisa', 128, 286); g.fillText('a la policía', 128, 310);
+  texSeBusca = new THREE.CanvasTexture(cv);
+  if (THREE.SRGBColorSpace) texSeBusca.colorSpace = THREE.SRGBColorSpace;
+  return texSeBusca;
+}
+function hacerFarolLadron(x, z, mira) {
+  const grupo = new THREE.Group();
+  const poste = new THREE.Mesh(new THREE.CylinderGeometry(.08, .11, 3.4, 8), mat(0x27272a));
+  poste.position.y = 1.7; poste.castShadow = true; grupo.add(poste);
+  const haciaCalle = mira === 'x' ? -1 : -1;
+  const farol = new THREE.Mesh(new THREE.BoxGeometry(.38, .28, .38), new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xfbbf24, emissiveIntensity: .85 }));
+  farol.position.set(mira === 'x' ? haciaCalle * .42 : 0, 3.2, mira === 'z' ? haciaCalle * .42 : 0); grupo.add(farol);
+  const cartel = new THREE.Mesh(new THREE.PlaneGeometry(.78, 1.04), new THREE.MeshStandardMaterial({ map: texturaSeBusca(), roughness: .92 }));
+  cartel.position.set(mira === 'x' ? -.2 : 0, 1.65, mira === 'z' ? -.2 : 0);
+  cartel.rotation.y = mira === 'x' ? -Math.PI / 2 : Math.PI;
+  grupo.add(cartel);
+  grupo.position.set(x, 0, z); grupo.visible = false;
+  scene.add(grupo); farolesLadron.push(grupo);
+  return grupo;
+}
+function asegurarFaroles(on) {
+  if (!farolesLadron.length) {
+    for (const z of [-120, -80, -40, 0, 40, 80, 120]) hacerFarolLadron(6.4, z, 'x');
+    for (const x of [-120, -80, -40, 40, 80, 120]) hacerFarolLadron(x, 6.4, 'z');
+  }
+  const ver = !!on && !!state.modoLadron && state.planet === 'tierra' && !state.country;
+  for (const f of farolesLadron) f.visible = ver;
+}
+function aplicarRopaPuesta() {
+  const av = typeof playerAvatar !== 'undefined' ? playerAvatar : null;
+  if (!av) return;
+  const prev = av.userData.ropaVisual;
+  if (prev) { for (const m of prev) if (m.parent) m.parent.remove(m); av.userData.ropaVisual = null; }
+  const id = state.modoLadron ? state.ropaPuesta : null;
+  const ropa = id ? ropaPorId(id) : null;
+  const arm = (typeof viewmodel !== 'undefined' && viewmodel.children) ? viewmodel.children[0] : null;
+  if (!ropa) {
+    if (arm && arm.material && !(state.armorFactor < 1)) arm.material.color.setHex(0x3f6212);
+    return;
+  }
+  const parts = [];
+  const piece = (parent, w, h, d, x, y, z, col) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(col));
+    m.position.set(x, y, z); m.castShadow = true; parent.add(m); parts.push(m); return m;
+  };
+  const limbs = av.userData.limbs || {};
+  if (ropa.id === 'camuflaje') {
+    piece(av, .9, .86, .54, 0, 1.4, 0, 0x4a5c2a);
+    piece(av, .42, .24, .56, -.16, 1.62, .02, 0x3f3a22);
+    piece(av, .3, .22, .56, .18, 1.2, .02, 0x5c4a32);
+    piece(av, .24, .16, .56, 0, 1.46, .04, 0x2f3b1c);
+    piece(av, .72, .16, .5, 0, 2.36, -.02, 0x3d4a22);
+    piece(av, .46, .08, .24, 0, 2.28, .28, 0x3d4a22);
+    for (const leg of [limbs.legL, limbs.legR]) if (leg) {
+      piece(leg, .36, .72, .38, 0, -.4, 0, 0x3f4a28);
+      piece(leg, .22, .2, .4, 0, -.55, .02, 0x5c4a32);
+    }
+  } else if (ropa.id === 'chaqueta') {
+    piece(av, .9, .8, .52, 0, 1.42, 0, ropa.color);
+    piece(av, .16, .62, .1, -.32, 1.42, .2, 0x0b1220);
+    piece(av, .16, .62, .1, .32, 1.42, .2, 0x0b1220);
+  } else if (ropa.id === 'poleron') {
+    piece(av, .88, .82, .54, 0, 1.4, 0, ropa.color);
+    piece(av, .7, .16, .52, 0, 2.38, -.04, ropa.color);
+    piece(av, .64, .38, .14, 0, 2.12, -.26, ropa.color);
+  } else if (ropa.id === 'gorra') {
+    piece(av, .64, .16, .58, 0, 2.38, 0, ropa.color);
+    piece(av, .44, .08, .24, 0, 2.3, .3, ropa.color);
+  }
+  av.userData.ropaVisual = parts;
+  if (arm && arm.material) arm.material.color.setHex(ropa.color);
+}
+function armaDeTito(item) {
+  return !!(state.modoLadron && item && (GUN_SPECS[item.key] || (item.dmg && !item.gadget && !item.ammo && String(item.key || '').indexOf('bm_') === 0)));
+}
+function bloquearTito(item) {
+  if (!armaDeTito(item)) return false;
+  if (titoPuedeDarArma(state.night || 0, state.titoPagadoHasta || 0)) return false;
+  const debe = deudaTito(state.night || 0, state.titoPagadoHasta || 0);
+  toast('🕶️ Tito: me debes $' + debe + '. Cada 2 días son $500. Sin pago no hay más armas.');
+  if (typeof say === 'function') say('🕶️ Tito', 'Págame lo de estos días y volvemos a hablar de fierros.');
+  return true;
+}
+function pagarDeudaTito() {
+  if (!state.modoLadron) return;
+  const antes = deudaTito(state.night || 0, state.titoPagadoHasta || 0);
+  const r = pagarTito(state.creative ? 999999999 : state.money, state.night || 0, state.titoPagadoHasta || 0);
+  if (!r.ok) { toast('🕶️ Te faltan $' + r.deuda + ' para ponerte al día con Tito.'); return; }
+  if (!state.creative) state.money = r.money;
+  state.titoPagadoHasta = r.pagadoHasta;
+  toast(antes <= 0 ? '🕶️ Tito: estás al día.' : '🕶️ Le pagaste $' + antes + ' a Tito. Ya puedes pedirle armas.');
+  saveGame();
+}
+function spawnPoliciaLadron() {
+  const p = makePerson(0x1e3a8a, 0xf1c27d);
+  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.22, 0.52), mat(0x1e40af));
+  helm.position.y = 2.35; p.add(helm);
+  const ang = Math.random() * Math.PI * 2;
+  const rad = 10 + Math.random() * 8;
+  p.position.set(player.position.x + Math.cos(ang) * rad, 0, player.position.z + Math.sin(ang) * rad);
+  p.userData.hp = VIDA_POLICIA; p.userData.oficial = true;
+  p.userData.ox = p.position.x; p.userData.oz = p.position.z; p.userData.giro = ang;
+  scene.add(p); police.push(p);
+}
+function pegarOficial(person, dmg) {
+  if (!state.modoLadron || !person || person.userData.muerto) return false;
+  const r = oficialMuere(person.userData.hp == null ? VIDA_POLICIA : person.userData.hp, dmg);
+  person.userData.hp = r.hp;
+  const pos = person.position.clone(); pos.y += 2.35;
+  if (typeof floatText === 'function') floatText(pos, r.muerto ? '💀' : String(r.hp), '#fecaca', 16);
+  if (!r.muerto) { beep(180, .05, .04); return true; }
+  person.userData.muerto = true; person.userData.persigue = false; person.visible = false;
+  if (person.userData.car) { scene.remove(person.userData.car); person.userData.car = null; }
+  const i = police.indexOf(person);
+  if (i >= 0) { scene.remove(person); police.splice(i, 1); state.ladronRefuerzo = 12; }
+  else person.userData.revive = 45;
+  toast('💀 Cayó. Ese ya no te persigue.');
+  beep(90, .12, .05);
+  return true;
+}
+function oficialEnGolpe(dir, alcance) {
+  if (!state.modoLadron) return null;
+  let best = null, bestD = alcance;
+  for (const person of police.concat(mallGuardias)) {
+    if (!person.visible || person.userData.muerto) continue;
+    const d = dist3D(player.position, person.position);
+    if (d >= bestD) continue;
+    const to = new THREE.Vector3().subVectors(person.position, player.position).normalize();
+    if (to.dot(dir) > 0.12) { best = person; bestD = d; }
+  }
+  return best;
+}
+function gunRaycastOficial(from, dir, range) {
+  if (!state.modoLadron) return null;
+  let best = null, bestT = range, bestHead = false, bestPoint = null;
+  const rel = new THREE.Vector3();
+  for (const person of police.concat(mallGuardias)) {
+    if (!person.visible || person.userData.muerto) continue;
+    rel.copy(person.position).sub(from);
+    const t = rel.dot(dir);
+    if (t < 0.2 || t > bestT) continue;
+    const px = from.x + dir.x * t, py = from.y + dir.y * t, pz = from.z + dir.z * t;
+    if (Math.hypot(px - person.position.x, pz - person.position.z) > 0.85) continue;
+    if (py < person.position.y - .2 || py > person.position.y + 2.5) continue;
+    best = person; bestT = t; bestHead = py >= person.position.y + 1.7;
+    bestPoint = new THREE.Vector3(px, py, pz);
+  }
+  return best ? { person: best, head: bestHead, point: bestPoint, dist: bestT } : null;
+}
+function updatePoliciaLadron(dt) {
+  if (state.planet !== 'tierra' || state.country) {
+    if (police.length) clearPolice();
+    asegurarFaroles(false);
+    return;
+  }
+  asegurarFaroles(true);
+  if (state.cellArrest) return;
+  const camu = esCamuflaje(state.ropaPuesta);
+  let cercaNpc = false;
+  const tope = camu ? 2.4 : DELATA_CERCA;
+  for (const n of npcs) {
+    if (!n.visible) continue;
+    if (dist2D(n.position, player.position) <= tope) { cercaNpc = true; break; }
+  }
+  if (!cercaNpc) for (const k of keepers) if (dist2D(player.position, k) <= tope) { cercaNpc = true; break; }
+  const del = tickDelatar(state.delataAcum || 0, dt, cercaNpc, camu);
+  state.delataAcum = del.acum;
+  let visto = false;
+  if (del.llama) { visto = true; toast('👀 Un vecino te miró de cerca y llamó a la policía.'); }
+  if (!playerInSmoke()) {
+    for (const p of police.concat(mallGuardias)) {
+      if (!p.visible || p.userData.muerto) continue;
+      if (dist2D(p.position, player.position) <= VER_POLICIA) { visto = true; break; }
+    }
+  }
+  const tick = tickPersecucion(state.ladronChase, dt, visto);
+  state.ladronChase = tick.activa ? { left: tick.left, activa: true } : null;
+  if (tick.arranco && !del.llama) toast('🚨 Un policía te vio. Te persigue 3 minutos, aunque no hayas hecho nada.');
+  if (tick.termino) toast('😌 Pasaron los 3 minutos y no te vieron. Se van.');
+  state.ladronRefuerzo = Math.max(0, (state.ladronRefuerzo || 0) - dt);
+  const quiere = tick.activa ? 4 : 3;
+  if (state.mission !== 'alley' && police.length < quiere && state.ladronRefuerzo <= 0) spawnPoliciaLadron();
+  for (const p of police) {
+    if (p.userData.hp == null) p.userData.hp = VIDA_POLICIA;
+    if (tick.activa) {
+      const speed = state.driving ? 18 : 7.4;
+      const d = dist2D(p.position, player.position);
+      if (d <= (state.driving ? 3.4 : 1.9) && !playerAirborne()) { policeCatch(); return; }
+      moveToward(p, player.position, speed * dt);
+      p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
+      setPoliceCar(p, !!state.driving);
+      if (p.userData.car) {
+        p.userData.car.position.set(p.position.x, mountainHeightAt(p.position.x, p.position.z), p.position.z);
+        p.userData.car.rotation.y = p.rotation.y;
+      } else swingLimbs(p, dt);
+    } else {
+      setPoliceCar(p, false);
+      const ang = (p.userData.giro || 0) + dt * 0.35;
+      p.userData.giro = ang;
+      if (p.userData.ox == null) { p.userData.ox = p.position.x; p.userData.oz = p.position.z; }
+      const meta = { x: p.userData.ox + Math.cos(ang) * 6, z: p.userData.oz + Math.sin(ang) * 6 };
+      moveToward(p, meta, 2.1 * dt);
+      p.rotation.y = Math.atan2(meta.x - p.position.x, meta.z - p.position.z);
+      swingLimbs(p, dt);
+    }
+  }
+  for (const g of mallGuardias) {
+    if (g.userData.muerto) {
+      g.userData.revive = (g.userData.revive || 45) - dt;
+      if (g.userData.revive <= 0) {
+        g.userData.muerto = false; g.userData.hp = VIDA_POLICIA; g.visible = true; g.userData.persigue = false;
+        if (g.userData.a) g.position.set(g.userData.a.x, 0, g.userData.a.z);
+      }
+      continue;
+    }
+    if (g.userData.hp == null) g.userData.hp = VIDA_POLICIA;
+    g.userData.persigue = !!(tick.activa && dist2D(g.position, player.position) < 42);
+    if (!g.userData.persigue) continue;
+    const d = dist2D(g.position, player.position);
+    if (d <= 1.9 && !playerAirborne()) { policeCatch(); return; }
+    moveToward(g, player.position, 6.2 * dt);
+    g.rotation.y = Math.atan2(player.position.x - g.position.x, player.position.z - g.position.z);
+    swingLimbs(g, dt);
+  }
+}
+function zonaAsalto() {
+  if (!state.modoLadron || state.planet !== 'tierra' || state.country) return null;
+  if (enTiendaSuper(player.position.x, player.position.z, LUGARES.super.x, LUGARES.super.z)) return 'super';
+  if (dentroDelMall(player.position.x, player.position.z) && enSuperMall(player.position.x, player.position.z)) return 'mall';
+  return null;
+}
+function tryRobarTienda() {
+  const zona = zonaAsalto();
+  if (!zona) return false;
+  if (typeof nearKeeper === 'function' && nearKeeper()) return false;
+  if (typeof mallPuestoCerca === 'function' && mallPuestoCerca()) return false;
+  const ahora = performance.now();
+  if (!state.roboCd) state.roboCd = {};
+  if ((state.roboCd[zona] || 0) > ahora) { toast('La caja está vacía. Vuelve en unos segundos.'); return true; }
+  const botin = asaltoTienda();
+  addMoney(botin.plata);
+  if (!state.inv) state.inv = {};
+  state.inv[botin.cosa.key] = (state.inv[botin.cosa.key] || 0) + botin.cosa.n;
+  state.roboCd[zona] = ahora + ROBO_ESPERA_SEG * 1000;
+  if (typeof coinBurst === 'function') coinBurst(player.position, 10);
+  toast('💰 Robaste $' + botin.plata + ' y ' + botin.cosa.n + ' de ' + botin.cosa.name + '.');
+  beep(520, .08, .05);
+  return true;
 }
 
 // ===================================================================
@@ -11917,7 +12274,7 @@ function updateMall(dt) {
   if (state.planet !== 'tierra') return;
   if (state.phase === 'NIGHT') sacarDelMall();
   for (const g of mallGuardias) {
-    if (!g.visible) continue;
+    if (!g.visible || g.userData.persigue || g.userData.muerto) continue;
     const dest = g.userData.haciaB ? g.userData.b : g.userData.a;
     const d = Math.hypot(g.position.x - dest.x, g.position.z - dest.z);
     if (d < .45) g.userData.haciaB = !g.userData.haciaB;
@@ -16775,6 +17132,7 @@ function tryInteract() {
   if (tryAlleyInteract()) return;
   if (tryJobInteract()) return;   // recados: calmar al perro / abrir el cajón
   if (tryDoor()) return;          // abrir / cerrar la puerta de tu casa
+  if (tryRobarTienda()) return;   // modo ladrón: asaltar el súper o el súper del mall
   if (tryTorre()) return;         // edificio: conserje, ascensor y puertas de los deptos
   if (tryEntrada()) return;       // entrar / salir de los edificios por la puerta
   if (tryMall()) return;          // mall: cine, palomitas, caja, patio y la puerta
@@ -17176,6 +17534,7 @@ function renderContractRow(list) {   // fila del contrato arriba de la tienda (s
   list.appendChild(row);
 }
 function shopIcon(item) {
+  if (item.ropa) return item.ropa === 'camuflaje' ? '🥷' : '👕';
   if (item.key === 'mayordomo') return '🤵';
   if (item.phone) return '📱';
   if (item.key === 'helicoptero') return '🚁';
@@ -17385,6 +17744,13 @@ function openNamebox(mode) {
   setTimeout(() => { try { ui('nameInput').focus(); } catch (e) {} }, 60);
 }
 ui('startBtn').onclick = () => openNamebox('normal');
+ui('modoLadronBtn').onclick = () => {
+  menuModoLadron = !menuModoLadron;
+  try { localStorage.setItem('tim_modo_ladron', menuModoLadron ? '1' : '0'); } catch (e) {}
+  pintarBotonLadron();
+  toast(menuModoLadron ? 'La próxima partida nueva será en MODO LADRÓN.' : 'La próxima partida nueva será normal.');
+};
+pintarBotonLadron();
 ui('creativeBtn').onclick = () => openNamebox('creative');
 ui('startRankingBtn').onclick = () => openLeaderboard();
 ui('nameCancel').onclick = () => { ui('namebox').style.display = 'none'; };
@@ -17557,6 +17923,7 @@ if (ui('jobBtn')) ui('jobBtn').onclick = jobBtnClick;
 if (ui('blackCloseBtn')) ui('blackCloseBtn').onclick = closeBlackMarket;
 if (ui('blackList')) ui('blackList').onclick = e => {
   const key = e.target.closest('[data-bm]')?.dataset.bm; if (!key) return;
+  if (key === 'tito-pagar') { pagarDeudaTito(); renderBlackMarket(); return; }
   const item = BLACK_MARKET.find(x => x.key === key); if (!item) return;
   buyItem(item); renderBlackMarket();
 };
@@ -17857,8 +18224,12 @@ function startGame() {
   scene.fog.far = 160;   // niebla normal de la Tierra
   resetWeather();
   syncFarWorld();
+  state.ropaLadron = {}; state.ropaPuesta = null; state.titoPagadoHasta = 0; state.ladronChase = null; state.delataAcum = 0; state.roboCd = {};
+  mostrarCeldaLadron(false);
+  setModoLadron(!!menuModoLadron, false);
   toast('Empiezas con $' + START_MONEY + ': el terreno vale $' + PRECIO_TERRENO + ' y lo que sobre es para el súper 🛒');
   toast('📍 PRIMER PASO · Sigue la flecha al cartel 🪧 TERRENO EN VENTA del condominio y pulsa E');
+  if (state.modoLadron) toast('🦹 MODO LADRÓN activo. La policía te persigue si te ve. Roba tiendas con E.');
 }
 // Guardado / carga de la partida (localStorage)
 // ===================================================================
@@ -18797,6 +19168,9 @@ function saveGame() {
       petAlien: !!petAlien, petAlienHp: petAlien?.userData.hp, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       guns: state.guns || {}, gun: state.gun || null, ammo: state.ammo || 0, clip: state.clip || 0, gadgetCharges: state.gadgetCharges || {}, handGadget: state.handGadget || null,   // armas de fuego y bombas de mano
       creative: !!state.creative,
+      modoLadron: !!state.modoLadron, ropaLadron: state.ropaLadron || {}, ropaPuesta: state.ropaPuesta || null, titoPagadoHasta: state.titoPagadoHasta || 0,
+      ladronChaseLeft: state.ladronChase && state.ladronChase.activa ? state.ladronChase.left : 0,
+      cellArrestLadron: !!(state.cellArrest && state.cellArrest.ladron),
       hasPhone: !!state.hasPhone, skiPass: !!state.skiPass, skiGear: state.skiGear || null, skiGearWorn: !!state.skiGearWorn,
       cameraMode: cameraMode,
       sports: {
@@ -19120,6 +19494,7 @@ function togglePause(force) {
     ui('pausePerf').textContent = '⚡ Detalle: ' + DETAIL[detailLevel].name;
     if (ui('pauseFps')) ui('pauseFps').textContent = '🎞️ Detalle: ' + DETAIL[detailLevel].name;
     if (ui('pauseCreativeRow')) { ui('pauseCreativeRow').style.display = state.creative ? 'flex' : 'none'; ui('pauseStageVal').textContent = state.stage; }   // control de etapa infinita (solo creativo)
+    pintarBotonLadron();
     saveGame();   // pausar también guarda (por si acaso)
   }
 }
@@ -19134,6 +19509,10 @@ function setCreativeStage(delta) {
 if (ui('pauseStageUp')) ui('pauseStageUp').onclick = () => setCreativeStage(1);
 if (ui('pauseStageDown')) ui('pauseStageDown').onclick = () => setCreativeStage(-1);
 ui('pauseResume').onclick = () => togglePause(false);
+if (ui('pauseLadron')) ui('pauseLadron').onclick = () => {
+  if (state.cellArrest && state.cellArrest.ladron) { toast('Estás en la celda. Sigues en modo ladrón.'); return; }
+  setModoLadron(!state.modoLadron, true);
+};
 ui('sensSlider').oninput = () => { lookMult = parseFloat(ui('sensSlider').value); ui('sensVal').textContent = lookMult.toFixed(1) + '×'; try { localStorage.setItem('tim_sens', String(lookMult)); } catch (e) {} };
 ui('btnSlider').oninput = () => { btnScale = parseFloat(ui('btnSlider').value); ui('btnVal').textContent = btnScale.toFixed(1) + '×'; applyBtnScale(); try { localStorage.setItem('tim_btnsize', String(btnScale)); } catch (e) {} };
 ui('pauseSound').onclick = () => { toggleSound(); ui('pauseSound').textContent = soundOn ? '🔊 Sonido: SÍ' : '🔇 Sonido: NO'; };
@@ -19714,6 +20093,12 @@ function loadGame() {
   state.foundSecrets = d.foundSecrets || {}; state.secretsFound = d.secretsFound || Object.keys(state.foundSecrets).length; syncWorldSecrets();
   state.reputation = d.reputation || 0; state.medals = d.medals || {}; state.blueprints = d.blueprints || {}; state.citizenFavors = d.citizenFavors || {};
   state.creative = !!d.creative;
+  state.modoLadron = !!d.modoLadron;
+  state.ropaLadron = d.ropaLadron && typeof d.ropaLadron === 'object' ? d.ropaLadron : {};
+  state.ropaPuesta = (d.ropaPuesta && state.ropaLadron[d.ropaPuesta]) ? d.ropaPuesta : null;
+  state.titoPagadoHasta = d.titoPagadoHasta || 0;
+  state.ladronChase = (d.ladronChaseLeft || 0) > 0 ? { left: d.ladronChaseLeft, activa: true } : null;
+  state.delataAcum = 0;
   cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
   const savedSports = d.sports || {};
   soccer.scoreRed = +(savedSports.soccer && savedSports.soccer[0]) || 0; soccer.scoreBlue = +(savedSports.soccer && savedSports.soccer[1]) || 0; updateScoreboard();
@@ -19764,9 +20149,11 @@ function loadGame() {
   player.position.set(d.px != null ? d.px : 10, spawnY, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
   state.cellArrest = null;
   if ((d.cellArrestLeft || 0) > 0 && state.planet === 'tierra' && !state.country) {
-    state.cellArrest = { left: Math.min(POLICE_CELL_SEC, d.cellArrestLeft) };
+    const ladronCelda = !!d.cellArrestLadron && !!state.modoLadron;
+    state.cellArrest = { left: Math.min(ladronCelda ? CELDA_LADRON_SEG : POLICE_CELL_SEC, d.cellArrestLeft), ladron: ladronCelda };
     const cb = celdaArrestoBounds();
     player.position.set(cb.x, PLAYER_EYE, cb.z); yaw = Math.PI;
+    if (state.cellArrest.ladron) mostrarCeldaLadron(true, state.cellArrest.left);
   }
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
   dad.userData.mode = d.dadMode || 'follow';
@@ -19799,6 +20186,9 @@ function loadGame() {
   state.recordShown = state.totalEarned >= ((getBest() || {}).total || 0);   // no re-celebrar el récord de esta misma partida
   restoreWorldClock(d);   // noche, tormenta, eclipse y monstruos: se quedan como al salir
   syncFarWorld();
+  aplicarRopaPuesta();
+  asegurarFaroles(!!state.modoLadron);
+  pintarBotonLadron();
   return true;
 }
 function continueGame() {
@@ -19867,7 +20257,7 @@ function resetAll() {
 let buyHold = 0;
 function updateBuying(dt) {
   const ring = ui('buyring');
-  if (state.phase !== 'DAY' || state.buildMode || state.planet === 'platus') { ring.style.display = 'none'; buyHold = 0; return; }
+  if (state.phase !== 'DAY' || state.buildMode || state.planet === 'platus' || (state.modoLadron && zonaAsalto())) { ring.style.display = 'none'; buyHold = 0; return; }
   let near = null; for (const it of shopStands) { if (dist2D(player.position, it.pos) < 2.8) { near = it; break; } }
   if (!near) { ring.style.display = 'none'; buyHold = 0; return; }
   ring.style.display = 'block';
@@ -21102,6 +21492,14 @@ function paintHouse(color, label) {
   toast('🎨 Pintaste tu casa (' + n + ' piezas) de ' + label.replace('Pintura ', '')); beep(520, 0.1, 0.04);
 }
 function buyItem(item) {
+  if (item && item.ropa) {
+    const r = comprarRopa({ modoLadron: !!state.modoLadron, money: state.money, creative: !!state.creative, ropa: state.ropaLadron }, item.ropa);
+    if (!r.ok) { toast(r.razon === 'plata' ? '💸 Te falta plata para la ropa' : 'La ropa solo se compra en el modo ladrón'); return; }
+    state.money = r.money; state.ropaLadron = r.ropa; state.ropaPuesta = r.puesta;
+    aplicarRopaPuesta();
+    toast('👕 ' + r.name + ' puesta. Se te ve en el cuerpo.' + (r.camuflaje ? ' Con el camuflaje casi no te reconocen.' : ''));
+    saveGame(); return;
+  }
   const fromAlley = !!(item && (item.gadget || (item.key && String(item.key).indexOf('bm_') === 0)));
   if (item.ammo) {   // caja de balas del mercado negro
     if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
@@ -21126,24 +21524,28 @@ function buyItem(item) {
   if (GUN_SPECS[item.key]) {   // ARMA DE FUEGO: se guarda en tu colección y se equipa con 1
     const g = GUN_SPECS[item.key];
     if (state.guns && state.guns[item.key]) { equipHandItem({ t: 'gun', key: item.key }); toast(g.icon + ' ' + g.name + ' en la mano · ' + gunAmmoText()); return; }
-    if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
-    if (!state.creative) state.money -= item.price;
+    if (bloquearTito(item)) return;
+    const precio = precioArmaTito(item.price, !!state.modoLadron, true);
+    if (!state.creative && state.money < precio) { toast('💸 Te falta plata'); return; }
+    if (!state.creative) state.money -= precio;
     if (!state.guns) state.guns = {};
     const primera = !Object.keys(state.guns).length;
     state.guns[item.key] = true;
     if (primera) { state.clip = GUN_CLIP; state.ammo = (state.ammo || 0) + 0; }   // viene con el cargador puesto
     equipHandItem({ t: 'gun', key: item.key });
-    toast(g.icon + ' ' + g.name + ' · ' + g.dmg + ' de daño' + (g.scope ? ' · con MIRA: en la cabeza x' + g.head : ' · en la cabeza x' + g.head) + ' · ' + gunAmmoText());
+    toast((precio === 0 ? '🕶️ Tito te la dejó gratis. ' : '') + g.icon + ' ' + g.name + ' · ' + g.dmg + ' de daño' + (g.scope ? ' · con MIRA: en la cabeza x' + g.head : ' · en la cabeza x' + g.head) + ' · ' + gunAmmoText());
     storyProgress('alley', 5); saveGame(); return;
   }
   if (fromAlley && item.dmg) {
-    if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
-    if (!state.creative) state.money -= item.price;
+    if (bloquearTito(item)) return;
+    const precioMelee = precioArmaTito(item.price, !!state.modoLadron, true);
+    if (!state.creative && state.money < precioMelee) { toast('💸 Te falta plata'); return; }
+    if (!state.creative) state.money -= precioMelee;
     if (item.dmg > state.weaponDmg) {
       state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color || 0x4b5563);
       rememberMeleeWeapon(item.name, item.dmg, item.color);
       equipHandWeapon('melee');
-      toast('⚔️ ' + item.name + ' en la mano: hace ' + item.dmg + ' de daño');
+      toast((precioMelee === 0 ? '🕶️ Tito te la dejó gratis. ' : '') + '⚔️ ' + item.name + ' en la mano: hace ' + item.dmg + ' de daño');
     } else toast('Ya tienes un arma más fuerte (' + state.weaponName + ')');
     storyProgress('alley', 5); saveGame(); return;
   }
@@ -21734,6 +22136,10 @@ function startNight() {
   state.phase = 'NIGHT'; state.nightTime = 0; state.spawnTimer = 0; state.buildMode = false;
   sacarDelMall();   // si estabas adentro del mall, te dejan en la puerta
   state.night++;
+  if (state.modoLadron && state.night % 2 === 0) {
+    const debe = deudaTito(state.night, state.titoPagadoHasta || 0);
+    if (debe > 0) toast('🕶️ Pasaron 2 días. Le debes a Tito $' + debe + '. Sin pago no te da más armas.');
+  }
   tutorialEvent('nightStarted');
   const duration = currentNightLength();
   state.chestAt = [Math.min(duration * .28, 25), Math.min(duration * .65, 95)];
@@ -21820,6 +22226,8 @@ function attack(multiplier = 1) {
     const d = dist3D(p, e.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(e.position, p).normalize(); if (to.dot(dir) > cono) { best = e; bestD = d; } }
   }
+  const oficial = oficialEnGolpe(dir, range);
+  if (oficial && (!best || dist3D(p, oficial.position) <= bestD)) { pegarOficial(oficial, dmg); return; }
   if (best) { hitEnemy(best, dmg, p); if (laserEquipped()) shootBeam(best.position); }   // el botín flotante avisa cuánto pagó el kill
   else if (!tryMineIslandOre() && !tryHitGeode() && !tryMineCrater() && !tryMineCrystal()) tryMineCoal();   // isla o recursos de Platus
 }
@@ -22119,7 +22527,16 @@ function fireGun(spec) {
   const dir = new THREE.Vector3(); getAimDirection(dir);
   const from = player.position.clone().addScaledVector(dir, .7); from.y -= .18;
   const hit = gunRaycastEnemy(from, dir, spec.range);
+  const oficialBala = gunRaycastOficial(from, dir, spec.range);
   const persona = gunRaycastPerson(from, dir, hit ? hit.dist : spec.range);   // a la gente también le llega
+  if (oficialBala && (!persona || oficialBala.dist <= persona.dist) && (!hit || oficialBala.dist <= hit.dist)) {
+    const dmgBala = Math.round(spec.dmg * (oficialBala.head ? spec.head : 1));
+    spawnTracer(from, oficialBala.point.clone());
+    voxelImpact(oficialBala.point.clone(), 0xfecaca, 8);
+    pegarOficial(oficialBala.person, dmgBala);
+    if ((state.clip || 0) <= 0) startReload(true);
+    return true;
+  }
   const to = persona ? persona.point.clone() : hit ? hit.point.clone() : from.clone().addScaledVector(dir, spec.range);
   spawnTracer(from, to);
   if (persona) {
@@ -22226,6 +22643,8 @@ function attackNPC() {
     const d = dist3D(p, person.position);
     if (d < bestD) { const to = new THREE.Vector3().subVectors(person.position, p).normalize(); if (to.dot(dir) > 0.2) { best = person; bestD = d; } }
   }
+  const oficial = oficialEnGolpe(dir, range);
+  if (oficial && (!best || dist3D(p, oficial.position) <= bestD)) { vmSwing = 1; beep(300, 0.05, 0.03); pegarOficial(oficial, state.weaponDmg); return; }
   if (!best) return;
   vmSwing = 1; beep(300, 0.05, 0.03);
   const push = new THREE.Vector3().subVectors(best.position, p).setY(0).normalize().multiplyScalar(1.2);
@@ -23705,6 +24124,29 @@ function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100)
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
   const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, renderShopList, openShopInput, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, startPoliceCellArrest, updateCellArrest, releasePoliceCellArrest, celdaArrestoBounds, POLICE_CELL_SEC, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, abrirDeptos, enInteriorMirador, updateDad, damagePlayer, damageDad, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, amoblarDepto, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  timDump.ponerRopa = (id) => {
+    state.modoLadron = true; state.creative = true; state.money = 5000;
+    const r = comprarRopa(state, id || 'camuflaje');
+    if (r.ok) { state.ropaLadron = r.ropa; state.ropaPuesta = r.puesta; }
+    aplicarRopaPuesta(); asegurarFaroles(true);
+    cameraMode = 2; yaw = 0.4; pitch = -0.2;
+    return { ok: !!r.ok, puesta: state.ropaPuesta, partes: (playerAvatar.userData.ropaVisual || []).length };
+  };
+  timDump.verCartel = () => {
+    state.modoLadron = true; state.planet = 'tierra'; state.country = null;
+    if (state.cellArrest) releasePoliceCellArrest();
+    asegurarFaroles(true);
+    player.position.set(2.2, PLAYER_EYE, 40); vy = 0;
+    yaw = -Math.PI / 2; pitch = -0.08; cameraMode = 0;
+    const f = farolesLadron.find(g => Math.abs(g.position.z - 40) < 1 && Math.abs(g.position.x - 6.4) < 1);
+    return { faroles: farolesLadron.length, visible: farolesLadron.filter(g => g.visible).length, cerca: !!f };
+  };
+  timDump.meterCelda = () => {
+    state.modoLadron = true; state.money = 2500; state.phase = 'DAY';
+    if (state.cellArrest) state.cellArrest = null;
+    startPoliceCellArrest();
+    return { money: state.money, left: state.cellArrest && state.cellArrest.left, reloj: ui('celdaReloj') && ui('celdaReloj').textContent };
+  };
   timDump.snapshot = () => ({
     x: +player.position.x.toFixed(3), y: +player.position.y.toFixed(3), z: +player.position.z.toFixed(3), vy: +vy.toFixed(3),
     flying: !!creativeFlying, inWater: !!state.inWater, underwater: !!state.underwater, skiing: !!state.skiing,
@@ -24606,6 +25048,7 @@ function updateContextPrompt() {
       else if (parkedFuelCar) action = { key: 'E', touch: '⛽', text: 'Comprar gasolina · $3 por unidad' };
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
+      else if (state.modoLadron && zonaAsalto() && !nearKeeper()) action = { key: 'E', touch: '💰', text: 'Robar la tienda · plata y algo del local' };
       else if (nearKeeper()) action = { key: 'E', touch: '🛒', text: 'Hablar con el vendedor y comprar' };
       else if (bankDeskNear() === 'cajera') action = { key: 'E', touch: '🏦', text: 'Hablar con la cajera · depósitos, retiros y préstamos' };
       else if (bankDeskNear() === 'cajero') action = { key: 'E', touch: '🏧', text: 'Usar el cajero automático' };
@@ -24623,7 +25066,7 @@ function updateContextPrompt() {
       else if (state.phase === 'DAY') {
         let product = null;
         for (const it of shopStands) if (dist2D(player.position, it.pos) < 2.8) { product = it; break; }
-        if (product) action = { key: 'E', touch: '🤝', text: 'Mantén para comprar ' + product.name + ' · $' + product.price };
+        if (product && !(state.modoLadron && zonaAsalto())) action = { key: 'E', touch: '🤝', text: 'Mantén para comprar ' + product.name + ' · $' + product.price };
         else { const crop = CROP_DEFS[selectedCrop]; if ((state.inv[crop.seedKey] || 0) > 0) action = { key: 'E', touch: crop.icon, text: 'Plantar ' + crop.name.toLowerCase() + ' · Shift+K cambia cultivo' }; }
         if (!action && houseStats().ready) action = { key: 'N', touch: '🌙', text: 'Empezar la noche cuando estés preparado' };
       }
@@ -24732,6 +25175,12 @@ function renderHUD() {
   if (currentBlueprint()) gear.unshift('📐 ' + currentBlueprint().name + ' · ' + currentBlueprint().parts.length + ' piezas');
   if (state.armorFactor < 1) gear.push('🛡️ -' + Math.round((1 - state.armorFactor) * 100) + '% daño recibido');
   if (state.creative) gear.unshift('🎨 CREATIVO');
+  if (state.modoLadron) {
+    gear.unshift('🦹 LADRÓN');
+    const debeTito = deudaTito(state.night || 0, state.titoPagadoHasta || 0);
+    if (debeTito > 0) gear.push('🕶️ le debes a Tito $' + debeTito);
+    if (state.ropaPuesta && ropaPorId(state.ropaPuesta)) gear.push((esCamuflaje(state.ropaPuesta) ? '🥷 ' : '👕 ') + ropaPorId(state.ropaPuesta).name);
+  }
   if (playerAirborne() && !torreAdentro()) gear.unshift('🪽 en el aire · 3 bloques · los de tierra no te pegan · policía no te atrapa');
   if (state.ngplus) gear.unshift('⭐ Partida+');
   if (state.planet === 'platus') gear.unshift('🧑‍🚀 · ⚫ carbón ' + (state.inv.carbon || 0) + (verdaniaReady() ? ' · 🌟 ¡VERDANIA te espera! (cohete)' : ''));
@@ -24799,7 +25248,8 @@ function renderHUD() {
     else if (solarClock().kind === 'sunset') obj = '🌇 Atardece. La noche empieza cuando el sol se pone.';
     else obj = '⏩ Pulsa N: empieza la noche YA (+$100 por madrugar) · 🏆 casa dorada en la ciudad';
   } else if (state.phase === 'NIGHT') obj = (state.hordeOn ? '🚨 ¡HORDA FINAL! ' : (state.bossNight ? '⚔️ NOCHE JEFE (paga x3) · ' : '🗡️ ¡Defiende! ')) + 'Quedan ' + fmt(currentNightLength() - state.nightTime);
-  if (state.wanted > 0) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';
+  if (state.wanted > 0 && !state.modoLadron) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';
+  if (state.modoLadron && state.ladronChase && state.ladronChase.activa) obj = '🚨 TE VIERON · la policía te persigue · ' + fmtCeldaTiempo(state.ladronChase.left);
   setTextIfChanged(ui('objective'), obj);
   renderRoadmap();
 }

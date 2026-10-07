@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CELDA_LADRON_SEG, DELATA_CERCA, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, comprarRopa, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, oficialMuere, pagarTito, puedeComprarRopa, precioArmaTito, ropaPorId, tickDelatar, tickPersecucion, titoPuedeDarArma } from './src/modo-ladron.js?v=1';
+import { CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, compraTeMarca, comprarRopa, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, oficialMuere, pagarTito, puedeComprarRopa, policiaReconoce, precioArmaTito, ropaPorId, tickLlamada, tickPersecucion, titoPuedeDarArma } from './src/modo-ladron.js?v=2';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -4946,10 +4946,7 @@ function setPoliceCar(p, driving) {
 }
 // Te vuelves BUSCADO. Cada delito SUMA estrellas (1-5): más estrellas = más policías, más rápidos y por más tiempo.
 function becomeWanted(sec, stars) {
-  if (state.modoLadron) {
-    state.ladronChase = tickPersecucion(state.ladronChase, 0, true);
-    return;
-  }
+  if (state.modoLadron) return;   // en modo ladrón persiguen solo si te reconocen o si un npc termina la llamada
   stars = stars || 1;
   state.wantedLevel = Math.min(5, (state.wantedLevel || 0) + stars);
   state.wanted = Math.max(state.wanted, sec + state.wantedLevel * 5);
@@ -5030,7 +5027,7 @@ function setModoLadron(on, avisar) {
   state.modoLadron = !!on;
   if (!state.modoLadron) {
     state.ladronChase = null;
-    state.delataAcum = 0;
+    state.ladronLlamada = 0;
     if (typeof clearPolice === 'function') clearPolice();
     if (typeof mallGuardias !== 'undefined') {
       for (const g of mallGuardias) {
@@ -5076,6 +5073,7 @@ function hacerFarolLadron(x, z, mira) {
   const cartel = new THREE.Mesh(new THREE.PlaneGeometry(.78, 1.04), new THREE.MeshStandardMaterial({ map: texturaSeBusca(), roughness: .92 }));
   cartel.position.set(mira === 'x' ? -.2 : 0, 1.65, mira === 'z' ? -.2 : 0);
   cartel.rotation.y = mira === 'x' ? -Math.PI / 2 : Math.PI;
+  cartel.userData.seBusca = true;
   grupo.add(cartel);
   grupo.position.set(x, 0, z); grupo.visible = false;
   scene.add(grupo); farolesLadron.push(grupo);
@@ -5086,8 +5084,12 @@ function asegurarFaroles(on) {
     for (const z of [-120, -80, -40, 0, 40, 80, 120]) hacerFarolLadron(6.4, z, 'x');
     for (const x of [-120, -80, -40, 40, 80, 120]) hacerFarolLadron(x, 6.4, 'z');
   }
-  const ver = !!on && !!state.modoLadron && state.planet === 'tierra' && !state.country;
-  for (const f of farolesLadron) f.visible = ver;
+  const enTierra = !!on && !!state.modoLadron && state.planet === 'tierra' && !state.country;
+  const conCartel = enTierra && mostrarCartel(state.ladronFama || 0);
+  for (const f of farolesLadron) {
+    f.visible = enTierra;
+    for (const hijo of f.children) if (hijo.userData && hijo.userData.seBusca) hijo.visible = conCartel;
+  }
 }
 function aplicarRopaPuesta() {
   const av = typeof playerAvatar !== 'undefined' ? playerAvatar : null;
@@ -5143,6 +5145,15 @@ function bloquearTito(item) {
   toast('🕶️ Tito: me debes $' + debe + '. Cada 2 días son $500. Sin pago no hay más armas.');
   if (typeof say === 'function') say('🕶️ Tito', 'Págame lo de estos días y volvemos a hablar de fierros.');
   return true;
+}
+function marcarCompraLadron() {
+  if (!state.modoLadron) return;
+  const antes = state.ladronFama || 0;
+  state.ladronFama = compraTeMarca(antes, true);
+  asegurarFaroles(true);
+  toast(masBuscado(antes)
+    ? '🚨 Quedaste más buscado.'
+    : '🚨 Quedaste más buscado. Ahora te reconocen: un vecino puede llamar y la policía te persigue.');
 }
 function pagarDeudaTito() {
   if (!state.modoLadron) return;
@@ -5219,18 +5230,22 @@ function updatePoliciaLadron(dt) {
   asegurarFaroles(true);
   if (state.cellArrest) return;
   const camu = esCamuflaje(state.ropaPuesta);
-  let cercaNpc = false;
+  const fama = state.ladronFama || 0;
+  let teVe = false;
   const tope = camu ? 2.4 : DELATA_CERCA;
   for (const n of npcs) {
     if (!n.visible) continue;
-    if (dist2D(n.position, player.position) <= tope) { cercaNpc = true; break; }
+    if (dist2D(n.position, player.position) <= tope) { teVe = true; break; }
   }
-  if (!cercaNpc) for (const k of keepers) if (dist2D(player.position, k) <= tope) { cercaNpc = true; break; }
-  const del = tickDelatar(state.delataAcum || 0, dt, cercaNpc, camu);
-  state.delataAcum = del.acum;
+  if (!teVe) for (const k of keepers) if (dist2D(player.position, k) <= tope) { teVe = true; break; }
+  const antesLlamada = state.ladronLlamada || 0;
+  const del = tickLlamada(antesLlamada, dt, teVe, fama, camu);
+  state.ladronLlamada = del.acum;
+  if (teVe && antesLlamada < 0.2 && del.acum > antesLlamada && !del.llama && masBuscado(fama) && !camu)
+    toast('📞 Un vecino te reconoció. Está llamando a la policía. Tarda 8 segundos.');
   let visto = false;
-  if (del.llama) { visto = true; toast('👀 Un vecino te miró de cerca y llamó a la policía.'); }
-  if (!playerInSmoke()) {
+  if (del.llama) { visto = true; toast('🚨 Terminó la llamada. Ahora la policía te persigue 3 minutos.'); }
+  if (policiaReconoce(fama, camu) && !playerInSmoke()) {
     for (const p of police.concat(mallGuardias)) {
       if (!p.visible || p.userData.muerto) continue;
       if (dist2D(p.position, player.position) <= VER_POLICIA) { visto = true; break; }
@@ -5238,7 +5253,7 @@ function updatePoliciaLadron(dt) {
   }
   const tick = tickPersecucion(state.ladronChase, dt, visto);
   state.ladronChase = tick.activa ? { left: tick.left, activa: true } : null;
-  if (tick.arranco && !del.llama) toast('🚨 Un policía te vio. Te persigue 3 minutos, aunque no hayas hecho nada.');
+  if (tick.arranco && !del.llama) toast('🚨 Un policía te reconoció. Te persigue 3 minutos.');
   if (tick.termino) toast('😌 Pasaron los 3 minutos y no te vieron. Se van.');
   state.ladronRefuerzo = Math.max(0, (state.ladronRefuerzo || 0) - dt);
   const quiere = tick.activa ? 4 : 3;
@@ -18224,12 +18239,12 @@ function startGame() {
   scene.fog.far = 160;   // niebla normal de la Tierra
   resetWeather();
   syncFarWorld();
-  state.ropaLadron = {}; state.ropaPuesta = null; state.titoPagadoHasta = 0; state.ladronChase = null; state.delataAcum = 0; state.roboCd = {};
+  state.ropaLadron = {}; state.ropaPuesta = null; state.titoPagadoHasta = 0; state.ladronChase = null; state.ladronFama = famaInicial(); state.ladronLlamada = 0; state.roboCd = {};
   mostrarCeldaLadron(false);
   setModoLadron(!!menuModoLadron, false);
   toast('Empiezas con $' + START_MONEY + ': el terreno vale $' + PRECIO_TERRENO + ' y lo que sobre es para el súper 🛒');
   toast('📍 PRIMER PASO · Sigue la flecha al cartel 🪧 TERRENO EN VENTA del condominio y pulsa E');
-  if (state.modoLadron) toast('🦹 MODO LADRÓN activo. La policía te persigue si te ve. Roba tiendas con E.');
+  if (state.modoLadron) toast('🦹 MODO LADRÓN. Casi nadie te reconoce. Si compras ropa o un arma, quedas más buscado.');
 }
 // Guardado / carga de la partida (localStorage)
 // ===================================================================
@@ -19168,7 +19183,7 @@ function saveGame() {
       petAlien: !!petAlien, petAlienHp: petAlien?.userData.hp, hasJetpack: !!state.hasJetpack, laserGun: !!state.laserGun, hasShield: !!state.hasShield,   // tecnología alien de Platus
       guns: state.guns || {}, gun: state.gun || null, ammo: state.ammo || 0, clip: state.clip || 0, gadgetCharges: state.gadgetCharges || {}, handGadget: state.handGadget || null,   // armas de fuego y bombas de mano
       creative: !!state.creative,
-      modoLadron: !!state.modoLadron, ropaLadron: state.ropaLadron || {}, ropaPuesta: state.ropaPuesta || null, titoPagadoHasta: state.titoPagadoHasta || 0,
+      modoLadron: !!state.modoLadron, ropaLadron: state.ropaLadron || {}, ropaPuesta: state.ropaPuesta || null, titoPagadoHasta: state.titoPagadoHasta || 0, ladronFama: state.ladronFama || 0,
       ladronChaseLeft: state.ladronChase && state.ladronChase.activa ? state.ladronChase.left : 0,
       cellArrestLadron: !!(state.cellArrest && state.cellArrest.ladron),
       hasPhone: !!state.hasPhone, skiPass: !!state.skiPass, skiGear: state.skiGear || null, skiGearWorn: !!state.skiGearWorn,
@@ -20098,7 +20113,8 @@ function loadGame() {
   state.ropaPuesta = (d.ropaPuesta && state.ropaLadron[d.ropaPuesta]) ? d.ropaPuesta : null;
   state.titoPagadoHasta = d.titoPagadoHasta || 0;
   state.ladronChase = (d.ladronChaseLeft || 0) > 0 ? { left: d.ladronChaseLeft, activa: true } : null;
-  state.delataAcum = 0;
+  state.ladronLlamada = 0;
+  state.ladronFama = d.ladronFama != null ? (d.ladronFama | 0) : ((state.ropaPuesta || (state.guns && Object.keys(state.guns).length)) ? 1 : 0);
   cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
   const savedSports = d.sports || {};
   soccer.scoreRed = +(savedSports.soccer && savedSports.soccer[0]) || 0; soccer.scoreBlue = +(savedSports.soccer && savedSports.soccer[1]) || 0; updateScoreboard();
@@ -21497,7 +21513,8 @@ function buyItem(item) {
     if (!r.ok) { toast(r.razon === 'plata' ? '💸 Te falta plata para la ropa' : 'La ropa solo se compra en el modo ladrón'); return; }
     state.money = r.money; state.ropaLadron = r.ropa; state.ropaPuesta = r.puesta;
     aplicarRopaPuesta();
-    toast('👕 ' + r.name + ' puesta. Se te ve en el cuerpo.' + (r.camuflaje ? ' Con el camuflaje casi no te reconocen.' : ''));
+    marcarCompraLadron();
+    toast('👕 ' + r.name + ' puesta. Se te ve en el cuerpo.' + (r.camuflaje ? ' Con el camuflaje te reconocen mucho menos.' : ''));
     saveGame(); return;
   }
   const fromAlley = !!(item && (item.gadget || (item.key && String(item.key).indexOf('bm_') === 0)));
@@ -21533,6 +21550,7 @@ function buyItem(item) {
     state.guns[item.key] = true;
     if (primera) { state.clip = GUN_CLIP; state.ammo = (state.ammo || 0) + 0; }   // viene con el cargador puesto
     equipHandItem({ t: 'gun', key: item.key });
+    if (precio === 0) marcarCompraLadron();
     toast((precio === 0 ? '🕶️ Tito te la dejó gratis. ' : '') + g.icon + ' ' + g.name + ' · ' + g.dmg + ' de daño' + (g.scope ? ' · con MIRA: en la cabeza x' + g.head : ' · en la cabeza x' + g.head) + ' · ' + gunAmmoText());
     storyProgress('alley', 5); saveGame(); return;
   }
@@ -21545,6 +21563,7 @@ function buyItem(item) {
       state.weaponDmg = item.dmg; state.weaponName = item.name; setWeaponColor(item.color || 0x4b5563);
       rememberMeleeWeapon(item.name, item.dmg, item.color);
       equipHandWeapon('melee');
+      if (precioMelee === 0) marcarCompraLadron();
       toast((precioMelee === 0 ? '🕶️ Tito te la dejó gratis. ' : '') + '⚔️ ' + item.name + ' en la mano: hace ' + item.dmg + ' de daño');
     } else toast('Ya tienes un arma más fuerte (' + state.weaponName + ')');
     storyProgress('alley', 5); saveGame(); return;
@@ -24124,6 +24143,8 @@ function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100)
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
   const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, renderShopList, openShopInput, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, startPoliceCellArrest, updateCellArrest, releasePoliceCellArrest, celdaArrestoBounds, POLICE_CELL_SEC, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, abrirDeptos, enInteriorMirador, updateDad, damagePlayer, damageDad, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, amoblarDepto, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  timDump.tickLadron = (dt) => { updatePoliciaLadron(dt == null ? 0.05 : dt); return { fama: state.ladronFama || 0, llamada: +(state.ladronLlamada || 0).toFixed(2), chase: state.ladronChase && state.ladronChase.left, cartel: farolesLadron.filter(f => f.visible).length, obj: ui('objective') && ui('objective').textContent }; };
+  timDump.pintar = () => { renderHUD(); };
   timDump.ponerRopa = (id) => {
     state.modoLadron = true; state.creative = true; state.money = 5000;
     const r = comprarRopa(state, id || 'camuflaje');
@@ -25178,6 +25199,8 @@ function renderHUD() {
   if (state.modoLadron) {
     gear.unshift('🦹 LADRÓN');
     const debeTito = deudaTito(state.night || 0, state.titoPagadoHasta || 0);
+    if (!masBuscado(state.ladronFama || 0)) gear.push('😶 casi nadie te reconoce');
+    else gear.push(esCamuflaje(state.ropaPuesta) ? '🥷 camuflado · te reconocen mucho menos' : '🚨 más buscado');
     if (debeTito > 0) gear.push('🕶️ le debes a Tito $' + debeTito);
     if (state.ropaPuesta && ropaPorId(state.ropaPuesta)) gear.push((esCamuflaje(state.ropaPuesta) ? '🥷 ' : '👕 ') + ropaPorId(state.ropaPuesta).name);
   }
@@ -25249,6 +25272,13 @@ function renderHUD() {
     else obj = '⏩ Pulsa N: empieza la noche YA (+$100 por madrugar) · 🏆 casa dorada en la ciudad';
   } else if (state.phase === 'NIGHT') obj = (state.hordeOn ? '🚨 ¡HORDA FINAL! ' : (state.bossNight ? '⚔️ NOCHE JEFE (paga x3) · ' : '🗡️ ¡Defiende! ')) + 'Quedan ' + fmt(currentNightLength() - state.nightTime);
   if (state.wanted > 0 && !state.modoLadron) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';
+  if (state.modoLadron && !(state.ladronChase && state.ladronChase.activa)) {
+    if (masBuscado(state.ladronFama || 0) && !esCamuflaje(state.ropaPuesta) && (state.ladronLlamada || 0) > 0.2)
+      obj = '📞 Te reconocieron · llamando a la policía · ' + fmtCeldaTiempo(Math.max(0, LLAMADA_SEG - state.ladronLlamada));
+    else if (!masBuscado(state.ladronFama || 0))
+      obj = '😶 Casi nadie te reconoce. No te persiguen y todavía no hay cartel de SE BUSCA.';
+    else obj = '🚨 Más buscado. Sin el camuflaje, un vecino puede llamar y la policía te reconoce.';
+  }
   if (state.modoLadron && state.ladronChase && state.ladronChase.activa) obj = '🚨 TE VIERON · la policía te persigue · ' + fmtCeldaTiempo(state.ladronChase.left);
   setTextIfChanged(ui('objective'), obj);
   renderRoadmap();

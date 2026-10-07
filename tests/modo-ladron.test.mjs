@@ -3,9 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO,
-  arrestoLadron, asaltoTienda, comprarRopa, deudaTito, esCamuflaje, oficialMuere,
-  pagarTito, puedeComprarRopa, precioArmaTito, tickDelatar, tickPersecucion, titoPuedeDarArma,
+  VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG,
+  arrestoLadron, asaltoTienda, compraTeMarca, comprarRopa, deudaTito, esCamuflaje, famaInicial,
+  masBuscado, mostrarCartel, oficialMuere, pagarTito, puedeComprarRopa, policiaReconoce,
+  precioArmaTito, tickLlamada, tickPersecucion, titoPuedeDarArma,
 } from '../src/modo-ladron.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -88,27 +89,69 @@ test('policías y guardias aguantan varias veces lo de un zombie', () => {
   assert.equal(oficialMuere(12, 20).muerto, true);
 });
 
-test('sin camuflaje un npc tarda en delatarte; con camuflaje casi no', () => {
+test('al empezar casi no te reconocen y el cartel no sale', () => {
+  assert.equal(famaInicial(), 0);
+  assert.equal(masBuscado(0), false);
+  assert.equal(mostrarCartel(0), false);
+  assert.equal(policiaReconoce(0, false), false);
+  assert.equal(policiaReconoce(0, true), false);
   let acum = 0;
   let llamo = false;
-  for (let i = 0; i < 11; i++) {
-    const r = tickDelatar(acum, 1, true, false);
+  for (let i = 0; i < 30; i++) {
+    const r = tickLlamada(acum, 1, true, famaInicial(), false);
     acum = r.acum;
     if (r.llama) llamo = true;
   }
-  assert.equal(llamo, false, 'un rato corto no alcanza');
-  assert.equal(tickDelatar(acum, 1, true, false).llama, true);
+  assert.equal(llamo, false, 'media minuto mirándote al empezar no alcanza para la llamada');
+  assert.equal(tickPersecucion(null, 30, false).activa, false);
+});
+
+test('un npc tarda 8 segundos en llamar y recién ahí te persiguen', () => {
+  assert.equal(LLAMADA_SEG, 8);
+  const fama = compraTeMarca(0, true);
+  assert.equal(masBuscado(fama), true);
+  let acum = 0;
+  for (let i = 0; i < 7; i++) {
+    const r = tickLlamada(acum, 1, true, fama, false);
+    acum = r.acum;
+    assert.equal(r.llama, false, 'antes de los 8 segundos la policía todavía no sale');
+  }
+  assert.equal(tickPersecucion(null, 7, false).activa, false);
+  const fin = tickLlamada(acum, 1, true, fama, false);
+  assert.equal(fin.llama, true);
+  const chase = tickPersecucion(null, 0, fin.llama);
+  assert.equal(chase.activa, true);
+  assert.equal(chase.left, 180);
+  const lejos = tickLlamada(6, 4, false, fama, false);
+  assert.equal(lejos.llama, false);
+  assert.ok(lejos.acum < 6);
+});
+
+test('comprar un arma y ropa te deja más buscado; el camuflaje casi no', () => {
+  assert.equal(compraTeMarca(0, false), 0, 'fuera del modo comprar no te marca');
+  const arma = compraTeMarca(famaInicial(), true);
+  const ropa = compraTeMarca(arma, true);
+  assert.equal(arma, 1);
+  assert.equal(ropa, 2);
+  assert.equal(mostrarCartel(ropa), true);
+  assert.equal(policiaReconoce(ropa, false), true);
+  assert.equal(policiaReconoce(ropa, true), false);
+  let acum = 0;
+  let llamo = false;
+  for (let i = 0; i < 40; i++) {
+    const r = tickLlamada(acum, 1, true, ropa, true);
+    acum = r.acum;
+    if (r.llama) llamo = true;
+  }
+  assert.equal(llamo, false, 'con el camuflaje puesto casi no te reconocen');
   acum = 0;
   llamo = false;
-  for (let i = 0; i < 40; i++) {
-    const r = tickDelatar(acum, 1, true, true);
+  for (let i = 0; i < 8; i++) {
+    const r = tickLlamada(acum, 1, true, ropa, false);
     acum = r.acum;
     if (r.llama) llamo = true;
   }
-  assert.equal(llamo, false);
-  const lejos = tickDelatar(10, 4, false, false);
-  assert.equal(lejos.llama, false);
-  assert.ok(lejos.acum < 10);
+  assert.equal(llamo, true, 'sin el camuflaje y ya más buscado, el npc delata');
 });
 
 test('el asalto deja plata y algo de la tienda', () => {
@@ -123,13 +166,17 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=1/);
+  assert.match(html, /modo-ladron\.js\?v=2/);
+  assert.match(html, /tickLlamada\(/);
+  assert.match(html, /compraTeMarca\(/);
+  assert.match(html, /mostrarCartel\(/);
+  assert.match(html, /llamando a la policía/);
   assert.match(html, /const POLICE_CELL_SEC = 60/);
   assert.match(html, /arrestoLadron\(/);
   assert.match(html, /tickPersecucion\(/);
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=1/);
-  assert.match(sw, /const VERSION = 'tim-v86'/);
+  assert.match(sw, /modo-ladron\.js\?v=2/);
+  assert.match(sw, /const VERSION = 'tim-v87'/);
 });

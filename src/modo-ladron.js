@@ -7,9 +7,10 @@ export const PERSECUCION_SEG = 180;      // 3 minutos reales
 export const CELDA_LADRON_SEG = 600;     // 10 minutos reales
 export const DEUDA_TITO = 500;
 export const NOCHES_TITO = 2;
-export const DELATA_SEG = 12;            // tiene que verte de cerca un rato
+export const LLAMADA_SEG = 8;            // el npc tarda esto en terminar la llamada
 export const DELATA_CERCA = 4.8;
-export const CAMUFLAJE_FACTOR = 0.07;    // con el traje casi no te reconocen
+export const CAMUFLAJE_FACTOR = 0.07;    // con el traje te reconocen mucho menos
+export const CASI_FACTOR = 0.04;         // al empezar casi nadie te reconoce
 export const VER_POLICIA = 16;
 export const ROBO_ESPERA_SEG = 20;
 
@@ -83,12 +84,45 @@ export function oficialMuere(hp, dano) {
   return { hp: queda, muerto: queda <= 0 };
 }
 
-export function tickDelatar(acum, dt, cerca, camuflaje) {
+export function famaInicial() {
+  return 0;
+}
+
+export function masBuscado(fama) {
+  return (fama | 0) >= 1;
+}
+
+export function mostrarCartel(fama) {
+  return masBuscado(fama);
+}
+
+// Comprar un arma o ropa, solo en este modo, te deja más buscado.
+export function compraTeMarca(fama, modoLadron) {
+  const base = Math.max(0, fama | 0);
+  if (!modoLadron) return base;
+  return base + 1;
+}
+
+export function ritmoReconocimiento(fama, camuflaje) {
+  if (!masBuscado(fama)) return CASI_FACTOR;
+  if (camuflaje) return CAMUFLAJE_FACTOR;
+  return 1;
+}
+
+// La policía te reconoce (y puede perseguirte) cuando ya estás más buscado
+// y no llevas el camuflaje. Al empezar, o camuflado, no.
+export function policiaReconoce(fama, camuflaje) {
+  return ritmoReconocimiento(fama, camuflaje) >= 1;
+}
+
+// Si un npc te ve y te reconoce, la llamada tarda 8 segundos.
+// Recién al terminar, la policía empieza la persecución.
+export function tickLlamada(acum, dt, teVe, fama, camuflaje) {
   const d = Math.max(0, Number(dt) || 0);
   let a = Math.max(0, Number(acum) || 0);
-  if (!cerca) return { acum: Math.max(0, a - d * 0.45), llama: false };
-  a += d * (camuflaje ? CAMUFLAJE_FACTOR : 1);
-  if (a >= DELATA_SEG) return { acum: 0, llama: true };
+  if (!teVe) return { acum: Math.max(0, a - d * 0.5), llama: false };
+  a += d * ritmoReconocimiento(fama, camuflaje);
+  if (a >= LLAMADA_SEG) return { acum: 0, llama: true };
   return { acum: a, llama: false };
 }
 

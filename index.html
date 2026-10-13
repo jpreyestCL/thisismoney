@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, compraTeMarca, comprarRopa, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, oficialMuere, pagarTito, puedeComprarRopa, policiaReconoce, precioArmaTito, ropaPorId, tickLlamada, tickPersecucion, titoPuedeDarArma } from './src/modo-ladron.js?v=2';
+import { CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, compraTeMarca, comprarRopa, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, ropaPorId, tickLlamada, tickPersecucion, titoPuedeDarArma } from './src/modo-ladron.js?v=4';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -3213,7 +3213,7 @@ const STORY_QUESTS = [
   { id: 'sport', icon: '🏅', title: 'Partido corto', need: 1, reward: 160, hint: 'Acércate a un estadio y juega un partido corto.', steps: ['Completa un partido'] },
 ];
 const alley = { root: null, contact: null, door: null, doorObs: null, obs: [], lights: [], steam: [], following: false, wp: 0, open: false, flicker: 0, radioCd: 0, returnTo: null, followIn: 0, skyWas: 0x87ceeb };
-function alleyUnlocked() { return !!(state.creative || (state.totalEarned || 0) >= ALLEY.unlock); }
+function alleyUnlocked() { return puedeVerTito(!!state.modoLadron, state.totalEarned || 0, !!state.creative, ALLEY.unlock); }
 function alleyRng(i) { const x = Math.sin(i * 127.13 + 19.7) * 43758.5453; return x - Math.floor(x); }
 function inAlleyStreet(x, z) { return x <= ALLEY.x0 + 0.6 && x >= ALLEY.doorX - 0.2 && Math.abs(z - ALLEY.z) < ALLEY.half + 0.2; }
 function inBlackMarket(x, z) {
@@ -3437,13 +3437,19 @@ function renderQuestPanel() {
     const raw = q.id === 'alley' ? alleyQuestStep() : ((state.story && +state.story[q.id]) || 0);
     const s = Math.min(raw, q.need || 1);
     const line = q.steps[Math.min(q.steps.length - 1, Math.max(0, done ? q.steps.length - 1 : s))] || q.hint;
+    let hint = q.hint;
+    let paso = line;
+    if (q.id === 'alley' && state.modoLadron) {   // en este modo no hace falta el candado de $20.000
+      hint = 'En el modo ladrón entras a verlo gratis.';
+      if (!done && s === 0) paso = 'Pulsa Ir con Tito';
+    }
     let extra = '';
     if (q.id === 'alley') {   // al callejón se puede VOLVER las veces que quieras (a comprar balas y armas)
       if (!alleyUnlocked()) extra = '<br><span style="color:#fbbf24">🔒 Se desbloquea a los $20.000 ganados (' + Math.floor(state.totalEarned || 0) + '/20000)</span>';
       else if (state.mission === 'alley') extra = '<br><button type="button" data-alley-act="leave" class="bankBtn" style="margin-top:6px">Salir del callejón</button>';
       else extra = '<br><button type="button" data-alley-act="go" class="bankBtn" style="margin-top:6px;border-color:#f59e0b">🕶️ ' + (done ? 'Volver al callejón' : 'Ir con Tito') + '</button>';
     }
-    rows.push('<div class="quest-row' + (done ? ' done' : (q.id === 'alley' && s > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + q.hint + '<br><span style="opacity:.8">' + (done ? 'Listo.' : line) + ((q.need || 1) > 1 ? ' · ' + s + '/' + q.need : '') + '</span>' + extra + '</div></div>');
+    rows.push('<div class="quest-row' + (done ? ' done' : (q.id === 'alley' && s > 0 ? ' active' : '')) + '"><div style="font-size:20px">' + q.icon + '</div><div><b>' + q.title + (done ? ' · hecha' : '') + '</b>' + hint + '<br><span style="opacity:.8">' + (done ? 'Listo.' : paso) + ((q.need || 1) > 1 ? ' · ' + s + '/' + q.need : '') + '</span>' + extra + '</div></div>');
   }
   if (state.missions && state.missions.length) {
     rows.push('<div style="font-size:11px; font-weight:800; color:#fde68a; margin:8px 0 4px">HOY</div>');
@@ -3583,7 +3589,7 @@ function renderBlackMarket() {
   if (money) money.textContent = state.creative ? '$∞' : '$' + state.money;
   const debe = state.modoLadron ? deudaTito(state.night || 0, state.titoPagadoHasta || 0) : 0;
   const pago = state.modoLadron
-    ? '<button type="button" data-bm="tito-pagar" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(250,204,21,.16); border:1px solid #facc15; color:#fef3c7; border-radius:9px; padding:8px 10px;"><b>🕶️ Pagarle a Tito</b> · ' + (debe > 0 ? '$' + debe + ' (cada 2 días)' : 'estás al día') + '<br><span style="opacity:.75; font-size:11px">Las armas te las deja gratis. Si no pagas, no te da más.</span></button>'
+    ? '<button type="button" data-bm="tito-pagar" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(250,204,21,.16); border:1px solid #facc15; color:#fef3c7; border-radius:9px; padding:8px 10px;"><b>🕶️ Pagarle a Tito</b> · ' + (debe > 0 ? '$' + debe + ' (cada ' + NOCHES_TITO + ' días)' : 'estás al día') + '<br><span style="opacity:.75; font-size:11px">Las armas te las deja gratis. Si no pagas, no te da más.</span></button>'
     : '';
   list.innerHTML = pago + BLACK_MARKET.map(it => {
     const have = (it.gadget && !GADGET_HAND[it.gadget] && state.gadgets && state.gadgets[it.gadget]) || (GUN_SPECS[it.key] && state.guns && state.guns[it.key]) || (!GUN_SPECS[it.key] && it.dmg && state.weaponName === it.name);
@@ -4846,6 +4852,8 @@ function startPoliceCellArrest() {
   player.position.set(b.x, PLAYER_EYE, b.z);
   vy = 0; grounded = true; yaw = Math.PI;
   state.cellArrest = { left: segundos, ladron: !!state.modoLadron };
+  state.ladronChase = null;
+  state.ladronLlamada = 0;
   ui('phase').textContent = 'Celda · ' + fmtCeldaTiempo(segundos);
   if (state.cellArrest.ladron) mostrarCeldaLadron(true, segundos);
   toast(aviso);
@@ -5142,7 +5150,7 @@ function bloquearTito(item) {
   if (!armaDeTito(item)) return false;
   if (titoPuedeDarArma(state.night || 0, state.titoPagadoHasta || 0)) return false;
   const debe = deudaTito(state.night || 0, state.titoPagadoHasta || 0);
-  toast('🕶️ Tito: me debes $' + debe + '. Cada 2 días son $500. Sin pago no hay más armas.');
+  toast('🕶️ Tito: me debes $' + debe + '. Cada ' + NOCHES_TITO + ' días son $500. Sin pago no hay más armas.');
   if (typeof say === 'function') say('🕶️ Tito', 'Págame lo de estos días y volvemos a hablar de fierros.');
   return true;
 }
@@ -16701,7 +16709,7 @@ function checkProgress() {
       tone(520, .1, .05, 'triangle'); setTimeout(() => tone(780, .12, .05, 'triangle'), 100);
     }
   }
-  if (!state.alleyUnlockedToast && state.totalEarned >= ALLEY.unlock) {
+  if (!state.modoLadron && !state.alleyUnlockedToast && state.totalEarned >= ALLEY.unlock) {
     state.alleyUnlockedToast = true;
     toast('🕶️ Misión nueva: Tito te puede llevar al callejón ($20.000)');
     renderQuestBtn();
@@ -20169,6 +20177,8 @@ function loadGame() {
     state.cellArrest = { left: Math.min(ladronCelda ? CELDA_LADRON_SEG : POLICE_CELL_SEC, d.cellArrestLeft), ladron: ladronCelda };
     const cb = celdaArrestoBounds();
     player.position.set(cb.x, PLAYER_EYE, cb.z); yaw = Math.PI;
+    state.ladronChase = null;
+    state.ladronLlamada = 0;
     if (state.cellArrest.ladron) mostrarCeldaLadron(true, state.cellArrest.left);
   }
   dad.visible = true; dad.position.set(d.dadX != null ? d.dadX : 12, 0, d.dadZ != null ? d.dadZ : 13);
@@ -22155,9 +22165,9 @@ function startNight() {
   state.phase = 'NIGHT'; state.nightTime = 0; state.spawnTimer = 0; state.buildMode = false;
   sacarDelMall();   // si estabas adentro del mall, te dejan en la puerta
   state.night++;
-  if (state.modoLadron && state.night % 2 === 0) {
+  if (state.modoLadron && state.night % NOCHES_TITO === 0) {
     const debe = deudaTito(state.night, state.titoPagadoHasta || 0);
-    if (debe > 0) toast('🕶️ Pasaron 2 días. Le debes a Tito $' + debe + '. Sin pago no te da más armas.');
+    if (debe > 0) toast('🕶️ Pasaron ' + NOCHES_TITO + ' días. Le debes a Tito $' + debe + '. Sin pago no te da más armas.');
   }
   tutorialEvent('nightStarted');
   const duration = currentNightLength();
@@ -25199,8 +25209,10 @@ function renderHUD() {
   if (state.modoLadron) {
     gear.unshift('🦹 LADRÓN');
     const debeTito = deudaTito(state.night || 0, state.titoPagadoHasta || 0);
-    if (!masBuscado(state.ladronFama || 0)) gear.push('😶 casi nadie te reconoce');
-    else gear.push(esCamuflaje(state.ropaPuesta) ? '🥷 camuflado · te reconocen mucho menos' : '🚨 más buscado');
+    if (!state.cellArrest) {
+      if (!masBuscado(state.ladronFama || 0)) gear.push('😶 casi nadie te reconoce');
+      else gear.push(esCamuflaje(state.ropaPuesta) ? '🥷 camuflado · te reconocen mucho menos' : '🚨 más buscado');
+    }
     if (debeTito > 0) gear.push('🕶️ le debes a Tito $' + debeTito);
     if (state.ropaPuesta && ropaPorId(state.ropaPuesta)) gear.push((esCamuflaje(state.ropaPuesta) ? '🥷 ' : '👕 ') + ropaPorId(state.ropaPuesta).name);
   }
@@ -25271,15 +25283,18 @@ function renderHUD() {
     else if (solarClock().kind === 'sunset') obj = '🌇 Atardece. La noche empieza cuando el sol se pone.';
     else obj = '⏩ Pulsa N: empieza la noche YA (+$100 por madrugar) · 🏆 casa dorada en la ciudad';
   } else if (state.phase === 'NIGHT') obj = (state.hordeOn ? '🚨 ¡HORDA FINAL! ' : (state.bossNight ? '⚔️ NOCHE JEFE (paga x3) · ' : '🗡️ ¡Defiende! ')) + 'Quedan ' + fmt(currentNightLength() - state.nightTime);
-  if (state.wanted > 0 && !state.modoLadron) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';
-  if (state.modoLadron && !(state.ladronChase && state.ladronChase.activa)) {
-    if (masBuscado(state.ladronFama || 0) && !esCamuflaje(state.ropaPuesta) && (state.ladronLlamada || 0) > 0.2)
-      obj = '📞 Te reconocieron · llamando a la policía · ' + fmtCeldaTiempo(Math.max(0, LLAMADA_SEG - state.ladronLlamada));
-    else if (!masBuscado(state.ladronFama || 0))
-      obj = '😶 Casi nadie te reconoce. No te persiguen y todavía no hay cartel de SE BUSCA.';
-    else obj = '🚨 Más buscado. Sin el camuflaje, un vecino puede llamar y la policía te reconoce.';
+  if (!state.cellArrest && state.wanted > 0 && !state.modoLadron) obj = '🚨 BUSCADO ' + '⭐'.repeat(state.wantedLevel || 1) + ' — ¡huye de la policía! ' + (state.driving ? '(te persiguen en auto)' : '(corre con Shift)') + ' ' + Math.ceil(state.wanted) + 's';
+  if (state.modoLadron) {
+    const aviso = objetivoLadron({
+      celda: !!state.cellArrest,
+      persigue: !!(state.ladronChase && state.ladronChase.activa),
+      tiempo: state.ladronChase ? fmtCeldaTiempo(state.ladronChase.left) : '',
+      llamando: !!(masBuscado(state.ladronFama || 0) && !esCamuflaje(state.ropaPuesta) && (state.ladronLlamada || 0) > 0.2),
+      falta: fmtCeldaTiempo(Math.max(0, LLAMADA_SEG - (state.ladronLlamada || 0))),
+      masBuscado: masBuscado(state.ladronFama || 0),
+    });
+    if (aviso) obj = aviso;
   }
-  if (state.modoLadron && state.ladronChase && state.ladronChase.activa) obj = '🚨 TE VIERON · la policía te persigue · ' + fmtCeldaTiempo(state.ladronChase.left);
   setTextIfChanged(ui('objective'), obj);
   renderRoadmap();
 }

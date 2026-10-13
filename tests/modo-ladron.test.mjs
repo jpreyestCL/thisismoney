@@ -3,9 +3,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG,
+  VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG, NOCHES_TITO,
   arrestoLadron, asaltoTienda, compraTeMarca, comprarRopa, deudaTito, esCamuflaje, famaInicial,
-  masBuscado, mostrarCartel, oficialMuere, pagarTito, puedeComprarRopa, policiaReconoce,
+  masBuscado, mostrarCartel, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce,
   precioArmaTito, tickLlamada, tickPersecucion, titoPuedeDarArma,
 } from '../src/modo-ladron.js';
 
@@ -47,28 +47,43 @@ test('la ropa solo se compra en el modo ladrón y el camuflaje es un conjunto', 
   assert.equal(comprarRopa({ modoLadron: true, money: 10 }, 'gorra').razon, 'plata');
 });
 
-test('Tito cobra 500 cada 2 días y sin pago no da más armas', () => {
+test('Tito cobra 500 cada 3 días y sin pago no da más armas', () => {
   assert.equal(DEUDA_TITO, 500);
+  assert.equal(NOCHES_TITO, 3);
   assert.equal(deudaTito(0, 0), 0);
   assert.equal(deudaTito(1, 0), 0);
-  assert.equal(deudaTito(2, 0), 500);
+  assert.equal(deudaTito(2, 0), 0, 'el segundo día todavía no se cobra');
   assert.equal(deudaTito(3, 0), 500);
-  assert.equal(deudaTito(4, 0), 1000);
-  assert.equal(titoPuedeDarArma(1, 0), true);
-  assert.equal(titoPuedeDarArma(2, 0), false);
+  assert.equal(deudaTito(5, 0), 500);
+  assert.equal(deudaTito(6, 0), 1000);
+  assert.equal(titoPuedeDarArma(2, 0), true, 'con el pago al día sí da armas');
+  assert.equal(titoPuedeDarArma(3, 0), false, 'si no pagas, no da más');
   assert.equal(precioArmaTito(1800, false, true), 1800, 'fuera del modo se pagan');
   assert.equal(precioArmaTito(1800, true, true), 0, 'en el modo el arma es gratis');
   assert.equal(precioArmaTito(600, true, false), 600, 'las balas siguen con precio');
-  const corto = pagarTito(100, 2, 0);
+  const corto = pagarTito(100, 3, 0);
   assert.equal(corto.ok, false);
   assert.equal(corto.deuda, 500);
-  const pago = pagarTito(2000, 4, 0);
+  const pago = pagarTito(2000, 6, 0);
   assert.equal(pago.ok, true);
   assert.equal(pago.money, 1000);
-  assert.equal(pago.pagadoHasta, 4);
-  assert.equal(deudaTito(4, pago.pagadoHasta), 0);
-  assert.equal(titoPuedeDarArma(4, pago.pagadoHasta), true);
-  assert.equal(deudaTito(6, pago.pagadoHasta), 500);
+  assert.equal(pago.pagadoHasta, 6);
+  assert.equal(deudaTito(6, pago.pagadoHasta), 0);
+  assert.equal(titoPuedeDarArma(6, pago.pagadoHasta), true);
+  assert.equal(deudaTito(9, pago.pagadoHasta), 500);
+});
+
+test('en el modo ladrón entras a ver a Tito sin los $20.000', () => {
+  assert.equal(puedeVerTito(true, 0, false, 20000), true);
+  assert.equal(puedeVerTito(false, 0, false, 20000), false);
+  assert.equal(puedeVerTito(false, 19999, false, 20000), false);
+  assert.equal(puedeVerTito(false, 20000, false, 20000), true, 'fuera del modo sigue el candado');
+  assert.equal(puedeVerTito(false, 0, true, 20000), true);
+  assert.match(html, /const ALLEY = \{ unlock: 20000/);
+  assert.match(html, /puedeVerTito\(!!state\.modoLadron/);
+  assert.match(html, /En el modo ladrón entras a verlo gratis/);
+  assert.match(html, /cada ' \+ NOCHES_TITO \+ ' días/);
+  assert.match(html, /state\.night % NOCHES_TITO === 0/);
 });
 
 test('la cárcel de 10 minutos te quita todo el dinero y sigues en el modo', () => {
@@ -154,6 +169,22 @@ test('comprar un arma y ropa te deja más buscado; el camuflaje casi no', () => 
   assert.equal(llamo, true, 'sin el camuflaje y ya más buscado, el npc delata');
 });
 
+test('en la celda no queda el aviso de persecución', () => {
+  const encerrado = objetivoLadron({
+    celda: true, persigue: true, tiempo: '2:40', llamando: true, falta: '0:05', masBuscado: true,
+  });
+  assert.equal(encerrado, '');
+  const suelto = objetivoLadron({ celda: false, persigue: true, tiempo: '2:40', masBuscado: true });
+  assert.match(suelto, /TE VIERON/);
+  assert.match(suelto, /la policía te persigue/);
+  assert.match(suelto, /2:40/);
+  const salio = objetivoLadron({ celda: false, persigue: false, masBuscado: true });
+  assert.doesNotMatch(salio, /TE VIERON/);
+  assert.match(html, /objetivoLadron\(/);
+  assert.match(html, /state\.cellArrest = \{ left: segundos, ladron: !!state\.modoLadron \};\n  state\.ladronChase = null;\n  state\.ladronLlamada = 0;/);
+  assert.match(html, /if \(!state\.cellArrest && state\.wanted > 0 && !state\.modoLadron\)/);
+});
+
 test('el asalto deja plata y algo de la tienda', () => {
   const seq = [0.1, 0.9];
   let i = 0;
@@ -166,7 +197,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=2/);
+  assert.match(html, /modo-ladron\.js\?v=4/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -177,6 +208,6 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=2/);
-  assert.match(sw, /const VERSION = 'tim-v87'/);
+  assert.match(sw, /modo-ladron\.js\?v=4/);
+  assert.match(sw, /const VERSION = 'tim-v89'/);
 });

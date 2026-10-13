@@ -6,7 +6,7 @@ export const VIDA_POLICIA = 80;          // varias veces la de un zombie
 export const PERSECUCION_SEG = 180;      // 3 minutos reales
 export const CELDA_LADRON_SEG = 600;     // 10 minutos reales
 export const DEUDA_TITO = 500;
-export const NOCHES_TITO = 2;
+export const NOCHES_TITO = 3;          // $500 cada 3 días del juego
 export const LLAMADA_SEG = 8;            // el npc tarda esto en terminar la llamada
 export const DELATA_CERCA = 4.8;
 export const CAMUFLAJE_FACTOR = 0.07;    // con el traje te reconocen mucho menos
@@ -126,6 +126,17 @@ export function tickLlamada(acum, dt, teVe, fama, camuflaje) {
   return { acum: a, llama: false };
 }
 
+// En la celda no se muestra persecución ni que te buscan.
+// Fuera de ella, el aviso de siempre.
+export function objetivoLadron(estado) {
+  const e = estado || {};
+  if (e.celda) return '';
+  if (e.persigue) return '🚨 TE VIERON · la policía te persigue · ' + (e.tiempo || '');
+  if (e.llamando) return '📞 Te reconocieron · llamando a la policía · ' + (e.falta || '');
+  if (!e.masBuscado) return '😶 Casi nadie te reconoce. No te persiguen y todavía no hay cartel de SE BUSCA.';
+  return '🚨 Más buscado. Sin el camuflaje, un vecino puede llamar y la policía te reconoce.';
+}
+
 export function arrestoLadron(money) {
   const tenia = Math.max(0, Math.round(Number(money) || 0));
   return { money: 0, quitado: tenia, segundos: CELDA_LADRON_SEG, sigueModo: true };
@@ -154,6 +165,15 @@ export function pagarTito(money, night, pagadoHasta) {
 export function precioArmaTito(price, modoLadron, esArma) {
   if (modoLadron && esArma) return 0;
   return price;
+}
+
+// En el modo ladrón ver a Tito es gratis. Fuera, sigue el candado de $20.000
+// (o el modo creativo, que ya lo abría).
+export function puedeVerTito(modoLadron, totalEarned, creative, unlock) {
+  if (modoLadron) return true;
+  if (creative) return true;
+  const meta = Number(unlock) > 0 ? Number(unlock) : 20000;
+  return (Number(totalEarned) || 0) >= meta;
 }
 
 export function asaltoTienda(rng) {

@@ -190,3 +190,49 @@ export function enTiendaSuper(x, z, superX, superZ) {
 export function enSuperMall(x, z) {
   return x > 16 && x < 46 && z < -188 && z > -220;
 }
+
+// Lugar de una partida nueva (el mismo spawn de la Tierra). Un mundo ladrón
+// nuevo sale de aquí: no del lugar donde dejaste el otro.
+export const LUGAR_PARTIDA_NUEVA = Object.freeze({ x: 10, z: 16 });
+
+// Cada nombre tiene su propia clave. Sin nombre queda el save viejo `tim_save`.
+// Dos mundos no pueden caer en la misma clave.
+export function clavePartida(nombre) {
+  const n = String(nombre == null ? '' : nombre).trim();
+  return n ? 'tim_save_' + n : 'tim_save';
+}
+
+// Partida nueva en modo ladrón. `otro` es el mundo que ya tenías: no se copia
+// su lugar, su plata, su casa, su ropa, sus armas ni su fama.
+export function mundoLadronNuevo(otro, dineroInicial) {
+  void otro;
+  const dinero = Number(dineroInicial);
+  return {
+    px: LUGAR_PARTIDA_NUEVA.x,
+    pz: LUGAR_PARTIDA_NUEVA.z,
+    money: Number.isFinite(dinero) ? dinero : 2000,
+    fama: 0,
+    ropaPuesta: null,
+    ropa: {},
+    guns: {},
+    placed: [],
+    modoLadron: true,
+  };
+}
+
+// Continuar lee SOLO esta partida. Si no trae lugar, cae al spawn nuevo.
+export function continuarMundoLadron(save) {
+  const d = save && typeof save === 'object' ? save : {};
+  const fama = d.ladronFama != null ? (d.ladronFama | 0) : (d.fama != null ? (d.fama | 0) : 0);
+  return {
+    px: d.px != null ? Number(d.px) : LUGAR_PARTIDA_NUEVA.x,
+    pz: d.pz != null ? Number(d.pz) : LUGAR_PARTIDA_NUEVA.z,
+    money: Number(d.money) || 0,
+    fama,
+    ropaPuesta: d.ropaPuesta || null,
+    ropa: (d.ropaLadron && typeof d.ropaLadron === 'object') ? d.ropaLadron : ((d.ropa && typeof d.ropa === 'object') ? d.ropa : {}),
+    guns: (d.guns && typeof d.guns === 'object') ? d.guns : {},
+    placed: Array.isArray(d.placed) ? d.placed : [],
+    modoLadron: !!d.modoLadron,
+  };
+}

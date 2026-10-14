@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, compraTeMarca, comprarRopa, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, ropaPorId, tickLlamada, tickPersecucion, titoPuedeDarArma } from './src/modo-ladron.js?v=4';
+import { CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, mundoLadronNuevo, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, ropaPorId, tickLlamada, tickPersecucion, titoPuedeDarArma } from './src/modo-ladron.js?v=5';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -18248,7 +18248,25 @@ function startGame() {
   resetWeather();
   syncFarWorld();
   state.ropaLadron = {}; state.ropaPuesta = null; state.titoPagadoHasta = 0; state.ladronChase = null; state.ladronFama = famaInicial(); state.ladronLlamada = 0; state.roboCd = {};
+  // La celda, la ducha y el lugar del mundo anterior viven en memoria. Si no se
+  // sueltan, la partida nueva queda clavada en el mismo sitio (y el autosave
+  // escribe esas coordenadas en el perfil nuevo).
+  state.cellArrest = null;
+  if (ducha) {
+    if (ducha.ruido) { try { ducha.ruido.src.stop(); } catch (e) {} }
+    ducha = null;
+    if (duchaFx) { duchaFx.gotas.count = 0; duchaFx.charco.visible = false; for (const v of duchaFx.vapor) v.visible = false; }
+  }
   mostrarCeldaLadron(false);
+  if (menuModoLadron) {
+    const fresco = mundoLadronNuevo(null, state.money);
+    state.money = fresco.money;
+    state.ladronFama = fresco.fama;
+    state.ropaLadron = {};
+    state.ropaPuesta = fresco.ropaPuesta;
+    state.guns = {}; state.gun = null; state.ammo = 0; state.clip = 0;
+    player.position.set(fresco.px, PLAYER_EYE, fresco.pz); yaw = 0; pitch = 0; vy = 0; grounded = true;
+  }
   setModoLadron(!!menuModoLadron, false);
   toast('Empiezas con $' + START_MONEY + ': el terreno vale $' + PRECIO_TERRENO + ' y lo que sobre es para el súper 🛒');
   toast('📍 PRIMER PASO · Sigue la flecha al cartel 🪧 TERRENO EN VENTA del condominio y pulsa E');
@@ -18260,8 +18278,8 @@ function startGame() {
 // ===================================================================
 let currentProfile = null;
 try { currentProfile = localStorage.getItem('tim_profile') || null; } catch (e) {}
-function profileKey(name) { return 'tim_save_' + name; }
-function saveKey() { return currentProfile ? profileKey(currentProfile) : 'tim_save'; }
+function profileKey(name) { return clavePartida(name); }
+function saveKey() { return clavePartida(currentProfile); }
 function getProfiles() { try { return JSON.parse(localStorage.getItem('tim_profiles') || '[]'); } catch (e) { return []; } }
 function saveProfiles(list) { try { localStorage.setItem('tim_profiles', JSON.stringify(list)); } catch (e) {} }
 function accountKey(name) { return 'tim_account_' + name; }
@@ -20167,10 +20185,13 @@ function loadGame() {
   state.coreClaimed = !!d.coreClaimed; state.relics = d.relics || 0; state.trophies = d.trophies || 0;
   removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   (d.helpers || []).filter(h => h.hp !== 0).forEach(h => makeHelperAt(h.x, h.z, h.hp));                   // reponer ayudantes (ya equipados)
-  const enTorre = state.planet === 'tierra' && !state.country && d.px != null && Math.abs(d.px - TORRE.x) < TORRE.w / 2 && Math.abs(d.pz - TORRE.z) < TORRE.d / 2;
-  const spawnY = (state.planet === 'tierra' && d.px != null && inTreasureIsland(d.px, d.pz)) ? TREASURE_ISLAND.surface + PLAYER_EYE
+  const lugar = state.modoLadron ? continuarMundoLadron(d) : null;   // solo ESTA partida, nunca la de otro perfil
+  const px = lugar ? lugar.px : d.px;
+  const pz = lugar ? lugar.pz : d.pz;
+  const enTorre = state.planet === 'tierra' && !state.country && px != null && Math.abs(px - TORRE.x) < TORRE.w / 2 && Math.abs(pz - TORRE.z) < TORRE.d / 2;
+  const spawnY = (state.planet === 'tierra' && px != null && inTreasureIsland(px, pz)) ? TREASURE_ISLAND.surface + PLAYER_EYE
     : enTorre && d.pisoTorre > 0 ? Math.min(d.pisoTorre, TORRE.N - 1) * TORRE.H + PLAYER_EYE : PLAYER_EYE;   // en el edificio vuelves a tu piso
-  player.position.set(d.px != null ? d.px : 10, spawnY, d.pz != null ? d.pz : 16); yaw = 0; pitch = 0;
+  player.position.set(px != null ? px : 10, spawnY, pz != null ? pz : 16); yaw = 0; pitch = 0;
   state.cellArrest = null;
   if ((d.cellArrestLeft || 0) > 0 && state.planet === 'tierra' && !state.country) {
     const ladronCelda = !!d.cellArrestLadron && !!state.modoLadron;

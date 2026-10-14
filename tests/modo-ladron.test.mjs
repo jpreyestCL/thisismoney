@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG, NOCHES_TITO,
-  arrestoLadron, asaltoTienda, compraTeMarca, comprarRopa, deudaTito, esCamuflaje, famaInicial,
-  masBuscado, mostrarCartel, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce,
+  arrestoLadron, asaltoTienda, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, esCamuflaje, famaInicial,
+  masBuscado, mostrarCartel, mundoLadronNuevo, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce,
   precioArmaTito, tickLlamada, tickPersecucion, titoPuedeDarArma,
 } from '../src/modo-ladron.js';
 
@@ -197,7 +197,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=4/);
+  assert.match(html, /modo-ladron\.js\?v=5/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -208,6 +208,58 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=4/);
-  assert.match(sw, /const VERSION = 'tim-v89'/);
+  assert.match(sw, /modo-ladron\.js\?v=5/);
+  assert.match(sw, /const VERSION = 'tim-v90'/);
+});
+
+test('dos partidas ladrón nuevas no heredan el lugar de la otra', () => {
+  const jugado = {
+    px: 88, pz: -44, money: 7777, ladronFama: 3, fama: 9,
+    ropaPuesta: 'chaqueta', ropaLadron: { chaqueta: true },
+    guns: { bm_pistola: true },
+    placed: [{ key: 'wallWood', x: 6, z: 5 }],
+    modoLadron: true,
+  };
+  const uno = mundoLadronNuevo(jugado, 2000);
+  const dos = mundoLadronNuevo({ px: uno.px + 30, pz: -80, money: 99999, ladronFama: 4, ropaPuesta: 'gorra', guns: { bm_rifle: true }, placed: [{ key: 'door' }] }, 2000);
+  assert.equal(uno.px, 10);
+  assert.equal(uno.pz, 16);
+  assert.equal(uno.money, 2000);
+  assert.equal(uno.fama, 0);
+  assert.equal(uno.ropaPuesta, null);
+  assert.deepEqual(uno.ropa, {});
+  assert.deepEqual(uno.guns, {});
+  assert.deepEqual(uno.placed, []);
+  assert.equal(uno.modoLadron, true);
+  assert.notEqual(uno.px, jugado.px);
+  assert.notEqual(uno.pz, jugado.pz);
+  assert.equal(dos.px, 10);
+  assert.equal(dos.pz, 16);
+  assert.equal(dos.fama, 0);
+  assert.deepEqual(dos.guns, {});
+  assert.deepEqual(dos.placed, []);
+  assert.notEqual(dos.px, 40);
+  const sigue = continuarMundoLadron(jugado);
+  assert.equal(sigue.px, 88);
+  assert.equal(sigue.pz, -44);
+  assert.equal(sigue.fama, 3);
+  assert.equal(sigue.ropaPuesta, 'chaqueta');
+  assert.equal(sigue.guns.bm_pistola, true);
+  assert.equal(sigue.placed.length, 1);
+  assert.equal(sigue.modoLadron, true);
+  const otra = continuarMundoLadron({ px: 40, pz: -12, ladronFama: 1, modoLadron: true, guns: {}, placed: [] });
+  assert.equal(otra.px, 40);
+  assert.equal(otra.pz, -12);
+  assert.notEqual(otra.px, sigue.px);
+  assert.equal(clavePartida('AnaLadron'), 'tim_save_AnaLadron');
+  assert.equal(clavePartida('LuisLadron'), 'tim_save_LuisLadron');
+  assert.notEqual(clavePartida('AnaLadron'), clavePartida('LuisLadron'));
+  assert.equal(clavePartida(''), 'tim_save');
+  assert.equal(clavePartida(null), 'tim_save');
+  assert.match(html, /function profileKey\(name\) \{ return clavePartida\(name\); \}/);
+  assert.match(html, /function saveKey\(\) \{ return clavePartida\(currentProfile\); \}/);
+  assert.match(html, /const fresco = mundoLadronNuevo\(null, state\.money\)/);
+  assert.match(html, /state\.cellArrest = null;/);
+  assert.match(html, /const lugar = state\.modoLadron \? continuarMundoLadron\(d\) : null;/);
+  assert.match(html, /const POLICE_CELL_SEC = 60/);
 });

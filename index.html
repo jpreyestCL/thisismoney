@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, bovedaNueva, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, togglearBoveda } from './src/modo-ladron.js?v=6';
+import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VER_POLICIA, VIDA_POLICIA, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, togglearBoveda, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=7';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -2687,6 +2687,7 @@ function insideStoreFloor(x, z, margen = 1.5) {
   for (const f of storeFloors) if (Math.abs(x - f.x) <= f.hw + margen && Math.abs(z - f.z) <= f.hd + margen) return true;
   return false;
 }
+const cajasPago = { super: null, mall: null, pantalla: null };
 function makeStore(cx, cz, items, title, roofColor) {
   const wallC = 0xe2e8f0, H = 5, T = 0.5, hw = 11, hd = 11;
   storeFloors.push({ x: cx, z: cz, hw, hd });
@@ -2755,6 +2756,14 @@ function makeStore(cx, cz, items, title, roofColor) {
   registradora.position.set(cx + hw - 3, 1.3, cz + hd - 2.4); scene.add(registradora);
   const pantallita = new THREE.Mesh(new THREE.BoxGeometry(.5, .3, .05), new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x16a34a, emissiveIntensity: .7 }));
   pantallita.position.set(cx + hw - 3, 1.5, cz + hd - 2.1); scene.add(pantallita);
+  if (title === 'SUPER') {
+    cajasPago.super = { x: cx + hw - 3, z: cz + hd - 2.4 };
+    cajasPago.pantalla = pantallita;
+    const cartelCaja = makeSign('CAJA', 0x4ade80);
+    cartelCaja.scale.set(.32, .32, .32);
+    cartelCaja.position.set(cx + hw - 3, 2.2, cz + hd - 2.15);
+    scene.add(cartelCaja);
+  }
   for (let i = 0; i < 3; i++) {   // carritos del súper junto a la entrada
     const carro = new THREE.Group();
     const cesta = new THREE.Mesh(new THREE.BoxGeometry(.85, .5, .6), mat(0xb0bec5)); cesta.position.y = .62; carro.add(cesta);
@@ -5420,6 +5429,7 @@ function updatePoliciaLadron(dt) {
       if (dist2D(p.position, player.position) <= VER_POLICIA) { visto = true; break; }
     }
   }
+  const yaPersigue = !!(state.ladronChase && state.ladronChase.activa);
   const tick = tickPersecucion(state.ladronChase, dt, visto);
   state.ladronChase = tick.activa ? { left: tick.left, activa: true } : null;
   if (tick.arranco && !del.llama) toast('🚨 Un policía te reconoció. Te persigue 3 minutos.');
@@ -5430,9 +5440,9 @@ function updatePoliciaLadron(dt) {
   for (const p of police) {
     if (p.userData.hp == null) p.userData.hp = VIDA_POLICIA;
     if (tick.activa) {
-      const speed = state.driving ? 18 : 7.4;
+      const speed = velocidadPolicia(state.driving ? 18 : 7.4, true);
       const d = dist2D(p.position, player.position);
-      if (d <= (state.driving ? 3.4 : 1.9) && !playerAirborne()) { policeCatch(); return; }
+      if (atrapaPolicia(yaPersigue, d, true, !!state.driving) && !playerAirborne()) { policeCatch(); return; }
       moveToward(p, player.position, speed * dt);
       p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
       setPoliceCar(p, !!state.driving);
@@ -5464,34 +5474,51 @@ function updatePoliciaLadron(dt) {
     g.userData.persigue = !!(tick.activa && dist2D(g.position, player.position) < 42);
     if (!g.userData.persigue) continue;
     const d = dist2D(g.position, player.position);
-    if (d <= 1.9 && !playerAirborne()) { policeCatch(); return; }
-    moveToward(g, player.position, 6.2 * dt);
+    if (atrapaPolicia(yaPersigue && g.userData.persigue, d, true, false) && !playerAirborne()) { policeCatch(); return; }
+    moveToward(g, player.position, velocidadPolicia(6.2, true) * dt);
     g.rotation.y = Math.atan2(player.position.x - g.position.x, player.position.z - g.position.z);
     swingLimbs(g, dt);
   }
 }
-function zonaAsalto() {
+function cajaDePagoCerca() {
   if (!state.modoLadron || state.planet !== 'tierra' || state.country) return null;
-  if (enTiendaSuper(player.position.x, player.position.z, LUGARES.super.x, LUGARES.super.z)) return 'super';
-  if (dentroDelMall(player.position.x, player.position.z) && enSuperMall(player.position.x, player.position.z)) return 'mall';
+  const x = player.position.x, z = player.position.z;
+  if (cajasPago.super && enLaCaja(x, z, cajasPago.super.x, cajasPago.super.z, CAJA_RADIO)) return 'super';
+  if (cajasPago.mall && dentroDelMall(x, z) && enLaCaja(x, z, cajasPago.mall.x, cajasPago.mall.z, CAJA_MALL_RADIO)) return 'mall';
   return null;
 }
+function pintarCajaVacia() {
+  const vacia = normalizarCajas(state.cajasVacias).super;
+  const pantalla = cajasPago.pantalla;
+  if (!pantalla || !pantalla.material) return;
+  pantalla.material.emissive && pantalla.material.emissive.setHex(vacia ? 0x1f2937 : 0x16a34a);
+  pantalla.material.color && pantalla.material.color.setHex(vacia ? 0x334155 : 0x22c55e);
+}
+function pistaCaja() {
+  const zona = cajaDePagoCerca();
+  if (!zona) return null;
+  const vacia = normalizarCajas(state.cajasVacias)[zona];
+  const donde = zona === 'mall' ? 'del mall' : 'del súper';
+  if (vacia) return { key: 'E', touch: '💰', text: 'La caja ' + donde + ' está vacía' };
+  return { key: 'E', touch: '💰', text: 'Robar la caja ' + donde + ' · la plata del mesón' };
+}
 function tryRobarTienda() {
-  const zona = zonaAsalto();
+  const zona = cajaDePagoCerca();
   if (!zona) return false;
-  if (typeof nearKeeper === 'function' && nearKeeper()) return false;
-  if (typeof mallPuestoCerca === 'function' && mallPuestoCerca()) return false;
-  const ahora = performance.now();
-  if (!state.roboCd) state.roboCd = {};
-  if ((state.roboCd[zona] || 0) > ahora) { toast('La caja está vacía. Vuelve en unos segundos.'); return true; }
-  const botin = asaltoTienda();
-  addMoney(botin.plata);
+  const r = vaciarCaja(state.cajasVacias, zona);
+  if (!r.ok) {
+    toast(zona === 'mall' ? '💰 La caja del mall está vacía.' : '💰 La caja del súper está vacía.');
+    return true;
+  }
+  state.cajasVacias = r.cajas;
+  addMoney(r.plata);
   if (!state.inv) state.inv = {};
-  state.inv[botin.cosa.key] = (state.inv[botin.cosa.key] || 0) + botin.cosa.n;
-  state.roboCd[zona] = ahora + ROBO_ESPERA_SEG * 1000;
+  if (r.cosa) state.inv[r.cosa.key] = (state.inv[r.cosa.key] || 0) + r.cosa.n;
+  pintarCajaVacia();
   if (typeof coinBurst === 'function') coinBurst(player.position, 10);
-  toast('💰 Robaste $' + botin.plata + ' y ' + botin.cosa.n + ' de ' + botin.cosa.name + '.');
+  toast('💰 Sacaste $' + r.plata + ' de la caja' + (r.cosa ? ' y ' + r.cosa.n + ' de ' + r.cosa.name : '') + '.');
   beep(520, .08, .05);
+  saveGame();
   return true;
 }
 
@@ -12417,7 +12444,7 @@ function mallAccion() {
     if (p.tipo === 'butaca') return { key: 'E', touch: '🎬', text: 'Sentarte · capítulo de la novela, 10 minutos' };
     if (p.tipo === 'sala') return { key: 'E', touch: '🚪', text: 'Entrar a la sala de cine' };
     if (p.tipo === 'palomitas') return { key: 'E', touch: '🍿', text: 'Comprar palomitas · $' + PALOMITAS_PRECIO };
-    if (p.tipo === 'caja') return { key: 'E', touch: '🛒', text: 'Pagar en la caja · el carrito y toda la tienda' };
+    if (p.tipo === 'caja') return state.modoLadron && pistaCaja() ? pistaCaja() : { key: 'E', touch: '🛒', text: 'Pagar en la caja · el carrito y toda la tienda' };
     if (p.tipo === 'casa') return { key: 'E', touch: '🏠', text: 'Elegir ' + p.nombre + ' · $' + p.precio };
     if (p.tipo === 'tienda' || p.tipo === 'pieza') return { key: 'E', touch: '🛒', text: 'Elegir ' + p.nombre + ' · $' + p.precio };
     if (p.tipo === 'comida') return { key: 'E', touch: p.comida.emoji, text: 'Comprar ' + p.comida.name + ' · $' + p.comida.price };
@@ -12445,7 +12472,7 @@ function tryMall() {
       return true;
     }
     if (p.tipo === 'palomitas') return comprarPalomitas();
-    if (p.tipo === 'caja') return abrirCajaMall();
+    if (p.tipo === 'caja') return (state.modoLadron && tryRobarTienda()) || abrirCajaMall();
     if (p.tipo === 'casa') return mallElegirCasa(p.id);
     if (p.tipo === 'tienda' || p.tipo === 'pieza') return mallElegirItem(p.key);
     if (p.tipo === 'comida') return comprarComidaMall(p.comida);
@@ -12686,6 +12713,7 @@ function buildMall() {
   mallCartelCarrito.scale.set(.34, .34, .34);
   scene.add(mallCartelCarrito);
   mallBloque(16.2, .55, -210, 2.4, 1.05, .7, 0x1e293b, false);
+  cajasPago.mall = { x: 16.2, z: -210 };
   const cajero = makePerson(0x166534, 0xf1c27d);
   cajero.position.set(19.2, 0, -210);
   cajero.rotation.y = -Math.PI / 2;
@@ -18410,7 +18438,8 @@ function startGame() {
   scene.fog.far = 160;   // niebla normal de la Tierra
   resetWeather();
   syncFarWorld();
-  state.ropaLadron = {}; state.ropaPuesta = null; state.titoPagadoHasta = 0; state.ladronChase = null; state.ladronFama = famaInicial(); state.ladronLlamada = 0; state.roboCd = {};
+  state.ropaLadron = {}; state.ropaPuesta = null; state.titoPagadoHasta = 0; state.ladronChase = null; state.ladronFama = famaInicial(); state.ladronLlamada = 0; state.cajasVacias = cajasNuevas();
+  pintarCajaVacia();
   resetBovedaPartida();
   // La celda, la ducha y el lugar del mundo anterior viven en memoria. Si no se
   // sueltan, la partida nueva queda clavada en el mismo sitio (y el autosave
@@ -19375,6 +19404,7 @@ function saveGame() {
       creative: !!state.creative,
       modoLadron: !!state.modoLadron, ropaLadron: state.ropaLadron || {}, ropaPuesta: state.ropaPuesta || null, titoPagadoHasta: state.titoPagadoHasta || 0, ladronFama: state.ladronFama || 0,
       bovedaAbierta: !!state.bovedaAbierta, bovedaVacios: Array.isArray(state.bovedaVacios) ? state.bovedaVacios.slice() : [],
+      cajasVacias: normalizarCajas(state.cajasVacias),
       ladronChaseLeft: state.ladronChase && state.ladronChase.activa ? state.ladronChase.left : 0,
       cellArrestLadron: !!(state.cellArrest && state.cellArrest.ladron),
       hasPhone: !!state.hasPhone, skiPass: !!state.skiPass, skiGear: state.skiGear || null, skiGearWorn: !!state.skiGearWorn,
@@ -20310,6 +20340,8 @@ function loadGame() {
   state.bovedaAbierta = bovedaCargada.abierta;
   state.bovedaVacios = bovedaCargada.vacios;
   pintarBoveda();
+  state.cajasVacias = normalizarCajas(d.cajasVacias);
+  pintarCajaVacia();
   cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
   const savedSports = d.sports || {};
   soccer.scoreRed = +(savedSports.soccer && savedSports.soccer[0]) || 0; soccer.scoreBlue = +(savedSports.soccer && savedSports.soccer[1]) || 0; updateScoreboard();
@@ -20473,7 +20505,7 @@ function resetAll() {
 let buyHold = 0;
 function updateBuying(dt) {
   const ring = ui('buyring');
-  if (state.phase !== 'DAY' || state.buildMode || state.planet === 'platus' || (state.modoLadron && zonaAsalto())) { ring.style.display = 'none'; buyHold = 0; return; }
+  if (state.phase !== 'DAY' || state.buildMode || state.planet === 'platus' || cajaDePagoCerca()) { ring.style.display = 'none'; buyHold = 0; return; }
   let near = null; for (const it of shopStands) { if (dist2D(player.position, it.pos) < 2.8) { near = it; break; } }
   if (!near) { ring.style.display = 'none'; buyHold = 0; return; }
   ring.style.display = 'block';
@@ -25276,7 +25308,7 @@ function updateContextPrompt() {
       else if (parkedFuelCar) action = { key: 'E', touch: '⛽', text: 'Comprar gasolina · $3 por unidad' };
       else if (owned) action = { key: 'E', touch: '🤝', text: owned.helicopter ? 'Pilotar helicóptero' : 'Conducir vehículo' };
       else if (nearestStreetCar(6)) action = { key: 'E', touch: '🤝', text: 'Robar vehículo · la policía te perseguirá' };
-      else if (state.modoLadron && zonaAsalto() && !nearKeeper()) action = { key: 'E', touch: '💰', text: 'Robar la tienda · plata y algo del local' };
+      else if (pistaCaja()) action = pistaCaja();
       else if (nearKeeper()) action = { key: 'E', touch: '🛒', text: 'Hablar con el vendedor y comprar' };
       else if (bankDeskNear() === 'cajera') action = { key: 'E', touch: '🏦', text: 'Hablar con la cajera · depósitos, retiros y préstamos' };
       else if (bankDeskNear() === 'cajero') action = { key: 'E', touch: '🏧', text: 'Usar el cajero automático' };
@@ -25294,7 +25326,7 @@ function updateContextPrompt() {
       else if (state.phase === 'DAY') {
         let product = null;
         for (const it of shopStands) if (dist2D(player.position, it.pos) < 2.8) { product = it; break; }
-        if (product && !(state.modoLadron && zonaAsalto())) action = { key: 'E', touch: '🤝', text: 'Mantén para comprar ' + product.name + ' · $' + product.price };
+        if (product && !cajaDePagoCerca()) action = { key: 'E', touch: '🤝', text: 'Mantén para comprar ' + product.name + ' · $' + product.price };
         else { const crop = CROP_DEFS[selectedCrop]; if ((state.inv[crop.seedKey] || 0) > 0) action = { key: 'E', touch: crop.icon, text: 'Plantar ' + crop.name.toLowerCase() + ' · Shift+K cambia cultivo' }; }
         if (!action && houseStats().ready) action = { key: 'N', touch: '🌙', text: 'Empezar la noche cuando estés preparado' };
       }

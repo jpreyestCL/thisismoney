@@ -233,6 +233,63 @@ export function asaltoTienda(rng) {
   return { plata, cosa };
 }
 
+// La plata del asalto sale de la caja donde se paga, una sola vez por partida.
+export const CAJA_RADIO = 1.8;
+export const CAJA_MALL_RADIO = 2.4;
+
+export function cajasNuevas() {
+  return { super: false, mall: false };
+}
+
+export function normalizarCajas(cajas) {
+  const o = cajas && typeof cajas === 'object' ? cajas : {};
+  return { super: !!o.super, mall: !!o.mall };
+}
+
+export function enLaCaja(x, z, cajaX, cajaZ, radio) {
+  const r = Number(radio) > 0 ? Number(radio) : CAJA_RADIO;
+  return Math.hypot((Number(x) || 0) - cajaX, (Number(z) || 0) - cajaZ) <= r;
+}
+
+export function vaciarCaja(cajas, id, rng) {
+  const estado = normalizarCajas(cajas);
+  if (id !== 'super' && id !== 'mall') return { ok: false, razon: 'no', plata: 0, cosa: null, cajas: estado };
+  if (estado[id]) return { ok: false, razon: 'vacia', plata: 0, cosa: null, cajas: estado };
+  const botin = asaltoTienda(rng);
+  const siguiente = { super: estado.super, mall: estado.mall };
+  siguiente[id] = true;
+  return { ok: true, razon: 'ok', plata: botin.plata, cosa: botin.cosa, cajas: siguiente };
+}
+
+// En el modo, y solo mientras persigue, la policía va un 15% más lenta.
+export const POLICIA_FACTOR = 0.85;
+
+export function velocidadPolicia(base, modoLadron) {
+  const n = Number(base) || 0;
+  if (!modoLadron) return n;
+  return n * POLICIA_FACTOR;
+}
+
+// Fuera del modo, esposan al pasar cerca (a pie 1,9 · al volante 3,4).
+// En el modo hay que estar YA persiguiendo y llegar mucho más cerca:
+// caminar al lado de un paco que no te persigue no manda a la celda.
+export const CAPTURA_NORMAL_PIE = 1.9;
+export const CAPTURA_NORMAL_AUTO = 3.4;
+export const CAPTURA_LADRON_PIE = 0.75;
+export const CAPTURA_LADRON_AUTO = 1.5;
+
+export function radioCaptura(modoLadron, conduciendo) {
+  if (modoLadron) return conduciendo ? CAPTURA_LADRON_AUTO : CAPTURA_LADRON_PIE;
+  return conduciendo ? CAPTURA_NORMAL_AUTO : CAPTURA_NORMAL_PIE;
+}
+
+export function atrapaPolicia(persigue, distancia, modoLadron, conduciendo) {
+  if (modoLadron && !persigue) return false;
+  const d = Number(distancia);
+  if (!(d >= 0)) return false;
+  return d <= radioCaptura(!!modoLadron, !!conduciendo);
+}
+
 export function enTiendaSuper(x, z, superX, superZ) {
   return Math.abs(x - superX) <= 10.2 && Math.abs(z - superZ) <= 10.2;
 }

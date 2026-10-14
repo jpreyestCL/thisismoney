@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG, NOCHES_TITO,
-  arrestoLadron, asaltoTienda, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, esCamuflaje, famaInicial,
-  masBuscado, mostrarCartel, mundoLadronNuevo, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce,
-  CASILLEROS_BOVEDA, PLATA_CASILLERO, bovedaNueva, normalizarBoveda, plataBoveda,
+  arrestoLadron, asaltoTienda, atrapaPolicia, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, enLaCaja, esCamuflaje, famaInicial,
+  masBuscado, mostrarCartel, mundoLadronNuevo, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, radioCaptura,
+  CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
   precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
   titoEntrega, titoPuedeDarArma, togglearBoveda,
 } from '../src/modo-ladron.js';
@@ -210,7 +210,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=6/);
+  assert.match(html, /modo-ladron\.js\?v=7/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -221,8 +221,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=6/);
-  assert.match(sw, /const VERSION = 'tim-v91'/);
+  assert.match(sw, /modo-ladron\.js\?v=7/);
+  assert.match(sw, /const VERSION = 'tim-v92'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -315,4 +315,80 @@ test('dos partidas ladrón nuevas no heredan el lugar de la otra', () => {
   assert.match(html, /state\.cellArrest = null;/);
   assert.match(html, /const lugar = state\.modoLadron \? continuarMundoLadron\(d\) : null;/);
   assert.match(html, /const POLICE_CELL_SEC = 60/);
+});
+
+test('la plata del asalto sale de la caja, una vez, y la otra caja sigue llena', () => {
+  const seq = [0.2, 0.1, 0.6, 0.3];
+  let i = 0;
+  const rng = () => seq[i++ % seq.length];
+  assert.deepEqual(cajasNuevas(), { super: false, mall: false });
+  assert.deepEqual(normalizarCajas(null), { super: false, mall: false });
+  assert.deepEqual(normalizarCajas({ super: 1, mall: 0, otra: true }), { super: true, mall: false });
+  const super1 = vaciarCaja(cajasNuevas(), 'super', rng);
+  assert.equal(super1.ok, true);
+  assert.ok(super1.plata >= 150 && super1.plata <= 400);
+  assert.ok(super1.cosa && super1.cosa.n > 0);
+  assert.equal(super1.cajas.super, true);
+  assert.equal(super1.cajas.mall, false);
+  const otraVez = vaciarCaja(super1.cajas, 'super', rng);
+  assert.equal(otraVez.ok, false);
+  assert.equal(otraVez.razon, 'vacia');
+  assert.equal(otraVez.plata, 0);
+  const mall = vaciarCaja(super1.cajas, 'mall', rng);
+  assert.equal(mall.ok, true);
+  assert.equal(mall.cajas.mall, true);
+  assert.equal(mall.cajas.super, true);
+  assert.equal(vaciarCaja(mall.cajas, 'mall', rng).razon, 'vacia');
+  assert.equal(vaciarCaja(cajasNuevas(), 'bodega', rng).razon, 'no');
+  assert.equal(enLaCaja(36, -26.4, 36, -26.4, CAJA_RADIO), true);
+  assert.equal(enLaCaja(28, -35, 36, -26.4, CAJA_RADIO), false, 'el pasillo del súper no es la caja');
+  assert.equal(enLaCaja(16.2, -208.2, 16.2, -210, CAJA_MALL_RADIO), true);
+  assert.equal(enLaCaja(40, -200, 16.2, -210, CAJA_MALL_RADIO), false);
+  assert.match(html, /vaciarCaja\(state\.cajasVacias, zona\)/);
+  assert.match(html, /cajasVacias: normalizarCajas\(state\.cajasVacias\)/);
+  assert.match(html, /state\.cajasVacias = cajasNuevas\(\)/);
+  assert.match(html, /Robar la caja /);
+  assert.match(html, /cajasPago\.super = \{ x: cx \+ hw - 3, z: cz \+ hd - 2\.4 \}/);
+  assert.match(html, /cajasPago\.mall = \{ x: 16\.2, z: -210 \}/);
+});
+
+test('en el modo la policía va un 15% más lenta y solo atrapa si ya persigue y está encima', () => {
+  assert.equal(POLICIA_FACTOR, 0.85);
+  assert.equal(velocidadPolicia(7.4, true), 7.4 * 0.85);
+  assert.equal(velocidadPolicia(18, true), 18 * 0.85);
+  assert.equal(velocidadPolicia(6.2, true), 6.2 * 0.85);
+  assert.equal(velocidadPolicia(22, false), 22, 'fuera del modo la velocidad no cambia');
+  assert.equal(velocidadPolicia(7, false), 7);
+  assert.equal(CAPTURA_NORMAL_PIE, 1.9);
+  assert.equal(CAPTURA_NORMAL_AUTO, 3.4);
+  assert.equal(CAPTURA_LADRON_PIE, 0.75);
+  assert.equal(CAPTURA_LADRON_AUTO, 1.5);
+  assert.ok(CAPTURA_LADRON_PIE < CAPTURA_NORMAL_PIE - 0.8);
+  assert.ok(CAPTURA_LADRON_AUTO < CAPTURA_NORMAL_AUTO - 1.5);
+  assert.equal(radioCaptura(false, false), 1.9);
+  assert.equal(radioCaptura(false, true), 3.4);
+  assert.equal(radioCaptura(true, false), 0.75);
+  assert.equal(radioCaptura(true, true), 1.5);
+  assert.equal(atrapaPolicia(false, 0.1, true, false), false, 'si no te persigue, estar al lado no esposan');
+  assert.equal(atrapaPolicia(false, 0, true, true), false);
+  assert.equal(atrapaPolicia(true, 1.5, true, false), false, 'el radio viejo de 1,9 ya no alcanza');
+  assert.equal(atrapaPolicia(true, 0.75, true, false), true);
+  assert.equal(atrapaPolicia(true, 0.76, true, false), false);
+  assert.equal(atrapaPolicia(true, 2, true, true), false, 'al volante, 2 m sigue siendo menos que 3,4 y no basta');
+  assert.equal(atrapaPolicia(true, 1.5, true, true), true);
+  assert.equal(atrapaPolicia(false, 1.9, false, false), true, 'fuera del modo, pasar cerca sí atrapa');
+  assert.equal(atrapaPolicia(false, 1.91, false, false), false);
+  assert.equal(atrapaPolicia(false, 3.4, false, true), true);
+  assert.equal(atrapaPolicia(false, 3.41, false, true), false);
+  const normal = html.slice(html.indexOf('function updatePolice(dt)'), html.indexOf('function policeCatch()'));
+  assert.match(normal, /const catchD = driving \? 3\.4 : 1\.9/);
+  assert.match(normal, /const speed = \(driving \? 22 : 7\)/);
+  assert.doesNotMatch(normal, /atrapaPolicia|velocidadPolicia/);
+  const ladron = html.slice(html.indexOf('function updatePoliciaLadron(dt)'), html.indexOf('function cajaDePagoCerca()'));
+  assert.match(ladron, /const yaPersigue = !!\(state\.ladronChase && state\.ladronChase\.activa\)/);
+  assert.match(ladron, /atrapaPolicia\(yaPersigue, d, true, !!state\.driving\)/);
+  assert.match(ladron, /atrapaPolicia\(yaPersigue && g\.userData\.persigue, d, true, false\)/);
+  assert.match(ladron, /velocidadPolicia\(state\.driving \? 18 : 7\.4, true\)/);
+  assert.match(ladron, /moveToward\(p, meta, 2\.1 \* dt\)/);
+  assert.doesNotMatch(ladron, /velocidadPolicia\(2\.1/);
 });

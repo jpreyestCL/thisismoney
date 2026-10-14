@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, mundoLadronNuevo, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, ropaPorId, tickLlamada, tickPersecucion, titoPuedeDarArma } from './src/modo-ladron.js?v=5';
+import { CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, ROBO_ESPERA_SEG, VER_POLICIA, VIDA_POLICIA, arrestoLadron, asaltoTienda, bovedaNueva, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, togglearBoveda } from './src/modo-ladron.js?v=6';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -3589,13 +3589,12 @@ function renderBlackMarket() {
   if (money) money.textContent = state.creative ? '$∞' : '$' + state.money;
   const debe = state.modoLadron ? deudaTito(state.night || 0, state.titoPagadoHasta || 0) : 0;
   const pago = state.modoLadron
-    ? '<button type="button" data-bm="tito-pagar" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(250,204,21,.16); border:1px solid #facc15; color:#fef3c7; border-radius:9px; padding:8px 10px;"><b>🕶️ Pagarle a Tito</b> · ' + (debe > 0 ? '$' + debe + ' (cada ' + NOCHES_TITO + ' días)' : 'estás al día') + '<br><span style="opacity:.75; font-size:11px">Las armas te las deja gratis. Si no pagas, no te da más.</span></button>'
+    ? '<button type="button" data-bm="tito-pagar" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(250,204,21,.16); border:1px solid #facc15; color:#fef3c7; border-radius:9px; padding:8px 10px;"><b>🕶️ Pagarle a Tito</b> · ' + (debe > 0 ? '$' + debe + ' (cada ' + NOCHES_TITO + ' días)' : 'estás al día') + '<br><span style="opacity:.75; font-size:11px">Las armas, las balas y las bombas de humo salen gratis. Si no pagas, no te da más.</span></button>'
     : '';
   list.innerHTML = pago + BLACK_MARKET.map(it => {
     const have = (it.gadget && !GADGET_HAND[it.gadget] && state.gadgets && state.gadgets[it.gadget]) || (GUN_SPECS[it.key] && state.guns && state.guns[it.key]) || (!GUN_SPECS[it.key] && it.dmg && state.weaponName === it.name);
-    const esArma = !!(GUN_SPECS[it.key] || (it.dmg && !it.gadget && !it.ammo));
-    const gratis = !!(state.modoLadron && esArma);
-    const precioTxt = gratis ? 'GRATIS' : ('$' + it.price);
+    const precio = precioDeTito(it);
+    const precioTxt = (state.modoLadron && tipoRegaloTito(it) && precio === 0) ? 'GRATIS' : ('$' + it.price);
     return '<button type="button" data-bm="' + it.key + '" style="pointer-events:all; cursor:pointer; text-align:left; background:rgba(127,29,29,.2); border:1px solid #7f1d1d; color:#fecaca; border-radius:9px; padding:8px 10px;"><b style="color:#fecaca">' + it.icon + ' ' + it.name + '</b> · ' + precioTxt + (have ? (GUN_SPECS[it.key] ? ' · ya la tienes (toca para llevarla en la mano)' : ' · ya lo tienes') : '') + (it.ammo ? ' · llevas ' + (state.ammo || 0) + ' balas' : '') + (GADGET_HAND[it.gadget] ? ' · tienes ' + ((state.gadgetCharges || {})[it.gadget] || 0) : '') + '<br><span style="opacity:.75; font-size:11px">' + it.blurb + (GUN_SPECS[it.key] ? '<br>💥 daño ' + GUN_SPECS[it.key].dmg + ' · 🎯 cabeza x' + GUN_SPECS[it.key].head + ' (' + Math.round(GUN_SPECS[it.key].dmg * GUN_SPECS[it.key].head) + ') · 📏 ' + GUN_SPECS[it.key].range + ' m · ⏱️ ' + GUN_SPECS[it.key].rate + ' s' : '') + '</span></button>';
   }).join('');
 }
@@ -3636,7 +3635,9 @@ function tryAlleyInteract() {
   }
   if (alley.ammoMan && alley.open && dist2D(player.position, alley.ammoMan.position) < 3.2) {   // el balero: vende munición
     const caja = BLACK_MARKET.find(x => x.key === 'bm_balas');
-    if (!state.creative && state.money < caja.price) { say('🧢 El balero', 'Sin plata no hay balas, chiquillo. Son $' + caja.price + ' la caja de ' + caja.ammo + '.'); return true; }
+    if (bloquearTito(caja)) return true;
+    const precioBalas = precioDeTito(caja);
+    if (!state.creative && state.money < precioBalas) { say('🧢 El balero', 'Sin plata no hay balas, chiquillo. Son $' + precioBalas + ' la caja de ' + caja.ammo + '.'); return true; }
     buyItem(caja);
     say('🧢 El balero', 'Cincuenta balas. Vuelve cuando se te acaben.');
     return true;
@@ -4523,6 +4524,163 @@ function sentarPersona(p, x, y, z, haciaY) {
 }
 
 // ===================================================================
+//  BÓVEDA DEL BANCO (modo ladrón): una hoja que gira con E y, adentro,
+//  25 casilleros de $1500. Se guarda en la partida. Una nueva nace
+//  cerrada y llena; continuar no rellena los que ya vaciaste.
+// ===================================================================
+const boveda = {
+  hinge: null, obs: null, puerta: null, casilleros: [],
+  matLleno: null, matVacio: null, matEtiquetaLlena: null, matEtiquetaVacia: null,
+};
+function texturaCasillero(texto, fondo, tinta) {
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = fondo; g.fillRect(0, 0, 256, 128);
+  g.fillStyle = tinta; g.font = 'bold 72px sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(texto, 128, 68);
+  const tex = new THREE.CanvasTexture(cv);
+  if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+function estadoBoveda() {
+  return normalizarBoveda({ abierta: !!state.bovedaAbierta, vacios: state.bovedaVacios });
+}
+function pintarBoveda() {
+  if (!boveda.hinge) return;
+  const est = estadoBoveda();
+  boveda.hinge.rotation.y = est.abierta ? Math.PI / 2 : 0;   // la hoja gira hacia adentro
+  if (boveda.obs) {
+    const i = obstacles.indexOf(boveda.obs);
+    if (est.abierta) { if (i >= 0) obstacles.splice(i, 1); }
+    else if (i < 0) obstacles.push(boveda.obs);
+  }
+  for (const c of boveda.casilleros) {
+    const vacio = est.vacios.indexOf(c.i) >= 0;
+    c.caja.material = vacio ? boveda.matVacio : boveda.matLleno;
+    c.etiqueta.material = vacio ? boveda.matEtiquetaVacia : boveda.matEtiquetaLlena;
+  }
+}
+function resetBovedaPartida() {
+  const nueva = bovedaNueva();
+  state.bovedaAbierta = nueva.abierta;
+  state.bovedaVacios = nueva.vacios;
+  pintarBoveda();
+}
+function casilleroCerca(maxD) {
+  let best = null, mejor = Infinity;
+  const ojo = player.position.y;
+  for (const c of boveda.casilleros) {
+    const d = Math.hypot(player.position.x - c.x, player.position.z - c.z);
+    const dy = Math.abs(ojo - c.y);
+    if (d > maxD || dy > 0.85) continue;
+    const s = d + dy * .4;
+    if (s < mejor) { mejor = s; best = c; }
+  }
+  return best;
+}
+function puertaBovedaCerca(maxD) {
+  if (!boveda.puerta) return false;
+  return Math.hypot(player.position.x - boveda.puerta.x, player.position.z - boveda.puerta.z) < maxD;
+}
+function tryBoveda() {
+  if (!state.modoLadron) return false;
+  if (state.planet !== 'tierra' || state.country || !boveda.hinge) return false;
+  const caja = state.bovedaAbierta ? casilleroCerca(1.25) : null;
+  if (caja) {
+    const r = saquearCasillero(estadoBoveda(), caja.i);
+    if (!r.ok) {
+      if (r.razon === 'vacio') toast('🔐 Ese casillero ya está vacío');
+      else if (r.razon === 'cerrada') toast('🚪 La bóveda está cerrada');
+      return true;
+    }
+    state.bovedaAbierta = r.boveda.abierta;
+    state.bovedaVacios = r.boveda.vacios;
+    addMoney(r.plata);
+    pintarBoveda();
+    const pos = new THREE.Vector3(caja.x, caja.y, caja.z);
+    if (typeof floatText === 'function') floatText(pos, '+$' + r.plata, '#fde047', 18);
+    if (typeof coinBurst === 'function') coinBurst(pos, 8);
+    toast('💰 Sacaste $' + r.plata + ' · quedan $' + plataBoveda(r.boveda) + ' en la bóveda');
+    beep(640, .08, .05);
+    saveGame();
+    return true;
+  }
+  if (!puertaBovedaCerca(2.15)) return false;
+  const r = togglearBoveda(estadoBoveda());
+  state.bovedaAbierta = r.abierta;
+  state.bovedaVacios = r.vacios;
+  pintarBoveda();
+  toast(r.abierta ? '🚪 Bóveda abierta · ' + CASILLEROS_BOVEDA + ' casilleros de $' + PLATA_CASILLERO : '🚪 Bóveda cerrada');
+  beep(r.abierta ? 280 : 180, .1, .05);
+  saveGame();
+  return true;
+}
+function pistaBoveda() {
+  if (!state.modoLadron || state.planet !== 'tierra' || state.country || !boveda.hinge) return null;
+  if (state.bovedaAbierta && casilleroCerca(1.25)) {
+    const c = casilleroCerca(1.25);
+    const vacio = estadoBoveda().vacios.indexOf(c.i) >= 0;
+    return { key: 'E', touch: '🔐', text: vacio ? 'Casillero vacío' : 'Sacar $' + PLATA_CASILLERO + ' de este casillero' };
+  }
+  if (puertaBovedaCerca(2.15)) return { key: 'E', touch: '🚪', text: state.bovedaAbierta ? 'Cerrar la bóveda' : 'Abrir la bóveda' };
+  return null;
+}
+function armarBovedaBanco(cx, cz) {
+  // Cuarto al noroeste, al norte del mesón, para no tapar a la cajera.
+  const x0 = cx - BANK.w / 2 + 1.15;
+  const x1 = x0 + 4.05;
+  const z0 = cz - 1.9;
+  const z1 = z0 + 4.05;
+  const acero = new THREE.MeshStandardMaterial({ color: 0xc5ced6, metalness: .62, roughness: .32, emissive: 0x1e293b, emissiveIntensity: .45 });
+  const muro = 0x64748b;
+  edifCaja((x0 + x1) / 2, .04, (z0 + z1) / 2, x1 - x0 - .2, .08, z1 - z0 - .2, 0x475569, 'banco', false);
+  edifCaja((x0 + x1) / 2, 1.7, z0, x1 - x0, 3.4, .28, muro, 'banco', true);
+  edifCaja((x0 + x1) / 2, 1.7, z1, x1 - x0, 3.4, .28, muro, 'banco', true);
+  const abertura = 1.7, puertaZ = (z0 + z1) / 2;
+  const sur = (z0 + (puertaZ - abertura / 2)) / 2;
+  const norte = ((puertaZ + abertura / 2) + z1) / 2;
+  edifCaja(x1, 1.7, sur, .28, 3.4, (puertaZ - abertura / 2) - z0, muro, 'banco', true);
+  edifCaja(x1, 1.7, norte, .28, 3.4, z1 - (puertaZ + abertura / 2), muro, 'banco', true);
+  edifCaja(x1, 3.15, puertaZ, .28, .7, abertura, muro, 'banco', true);
+  const hinge = new THREE.Group();
+  hinge.position.set(x1, 0, puertaZ - abertura / 2);
+  scene.add(hinge);
+  const hoja = new THREE.Mesh(new THREE.BoxGeometry(.2, 2.55, abertura - .08), acero);
+  hoja.position.set(-.04, 1.4, (abertura - .08) / 2); hoja.castShadow = true; hinge.add(hoja);
+  const rueda = new THREE.Mesh(new THREE.TorusGeometry(.28, .05, 8, 16), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: .6, roughness: .3 }));
+  rueda.rotation.y = Math.PI / 2; rueda.position.set(.12, 1.45, abertura * .72); hinge.add(rueda);
+  for (const zy of [[.35, .5], [.35, 2.3], [abertura - .4, .5], [abertura - .4, 2.3]]) {
+    const perno = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, .08, 8), acero);
+    perno.rotation.z = Math.PI / 2; perno.position.set(.12, zy[1], zy[0]); hinge.add(perno);
+  }
+  boveda.hinge = hinge;
+  boveda.puerta = { x: x1 + .7, z: puertaZ };
+  boveda.obs = addObstacle(x1 + .05, puertaZ, .45, abertura - .1, 2.6, 'banco');
+  const cartelB = makeSign('BOVEDA', 0xcbd5e1); cartelB.scale.set(.28, .28, .28);
+  cartelB.position.set(x1 + .2, 3.7, puertaZ); scene.add(cartelB);
+  const luzB = new THREE.PointLight(0xfff4cf, 2.2, 12, 2);
+  luzB.position.set(x1 + 1.4, 2.3, puertaZ); scene.add(luzB);
+  const luzDentro = new THREE.PointLight(0xffe7b0, 2.4, 8, 2);
+  luzDentro.position.set((x0 + x1) / 2, 2.2, puertaZ); scene.add(luzDentro);
+  boveda.matLleno = new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: .55, roughness: .4 });
+  boveda.matVacio = new THREE.MeshStandardMaterial({ color: 0x3f3f46, metalness: .2, roughness: .8 });
+  boveda.matEtiquetaLlena = new THREE.MeshBasicMaterial({ map: texturaCasillero('$' + PLATA_CASILLERO, '#fde047', '#14532d') });
+  boveda.matEtiquetaVacia = new THREE.MeshBasicMaterial({ map: texturaCasillero('VACÍO', '#27272a', '#a1a1aa') });
+  const cols = 5;
+  for (let i = 0; i < CASILLEROS_BOVEDA; i++) {
+    const col = i % cols, fila = (i / cols) | 0;
+    const x = x0 + .42, y = .5 + fila * .55, z = z0 + .55 + col * ((z1 - z0 - 1.1) / (cols - 1));
+    const caja = new THREE.Mesh(new THREE.BoxGeometry(.32, .46, .62), boveda.matLleno);
+    caja.position.set(x, y, z); caja.castShadow = true; scene.add(caja);
+    const etiqueta = new THREE.Mesh(new THREE.PlaneGeometry(.5, .22), boveda.matEtiquetaLlena);
+    etiqueta.rotation.y = Math.PI / 2; etiqueta.position.set(x + .17, y, z); scene.add(etiqueta);
+    boveda.casilleros.push({ i, x: x + .2, y, z, caja, etiqueta });
+  }
+}
+
+// ===================================================================
 //  BANCO CENTRAL: edificio neoclásico (columnas, frontón, reloj y
 //  bóveda) al que se ENTRA. Adentro, la cajera atiende detrás del
 //  mesón: acércate y pulsa E para abrir la libreta de siempre.
@@ -4633,15 +4791,7 @@ function buildBank() {
   scene.add(bankTeller);
   const globo = makeSign('CAJERA · E', 0xa7f3d0); globo.scale.set(.32, .32, .32);
   globo.position.set(desk.x, 3.05, desk.z - .95); scene.add(globo);
-  // Bóveda acorazada en la pared del oeste
-  const bvx = cx - w / 2 + .9;
-  edifCaja(bvx, 1.9, cz - 2.6, .5, 3.8, 4, 0x64748b, 'banco', false);
-  const puertaB = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, .5, 20), mat(0x94a3b8));
-  puertaB.rotation.z = Math.PI / 2; puertaB.position.set(bvx + .45, 1.9, cz - 2.6); puertaB.castShadow = true; scene.add(puertaB);
-  const rueda = new THREE.Mesh(new THREE.TorusGeometry(.55, .1, 8, 16), mat(0xfacc15));
-  rueda.rotation.y = Math.PI / 2; rueda.position.set(bvx + .78, 1.9, cz - 2.6); scene.add(rueda);
-  const cartelB = makeSign('BOVEDA', 0xcbd5e1); cartelB.scale.set(.28, .28, .28);
-  cartelB.position.set(bvx + .9, 4.2, cz - 2.6); scene.add(cartelB);
+  armarBovedaBanco(cx, cz);
   // Sala de espera: sillas, cordón de la fila y una planta
   for (let i = 0; i < 4; i++) {
     const sx = cx + w / 2 - 2.2, sz = cz - 2.4 + i * 1.5;
@@ -5143,14 +5293,25 @@ function aplicarRopaPuesta() {
   av.userData.ropaVisual = parts;
   if (arm && arm.material) arm.material.color.setHex(ropa.color);
 }
-function armaDeTito(item) {
-  return !!(state.modoLadron && item && (GUN_SPECS[item.key] || (item.dmg && !item.gadget && !item.ammo && String(item.key || '').indexOf('bm_') === 0)));
+function tipoRegaloTito(item) {
+  if (!item) return '';
+  if (item.ammo) return 'balas';
+  if (item.gadget === 'humo') return 'humo';
+  const deTito = item.key && String(item.key).indexOf('bm_') === 0;
+  if (deTito && (GUN_SPECS[item.key] || (item.dmg && !item.gadget && !item.ammo))) return 'arma';
+  return '';
+}
+function precioDeTito(item) {
+  const tipo = tipoRegaloTito(item);
+  if (!tipo) return item.price;
+  return precioRegaloTito(item.price, !!state.modoLadron, tipo);
 }
 function bloquearTito(item) {
-  if (!armaDeTito(item)) return false;
-  if (titoPuedeDarArma(state.night || 0, state.titoPagadoHasta || 0)) return false;
+  const tipo = tipoRegaloTito(item);
+  if (!tipo || !state.modoLadron) return false;
+  if (titoEntrega(state.night || 0, state.titoPagadoHasta || 0, tipo, true)) return false;
   const debe = deudaTito(state.night || 0, state.titoPagadoHasta || 0);
-  toast('🕶️ Tito: me debes $' + debe + '. Cada ' + NOCHES_TITO + ' días son $500. Sin pago no hay más armas.');
+  toast('🕶️ Tito: me debes $' + debe + '. Cada ' + NOCHES_TITO + ' días son $500. Sin pago no hay más armas, balas ni bombas de humo.');
   if (typeof say === 'function') say('🕶️ Tito', 'Págame lo de estos días y volvemos a hablar de fierros.');
   return true;
 }
@@ -12592,6 +12753,7 @@ function setEarthWorld(v) {   // muestra/oculta la Tierra completa (con sus coli
   if (!v) { for (const o of earthObstacles) { const i = obstacles.indexOf(o); if (i >= 0) obstacles.splice(i, 1); } }
   else { for (const o of earthObstacles) if (!obstacles.includes(o)) obstacles.push(o); }
   setCityVisible(v);
+  if (v) pintarBoveda();
 }
 
 if (typeof buildDarkAlley === 'function') buildDarkAlley();
@@ -17155,6 +17317,7 @@ function tryInteract() {
   if (tryAlleyInteract()) return;
   if (tryJobInteract()) return;   // recados: calmar al perro / abrir el cajón
   if (tryDoor()) return;          // abrir / cerrar la puerta de tu casa
+  if (tryBoveda()) return;        // modo ladrón: hoja de la bóveda y sus casilleros
   if (tryRobarTienda()) return;   // modo ladrón: asaltar el súper o el súper del mall
   if (tryTorre()) return;         // edificio: conserje, ascensor y puertas de los deptos
   if (tryEntrada()) return;       // entrar / salir de los edificios por la puerta
@@ -18248,6 +18411,7 @@ function startGame() {
   resetWeather();
   syncFarWorld();
   state.ropaLadron = {}; state.ropaPuesta = null; state.titoPagadoHasta = 0; state.ladronChase = null; state.ladronFama = famaInicial(); state.ladronLlamada = 0; state.roboCd = {};
+  resetBovedaPartida();
   // La celda, la ducha y el lugar del mundo anterior viven en memoria. Si no se
   // sueltan, la partida nueva queda clavada en el mismo sitio (y el autosave
   // escribe esas coordenadas en el perfil nuevo).
@@ -19210,6 +19374,7 @@ function saveGame() {
       guns: state.guns || {}, gun: state.gun || null, ammo: state.ammo || 0, clip: state.clip || 0, gadgetCharges: state.gadgetCharges || {}, handGadget: state.handGadget || null,   // armas de fuego y bombas de mano
       creative: !!state.creative,
       modoLadron: !!state.modoLadron, ropaLadron: state.ropaLadron || {}, ropaPuesta: state.ropaPuesta || null, titoPagadoHasta: state.titoPagadoHasta || 0, ladronFama: state.ladronFama || 0,
+      bovedaAbierta: !!state.bovedaAbierta, bovedaVacios: Array.isArray(state.bovedaVacios) ? state.bovedaVacios.slice() : [],
       ladronChaseLeft: state.ladronChase && state.ladronChase.activa ? state.ladronChase.left : 0,
       cellArrestLadron: !!(state.cellArrest && state.cellArrest.ladron),
       hasPhone: !!state.hasPhone, skiPass: !!state.skiPass, skiGear: state.skiGear || null, skiGearWorn: !!state.skiGearWorn,
@@ -20141,6 +20306,10 @@ function loadGame() {
   state.ladronChase = (d.ladronChaseLeft || 0) > 0 ? { left: d.ladronChaseLeft, activa: true } : null;
   state.ladronLlamada = 0;
   state.ladronFama = d.ladronFama != null ? (d.ladronFama | 0) : ((state.ropaPuesta || (state.guns && Object.keys(state.guns).length)) ? 1 : 0);
+  const bovedaCargada = normalizarBoveda({ abierta: d.bovedaAbierta, vacios: d.bovedaVacios });
+  state.bovedaAbierta = bovedaCargada.abierta;
+  state.bovedaVacios = bovedaCargada.vacios;
+  pintarBoveda();
   cameraMode = Number.isInteger(d.cameraMode) ? THREE.MathUtils.clamp(d.cameraMode, 0, 2) : 0;
   const savedSports = d.sports || {};
   soccer.scoreRed = +(savedSports.soccer && savedSports.soccer[0]) || 0; soccer.scoreBlue = +(savedSports.soccer && savedSports.soccer[1]) || 0; updateScoreboard();
@@ -21549,18 +21718,22 @@ function buyItem(item) {
     saveGame(); return;
   }
   const fromAlley = !!(item && (item.gadget || (item.key && String(item.key).indexOf('bm_') === 0)));
-  if (item.ammo) {   // caja de balas del mercado negro
-    if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
-    if (!state.creative) state.money -= item.price;
+  if (item.ammo) {   // caja de balas del mercado negro (gratis en el modo ladrón, si estás al día)
+    if (bloquearTito(item)) return;
+    const precioBalas = precioDeTito(item);
+    if (!state.creative && state.money < precioBalas) { toast('💸 Te falta plata'); return; }
+    if (!state.creative) state.money -= precioBalas;
     state.ammo = (state.ammo || 0) + item.ammo;
     toast('🧰 +' + item.ammo + ' balas · llevas ' + state.ammo + ' de reserva (cargador de ' + GUN_CLIP + ')');
     beep(560, .08, .05); storyProgress('alley', 5); saveGame(); return;
   }
   if (item.gadget) {
-    if (!state.creative && state.money < item.price) { toast('💸 Te falta plata'); return; }
+    if (bloquearTito(item)) return;
+    const precioGadget = precioDeTito(item);
+    if (!state.creative && state.money < precioGadget) { toast('💸 Te falta plata'); return; }
     const once = { capa:1, gafas:1, gancho:1, radio:1 };
     if (once[item.gadget] && state.gadgets && state.gadgets[item.gadget]) { toast('Ya tienes ' + item.name); return; }
-    if (!state.creative) state.money -= item.price;
+    if (!state.creative) state.money -= precioGadget;
     if (GADGET_HAND[item.gadget]) {   // bomba de humo / confeti: se guardan y se llevan en la mano con 1
       if (!state.gadgetCharges) state.gadgetCharges = {};
       state.gadgetCharges[item.gadget] = (state.gadgetCharges[item.gadget] || 0) + 1;
@@ -24173,7 +24346,7 @@ function netHandle(raw, fromConn) {
 function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100); }
 // con ?debug se puede mirar el estado de la sala desde la consola
 try { if (new URLSearchParams(location.search).has('debug')) {
-  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, renderShopList, openShopInput, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, startPoliceCellArrest, updateCellArrest, releasePoliceCellArrest, celdaArrestoBounds, POLICE_CELL_SEC, bankTeller: () => bankTeller, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, abrirDeptos, enInteriorMirador, updateDad, damagePlayer, damageDad, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, amoblarDepto, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
+  const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, renderShopList, openShopInput, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, startPoliceCellArrest, updateCellArrest, releasePoliceCellArrest, celdaArrestoBounds, POLICE_CELL_SEC, bankTeller: () => bankTeller, boveda, pintarBoveda, tryBoveda, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, abrirDeptos, enInteriorMirador, updateDad, damagePlayer, damageDad, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, amoblarDepto, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.tickLadron = (dt) => { updatePoliciaLadron(dt == null ? 0.05 : dt); return { fama: state.ladronFama || 0, llamada: +(state.ladronLlamada || 0).toFixed(2), chase: state.ladronChase && state.ladronChase.left, cartel: farolesLadron.filter(f => f.visible).length, obj: ui('objective') && ui('objective').textContent }; };
   timDump.pintar = () => { renderHUD(); };
   timDump.ponerRopa = (id) => {
@@ -24213,6 +24386,8 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   };
   timDump.unlockDavid = (k) => { if (!davidKeyOk(k)) return false; davidGateOpen = true; return true; };
   timDump.setPos = (x, y, z) => { player.position.set(x, y, z); vy = 0; grounded = false; };
+  timDump.setModoMenu = (v) => { menuModoLadron = !!v; };
+  timDump.startGame = startGame;
   timDump.exitIslandMine = () => {
     const h = holes.find(hh => hh.islandMine);
     if (!h) return null;
@@ -25011,7 +25186,7 @@ function updateContextPrompt() {
     if (alley.following) action = { key: '👀', touch: '🕶️', text: 'Siguiendo a Tito…' };
     else if (alley.open && (inBlackMarket(player.position.x, player.position.z) || (Math.abs(player.position.x - ALLEY.doorX) < 2.4 && Math.abs(player.position.z - ALLEY.z) < 2.4))) action = { key: 'E', touch: '🕯️', text: 'Entrar · pistolas sobre las mesas' };
     else if (alley.contact && dist2D(player.position, alley.contact.position) < 4.8) action = { key: 'E', touch: '🕶️', text: alley.open ? 'Hablar con Tito' : 'Tito te lleva por el callejón' };
-    else if (alley.ammoMan && alley.open && dist2D(player.position, alley.ammoMan.position) < 3.2) action = { key: 'E', touch: '🧰', text: 'El balero: caja de 50 balas · $600' };
+    else if (alley.ammoMan && alley.open && dist2D(player.position, alley.ammoMan.position) < 3.2) action = { key: 'E', touch: '🧰', text: state.modoLadron && precioRegaloTito(600, true, 'balas') === 0 ? 'El balero: caja de 50 balas · GRATIS' : 'El balero: caja de 50 balas · $600' };
     else if (!alley.following && player.position.x > ALLEY.x0 + 0.35) action = { key: 'E', touch: '🏠', text: 'Volver al mapa' };
   } else if (playable) {
     if (state.buildMode) {
@@ -25026,6 +25201,7 @@ function updateContextPrompt() {
       else action = { key: 'E · F5', touch: '🎬', text: 'E asiento = peli · pasillo hasta la puerta 👨‍✈️ · F5 ves las alas' };
     }
     else if (nearestDoor()) { const d = nearestDoor(); action = { key: 'E', touch: '🚪', text: d.open ? 'Cerrar la puerta' : 'Abrir la puerta' }; }
+    else if (state.modoLadron && (action = pistaBoveda())) { /* la bóveda del banco */ }
     else if (torreLift.rider) action = { key: '🛗', touch: '🛗', text: 'Elige el piso en la botonera' };
     else if (torreAccion()) action = torreAccion();
     else if (entradaAccion()) action = entradaAccion();

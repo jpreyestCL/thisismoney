@@ -6,7 +6,9 @@ import {
   VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG, NOCHES_TITO,
   arrestoLadron, asaltoTienda, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, esCamuflaje, famaInicial,
   masBuscado, mostrarCartel, mundoLadronNuevo, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce,
-  precioArmaTito, tickLlamada, tickPersecucion, titoPuedeDarArma,
+  CASILLEROS_BOVEDA, PLATA_CASILLERO, bovedaNueva, normalizarBoveda, plataBoveda,
+  precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
+  titoEntrega, titoPuedeDarArma, togglearBoveda,
 } from '../src/modo-ladron.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -60,7 +62,18 @@ test('Tito cobra 500 cada 3 días y sin pago no da más armas', () => {
   assert.equal(titoPuedeDarArma(3, 0), false, 'si no pagas, no da más');
   assert.equal(precioArmaTito(1800, false, true), 1800, 'fuera del modo se pagan');
   assert.equal(precioArmaTito(1800, true, true), 0, 'en el modo el arma es gratis');
-  assert.equal(precioArmaTito(600, true, false), 600, 'las balas siguen con precio');
+  assert.equal(precioArmaTito(600, true, false), 600, 'el flag viejo no marca las balas');
+  assert.equal(precioRegaloTito(600, true, 'balas'), 0, 'en el modo las balas son gratis');
+  assert.equal(precioRegaloTito(600, false, 'balas'), 600, 'fuera del modo las balas siguen con precio');
+  assert.equal(precioRegaloTito(220, true, 'humo'), 0, 'en el modo la bomba de humo es gratis');
+  assert.equal(precioRegaloTito(220, false, 'humo'), 220, 'fuera del modo el humo se paga');
+  assert.equal(precioRegaloTito(240, true, 'confeti'), 240, 'el confeti no entra en el regalo');
+  assert.equal(titoEntrega(2, 0, 'balas', true), true);
+  assert.equal(titoEntrega(2, 0, 'humo', true), true);
+  assert.equal(titoEntrega(3, 0, 'balas', true), false, 'si no pagas, no hay balas');
+  assert.equal(titoEntrega(3, 0, 'humo', true), false, 'si no pagas, no hay bombas');
+  assert.equal(titoEntrega(3, 0, 'arma', true), false);
+  assert.equal(titoEntrega(3, 0, 'balas', false), true, 'fuera del modo la deuda no bloquea la compra');
   const corto = pagarTito(100, 3, 0);
   assert.equal(corto.ok, false);
   assert.equal(corto.deuda, 500);
@@ -197,7 +210,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=5/);
+  assert.match(html, /modo-ladron\.js\?v=6/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -208,8 +221,48 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=5/);
-  assert.match(sw, /const VERSION = 'tim-v90'/);
+  assert.match(sw, /modo-ladron\.js\?v=6/);
+  assert.match(sw, /const VERSION = 'tim-v91'/);
+  assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
+  assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
+  assert.match(html, /resetBovedaPartida\(\)/);
+  assert.match(html, /bovedaAbierta: !!state\.bovedaAbierta/);
+});
+
+test('la bóveda nace cerrada y llena, y un casillero vaciado no se rellena', () => {
+  assert.equal(CASILLEROS_BOVEDA, 25);
+  assert.equal(PLATA_CASILLERO, 1500);
+  const nueva = bovedaNueva();
+  assert.equal(nueva.abierta, false);
+  assert.equal(nueva.vacios.length, 0);
+  assert.equal(plataBoveda(nueva), 25 * 1500);
+  assert.equal(saquearCasillero(nueva, 0).razon, 'cerrada');
+  const abierta = togglearBoveda(nueva);
+  assert.equal(abierta.abierta, true);
+  assert.equal(abierta.vacios.length, 0);
+  const uno = saquearCasillero(abierta, 3);
+  assert.equal(uno.ok, true);
+  assert.equal(uno.plata, 1500);
+  assert.deepEqual(uno.boveda.vacios, [3]);
+  const otra = saquearCasillero(uno.boveda, 3);
+  assert.equal(otra.ok, false);
+  assert.equal(otra.razon, 'vacio');
+  assert.equal(plataBoveda(uno.boveda), 24 * 1500);
+  let b = uno.boveda;
+  for (let i = 0; i < 25; i++) {
+    if (i === 3) continue;
+    b = saquearCasillero(b, i).boveda;
+  }
+  assert.equal(plataBoveda(b), 0);
+  assert.equal(b.vacios.length, 25);
+  const seguida = normalizarBoveda(b);
+  assert.equal(seguida.vacios.length, 25, 'continuar conserva los casilleros vacíos');
+  const deCero = bovedaNueva();
+  assert.equal(deCero.abierta, false);
+  assert.equal(deCero.vacios.length, 0);
+  const sucia = normalizarBoveda({ abierta: true, vacios: [0, 0, 99, -1, 24, '2'] });
+  assert.equal(sucia.abierta, true);
+  assert.deepEqual(sucia.vacios, [0, 24, 2]);
 });
 
 test('dos partidas ladrón nuevas no heredan el lugar de la otra', () => {

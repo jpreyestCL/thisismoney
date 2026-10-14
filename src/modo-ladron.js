@@ -162,9 +162,59 @@ export function pagarTito(money, night, pagadoHasta) {
   return { ok: true, money: plata - debe, pagadoHasta: night | 0, deuda: 0, razon: 'pagado' };
 }
 
-export function precioArmaTito(price, modoLadron, esArma) {
-  if (modoLadron && esArma) return 0;
+// En el modo, armas, balas y bombas de humo salen a $0. Fuera, el precio de siempre.
+// El pago de cada 3 días lo decide titoEntrega: si debes, no te las da.
+export function precioRegaloTito(price, modoLadron, tipo) {
+  if (modoLadron && (tipo === 'arma' || tipo === 'balas' || tipo === 'humo')) return 0;
   return price;
+}
+
+export function precioArmaTito(price, modoLadron, esArma) {
+  return precioRegaloTito(price, modoLadron, esArma ? 'arma' : '');
+}
+
+export function titoEntrega(night, pagadoHasta, tipo, modoLadron) {
+  if (!modoLadron) return true;
+  if (tipo !== 'arma' && tipo !== 'balas' && tipo !== 'humo') return true;
+  return titoPuedeDarArma(night, pagadoHasta);
+}
+
+// Bóveda del banco, solo se saquea en el modo ladrón. 25 casilleros de $1500.
+// Una partida nueva nace cerrada y llena. Continuar no rellena los que ya vaciaste.
+export const CASILLEROS_BOVEDA = 25;
+export const PLATA_CASILLERO = 1500;
+
+export function bovedaNueva() {
+  return { abierta: false, vacios: [] };
+}
+
+export function normalizarBoveda(boveda) {
+  const src = boveda && Array.isArray(boveda.vacios) ? boveda.vacios : [];
+  const vacios = [];
+  for (const n of src) {
+    const i = n | 0;
+    if (i >= 0 && i < CASILLEROS_BOVEDA && vacios.indexOf(i) < 0) vacios.push(i);
+  }
+  return { abierta: !!(boveda && boveda.abierta), vacios };
+}
+
+export function togglearBoveda(boveda) {
+  const b = normalizarBoveda(boveda);
+  return { abierta: !b.abierta, vacios: b.vacios.slice() };
+}
+
+export function saquearCasillero(boveda, indice) {
+  const b = normalizarBoveda(boveda);
+  const i = indice | 0;
+  if (i < 0 || i >= CASILLEROS_BOVEDA) return { ok: false, razon: 'no', plata: 0, boveda: b };
+  if (!b.abierta) return { ok: false, razon: 'cerrada', plata: 0, boveda: b };
+  if (b.vacios.indexOf(i) >= 0) return { ok: false, razon: 'vacio', plata: 0, boveda: b };
+  return { ok: true, razon: 'ok', plata: PLATA_CASILLERO, boveda: { abierta: true, vacios: b.vacios.concat(i) } };
+}
+
+export function plataBoveda(boveda) {
+  const b = normalizarBoveda(boveda);
+  return (CASILLEROS_BOVEDA - b.vacios.length) * PLATA_CASILLERO;
 }
 
 // En el modo ladrón ver a Tito es gratis. Fuera, sigue el candado de $20.000

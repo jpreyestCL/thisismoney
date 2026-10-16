@@ -4582,13 +4582,185 @@ function resetBovedaPartida() {
 function cajeraViva() {
   return !(state.cajeraMuerta || (bankTeller && bankTeller.userData.muerto));
 }
+// Desde que cae hasta que la reemplazante se sienta. Da para vaciar los 25 casilleros.
+const CAJERA_REEMPLAZO_SEG = 120;
+const PASO_CAJERA = 1.7;
+let cajeraPuesto = null;
+let cajeraCuerpo = null;
+let cajeraReemplazo = null;
+let cajeraCamino = null;
+let cajeraTramo = 0;
+function ponerMonoCajera(p) {
+  if (!p || p.userData.mono) return p;
+  const pelo = new THREE.Mesh(new THREE.BoxGeometry(.6, .42, .6), mat(0x4b2e1e));
+  pelo.position.set(0, 2.28, -.04); p.add(pelo);
+  p.userData.mono = true;
+  return p;
+}
+function crearCajera() {
+  const p = makePerson(0x7c3aed, 0xe8b88a);
+  p.userData.cajera = true;
+  p.userData.hp = VIDA_POLICIA;
+  return ponerMonoCajera(p);
+}
+function sueloCajera() {
+  // En el hall, delante del mesón: detrás del mostrador el cuerpo no se ve.
+  const fondo = BANK.z - BANK.d / 2;
+  return { x: BANK.x - 1.05, y: 0.32, z: fondo + 2.8 + 1.55, yaw: Math.PI / 2 };
+}
+function aplicarPoseCaida(p, k) {
+  if (!p || !cajeraPuesto) return;
+  const t = Math.max(0, Math.min(1, k));
+  const s = sueloCajera();
+  const y0 = cajeraPuesto.y - .9;
+  p.position.set(
+    cajeraPuesto.x + (s.x - cajeraPuesto.x) * t,
+    y0 + (s.y - y0) * t,
+    cajeraPuesto.z + (s.z - cajeraPuesto.z) * t,
+  );
+  p.rotation.order = 'YXZ';
+  p.rotation.set(-Math.PI / 2 * t, s.yaw * t, 0);
+  const l = p.userData.limbs;
+  if (l) {
+    const pierna = -Math.PI / 2 * (1 - t);
+    l.legL.rotation.set(pierna, 0, .12 * t);
+    l.legR.rotation.set(pierna, 0, -.12 * t);
+    l.armL.rotation.set(-.5 * (1 - t), 0, .4 * t);
+    l.armR.rotation.set(-.5 * (1 - t), 0, -.7 * t);
+  }
+  p.userData.seated = true;
+  p.userData.tumbada = true;
+  p.visible = state.planet === 'tierra' && !state.country;
+}
+function tumbarCajera(p) {
+  if (!p) return;
+  p.userData.muerto = true;
+  p.userData.cajera = true;
+  p.userData.hp = 0;
+  p.userData.caida = 0;
+  cajeraCuerpo = p;
+  bankTeller = p;
+  aplicarPoseCaida(p, 0);
+}
+function caminoCajera() {
+  const frente = BANK.frente;
+  const fondo = BANK.z - BANK.d / 2;
+  const mesonZ = fondo + 2.8;
+  const lado = BANK.x + BANK.w / 2 - 1.7;
+  const silla = cajeraPuesto;
+  return [
+    { x: BANK.x, z: frente - 1.9 },
+    { x: lado, z: frente - 2.6 },
+    { x: lado, z: mesonZ },
+    { x: lado, z: silla.z },
+    { x: silla.x, z: silla.z + .35 },
+  ];
+}
+function duracionCaminoCajera() {
+  const pts = caminoCajera();
+  let d = 0;
+  for (let i = 1; i < pts.length; i++) d += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
+  return d / PASO_CAJERA;
+}
+function quitarPersonaTierra(p) {
+  if (!p) return;
+  scene.remove(p);
+  const i = earthMeshes.indexOf(p);
+  if (i >= 0) earthMeshes.splice(i, 1);
+}
+function asegurarReemplazoCajera() {
+  if (cajeraReemplazo || !cajeraPuesto) return;
+  const p = crearCajera();
+  const origen = caminoCajera()[0];
+  p.position.set(origen.x, 0, origen.z);
+  p.rotation.set(0, Math.PI, 0);
+  scene.add(p);
+  earthMeshes.push(p);
+  p.visible = state.planet === 'tierra' && !state.country;
+  cajeraReemplazo = p;
+  cajeraCamino = caminoCajera();
+  cajeraTramo = 0;
+}
+function sentarReemplazoCajera() {
+  const p = cajeraReemplazo;
+  if (!p || !cajeraPuesto) return;
+  if (cajeraCuerpo) quitarPersonaTierra(cajeraCuerpo);
+  cajeraCuerpo = null;
+  p.rotation.set(0, cajeraPuesto.hacia, 0);
+  sentarPersona(p, cajeraPuesto.x, cajeraPuesto.y, cajeraPuesto.z, cajeraPuesto.hacia);
+  p.userData.cajera = true;
+  p.userData.muerto = false;
+  p.userData.tumbada = false;
+  p.userData.hp = VIDA_POLICIA;
+  p.visible = state.planet === 'tierra' && !state.country;
+  bankTeller = p;
+  cajeraReemplazo = null;
+  cajeraCamino = null;
+  state.cajeraMuerta = false;
+  state.cajeraLlega = 0;
+  state.bovedaAbierta = false;
+  pintarBoveda();
+  toast('🏦 Llegó otra cajera. Hay que volver a bajarla para abrir la bóveda.');
+  saveGame();
+}
+function avanzarReemplazoCajera(dt) {
+  const p = cajeraReemplazo;
+  const pts = cajeraCamino;
+  if (!p || !pts || cajeraTramo >= pts.length) { sentarReemplazoCajera(); return; }
+  const meta = pts[cajeraTramo];
+  const dx = meta.x - p.position.x, dz = meta.z - p.position.z;
+  const dist = Math.hypot(dx, dz);
+  const paso = PASO_CAJERA * Math.min(dt || 0, .05);
+  if (dist < .08 || paso >= dist) {
+    p.position.x = meta.x; p.position.z = meta.z;
+    cajeraTramo++;
+    if (cajeraTramo >= pts.length) sentarReemplazoCajera();
+    return;
+  }
+  p.position.x += dx / dist * paso;
+  p.position.z += dz / dist * paso;
+  p.rotation.y = Math.atan2(dx, dz);
+  swingLimbs(p, dt);
+}
+function updateCajeraCaida(dt) {
+  if (!state.modoLadron || !state.cajeraMuerta) return;
+  if (state.planet !== 'tierra' || state.country) return;
+  const cuerpo = cajeraCuerpo || bankTeller;
+  if (cuerpo && cuerpo.userData.tumbada && (cuerpo.userData.caida || 0) < 1) {
+    cuerpo.userData.caida = Math.min(1, (cuerpo.userData.caida || 0) + dt / .65);
+    aplicarPoseCaida(cuerpo, cuerpo.userData.caida);
+  }
+  if (state.cajeraLlega > 0) state.cajeraLlega = Math.max(0, state.cajeraLlega - dt);
+  if ((state.cajeraLlega || 0) <= duracionCaminoCajera()) asegurarReemplazoCajera();
+  if (cajeraReemplazo) avanzarReemplazoCajera(dt);
+}
 function aplicarEstadoCajera() {
+  if (cajeraReemplazo) { quitarPersonaTierra(cajeraReemplazo); cajeraReemplazo = null; cajeraCamino = null; }
+  if (!bankTeller && cajeraCuerpo) bankTeller = cajeraCuerpo;
   if (!bankTeller) return;
-  const muerta = !!state.cajeraMuerta;
   bankTeller.userData.cajera = true;
-  bankTeller.userData.muerto = muerta;
-  bankTeller.userData.hp = muerta ? 0 : VIDA_POLICIA;
-  bankTeller.visible = !muerta;
+  if (!state.cajeraMuerta) {
+    if (cajeraCuerpo && cajeraCuerpo !== bankTeller) quitarPersonaTierra(cajeraCuerpo);
+    cajeraCuerpo = null;
+    state.cajeraLlega = 0;
+    bankTeller.userData.muerto = false;
+    bankTeller.userData.tumbada = false;
+    bankTeller.userData.caida = 0;
+    bankTeller.userData.hp = VIDA_POLICIA;
+    bankTeller.rotation.set(0, cajeraPuesto ? cajeraPuesto.hacia : 0, 0);
+    bankTeller.visible = state.planet === 'tierra' && !state.country;
+    if (cajeraPuesto) sentarPersona(bankTeller, cajeraPuesto.x, cajeraPuesto.y, cajeraPuesto.z, cajeraPuesto.hacia);
+    return;
+  }
+  bankTeller.userData.muerto = true;
+  bankTeller.userData.hp = 0;
+  if (!bankTeller.userData.tumbada) {
+    bankTeller.userData.caida = 1;
+    bankTeller.userData.tumbada = true;
+  }
+  cajeraCuerpo = bankTeller;
+  aplicarPoseCaida(bankTeller, bankTeller.userData.caida == null ? 1 : bankTeller.userData.caida);
+  if (!(state.cajeraLlega > 0)) state.cajeraLlega = CAJERA_REEMPLAZO_SEG;
 }
 // La E de la puerta del banco entra o sale. No se la queda la bóveda.
 function enPuertaBanco() {
@@ -4825,12 +4997,9 @@ function buildBank() {
   // LA SEÑORA DE LA CAJA: sentada en su silla, mirando al mesón
   edifCaja(desk.x, .5, desk.z - .95, .9, .1, .9, 0x3f3f46, 'banco', false);          // asiento
   edifCaja(desk.x, .95, desk.z - 1.35, .9, .9, .12, 0x3f3f46, 'banco', false);       // respaldo
-  bankTeller = makePerson(0x7c3aed, 0xe8b88a);
-  bankTeller.userData.cajera = true;
-  bankTeller.userData.hp = VIDA_POLICIA;
-  sentarPersona(bankTeller, desk.x, 1.05, desk.z - .95, 0);
-  const pelo = new THREE.Mesh(new THREE.BoxGeometry(.6, .42, .6), mat(0x4b2e1e));   // moño de la cajera
-  pelo.position.set(0, 2.28, -.04); bankTeller.add(pelo);
+  cajeraPuesto = { x: desk.x, y: 1.05, z: desk.z - .95, hacia: 0 };
+  bankTeller = crearCajera();
+  sentarPersona(bankTeller, cajeraPuesto.x, cajeraPuesto.y, cajeraPuesto.z, cajeraPuesto.hacia);
   scene.add(bankTeller);
   const globo = makeSign('CAJERA · E', 0xa7f3d0); globo.scale.set(.32, .32, .32);
   globo.position.set(desk.x, 3.05, desk.z - .95); scene.add(globo);
@@ -5413,14 +5582,17 @@ function pegarOficial(person, dmg) {
   const pos = person.position.clone(); pos.y += 2.35;
   if (typeof floatText === 'function') floatText(pos, r.muerto ? '💀' : String(r.hp), '#fecaca', 16);
   if (!r.muerto) { beep(180, .05, .04); return true; }
-  person.userData.muerto = true; person.userData.persigue = false; person.visible = false;
+  person.userData.muerto = true; person.userData.persigue = false;
   if (person.userData.cajera) {
     state.cajeraMuerta = true;
-    toast('💀 La cajera cayó. Ahora E abre la bóveda.');
+    state.cajeraLlega = CAJERA_REEMPLAZO_SEG;
+    tumbarCajera(person);
+    toast('💀 La cajera cayó al suelo. Tienes un rato para vaciar la bóveda.');
     beep(90, .12, .05);
     saveGame();
     return true;
   }
+  person.visible = false;
   if (person.userData.car) { scene.remove(person.userData.car); person.userData.car = null; }
   const i = police.indexOf(person);
   if (i >= 0) { scene.remove(person); police.splice(i, 1); state.ladronRefuerzo = 12; }
@@ -5458,6 +5630,7 @@ function gunRaycastOficial(from, dir, range) {
   return best ? { person: best, head: bestHead, point: bestPoint, dist: bestT } : null;
 }
 function updatePoliciaLadron(dt) {
+  updateCajeraCaida(dt);
   if (state.planet !== 'tierra' || state.country) {
     if (police.length) clearPolice();
     asegurarFaroles(false);
@@ -19479,6 +19652,7 @@ function saveGame() {
       modoLadron: !!state.modoLadron, ropaLadron: state.ropaLadron || {}, ropaPuesta: state.ropaPuesta || null, titoPagadoHasta: state.titoPagadoHasta || 0, ladronFama: state.ladronFama || 0,
       bovedaAbierta: !!state.bovedaAbierta, bovedaVacios: Array.isArray(state.bovedaVacios) ? state.bovedaVacios.slice() : [],
       cajeraMuerta: !!state.cajeraMuerta,
+      cajeraLlega: state.cajeraMuerta ? (state.cajeraLlega || 0) : 0,
       cajasVacias: normalizarCajas(state.cajasVacias),
       ladronChaseLeft: state.ladronChase && state.ladronChase.activa ? state.ladronChase.left : 0,
       ladronLimpio: !!state.ladronLimpio,
@@ -20417,6 +20591,7 @@ function loadGame() {
   state.bovedaAbierta = bovedaCargada.abierta;
   state.bovedaVacios = bovedaCargada.vacios;
   state.cajeraMuerta = !!d.cajeraMuerta;
+  state.cajeraLlega = state.cajeraMuerta ? (typeof d.cajeraLlega === 'number' ? d.cajeraLlega : CAJERA_REEMPLAZO_SEG) : 0;
   if (!state.cajeraMuerta) state.bovedaAbierta = false;
   aplicarEstadoCajera();
   pintarBoveda();
@@ -24462,6 +24637,12 @@ function netStartTimer() { if (!net.timer) net.timer = setInterval(netTick, 100)
 try { if (new URLSearchParams(location.search).has('debug')) {
   const timDump = () => ({ net, enemies, netMobs, placed, state, player, AIRPORT, COUNTRY_C, typing, sitOn, parkRide, keys, yaw, pitch, setLook: (y, p) => { if (y != null) yaw = y; if (p != null) pitch = p; cameraMode = 0; if (sitOn) standUp(false); }, eggPets, floors2, netHandle, ghost, ghostMesh, renderer, scene, camera, perfMode, perfExtra, autoPerfStage, rgbPlaced, selectBuildKey, miners, makeMiner, updateMiners, applyMinerOffline, tryHarvestMiner, holes, islandOres, TREASURE_ISLAND, MINE_CELL, buyItem, selectSlot, STORE_B, ALIEN_TECH, renderShopList, openShopInput, bowEquipped, laserEquipped, equipHandWeapon, selectHandTool, saveGame, loadGame, restoreWorldClock, applyWeatherState, startEclipse, endEclipse, continueGame, ensureDavidWorld, setProfile, bowArrowDamage, arrowHitsBody, hitWithArrow, shootBowArrow, hitFloatingCitizenAt, floatingCitizens, makeBull, launchBull, earthBulls, jailFolk, startPoliceCellArrest, updateCellArrest, releasePoliceCellArrest, celdaArrestoBounds, POLICE_CELL_SEC, bankTeller: () => bankTeller, boveda, pintarBoveda, tryBoveda, bankAtms, bankDeskNear, tryBank, ducha: () => ducha, empezarDucha, playerAvatar, TORRE, torreDeptos, torreLift, torreNivel, tryTorre, elegirPiso, comprarDepto, abrirDeptos, enInteriorMirador, updateDad, damagePlayer, damageDad, torreReset, ENTRADAS, entradaCerca, tryEntrada, JAIL, JAIL_GATE, BANK, openPlayStation, openArcadeMini, startPlayGame, PLAY_GAMES, ARCADE_GAMES, arcadeMini, miniStep, miniDraw, spawnPlaced, amoblarDepto, playHasTv, nearestPlay, nearestPlayNear, isDavidAccount, davidKeyOk, davidGateOpen, spawnEnemy, playerArrows, makeArrowMesh, toast, updatePlayerArrows, applyLivingY, updateLivingWater, waterZoneAt, dad, helpers, butler, mom, npcs, police, alley, ALLEY, BLACK_MARKET, STORY_QUESTS, openQuestPanel, enterAlleyMission, leaveAlleyMission, openBlackMarket, setAlleyDoorOpen, storyProgress, makeGunMesh, startJob, updateJobs, tryJobInteract, clearJobs, GUN_SPECS, GUN_CLIP, fireGun, laserSpendShot, updateLaserEnergy, attack, attackNPC, touch, aimHelp, gunRaycastEnemy, LASER_MAX, LASER_SHOT, LASER_RELOAD, tryInteract, tryVendorHere, tryHelperHere, tryGardenHere, openWheel, closeWheel, wheelOptions, plants, CROP_DEFS, tryDoor, setDoorOpen, nearestDoor, obstacleAt, obstacles, updateGrassField, scatterGrass, grassField: () => grassField, spawnSmokeCloud, playerInSmoke, shootBeam, spawnLaserBeam, updateLaserShots, laserShotsCount: () => laserShots.length, throwSmokeBomb, fireConfettiTube, updateThrownBombs, updateConfetti, throwHandGadget2: () => throwHandGadget(), bombsCount: () => thrownBombs.length, confettiCount: () => confettiBits.length, updateSmoke, updateAim, tryGunShot, toggleAim, gunRaycastPerson, npcs2: () => npcs, isPlayerHidden, syncHeldTool, updateViewmodel, throwHandGadget, viewmodel, startReload, updateBullets, currentGunSpec, firearmEquipped, handItems, equipHandItem, selectHandTool, gunAmmoText, bulletsCount: () => bullets.length, shellsCount: () => shells.length, jobInfo: () => job && { id: job.id, step: job.step, label: job.label, timer: +job.timer.toFixed(1), calm: !!job.calm, tx: +job.target.x.toFixed(1), tz: +job.target.z.toFixed(1), dog: !!jobDog, crate: !!jobCrate }, jobDogPos: () => jobDog && jobDog.position, jobCratePos: () => jobCrate && jobCrate.position });
   timDump.tickLadron = (dt) => { updatePoliciaLadron(dt == null ? 0.05 : dt); return { fama: state.ladronFama || 0, llamada: +(state.ladronLlamada || 0).toFixed(2), chase: state.ladronChase && state.ladronChase.left, cartel: farolesLadron.filter(f => f.visible).length, obj: ui('objective') && ui('objective').textContent }; };
+  timDump.tumbarCajera = () => {
+    state.modoLadron = true; state.cajeraMuerta = true; state.cajeraLlega = CAJERA_REEMPLAZO_SEG;
+    tumbarCajera(bankTeller); bankTeller.userData.caida = 1; aplicarPoseCaida(bankTeller, 1);
+    return { x: +bankTeller.position.x.toFixed(2), y: +bankTeller.position.y.toFixed(2), z: +bankTeller.position.z.toFixed(2), visible: bankTeller.visible, rx: +bankTeller.rotation.x.toFixed(2), tumbada: !!bankTeller.userData.tumbada };
+  };
+  timDump.cajeraCaida = () => ({ muerta: !!state.cajeraMuerta, llega: +(state.cajeraLlega || 0).toFixed(2), viva: cajeraViva(), abierta: !!state.bovedaAbierta, cuerpo: !!(cajeraCuerpo && cajeraCuerpo.visible), reemplazo: !!cajeraReemplazo, y: cajeraCuerpo ? +cajeraCuerpo.position.y.toFixed(2) : null });
   timDump.pintar = () => { renderHUD(); };
   timDump.ponerRopa = (id) => {
     state.modoLadron = true; state.creative = true; state.money = 5000;

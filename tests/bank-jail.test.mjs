@@ -42,7 +42,8 @@ test('la puerta del banco mira a la avenida y la cajera atiende adentro', () => 
   assert.match(html, /function buildBank\(\)/);
   assert.match(html, /BANK\.frente = BANK\.z \+ BANK\.d \/ 2/);        // la entrada da al norte
   assert.match(html, /let bankTeller = null/);
-  assert.match(html, /bankTeller = makePerson\(/);
+  assert.match(html, /bankTeller = crearCajera\(\)/);
+  assert.match(html, /const p = makePerson\(0x7c3aed, 0xe8b88a\)/);
   assert.match(html, /sentarPersona\(bankTeller/);                    // sentada detrás del escritorio
   assert.match(html, /function bankDeskNear\(\)/);
   assert.match(html, /dist2D\(player\.position, bankTeller\.position\) < 4\.2/);
@@ -77,6 +78,23 @@ test('los dos edificios se construyen dentro del mundo de la Tierra', () => {
   const llamadas = html.indexOf('buildBank();\nbuildJail();');
   assert.ok(abre > 0 && cierra > abre, 'no encontré las marcas del mundo terrestre');
   assert.ok(llamadas > abre && llamadas < cierra, 'el banco y la cárcel tienen que ocultarse al viajar de planeta');
+});
+
+test('la cajera muerta se queda acostada hasta que llega el reemplazo', () => {
+  assert.match(html, /const CAJERA_REEMPLAZO_SEG = 120/);
+  assert.match(html, /function tumbarCajera\(p\)/);
+  assert.match(html, /function aplicarPoseCaida\(p, k\)/);
+  assert.match(html, /p\.rotation\.set\(-Math\.PI \/ 2 \* t, s\.yaw \* t, 0\)/);
+  assert.match(html, /p\.userData\.tumbada = true/);
+  assert.match(html, /p\.visible = state\.planet === 'tierra' && !state\.country/);
+  assert.doesNotMatch(html, /bankTeller\.visible = !muerta/);
+  assert.match(html, /state\.cajeraLlega = CAJERA_REEMPLAZO_SEG/);
+  assert.match(html, /if \(\(state\.cajeraLlega \|\| 0\) <= duracionCaminoCajera\(\)\) asegurarReemplazoCajera\(\)/);
+  assert.match(html, /function sentarReemplazoCajera\(\)/);
+  assert.match(html, /state\.bovedaAbierta = false;\n  pintarBoveda\(\);\n  toast\('🏦 Llegó otra cajera/);
+  assert.match(html, /cajeraLlega: state\.cajeraMuerta \? \(state\.cajeraLlega \|\| 0\) : 0/);
+  assert.match(html, /updateCajeraCaida\(dt\)/);
+  assert.match(html, /dintel\.bottom = 2\.8/);
 });
 
 test('con la bóveda abierta el vano se camina y cerrada sigue tapada', () => {

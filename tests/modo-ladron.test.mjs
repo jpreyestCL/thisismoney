@@ -8,6 +8,7 @@ import {
   masBuscado, mostrarCartel, mundoLadronNuevo, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, radioCaptura, trasDelito,
   CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, bovedaPuedeAbrir, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
   precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
+  cobrarTitoAuto,
   casilleroApuntado, puestosCasilleros,
   titoEntrega, titoPuedeDarArma, togglearBoveda,
 } from '../src/modo-ladron.js';
@@ -85,6 +86,51 @@ test('Tito cobra 500 cada 3 días y sin pago no da más armas', () => {
   assert.equal(deudaTito(6, pago.pagadoHasta), 0);
   assert.equal(titoPuedeDarArma(6, pago.pagadoHasta), true);
   assert.equal(deudaTito(9, pago.pagadoHasta), 500);
+});
+
+test('en el modo la deuda de Tito se paga sola si hay $500', () => {
+  const pobre = cobrarTitoAuto(499, 3, 0);
+  assert.equal(pobre.ok, false);
+  assert.equal(pobre.cobrado, 0);
+  assert.equal(pobre.money, 499, 'si no alcanza no cobra ni deja la plata en negativo');
+  assert.equal(pobre.pagadoHasta, 0);
+  assert.equal(titoPuedeDarArma(3, pobre.pagadoHasta), false);
+  assert.equal(titoEntrega(3, pobre.pagadoHasta, 'arma', true), false);
+  assert.equal(titoEntrega(3, pobre.pagadoHasta, 'balas', true), false);
+  assert.equal(titoEntrega(3, pobre.pagadoHasta, 'humo', true), false);
+  const justo = cobrarTitoAuto(500, 3, 0);
+  assert.equal(justo.ok, true);
+  assert.equal(justo.cobrado, 500);
+  assert.equal(justo.money, 0);
+  assert.equal(justo.deuda, 0);
+  assert.equal(titoPuedeDarArma(3, justo.pagadoHasta), true);
+  assert.equal(titoEntrega(3, justo.pagadoHasta, 'arma', true), true);
+  assert.equal(titoEntrega(3, justo.pagadoHasta, 'balas', true), true);
+  assert.equal(titoEntrega(3, justo.pagadoHasta, 'humo', true), true);
+  assert.equal(precioRegaloTito(1800, true, 'arma'), 0, 'al día, el arma sigue en $0');
+  assert.equal(precioRegaloTito(600, true, 'balas'), 0);
+  assert.equal(precioRegaloTito(220, true, 'humo'), 0);
+  assert.equal(precioRegaloTito(1800, false, 'arma'), 1800, 'fuera del modo el precio no cambia');
+  const parcial = cobrarTitoAuto(700, 6, 0);
+  assert.equal(parcial.cobrado, 500, 'con dos períodos solo cobra el que alcanza');
+  assert.equal(parcial.money, 200);
+  assert.equal(parcial.deuda, 500);
+  assert.equal(titoPuedeDarArma(6, parcial.pagadoHasta), false);
+  const despues = cobrarTitoAuto(500, 6, parcial.pagadoHasta);
+  assert.equal(despues.cobrado, 500);
+  assert.equal(despues.money, 0);
+  assert.equal(despues.deuda, 0);
+  assert.equal(titoEntrega(6, despues.pagadoHasta, 'balas', true), true);
+  const todo = cobrarTitoAuto(2000, 6, 0);
+  assert.equal(todo.cobrado, 1000);
+  assert.equal(todo.money, 1000);
+  assert.equal(todo.deuda, 0);
+  const temprano = cobrarTitoAuto(800, 2, 0);
+  assert.equal(temprano.cobrado, 0);
+  assert.equal(temprano.money, 800, 'antes de los 3 días no descuenta');
+  assert.match(html, /function cobrarDeudaTito\(\) \{\n  if \(!state\.modoLadron\) return;/);
+  assert.match(html, /if \(state\.modoLadron\) cobrarDeudaTito\(\)/);
+  assert.match(html, /Le pagaste \$' \+ r\.cobrado \+ ' a Tito'/);
 });
 
 test('en el modo ladrón entras a ver a Tito sin los $20.000', () => {
@@ -211,7 +257,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=10/);
+  assert.match(html, /modo-ladron\.js\?v=11/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -222,8 +268,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=10/);
-  assert.match(sw, /const VERSION = 'tim-v97'/);
+  assert.match(sw, /modo-ladron\.js\?v=11/);
+  assert.match(sw, /const VERSION = 'tim-v98'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);

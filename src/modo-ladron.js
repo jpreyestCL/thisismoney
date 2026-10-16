@@ -208,6 +208,29 @@ export function pagarTito(money, night, pagadoHasta) {
   return { ok: true, money: plata - debe, pagadoHasta: night | 0, deuda: 0, razon: 'pagado' };
 }
 
+// En el modo ladrón los $500 se van solos al cumplir los 3 días, y también
+// después, en cuanto haya plata. Cobra de a un período: si no alcanza, no
+// toca la plata ni la deja en negativo.
+export function cobrarTitoAuto(money, night, pagadoHasta) {
+  const n = Math.max(0, night | 0);
+  const desde = pagadoHasta | 0;
+  let plata = Math.max(0, Number(money) || 0);
+  let hasta = Math.max(0, desde);
+  let cobrado = 0;
+  while (deudaTito(n, hasta) > 0 && plata >= DEUDA_TITO) {
+    const pagados = Math.floor(Math.min(hasta, n) / NOCHES_TITO);
+    const siguiente = Math.min(n, (pagados + 1) * NOCHES_TITO);
+    if (siguiente <= hasta) break;
+    hasta = siguiente;
+    plata -= DEUDA_TITO;
+    cobrado += DEUDA_TITO;
+  }
+  if (cobrado <= 0) {
+    return { ok: false, money: Number(money) || 0, pagadoHasta: desde, cobrado: 0, deuda: deudaTito(n, desde) };
+  }
+  return { ok: true, money: plata, pagadoHasta: hasta, cobrado, deuda: deudaTito(n, hasta) };
+}
+
 // En el modo, armas, balas y bombas de humo salen a $0. Fuera, el precio de siempre.
 // El pago de cada 3 días lo decide titoEntrega: si debes, no te las da.
 export function precioRegaloTito(price, modoLadron, tipo) {

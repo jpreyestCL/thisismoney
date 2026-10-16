@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VER_POLICIA, VIDA_POLICIA, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, puestosCasilleros, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=10';
+import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VER_POLICIA, VIDA_POLICIA, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, puestosCasilleros, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=11';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -5558,6 +5558,16 @@ function pagarDeudaTito() {
   if (!state.creative) state.money = r.money;
   state.titoPagadoHasta = r.pagadoHasta;
   toast(antes <= 0 ? '🕶️ Tito: estás al día.' : '🕶️ Le pagaste $' + antes + ' a Tito. Ya puedes pedirle armas.');
+  saveGame();
+}
+// Los $500 de cada 3 días salen solos. Si no alcanzan, espera a que haya plata.
+function cobrarDeudaTito() {
+  if (!state.modoLadron) return;
+  const r = cobrarTitoAuto(state.creative ? 999999999 : state.money, state.night || 0, state.titoPagadoHasta || 0);
+  if (!r.ok) return;
+  if (!state.creative) state.money = r.money;
+  state.titoPagadoHasta = r.pagadoHasta;
+  toast('Le pagaste $' + r.cobrado + ' a Tito');
   saveGame();
 }
 function spawnPoliciaLadron() {
@@ -22654,8 +22664,9 @@ function startNight() {
   sacarDelMall();   // si estabas adentro del mall, te dejan en la puerta
   state.night++;
   if (state.modoLadron && state.night % NOCHES_TITO === 0) {
+    const plata = state.creative ? 999999999 : state.money;
     const debe = deudaTito(state.night, state.titoPagadoHasta || 0);
-    if (debe > 0) toast('🕶️ Pasaron ' + NOCHES_TITO + ' días. Le debes a Tito $' + debe + '. Sin pago no te da más armas.');
+    if (debe > 0 && plata < 500) toast('🕶️ Pasaron ' + NOCHES_TITO + ' días. Le debes a Tito $' + debe + '. Sin pago no te da más armas.');
   }
   tutorialEvent('nightStarted');
   const duration = currentNightLength();
@@ -23914,6 +23925,7 @@ function loop() {
     updateBaseDefense(dt);                 // torretas de la base espacial disparan de noche
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateAlley(dt);                     // Tito, callejón y luces que parpadean
+    if (state.modoLadron) cobrarDeudaTito();   // los $500 de Tito salen solos al cumplir los 3 días
     updateEarthBulls(dt);                  // cinco toros del pasto, separados
     updateJailFolk(dt);                    // presos y guardias del penal
     updateTorre(dt);                       // edificio de deptos: pisos visibles, ascensor y luz

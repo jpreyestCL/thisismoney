@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG, NOCHES_TITO,
-  arrestoLadron, asaltoTienda, atrapaPolicia, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, continuarMundoLadron, deudaTito, enLaCaja, esCamuflaje, famaInicial,
-  masBuscado, mostrarCartel, mundoLadronNuevo, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, radioCaptura,
+  arrestoLadron, asaltoTienda, atrapaPolicia, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, esCamuflaje, famaInicial, impactoOficial,
+  masBuscado, mostrarCartel, mundoLadronNuevo, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, radioCaptura, trasDelito,
   CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
   precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
   titoEntrega, titoPuedeDarArma, togglearBoveda,
@@ -210,7 +210,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=7/);
+  assert.match(html, /modo-ladron\.js\?v=8/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -221,8 +221,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=7/);
-  assert.match(sw, /const VERSION = 'tim-v92'/);
+  assert.match(sw, /modo-ladron\.js\?v=8/);
+  assert.match(sw, /const VERSION = 'tim-v93'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -386,9 +386,62 @@ test('en el modo la policía va un 15% más lenta y solo atrapa si ya persigue y
   assert.doesNotMatch(normal, /atrapaPolicia|velocidadPolicia/);
   const ladron = html.slice(html.indexOf('function updatePoliciaLadron(dt)'), html.indexOf('function cajaDePagoCerca()'));
   assert.match(ladron, /const yaPersigue = !!\(state\.ladronChase && state\.ladronChase\.activa\)/);
-  assert.match(ladron, /atrapaPolicia\(yaPersigue, d, true, !!state\.driving\)/);
-  assert.match(ladron, /atrapaPolicia\(yaPersigue && g\.userData\.persigue, d, true, false\)/);
+  assert.match(ladron, /const puedeAtrapar = yaPersigue && !state\.ladronLimpio && !\(state\.sueltaPolicia > 0\)/);
+  assert.match(ladron, /atrapaPolicia\(puedeAtrapar, d, true, !!state\.driving\)/);
+  assert.match(ladron, /atrapaPolicia\(puedeAtrapar, d, true, false\)/);
   assert.match(ladron, /velocidadPolicia\(state\.driving \? 18 : 7\.4, true\)/);
   assert.match(ladron, /moveToward\(p, meta, 2\.1 \* dt\)/);
   assert.doesNotMatch(ladron, /velocidadPolicia\(2\.1/);
+});
+
+test('al cumplir la condena se apaga la persecución y caminar no la enciende', () => {
+  const libre = condenaCumplida();
+  assert.equal(libre.chase, null);
+  assert.equal(libre.llamada, 0);
+  assert.equal(libre.wanted, 0);
+  assert.equal(libre.wantedLevel, 0);
+  assert.equal(libre.limpio, true);
+  assert.equal(trasDelito(true, 'caminar'), true);
+  assert.equal(trasDelito(true, 'caja'), false);
+  assert.equal(trasDelito(true, 'boveda'), false);
+  assert.equal(trasDelito(true, 'tienda'), false);
+  assert.equal(trasDelito(true, 'golpe'), false);
+  assert.equal(trasDelito(false, 'caminar'), false);
+  const aviso = objetivoLadron({ celda: false, limpio: true, persigue: true, tiempo: '2:40', masBuscado: true });
+  assert.equal(aviso, '');
+  assert.doesNotMatch(aviso, /TE VIERON/);
+  assert.match(html, /state\.ladronLimpio = eraLadron \? libre\.limpio : false/);
+  assert.match(html, /state\.sueltaPolicia = 1/);
+  assert.match(html, /if \(state\.sueltaPolicia > 0\) continue/);
+  assert.match(html, /const catchD = driving \? 3\.4 : 1\.9/);
+  assert.match(html, /marcarDelitoLadron\('caja'\)/);
+  assert.match(html, /marcarDelitoLadron\('boveda'\)/);
+  assert.match(html, /marcarDelitoLadron\('tienda'\)/);
+  assert.match(html, /marcarDelitoLadron\('golpe'\)/);
+  assert.match(html, /ladronLimpio: !!state\.ladronLimpio/);
+});
+
+test('las balas y los golpes le bajan vida al policía y a 0 muere', () => {
+  const deLejos = impactoOficial({ x: 0, y: 1.2, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 8 }, 60, 1.15);
+  assert.ok(deLejos);
+  assert.equal(deLejos.cabeza, false);
+  const cabeza = impactoOficial({ x: 0, y: 1.85, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 6 }, 60, 1.15);
+  assert.ok(cabeza && cabeza.cabeza);
+  const quemarropa = impactoOficial({ x: 0, y: 1.2, z: -0.3 }, { x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 0 }, 60, 1.15);
+  assert.ok(quemarropa, 'a menos de 0,2 m la bala también pega');
+  assert.equal(impactoOficial({ x: 0, y: 1.2, z: 0 }, { x: 0, y: 0, z: 1 }, { x: 3, y: 0, z: 8 }, 60, 1.15), null);
+  let hp = VIDA_POLICIA;
+  const tiro = oficialMuere(hp, 9);
+  assert.equal(tiro.muerto, false);
+  assert.equal(tiro.hp, VIDA_POLICIA - 9);
+  hp = tiro.hp;
+  while (hp > 0) hp = oficialMuere(hp, 9).hp;
+  assert.equal(oficialMuere(hp, 9).muerto, true);
+  assert.equal(oficialMuere(VIDA_POLICIA, 26).hp, VIDA_POLICIA - 26);
+  assert.match(html, /impactoOficial\(from, dir, pies, range, ancho\)/);
+  assert.match(html, /pegarOficial\(oficialBala\.person, dmgBala\)/);
+  assert.match(html, /pegarOficial\(oficial, dmg\)/);
+  assert.match(html, /pegarOficial\(oficial, state\.weaponDmg\)/);
+  assert.match(html, /pegarOficial\(person, dmg\)/);
+  assert.match(html, /laserEquipped\(\) \? 30 : MELEE_REACH/);
 });

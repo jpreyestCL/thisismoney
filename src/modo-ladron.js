@@ -127,10 +127,12 @@ export function tickLlamada(acum, dt, teVe, fama, camuflaje) {
 }
 
 // En la celda no se muestra persecución ni que te buscan.
-// Fuera de ella, el aviso de siempre.
+// Al cumplir la condena tampoco: caminar no vuelve a encender el aviso.
+// Fuera de eso, el aviso de siempre.
 export function objetivoLadron(estado) {
   const e = estado || {};
   if (e.celda) return '';
+  if (e.limpio) return '';
   if (e.persigue) return '🚨 TE VIERON · la policía te persigue · ' + (e.tiempo || '');
   if (e.llamando) return '📞 Te reconocieron · llamando a la policía · ' + (e.falta || '');
   if (!e.masBuscado) return '😶 Casi nadie te reconoce. No te persiguen y todavía no hay cartel de SE BUSCA.';
@@ -140,6 +142,50 @@ export function objetivoLadron(estado) {
 export function arrestoLadron(money) {
   const tenia = Math.max(0, Math.round(Number(money) || 0));
   return { money: 0, quitado: tenia, segundos: CELDA_LADRON_SEG, sigueModo: true };
+}
+
+// Al salir, la condena está cumplida: se apaga la persecución y el buscado.
+export function condenaCumplida() {
+  return { chase: null, llamada: 0, wanted: 0, wantedLevel: 0, limpio: true };
+}
+
+// Caminar no enciende nada. Robar la caja, la bóveda o a alguien, o pegarle, sí.
+const DELITOS_LADRON = new Set(['caja', 'boveda', 'tienda', 'golpe']);
+
+export function trasDelito(limpio, tipo) {
+  if (!limpio) return false;
+  if (DELITOS_LADRON.has(tipo)) return false;
+  return true;
+}
+
+// La bala le pega al policía si el rayo pasa por el cuerpo, también a quemarropa.
+// `ancho` es el mismo margen con el que las balas ya le pegan a un monstruo.
+export function impactoOficial(desde, dir, pies, alcance, ancho) {
+  const ox = Number(desde && desde.x) || 0;
+  const oy = Number(desde && desde.y) || 0;
+  const oz = Number(desde && desde.z) || 0;
+  let dx = Number(dir && dir.x) || 0;
+  let dy = Number(dir && dir.y) || 0;
+  let dz = Number(dir && dir.z) || 0;
+  const len = Math.hypot(dx, dy, dz) || 1;
+  dx /= len; dy /= len; dz /= len;
+  const px = Number(pies && pies.x) || 0;
+  const py = Number(pies && pies.y) || 0;
+  const pz = Number(pies && pies.z) || 0;
+  const max = Number(alcance) > 0 ? Number(alcance) : 60;
+  const w = Number(ancho) > 0 ? Number(ancho) : 1.15;
+  const relx = px - ox;
+  const rely = (py + 1.15) - oy;
+  const relz = pz - oz;
+  const t = relx * dx + rely * dy + relz * dz;
+  if (t > max) return null;
+  const tc = Math.max(0, t);
+  const hx = ox + dx * tc;
+  const hy = oy + dy * tc;
+  const hz = oz + dz * tc;
+  if (Math.hypot(hx - px, hz - pz) > w) return null;
+  if (hy < py - 0.2 || hy > py + 2.6) return null;
+  return { dist: tc, cabeza: hy >= py + 1.7 };
 }
 
 export function deudaTito(night, pagadoHasta) {

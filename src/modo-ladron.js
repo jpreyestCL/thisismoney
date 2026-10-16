@@ -249,6 +249,12 @@ export function togglearBoveda(boveda) {
   return { abierta: !b.abierta, vacios: b.vacios.slice() };
 }
 
+// Solo en modo ladrón, y solo cuando la cajera ya no está en el mesón.
+// Mientras siga viva la hoja no gira: el banco de siempre no usa esta puerta.
+export function bovedaPuedeAbrir(modoLadron, cajeraViva) {
+  return !!modoLadron && !cajeraViva;
+}
+
 export function saquearCasillero(boveda, indice) {
   const b = normalizarBoveda(boveda);
   const i = indice | 0;

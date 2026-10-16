@@ -79,6 +79,17 @@ test('los dos edificios se construyen dentro del mundo de la Tierra', () => {
   assert.ok(llamadas > abre && llamadas < cierra, 'el banco y la cárcel tienen que ocultarse al viajar de planeta');
 });
 
+test('en modo ladrón se entra por la puerta y la bóveda espera a la cajera', () => {
+  assert.match(html, /nombre: 'Banco Central'/);
+  assert.match(html, /BANK\.frente \+ 2\.2/);
+  assert.match(html, /BANK\.frente - 3\.2/);
+  assert.match(html, /if \(tryEntrada\(\)\) return;/);
+  assert.match(html, /bovedaPuedeAbrir\(true, cajeraViva\(\)\)/);
+  assert.match(html, /La cajera sigue viva/);
+  assert.match(html, /bankTeller\.userData\.cajera = true/);
+  assert.match(html, /dist2D\(player\.position, bankTeller\.position\) < 4\.2/);
+});
+
 test('el súper reparte TODOS sus productos en góndolas (ninguno queda en la calle)', () => {
   assert.match(html, /const filas = Math\.max\(1, Math\.ceil\(items\.length \/ cols\.length\)\)/);
   assert.doesNotMatch(html, /const rows = \[cz - 6, cz, cz \+ 6\]/);

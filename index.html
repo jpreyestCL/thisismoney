@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VER_POLICIA, VIDA_POLICIA, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=8';
+import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VER_POLICIA, VIDA_POLICIA, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=9';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -4575,7 +4575,25 @@ function resetBovedaPartida() {
   const nueva = bovedaNueva();
   state.bovedaAbierta = nueva.abierta;
   state.bovedaVacios = nueva.vacios;
+  state.cajeraMuerta = false;
+  aplicarEstadoCajera();
   pintarBoveda();
+}
+function cajeraViva() {
+  return !(state.cajeraMuerta || (bankTeller && bankTeller.userData.muerto));
+}
+function aplicarEstadoCajera() {
+  if (!bankTeller) return;
+  const muerta = !!state.cajeraMuerta;
+  bankTeller.userData.cajera = true;
+  bankTeller.userData.muerto = muerta;
+  bankTeller.userData.hp = muerta ? 0 : VIDA_POLICIA;
+  bankTeller.visible = !muerta;
+}
+// La E de la puerta del banco entra o sale. No se la queda la bóveda.
+function enPuertaBanco() {
+  const c = entradaCerca();
+  return !!(c && c.en && c.en.nombre === 'Banco Central');
 }
 function casilleroCerca(maxD) {
   let best = null, mejor = Infinity;
@@ -4596,7 +4614,13 @@ function puertaBovedaCerca(maxD) {
 function tryBoveda() {
   if (!state.modoLadron) return false;
   if (state.planet !== 'tierra' || state.country || !boveda.hinge) return false;
-  const caja = state.bovedaAbierta ? casilleroCerca(1.25) : null;
+  if (enPuertaBanco() && !puertaBovedaCerca(2.15)) return false;
+  const puede = bovedaPuedeAbrir(true, cajeraViva());
+  const caja = (puede && state.bovedaAbierta) ? casilleroCerca(1.25) : null;
+  if (!puede && (puertaBovedaCerca(2.15) || casilleroCerca(1.25))) {
+    toast('🏦 La cajera sigue viva. La bóveda no se abre.');
+    return true;
+  }
   if (caja) {
     const r = saquearCasillero(estadoBoveda(), caja.i);
     if (!r.ok) {
@@ -4629,7 +4653,10 @@ function tryBoveda() {
 }
 function pistaBoveda() {
   if (!state.modoLadron || state.planet !== 'tierra' || state.country || !boveda.hinge) return null;
-  if (state.bovedaAbierta && casilleroCerca(1.25)) {
+  if (enPuertaBanco() && !puertaBovedaCerca(2.15)) return null;
+  const puede = bovedaPuedeAbrir(true, cajeraViva());
+  if (!puede && (puertaBovedaCerca(2.15) || casilleroCerca(1.25))) return { key: 'E', touch: '🏦', text: 'La cajera vigila la bóveda' };
+  if (puede && state.bovedaAbierta && casilleroCerca(1.25)) {
     const c = casilleroCerca(1.25);
     const vacio = estadoBoveda().vacios.indexOf(c.i) >= 0;
     return { key: 'E', touch: '🔐', text: vacio ? 'Casillero vacío' : 'Sacar $' + PLATA_CASILLERO + ' de este casillero' };
@@ -4795,6 +4822,8 @@ function buildBank() {
   edifCaja(desk.x, .5, desk.z - .95, .9, .1, .9, 0x3f3f46, 'banco', false);          // asiento
   edifCaja(desk.x, .95, desk.z - 1.35, .9, .9, .12, 0x3f3f46, 'banco', false);       // respaldo
   bankTeller = makePerson(0x7c3aed, 0xe8b88a);
+  bankTeller.userData.cajera = true;
+  bankTeller.userData.hp = VIDA_POLICIA;
   sentarPersona(bankTeller, desk.x, 1.05, desk.z - .95, 0);
   const pelo = new THREE.Mesh(new THREE.BoxGeometry(.6, .42, .6), mat(0x4b2e1e));   // moño de la cajera
   pelo.position.set(0, 2.28, -.04); bankTeller.add(pelo);
@@ -5367,6 +5396,11 @@ function marcarDelitoLadron(tipo) {
   if (trasDelito(true, tipo)) return;
   state.ladronLimpio = false;
 }
+function oficialesYCajera() {
+  const lista = police.concat(mallGuardias);
+  if (state.modoLadron && bankTeller && bankTeller.visible && !bankTeller.userData.muerto) lista.push(bankTeller);
+  return lista;
+}
 function pegarOficial(person, dmg) {
   if (!state.modoLadron || !person || person.userData.muerto) return false;
   marcarDelitoLadron('golpe');
@@ -5376,6 +5410,13 @@ function pegarOficial(person, dmg) {
   if (typeof floatText === 'function') floatText(pos, r.muerto ? '💀' : String(r.hp), '#fecaca', 16);
   if (!r.muerto) { beep(180, .05, .04); return true; }
   person.userData.muerto = true; person.userData.persigue = false; person.visible = false;
+  if (person.userData.cajera) {
+    state.cajeraMuerta = true;
+    toast('💀 La cajera cayó. Ahora E abre la bóveda.');
+    beep(90, .12, .05);
+    saveGame();
+    return true;
+  }
   if (person.userData.car) { scene.remove(person.userData.car); person.userData.car = null; }
   const i = police.indexOf(person);
   if (i >= 0) { scene.remove(person); police.splice(i, 1); state.ladronRefuerzo = 12; }
@@ -5387,7 +5428,7 @@ function pegarOficial(person, dmg) {
 function oficialEnGolpe(dir, alcance) {
   if (!state.modoLadron) return null;
   let best = null, bestD = alcance;
-  for (const person of police.concat(mallGuardias)) {
+  for (const person of oficialesYCajera()) {
     if (!person.visible || person.userData.muerto) continue;
     const d = dist3D(player.position, person.position);
     if (d >= bestD) continue;
@@ -5400,7 +5441,7 @@ function gunRaycastOficial(from, dir, range) {
   if (!state.modoLadron) return null;
   let best = null, bestT = range, bestHead = false, bestPoint = null;
   const ancho = Math.max(aimHelp(), 1.15);
-  for (const person of police.concat(mallGuardias)) {
+  for (const person of oficialesYCajera()) {
     if (person.userData.muerto) continue;
     const enAuto = !person.visible && person.userData.car;
     if (!person.visible && !enAuto) continue;
@@ -11786,7 +11827,9 @@ ui('tvNext').onclick = (ev) => { ev.stopPropagation(); if (viendoTele()) cambiar
 // (los rascacielos los agrega buildSkyline: su "adentro" es el ascensor a la azotea)
 ENTRADAS.push(
   { nombre: 'Edificio Mirador', a: { x: TORRE.x, y: 0, z: TORRE.z - TORRE.d / 2 - 3.2, yaw: 0 }, b: { x: TORRE.x, y: 0, z: TORRE.z - TORRE.d / 2 + 2.2, yaw: Math.PI } },
-  { nombre: 'Banco Central', a: { x: BANK.x, y: 0, z: BANK.frente + 4.5, yaw: Math.PI }, b: { x: BANK.x, y: 0, z: BANK.frente - 1.6, yaw: 0 } },
+  // Afuera a 2,2 de la fachada (el radio llega a la puerta). Adentro, más al fondo:
+  // si el punto interior queda pegado a la puerta, E te saca en vez de meterte.
+  { nombre: 'Banco Central', a: { x: BANK.x, y: 0, z: BANK.frente + 2.2, yaw: Math.PI }, b: { x: BANK.x, y: 0, z: BANK.frente - 3.2, yaw: 0 } },
   { nombre: 'Penal La Roca', a: { x: JAIL.x, y: 0, z: JAIL.z + JAIL.d / 2 + 3.5, yaw: Math.PI }, b: { x: JAIL.x, y: 0, z: JAIL.z + JAIL.d / 2 - 3, yaw: 0 } });
 const ENTRADA_RADIO = 2.4;
 let entrandoAhora = false;
@@ -15934,7 +15977,7 @@ function hitWithArrow(pos, dmg) {
     if (arrowHitsBody(pos, e.position, 1.45, (e.userData.barY || 2.6) + .35)) { hitEnemy(e, dmg, pos, true); toast('🏹 Le pegaste'); return true; }
   }
   if (state.modoLadron) {
-    for (const person of police.concat(mallGuardias)) {
+    for (const person of oficialesYCajera()) {
       if (person.userData.muerto) continue;
       const pies = (!person.visible && person.userData.car) ? person.userData.car.position : person.position;
       if (!person.visible && !person.userData.car) continue;
@@ -19431,6 +19474,7 @@ function saveGame() {
       creative: !!state.creative,
       modoLadron: !!state.modoLadron, ropaLadron: state.ropaLadron || {}, ropaPuesta: state.ropaPuesta || null, titoPagadoHasta: state.titoPagadoHasta || 0, ladronFama: state.ladronFama || 0,
       bovedaAbierta: !!state.bovedaAbierta, bovedaVacios: Array.isArray(state.bovedaVacios) ? state.bovedaVacios.slice() : [],
+      cajeraMuerta: !!state.cajeraMuerta,
       cajasVacias: normalizarCajas(state.cajasVacias),
       ladronChaseLeft: state.ladronChase && state.ladronChase.activa ? state.ladronChase.left : 0,
       ladronLimpio: !!state.ladronLimpio,
@@ -19807,7 +19851,7 @@ function closeBank() { ui('bankbox').style.display = 'none'; typing = algunRecua
 // Atiende la CAJERA (adentro del banco) o el cajero automático de la fachada.
 function bankDeskNear() {
   if (state.planet !== 'tierra' || state.country) return null;
-  if (bankTeller && dist2D(player.position, bankTeller.position) < 4.2) return 'cajera';
+  if (bankTeller && bankTeller.visible && !bankTeller.userData.muerto && dist2D(player.position, bankTeller.position) < 4.2) return 'cajera';
   for (const a of bankAtms) if (dist2D(player.position, a) < 2.6) return 'cajero';
   return null;
 }
@@ -20368,6 +20412,9 @@ function loadGame() {
   const bovedaCargada = normalizarBoveda({ abierta: d.bovedaAbierta, vacios: d.bovedaVacios });
   state.bovedaAbierta = bovedaCargada.abierta;
   state.bovedaVacios = bovedaCargada.vacios;
+  state.cajeraMuerta = !!d.cajeraMuerta;
+  if (!state.cajeraMuerta) state.bovedaAbierta = false;
+  aplicarEstadoCajera();
   pintarBoveda();
   state.cajasVacias = normalizarCajas(d.cajasVacias);
   pintarCajaVacia();

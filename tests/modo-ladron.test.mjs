@@ -6,7 +6,7 @@ import {
   VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG, NOCHES_TITO,
   arrestoLadron, asaltoTienda, atrapaPolicia, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, esCamuflaje, famaInicial, impactoOficial,
   masBuscado, mostrarCartel, mundoLadronNuevo, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, radioCaptura, trasDelito,
-  CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
+  CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, bovedaPuedeAbrir, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
   precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
   titoEntrega, titoPuedeDarArma, togglearBoveda,
 } from '../src/modo-ladron.js';
@@ -210,7 +210,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=8/);
+  assert.match(html, /modo-ladron\.js\?v=9/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -221,8 +221,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=8/);
-  assert.match(sw, /const VERSION = 'tim-v93'/);
+  assert.match(sw, /modo-ladron\.js\?v=9/);
+  assert.match(sw, /const VERSION = 'tim-v94'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -444,4 +444,24 @@ test('las balas y los golpes le bajan vida al policía y a 0 muere', () => {
   assert.match(html, /pegarOficial\(oficial, state\.weaponDmg\)/);
   assert.match(html, /pegarOficial\(person, dmg\)/);
   assert.match(html, /laserEquipped\(\) \? 30 : MELEE_REACH/);
+});
+
+test('la bóveda no se abre con la cajera viva y matarla es un golpe', () => {
+  assert.equal(bovedaPuedeAbrir(false, true), false);
+  assert.equal(bovedaPuedeAbrir(false, false), false);
+  assert.equal(bovedaPuedeAbrir(true, true), false);
+  assert.equal(bovedaPuedeAbrir(true, false), true);
+  assert.equal(trasDelito(true, 'golpe'), false);
+  assert.match(html, /bovedaPuedeAbrir\(true, cajeraViva\(\)\)/);
+  assert.match(html, /if \(enPuertaBanco\(\) && !puertaBovedaCerca\(2\.15\)\) return false/);
+  assert.match(html, /BANK\.frente \+ 2\.2/);
+  assert.match(html, /BANK\.frente - 3\.2/);
+  assert.match(html, /function oficialesYCajera\(\)/);
+  assert.match(html, /for \(const person of oficialesYCajera\(\)\)/);
+  assert.match(html, /if \(person\.userData\.cajera\)/);
+  assert.match(html, /state\.cajeraMuerta = true/);
+  assert.match(html, /cajeraMuerta: !!state\.cajeraMuerta/);
+  assert.match(html, /if \(!state\.cajeraMuerta\) state\.bovedaAbierta = false/);
+  const golpes = html.split('oficialesYCajera()').length - 1;
+  assert.ok(golpes >= 3, 'puños, balas y flechas pasan por la misma lista que la policía');
 });

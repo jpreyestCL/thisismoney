@@ -4,6 +4,7 @@
 export const VIDA_ZOMBIE = 10;
 export const VIDA_POLICIA = 80;          // varias veces la de un zombie
 export const PERSECUCION_SEG = 180;      // 3 minutos reales
+export const ALARMA_BANCO_SEG = 180;     // el robo del banco tarda esto en llegar a la policía
 export const CELDA_LADRON_SEG = 600;     // 10 minutos reales
 export const DEUDA_TITO = 500;
 export const NOCHES_TITO = 3;          // $500 cada 3 días del juego
@@ -132,6 +133,7 @@ export function tickLlamada(acum, dt, teVe, fama, camuflaje) {
 export function objetivoLadron(estado) {
   const e = estado || {};
   if (e.celda) return '';
+  if ((e.alarma || 0) > 0 && e.callado && !e.persigue) return '🏦 La policía no sabe del banco · ' + (e.alarmaTxt || '');
   if (e.limpio) return '';
   if (e.persigue) return '🚨 TE VIERON · la policía te persigue · ' + (e.tiempo || '');
   if (e.llamando) return '📞 Te reconocieron · llamando a la policía · ' + (e.falta || '');
@@ -156,6 +158,21 @@ export function trasDelito(limpio, tipo) {
   if (!limpio) return false;
   if (DELITOS_LADRON.has(tipo)) return false;
   return true;
+}
+
+// El robo del banco no avisa al tiro. Si ya corre la espera, no se reinicia.
+export function empezarAlarmaBanco(left) {
+  const queda = Number(left) || 0;
+  if (queda > 0) return { left: queda, arranco: false };
+  return { left: ALARMA_BANCO_SEG, arranco: true };
+}
+
+export function tickAlarmaBanco(left, dt) {
+  const queda = Number(left) || 0;
+  if (queda <= 0) return { left: 0, sabe: false };
+  const next = queda - Math.max(0, Number(dt) || 0);
+  if (next <= 0) return { left: 0, sabe: true };
+  return { left: next, sabe: false };
 }
 
 // La bala le pega al policía si el rayo pasa por el cuerpo, también a quemarropa.

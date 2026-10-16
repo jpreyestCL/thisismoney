@@ -4680,7 +4680,11 @@ function armarBovedaBanco(cx, cz) {
   const norte = ((puertaZ + abertura / 2) + z1) / 2;
   edifCaja(x1, 1.7, sur, .28, 3.4, (puertaZ - abertura / 2) - z0, muro, 'banco', true);
   edifCaja(x1, 1.7, norte, .28, 3.4, z1 - (puertaZ + abertura / 2), muro, 'banco', true);
-  edifCaja(x1, 3.15, puertaZ, .28, .7, abertura, muro, 'banco', true);
+  // El dintel solo choca ARRIBA. Sin `bottom`, addObstacle lo baja hasta el suelo
+  // y, con la hoja abierta, queda un muro invisible en el vano.
+  edifCaja(x1, 3.15, puertaZ, .28, .7, abertura, muro, 'banco', false);
+  const dintel = addObstacle(x1, puertaZ, .28, abertura, 3.5, 'banco');
+  dintel.bottom = 2.8;
   const hinge = new THREE.Group();
   hinge.position.set(x1, 0, puertaZ - abertura / 2);
   scene.add(hinge);

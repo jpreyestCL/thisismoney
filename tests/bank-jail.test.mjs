@@ -79,6 +79,16 @@ test('los dos edificios se construyen dentro del mundo de la Tierra', () => {
   assert.ok(llamadas > abre && llamadas < cierra, 'el banco y la cárcel tienen que ocultarse al viajar de planeta');
 });
 
+test('con la bóveda abierta el vano se camina y cerrada sigue tapada', () => {
+  // El dintel no puede ser una caja desde el suelo: eso era el muro invisible.
+  assert.match(html, /edifCaja\(x1, 3\.15, puertaZ, \.28, \.7, abertura, muro, 'banco', false\)/);
+  assert.match(html, /dintel\.bottom = 2\.8/);
+  assert.match(html, /if \(est\.abierta\) \{ if \(i >= 0\) obstacles\.splice\(i, 1\); \}/);
+  assert.match(html, /else if \(i < 0\) obstacles\.push\(boveda\.obs\)/);
+  assert.match(html, /boveda\.obs = addObstacle\(x1 \+ \.05, puertaZ/);
+  assert.match(html, /bovedaPuedeAbrir\(true, cajeraViva\(\)\)/);
+});
+
 test('en modo ladrón se entra por la puerta y la bóveda espera a la cajera', () => {
   assert.match(html, /nombre: 'Banco Central'/);
   assert.match(html, /BANK\.frente \+ 2\.2/);

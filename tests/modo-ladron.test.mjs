@@ -8,6 +8,7 @@ import {
   masBuscado, mostrarCartel, mundoLadronNuevo, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, radioCaptura, trasDelito,
   CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, bovedaPuedeAbrir, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
   precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
+  casilleroApuntado, puestosCasilleros,
   titoEntrega, titoPuedeDarArma, togglearBoveda,
 } from '../src/modo-ladron.js';
 
@@ -210,7 +211,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=9/);
+  assert.match(html, /modo-ladron\.js\?v=10/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -221,8 +222,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=9/);
-  assert.match(sw, /const VERSION = 'tim-v96'/);
+  assert.match(sw, /modo-ladron\.js\?v=10/);
+  assert.match(sw, /const VERSION = 'tim-v97'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -263,6 +264,47 @@ test('la bóveda nace cerrada y llena, y un casillero vaciado no se rellena', ()
   const sucia = normalizarBoveda({ abierta: true, vacios: [0, 0, 99, -1, 24, '2'] });
   assert.equal(sucia.abierta, true);
   assert.deepEqual(sucia.vacios, [0, 24, 2]);
+});
+
+test('los 25 casilleros se apuntan y se saquean desde adentro', () => {
+  const x0 = 121.15, z0 = -18.9, x1 = 125.2, z1 = z0 + 4.05;
+  const puestos = puestosCasilleros(x0, z0, x1, z1);
+  assert.equal(puestos.length, 25);
+  const muro = 0.14;
+  for (const p of puestos) {
+    assert.ok(p.z - p.hz >= z0 + muro + 0.08, 'el casillero ' + p.i + ' se mete en el muro sur');
+    assert.ok(p.z + p.hz <= z1 - muro - 0.08, 'el casillero ' + p.i + ' se mete en el muro norte');
+    assert.ok(p.x - p.hx >= x0 + 0.2, 'el casillero ' + p.i + ' se mete en el fondo');
+    assert.ok(p.y - p.hy >= 0.2, 'el casillero ' + p.i + ' se mete en el suelo');
+  }
+  const ojo = { x: 123.2, y: 1.7, z: -16.875 };
+  let b = { abierta: true, vacios: [] };
+  for (const p of puestos) {
+    const hit = casilleroApuntado(puestos, ojo.x, ojo.y, ojo.z, p.x - ojo.x, p.y - ojo.y, p.z - ojo.z, 5);
+    assert.equal(hit && hit.i, p.i, 'desde adentro la mira no da en el casillero ' + p.i);
+    const r = saquearCasillero(b, p.i);
+    assert.equal(r.ok, true);
+    assert.equal(r.plata, 1500);
+    b = r.boveda;
+  }
+  assert.equal(b.vacios.length, 25);
+  assert.equal(plataBoveda(b), 0);
+  const v = puestos[12];
+  const otraVez = casilleroApuntado(puestos, ojo.x, ojo.y, ojo.z, v.x - ojo.x, v.y - ojo.y, v.z - ojo.z, 5);
+  assert.equal(otraVez && otraVez.i, 12, 'el vacío del medio no le cede la mira al de al lado');
+  assert.equal(saquearCasillero(b, 12).razon, 'vacio');
+  const puerta = { x: 124.7, y: 1.7, z: -16.875 };
+  for (const id of [0, 2, 4, 20, 22, 24]) {
+    const p = puestos[id];
+    const hit = casilleroApuntado(puestos, puerta.x, puerta.y, puerta.z, p.x - puerta.x, p.y - puerta.y, p.z - puerta.z, 5);
+    assert.equal(hit && hit.i, id, 'junto a la puerta la mira no da en el casillero ' + id);
+  }
+  const tb = html.indexOf('function tryBoveda()');
+  const saqueo = html.indexOf('saquearCasillero(estadoBoveda()', tb);
+  const cierre = html.indexOf('togglearBoveda(estadoBoveda()', tb);
+  assert.ok(saqueo > tb && saqueo < cierre, 'E vacía el casillero de la mira antes de cerrar la bóveda');
+  assert.match(html, /puestosCasilleros\(x0, z0, x1, z1\)/);
+  assert.match(html, /Sacar \$' \+ PLATA_CASILLERO \+ ' de este casillero'/);
 });
 
 test('dos partidas ladrón nuevas no heredan el lugar de la otra', () => {

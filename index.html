@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VER_POLICIA, VIDA_POLICIA, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=9';
+import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VER_POLICIA, VIDA_POLICIA, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, puestosCasilleros, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=10';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -4773,12 +4773,21 @@ function casilleroCerca(maxD) {
   for (const c of boveda.casilleros) {
     const d = Math.hypot(player.position.x - c.x, player.position.z - c.z);
     const dy = Math.abs(ojo - c.y);
-    if (d > maxD || dy > 0.85) continue;
+    if (d > maxD || dy > 1.35) continue;
     const s = d + dy * .4;
     if (s < mejor) { mejor = s; best = c; }
   }
   return best;
 }
+// La mira manda: el casillero que cruza el punto de mira, aunque estés junto a la puerta.
+function casilleroEnLaMira() {
+  if (!boveda.casilleros.length) return null;
+  const dir = getAimDirection(_aimCasillero);
+  const o = player.position;
+  const hit = casilleroApuntado(boveda.casilleros, o.x, o.y, o.z, dir.x, dir.y, dir.z, 5);
+  return hit ? (boveda.casilleros.find(c => c.i === hit.i) || null) : null;
+}
+const _aimCasillero = new THREE.Vector3();
 function puertaBovedaCerca(maxD) {
   if (!boveda.puerta) return false;
   return Math.hypot(player.position.x - boveda.puerta.x, player.position.z - boveda.puerta.z) < maxD;
@@ -4788,8 +4797,9 @@ function tryBoveda() {
   if (state.planet !== 'tierra' || state.country || !boveda.hinge) return false;
   if (enPuertaBanco() && !puertaBovedaCerca(2.15)) return false;
   const puede = bovedaPuedeAbrir(true, cajeraViva());
-  const caja = (puede && state.bovedaAbierta) ? casilleroCerca(1.25) : null;
-  if (!puede && (puertaBovedaCerca(2.15) || casilleroCerca(1.25))) {
+  const mira = state.bovedaAbierta ? casilleroEnLaMira() : null;
+  const caja = (puede && mira) ? mira : null;
+  if (!puede && (puertaBovedaCerca(2.15) || mira || casilleroCerca(1.6))) {
     toast('🏦 La cajera sigue viva. La bóveda no se abre.');
     return true;
   }
@@ -4827,10 +4837,10 @@ function pistaBoveda() {
   if (!state.modoLadron || state.planet !== 'tierra' || state.country || !boveda.hinge) return null;
   if (enPuertaBanco() && !puertaBovedaCerca(2.15)) return null;
   const puede = bovedaPuedeAbrir(true, cajeraViva());
-  if (!puede && (puertaBovedaCerca(2.15) || casilleroCerca(1.25))) return { key: 'E', touch: '🏦', text: 'La cajera vigila la bóveda' };
-  if (puede && state.bovedaAbierta && casilleroCerca(1.25)) {
-    const c = casilleroCerca(1.25);
-    const vacio = estadoBoveda().vacios.indexOf(c.i) >= 0;
+  const mira = state.bovedaAbierta ? casilleroEnLaMira() : null;
+  if (!puede && (puertaBovedaCerca(2.15) || mira || casilleroCerca(1.6))) return { key: 'E', touch: '🏦', text: 'La cajera vigila la bóveda' };
+  if (puede && mira) {
+    const vacio = estadoBoveda().vacios.indexOf(mira.i) >= 0;
     return { key: 'E', touch: '🔐', text: vacio ? 'Casillero vacío' : 'Sacar $' + PLATA_CASILLERO + ' de este casillero' };
   }
   if (puertaBovedaCerca(2.15)) return { key: 'E', touch: '🚪', text: state.bovedaAbierta ? 'Cerrar la bóveda' : 'Abrir la bóveda' };
@@ -4881,15 +4891,12 @@ function armarBovedaBanco(cx, cz) {
   boveda.matVacio = new THREE.MeshStandardMaterial({ color: 0x3f3f46, metalness: .2, roughness: .8 });
   boveda.matEtiquetaLlena = new THREE.MeshBasicMaterial({ map: texturaCasillero('$' + PLATA_CASILLERO, '#fde047', '#14532d') });
   boveda.matEtiquetaVacia = new THREE.MeshBasicMaterial({ map: texturaCasillero('VACÍO', '#27272a', '#a1a1aa') });
-  const cols = 5;
-  for (let i = 0; i < CASILLEROS_BOVEDA; i++) {
-    const col = i % cols, fila = (i / cols) | 0;
-    const x = x0 + .42, y = .5 + fila * .55, z = z0 + .55 + col * ((z1 - z0 - 1.1) / (cols - 1));
-    const caja = new THREE.Mesh(new THREE.BoxGeometry(.32, .46, .62), boveda.matLleno);
-    caja.position.set(x, y, z); caja.castShadow = true; scene.add(caja);
+  for (const p of puestosCasilleros(x0, z0, x1, z1)) {
+    const caja = new THREE.Mesh(new THREE.BoxGeometry(p.hx * 2, p.hy * 2, p.hz * 2), boveda.matLleno);
+    caja.position.set(p.x, p.y, p.z); caja.castShadow = true; scene.add(caja);
     const etiqueta = new THREE.Mesh(new THREE.PlaneGeometry(.5, .22), boveda.matEtiquetaLlena);
-    etiqueta.rotation.y = Math.PI / 2; etiqueta.position.set(x + .17, y, z); scene.add(etiqueta);
-    boveda.casilleros.push({ i, x: x + .2, y, z, caja, etiqueta });
+    etiqueta.rotation.y = Math.PI / 2; etiqueta.position.set(p.x + p.hx * .7, p.y, p.z); scene.add(etiqueta);
+    boveda.casilleros.push({ i: p.i, x: p.x, y: p.y, z: p.z, hx: p.hx, hy: p.hy, hz: p.hz, caja, etiqueta });
   }
 }
 

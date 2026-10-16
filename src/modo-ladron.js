@@ -255,6 +255,58 @@ export function bovedaPuedeAbrir(modoLadron, cajeraViva) {
   return !!modoLadron && !cajeraViva;
 }
 
+// Los 25, en la pared del fondo. El margen los saca de los muros norte y sur.
+export function puestosCasilleros(x0, z0, x1, z1) {
+  const cols = 5;
+  const margen = 0.62;
+  const paso = (z1 - z0 - margen * 2) / (cols - 1);
+  const puestos = [];
+  for (let i = 0; i < CASILLEROS_BOVEDA; i++) {
+    const col = i % cols, fila = (i / cols) | 0;
+    puestos.push({
+      i, x: x0 + 0.62, y: 0.5 + fila * 0.55, z: z0 + margen + col * paso,
+      hx: 0.22, hy: 0.26, hz: 0.32,
+    });
+  }
+  return puestos;
+}
+
+// t de entrada del rayo (dirección normalizada) en la caja. null si no la toca.
+export function distanciaRayoCaja(ox, oy, oz, dx, dy, dz, minX, minY, minZ, maxX, maxY, maxZ) {
+  let tmin = 0, tmax = Infinity;
+  const ejes = [[dx, ox, minX, maxX], [dy, oy, minY, maxY], [dz, oz, minZ, maxZ]];
+  for (let k = 0; k < ejes.length; k++) {
+    const d = ejes[k][0], o = ejes[k][1], mn = ejes[k][2], mx = ejes[k][3];
+    if (Math.abs(d) < 1e-8) {
+      if (o < mn || o > mx) return null;
+      continue;
+    }
+    let t1 = (mn - o) / d, t2 = (mx - o) / d;
+    if (t1 > t2) { const s = t1; t1 = t2; t2 = s; }
+    if (t1 > tmin) tmin = t1;
+    if (t2 < tmax) tmax = t2;
+    if (tmin > tmax) return null;
+  }
+  if (tmax < 0) return null;
+  return tmin >= 0 ? tmin : tmax;
+}
+
+// El casillero que cruza la mira. Gana el más cercano, aunque uno vacío quede más a mano.
+export function casilleroApuntado(casilleros, ox, oy, oz, dx, dy, dz, maxDist) {
+  const max = maxDist == null ? 5 : maxDist;
+  const len = Math.hypot(dx, dy, dz) || 1;
+  const ux = dx / len, uy = dy / len, uz = dz / len;
+  let best = null, bestT = max;
+  for (const c of casilleros) {
+    const hx = c.hx == null ? 0.22 : c.hx, hy = c.hy == null ? 0.26 : c.hy, hz = c.hz == null ? 0.32 : c.hz;
+    const t = distanciaRayoCaja(ox, oy, oz, ux, uy, uz, c.x - hx, c.y - hy, c.z - hz, c.x + hx, c.y + hy, c.z + hz);
+    if (t == null || t < 0 || t > bestT) continue;
+    best = c;
+    bestT = t;
+  }
+  return best;
+}
+
 export function saquearCasillero(boveda, indice) {
   const b = normalizarBoveda(boveda);
   const i = indice | 0;

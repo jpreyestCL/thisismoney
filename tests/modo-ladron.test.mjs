@@ -9,6 +9,7 @@ import {
   CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, bovedaPuedeAbrir, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
   precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
   ALARMA_BANCO_SEG, empezarAlarmaBanco, tickAlarmaBanco,
+  OYE_GOLPE, golpeSeEntera, persecucionSiCaen,
   cobrarTitoAuto,
   casilleroApuntado, puestosCasilleros,
   titoEntrega, titoPuedeDarArma, togglearBoveda,
@@ -258,7 +259,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=12/);
+  assert.match(html, /modo-ladron\.js\?v=13/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -269,8 +270,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=12/);
-  assert.match(sw, /const VERSION = 'tim-v99'/);
+  assert.match(sw, /modo-ladron\.js\?v=13/);
+  assert.match(sw, /const VERSION = 'tim-v100'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -533,6 +534,32 @@ test('las balas y los golpes le bajan vida al policía y a 0 muere', () => {
   assert.match(html, /pegarOficial\(oficial, state\.weaponDmg\)/);
   assert.match(html, /pegarOficial\(person, dmg\)/);
   assert.match(html, /laserEquipped\(\) \? 30 : MELEE_REACH/);
+});
+
+test('matar a los policías apaga la persecución y pegar no avisa solo', () => {
+  assert.equal(OYE_GOLPE, 5);
+  assert.equal(golpeSeEntera(0), true);
+  assert.equal(golpeSeEntera(5), true, 'a 5 bloques el policía sí se entera');
+  assert.equal(golpeSeEntera(5.01), false);
+  assert.equal(golpeSeEntera(16), false, 'verlo de lejos no es oír el golpe');
+  assert.equal(golpeSeEntera(null), false);
+  const sola = persecucionSiCaen(true, 0);
+  assert.equal(sola.acabo, true);
+  assert.equal(sola.activa, false);
+  const queda = persecucionSiCaen(true, 2);
+  assert.equal(queda.acabo, false);
+  assert.equal(queda.activa, true);
+  assert.equal(persecucionSiCaen(false, 0).acabo, false);
+  assert.match(html, /function registrarGolpeLadron\(\)/);
+  assert.match(html, /Los policías ya no te persiguen/);
+  assert.match(html, /persecucionSiCaen\(perseguia, policiaPersiguiendoVivos\(\)\)/);
+  assert.match(html, /if \(golpeSeEntera\(distanciaPoliciaViva\(\)\)\)/);
+  assert.match(html, /if \(!npcVeElGolpe\(\)\) return/);
+  assert.match(html, /!state\.golpeCalla && policiaReconoce\(fama, camu\)/);
+  assert.match(html, /if \(state\.modoLadron\) return;/);
+  assert.match(html, /state\.ladronLimpio = true;/);
+  assert.equal(trasDelito(true, 'caja'), false, 'un delito nuevo puede volver a ensuciar');
+  assert.equal(trasDelito(true, 'golpe'), false);
 });
 
 test('el robo del banco tarda 3 minutos en llegar a la policía', () => {

@@ -13,6 +13,7 @@ export const DELATA_CERCA = 4.8;
 export const CAMUFLAJE_FACTOR = 0.07;    // con el traje te reconocen mucho menos
 export const CASI_FACTOR = 0.04;         // al empezar casi nadie te reconoce
 export const VER_POLICIA = 16;
+export const OYE_GOLPE = 5;         // un bloque = 1: el policía a 5 o menos oye el golpe
 export const ROBO_ESPERA_SEG = 20;
 
 export const ROPA = Object.freeze([
@@ -173,6 +174,21 @@ export function tickAlarmaBanco(left, dt) {
   const next = queda - Math.max(0, Number(dt) || 0);
   if (next <= 0) return { left: 0, sabe: true };
   return { left: next, sabe: false };
+}
+
+// Pegar no avisa solo. El policía a 5 bloques o menos sí se entera.
+export function golpeSeEntera(distancia) {
+  if (distancia == null || distancia === '') return false;
+  const d = Number(distancia);
+  return d >= 0 && d <= OYE_GOLPE;
+}
+
+// Si matas a los que te persiguen, la persecución se apaga. Si queda uno, sigue.
+export function persecucionSiCaen(activa, quedan) {
+  const n = Math.max(0, quedan | 0);
+  if (!activa) return { activa: false, acabo: false };
+  if (n > 0) return { activa: true, acabo: false };
+  return { activa: false, acabo: true };
 }
 
 // La bala le pega al policía si el rayo pasa por el cuerpo, también a quemarropa.

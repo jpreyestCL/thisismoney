@@ -271,7 +271,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
   assert.match(sw, /modo-ladron\.js\?v=13/);
-  assert.match(sw, /const VERSION = 'tim-v100'/);
+  assert.match(sw, /const VERSION = 'tim-v101'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);

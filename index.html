@@ -24078,10 +24078,14 @@ function updateWater(dt) {
   }
   if (ui('waterfx')) ui('waterfx').style.opacity = state.underwater ? '1' : '0';
 }
+// Hambre por segundo. Quieto: antes 0.238, ahora 0.119. Heladera: antes 0.119, ahora 0.0595. Correr (extra): antes 0.8, ahora 0.4.
+const HAMBRE_QUIETO = 0.119;
+const HAMBRE_HELADERA = 0.0595;
+const HAMBRE_CORRER = 0.4;
 // Hambre baja con el tiempo; en 0 pierdes vida y puedes desmayarte
 function updateHunger(dt) {
-  const drain = placed.some(o => o.key === 'heladera') ? 0.119 : 0.238;   // con heladera el hambre baja a la mitad
-  state.hunger = Math.max(0, state.hunger - drain * dt);   // 100/0.238 ≈ 420s = 7 minutos exactos
+  const drain = placed.some(o => o.key === 'heladera') ? HAMBRE_HELADERA : HAMBRE_QUIETO;   // la heladera deja este ritmo a la mitad
+  state.hunger = Math.max(0, state.hunger - drain * dt);
   if (state.hunger <= 0) {
     state.hp -= 2 * dt;
     if (state.hp <= 0) faintFromHunger();
@@ -24370,7 +24374,7 @@ function updateMovement(dt) {
   const running = (keys['ShiftLeft'] || keys['ShiftRight'] || touch.run) && state.hunger > 5 && !crouch;
   let spd = running ? 14 : (crouch ? 4 : 9);
   if (state.hunger <= 0) spd = 6;     // muerto de hambre: caminas lento
-  if (running) state.hunger = Math.max(0, state.hunger - 0.8 * dt);
+  if (running) state.hunger = Math.max(0, state.hunger - HAMBRE_CORRER * dt);
   const step = spd * dt;
   // ejes de movimiento: teclado (WASD, discreto) + joystick táctil (analógico)
   let ax = 0, az = 0;

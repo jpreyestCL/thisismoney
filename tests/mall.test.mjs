@@ -146,7 +146,7 @@ test('el juego engancha el mall sin tocar la celda, el depto ni la tele', () => 
   assert.match(html, /puestosSuper\(SHOP\)/);
   assert.match(html, /tipo: 'sala'/);
   assert.match(html, /tipo: 'tienda'/);
-  assert.match(sw, /const VERSION = 'tim-v106'/);
+  assert.match(sw, /const VERSION = 'tim-v107'/);
   assert.match(sw, /city-map\.js\?v=9/);
   assert.match(sw, /mall\.js\?v=6/);
 });

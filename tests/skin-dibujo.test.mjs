@@ -177,7 +177,7 @@ test('al caminar los brazos y las piernas se articulan, cada uno por su lado', (
 test('el juego pinta al jugador, guarda la skin y no cambia el balanceo', () => {
   assert.match(html, /skin-dibujo\.js\?v=2/);
   assert.match(sw, /skin-dibujo\.js\?v=2/);
-  assert.match(sw, /const VERSION = 'tim-v106'/);
+  assert.match(sw, /const VERSION = 'tim-v107'/);
   assert.match(html, /m\.userData\.parte = parte; m\.userData\.superficie = true/);
   assert.match(html, /\{ parte: 'torso', superficie: true \}/);
   assert.match(html, /\{ parte: 'cabeza', superficie: true \}/);

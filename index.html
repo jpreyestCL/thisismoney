@@ -67,7 +67,7 @@
   #toastStack { position: absolute; top: auto; left: auto; right: 14px; bottom: calc(26% + 50px); transform: none; z-index: 7; display: flex; flex-direction: column-reverse; gap: 4px; align-items: flex-end; pointer-events: none; }
   #toastStack > div { max-width: min(340px, 34vw) !important; text-align: left; }
   /* Durante la cinemática del cohete se oculta el HUD para ver el planeta partirse (queda el toast) */
-  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #aimDot, body.cine #scopeMask, body.cine #jobBtn, body.cine #questBtn, body.cine #questbox, body.cine #keypadbox, body.cine #blackbox, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
+  body.cine #parkBusinessBtn, body.cine .topbar, body.cine #minimap, body.cine #missions, body.cine #objective, body.cine #dadhud, body.cine #gearhud, body.cine #buildbar, body.cine #blueprintBtn, body.cine #blueprintPanel, body.cine #rotateBtn, body.cine #deleteBtn, body.cine #floor2RotBtn, body.cine #floor2DelBtn, body.cine #floor2WPlusBtn, body.cine #floor2WMinusBtn, body.cine #floor2DPlusBtn, body.cine #floor2DMinusBtn, body.cine #buyring, body.cine #crosshair, body.cine #bowcharge, body.cine #touchBtns, body.cine #moveBtns, body.cine #joystick, body.cine #helpBtn, body.cine #soundBtn, body.cine #exitBtn, body.cine #fotoBtn, body.cine #fsBtn, body.cine #aimDot, body.cine #scopeMask, body.cine #jobBtn, body.cine #questBtn, body.cine #questbox, body.cine #keypadbox, body.cine #blackbox, body.cine #chatFeed, body.cine #chatReply { display: none !important; }
   body.alley-mission #jobBtn, body.alley-mission #minimap, body.alley-mission #parkBusinessBtn, body.alley-mission #buildbar, body.alley-mission #blueprintBtn, body.alley-mission #objective, body.alley-mission #missions { display: none !important; }
   #cineCaption { position:absolute; left:50%; bottom:max(34px,env(safe-area-inset-bottom)); z-index:19; display:none; transform:translateX(-50%); width:min(680px,88vw); padding:10px 18px; border-top:2px solid #f97316; background:linear-gradient(90deg,transparent,rgba(2,6,23,.86) 12%,rgba(2,6,23,.86) 88%,transparent); color:#f8fafc; font:900 clamp(14px,2.5vw,20px)/1.25 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing:.08em; text-align:center; text-transform:uppercase; text-shadow:0 2px 8px #000; }
   body.cine #cineCaption { display:block; }
@@ -250,6 +250,9 @@
   body.touch #helpBtn  { top: 46px; left: 6px;  width: 34px; height: 34px; font-size: 15px; }
   body.touch #soundBtn { top: 46px; left: 44px; width: 34px; height: 34px; font-size: 15px; }
   body.touch #exitBtn  { top: 46px; left: 82px; height: 34px; font-size: 10px; padding: 0 8px; }
+  #fsBtn { display: none; }
+  body.touch #fsBtn { display: flex; align-items: center; justify-content: center; position: fixed; top: 46px; left: 158px; z-index: 6; pointer-events: all; cursor: pointer; width: 40px; height: 34px; font-size: 18px; color: #fff; background: rgba(0,0,0,.55); border: 2px solid rgba(255,255,255,.3); border-radius: 10px; }
+  body.touch #fotoBtn { top: 46px; left: 204px; width: 34px; height: 34px; font-size: 15px; }
   body.touch #minimap  { top: 46px !important; right: 6px !important; width: 100px !important; height: 100px !important; }
   body.touch #questBtn { top: 152px; right: 6px; height: 34px; font-size: 12px; padding: 0 10px; }
   body.touch #questbox, body.touch #keypadbox, body.touch #blackbox { width: min(96vw, 440px); }
@@ -275,11 +278,29 @@
   body.touch .slot .ct { font-size: 10px; }
   body.touch #rotateBtn, body.touch #deleteBtn, body.touch #blueprintBtn, body.touch #floor2RotBtn, body.touch #floor2DelBtn, body.touch #floor2WPlusBtn, body.touch #floor2WMinusBtn, body.touch #floor2DPlusBtn, body.touch #floor2DMinusBtn, body.touch #scalePlusBtn, body.touch #scaleMinusBtn, body.touch #thickPlusBtn, body.touch #thickMinusBtn { display: none !important; }
   body.touch #blueprintPanel { top:84px; left:6px; max-height:calc(100vh - 170px); }
-  /* botones táctiles un poco más chicos para que quepan todos (incluido el panel "más") */
-  body.touch .tbtn { width: calc(46px * var(--btnscale, 1)); height: calc(46px * var(--btnscale, 1)); font-size: calc(19px * var(--btnscale, 1)); }
-  body.touch #touchBtns { width: 150px; }
-  body.touch #moveBtns { left: 158px; }
-  body.touch .tbtn small { margin-top: 27px; font-size: 8px; }
+  /* Pegar y usar, grandes, en la esquina. El centro de la pantalla queda libre para mirar. */
+  body.touch:not(.watch) .tbtn { width: calc(48px * var(--btnscale, 1)); height: calc(48px * var(--btnscale, 1)); font-size: calc(18px * var(--btnscale, 1)); }
+  body.touch:not(.watch) #touchBtns { width: 196px; right: 8px; bottom: 10px; gap: 8px; }
+  body.touch:not(.watch) #touchBtns > [data-act="hit"],
+  body.touch:not(.watch) #touchBtns > [data-act="place"] { width: calc(68px * var(--btnscale, 1)); height: calc(68px * var(--btnscale, 1)); font-size: calc(28px * var(--btnscale, 1)); }
+  body.touch:not(.watch) #touchBtns > [data-act="interact"] { width: calc(62px * var(--btnscale, 1)); height: calc(62px * var(--btnscale, 1)); font-size: calc(26px * var(--btnscale, 1)); }
+  body.touch:not(.watch) #moveBtns { left: 162px; bottom: 16px; }
+  body.touch:not(.watch) #moveBtns > .tbtn { width: calc(52px * var(--btnscale, 1)); height: calc(52px * var(--btnscale, 1)); }
+  body.touch .tbtn small { margin-top: 32px; font-size: 9px; }
+  /* El dedo compra: la lista scrollea adentro del recuadro y no la tapa la capa de mirar. */
+  #toqueFuera { display: none; }
+  body.touch.recuadro #toqueFuera { display: block; position: absolute; inset: 0; z-index: 7; pointer-events: all; background: transparent; }
+  body.touch.recuadro #lookLayer { pointer-events: none; }
+  body.touch #shopbox, body.touch #mallbox { top: 4px !important; transform: translate(-50%, 0) !important; max-height: calc(100% - 8px) !important; z-index: 18 !important; }
+  body.touch #shopbox { height: calc(100% - 8px) !important; overflow: hidden !important; }
+  body.touch #shopbox > :not(#shopList) { flex: 0 0 auto; }
+  body.touch #mallbox { overflow: auto !important; }
+  body.touch #shopList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  body.touch .shopRow { min-height: 46px; touch-action: manipulation; }
+  body.touch #shopBuyBtn { min-height: 46px; font-size: 16px; }
+  body.touch #mallCatalogo { flex: 1 1 150px; min-height: 150px; max-height: 42vh; overflow: auto; }
+  body.touch #mallCasas { max-height: 72px; overflow: auto; }
+  body.touch #mallCatalogo button, body.touch #mallCasas button, body.touch #mallbox [data-mall="pagar"] { min-height: 44px; touch-action: manipulation; }
 
   /* En móvil solo aparecen las acciones útiles para el contexto actual. */
   body.touch #touchBtns > .tbtn { display: none; }
@@ -681,6 +702,7 @@
   <button id="thickPlusBtn">↔️ Más grueso</button>
   <button id="thickMinusBtn">↔️ Menos grueso</button>
   <aside id="blueprintPanel" aria-label="Planos de construcción"><h2>📐 PLANOS</h2><p>Elige una estructura. Verás el conjunto antes de gastar materiales.</p><div id="blueprintList"></div><button class="bankBtn" id="blueprintClose" style="width:100%;margin-top:9px">Cerrar</button></aside>
+  <div id="toqueFuera"></div>
   <div id="buyring">
     <svg width="90" height="90"><circle cx="45" cy="45" r="38" stroke="rgba(255,255,255,.2)" stroke-width="7" fill="none"/>
       <circle id="ring-fg" cx="45" cy="45" r="38" stroke="#4ade80" stroke-width="7" fill="none" stroke-dasharray="239" stroke-dashoffset="239" stroke-linecap="round"/></svg>
@@ -692,9 +714,10 @@
     <input id="shopInput" type="text" placeholder="🔎 filtrar (ej: espada, pintura, comida)…" autocomplete="off"
       style="width:100%; padding:8px 10px; font-size:14px; border-radius:8px; border:1px solid #34d399; background:#0b1220; color:#fff; outline:none;">
     <div id="shopList" style="overflow-y:auto; margin-top:8px; display:flex; flex-direction:column; gap:5px; -webkit-overflow-scrolling:touch; text-align:left;"></div>
-    <div style="display:flex; gap:8px; justify-content:center; margin-top:8px;">
-      <button id="shopSellBtn" style="pointer-events:all; cursor:pointer; background:rgba(250,204,21,.2); color:#facc15; border:1px solid #facc15; padding:9px 18px; font-size:14px; font-weight:700; border-radius:8px;">🔁 Vender</button>
-      <button id="shopCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:9px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
+    <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
+      <button id="shopBuyBtn" type="button" style="pointer-events:all; cursor:pointer; flex:1; background:#22c55e; color:#042; border:none; padding:9px 18px; font-size:16px; font-weight:800; border-radius:8px;">Comprar</button>
+      <button id="shopSellBtn" type="button" style="pointer-events:all; cursor:pointer; background:rgba(250,204,21,.2); color:#facc15; border:1px solid #facc15; padding:9px 18px; font-size:14px; font-weight:700; border-radius:8px;">🔁 Vender</button>
+      <button id="shopCloseBtn" type="button" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:9px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
     </div>
   </div>
   <div id="pause" style="position:absolute; inset:0; display:none; z-index:12; background:rgba(2,6,23,.75); align-items:center; justify-content:center; pointer-events:all;">
@@ -1101,6 +1124,7 @@
   <div id="parkDetail" style="line-height:1.7;margin-top:12px"></div>
 </dialog>
 <button id="fotoBtn" aria-label="Guardar captura" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
+<button id="fsBtn" type="button" aria-label="Pantalla completa">⛶</button>
 <button id="questBtn" aria-label="Abrir misiones" type="button"><span class="qdot"></span>📋 Misiones</button>
 <button id="jobBtn" aria-label="Empezar la misión" type="button">▶️ HACER MISIÓN</button>
 <div id="wheelMenu" role="menu" aria-label="Acciones"><div class="wheel-title">ACCIONES<br><small>clic para elegir · Tab o Esc para cerrar</small></div></div>
@@ -4204,6 +4228,8 @@ function nearestCitizen(maxD = 3.2) {
   return best;
 }
 function tryFamilyOrCitizenInteract() {
+  // En el celular el papá camina pegado y se comía la E: no dejabas comprar ni hablarle al vendedor.
+  if (document.body.classList.contains('touch') && (productoDeSuperCerca() || (state.phase === 'DAY' && nearKeeper()))) return false;
   if (dad.visible && dist2D(dad.position, player.position) < 3.4) {
     tutorialEvent('talkDad');
     const hs = houseStats();
@@ -12914,6 +12940,7 @@ function abrirCajaMall() {
   for (const k in keys) keys[k] = false;
   renderCajaMall();
   ui('mallbox').style.display = 'flex';
+  if (typeof marcarRecuadro === 'function') marcarRecuadro();
   return true;
 }
 function cerrarCajaMall() {
@@ -12921,6 +12948,7 @@ function cerrarCajaMall() {
   if (!el || el.style.display === 'none') return;
   el.style.display = 'none';
   typing = algunRecuadroAbierto();
+  if (typeof marcarRecuadro === 'function') marcarRecuadro();
 }
 function pagarCarritoMall() {
   const check = mallPuedePagar(state.money, mallCart, !!state.creative);
@@ -12976,12 +13004,18 @@ function sacarDelMall() {
   toast('🌙 El mall cierra de noche. Te sacaron a la puerta.');
   return true;
 }
+function radioDePuesto(p) {
+  const base = p.radio || 0;
+  // En el celular el pasillo es angosto: el dedo no tiene que clavarse en el centro de la góndola.
+  if (document.body.classList.contains('touch') && (p.tipo === 'tienda' || p.tipo === 'pieza' || p.tipo === 'casa')) return base + 0.75;
+  return base;
+}
 function mallPuestoCerca() {
   if (state.planet !== 'tierra' || state.country) return null;
   let best = null, bd = 1e9;
   for (const p of mallPuestos) {
     const d = Math.hypot(player.position.x - p.x, player.position.z - p.z);
-    if (d <= p.radio && d < bd) { bd = d; best = p; }
+    if (d <= radioDePuesto(p) && d < bd) { bd = d; best = p; }
   }
   return best;
 }
@@ -17911,7 +17945,7 @@ function tryInteract() {
   if (tryEntrada()) return;       // entrar / salir de los edificios por la puerta
   if (tryMall()) return;          // mall: cine, palomitas, caja, patio y la puerta
   if (tryBuyPlot()) return;       // comprar el terreno del condominio
-  if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract() && !tryVendorHere() && !tryHelperHere()) { if (!tryCollectGolden() && !tryRob() && !sellHouse()) tryGardenHere(); }
+  if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract() && !tryBuyStandTouch() && !tryVendorHere() && !tryHelperHere()) { if (!tryCollectGolden() && !tryRob() && !sellHouse()) tryGardenHere(); }
 }
 addEventListener('keydown', e => {
   if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
@@ -18267,11 +18301,16 @@ function openShopInput() {
   if (Math.random() < 0.35) say('🛒 Vendedor', VENDOR_LINES[Math.floor(Math.random() * VENDOR_LINES.length)]);
   renderShopList('');
   if (!document.body.classList.contains('touch')) inp.focus();   // en PC enfoca; en celular NO (para no abrir el teclado y tapar la lista)
+  marcarRecuadro();
 }
 function closeShopInput() {
   ui('shopbox').style.display = 'none';
   ui('shopInput').blur();
   typing = algunRecuadroAbierto();
+  marcarRecuadro();
+}
+function marcarRecuadro() {
+  document.body.classList.toggle('recuadro', document.body.classList.contains('touch') && algunRecuadroAbierto());
 }
 // ===== CONTRATOS del vendedor alien (misiones de Platus): acepta uno, cúmplelo y cóbralo =====
 const CONTRACT_DEFS = [
@@ -18401,6 +18440,7 @@ function renderShopList(filter) {
     const row = document.createElement('button');
     row.className = 'shopRow';
     row.style.cssText = 'display:flex; align-items:center; gap:8px; width:100%; text-align:left; cursor:pointer; pointer-events:all; border:none; border-radius:8px; padding:8px 10px; font-size:14px; font-weight:700; color:#fff; background:' + (can ? 'rgba(34,197,94,.18)' : 'rgba(255,255,255,.06)') + '; opacity:' + (can ? '1' : '.5') + ';';
+    row.dataset.key = it.key;
     row.innerHTML = '<span style="font-size:18px">' + (locked ? '🔒' : shopIcon(it)) + '</span><span style="flex:1">' + it.name + (locked ? ' <small style="opacity:.65">se desbloquea a los $' + it.unlockAt + '</small>' : '') + '</span><span style="color:' + (can ? '#4ade80' : '#f87171') + '">$' + price + '</span>';
     row.onclick = () => buyShopItem(it);
     list.appendChild(row);
@@ -18412,6 +18452,13 @@ function buyShopItem(item) {
   if (state.money < priced.price) { toast('💸 Te falta plata para ' + item.name + ' ($' + priced.price + ')'); return; }
   buyItem(priced);
   renderShopList(ui('shopInput').value);   // refresca precios/dinero y el estado de cada fila
+}
+function comprarDesdeLista() {   // botón Comprar: el primero de la lista (o el que filtraste), sin teclado
+  if (shopSellMode) { toast('Estás en vender. Toca un objeto de la lista, o vuelve a Comprar.'); return; }
+  const row = ui('shopList') && ui('shopList').querySelector('.shopRow[data-key]');
+  const item = row && shopCatalog().find(it => it.key === row.dataset.key);
+  if (!item) { toast('Toca un producto de la lista'); return; }
+  buyShopItem(item);
 }
 function processShopBuy() {   // Enter en PC: compra el primero que coincide con el filtro
   const text = ui('shopInput').value.trim().toLowerCase();
@@ -18683,6 +18730,31 @@ document.querySelectorAll('.guide-tab').forEach(tab => tab.onclick = () => {
 });
 ui('touchToggle').onclick = () => setTouchMode(!document.body.classList.contains('touch'));
 ui('soundBtn').onclick = () => toggleSound();
+function enPantallaCompleta() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function pintarFsBtn() {
+  const b = ui('fsBtn'); if (!b) return;
+  const on = enPantallaCompleta();
+  b.textContent = on ? '⤢' : '⛶';
+  b.setAttribute('aria-label', on ? 'Salir de pantalla completa' : 'Pantalla completa');
+}
+function toggleFullscreen() {
+  const raiz = document.documentElement;
+  if (!enPantallaCompleta()) {
+    const pedir = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
+    if (!pedir) { toast('Este navegador no tiene pantalla completa'); return; }
+    Promise.resolve(pedir.call(raiz)).catch(() => toast('No se pudo poner pantalla completa'));
+  } else {
+    const salir = document.exitFullscreen || document.webkitExitFullscreen;
+    if (salir) Promise.resolve(salir.call(document)).catch(() => {});
+  }
+}
+ui('fsBtn').onclick = toggleFullscreen;
+document.addEventListener('fullscreenchange', pintarFsBtn);
+document.addEventListener('webkitfullscreenchange', pintarFsBtn);
+ui('toqueFuera').addEventListener('pointerup', () => {
+  if (ui('shopbox').style.display === 'flex') closeShopInput();
+  else if (ui('mallbox') && ui('mallbox').style.display === 'flex') cerrarCajaMall();
+});
 ui('exitBtn').onclick = () => saveAndExit();
 ui('fotoBtn').onclick = () => takePhoto();
 if (ui('questBtn')) ui('questBtn').onclick = () => { if (ui('questbox').style.display === 'flex') closeQuestPanel(); else openQuestPanel(); };
@@ -18712,6 +18784,7 @@ ui('shopInput').addEventListener('keydown', e => {
 });
 ui('shopInput').addEventListener('input', () => renderShopList(ui('shopInput').value));   // filtra la lista al escribir
 ui('shopCloseBtn').onclick = closeShopInput;
+ui('shopBuyBtn').onclick = comprarDesdeLista;
 ui('shopSellBtn').onclick = () => {
   shopSellMode = !shopSellMode;
   ui('shopSellBtn').textContent = shopSellMode ? '🛒 Comprar' : '🔁 Vender';
@@ -21082,14 +21155,41 @@ function resetAll() {
 //  COMPRAR (manteniendo apretado E cerca del producto)
 // ===================================================================
 let buyHold = 0;
+function productoDeSuperCerca() {
+  if (state.phase !== 'DAY' || state.buildMode || state.planet === 'platus' || cajaDePagoCerca()) return null;
+  const tactil = document.body.classList.contains('touch');
+  let near = null, mejor = 2.8;
+  for (const it of shopStands) {
+    const d = dist2D(player.position, it.pos);
+    if (d < mejor) {
+      near = it;
+      if (!tactil) return it;   // PC: el primero que entra en el radio, como siempre
+      mejor = d;                 // celular: el mesón más cercano al dedo
+    }
+  }
+  return near;
+}
+function tryBuyStandTouch() {
+  if (!document.body.classList.contains('touch')) return false;
+  const near = productoDeSuperCerca();
+  if (!near) return false;
+  if (!state.creative && state.money < near.price) {
+    toast('💸 Te falta plata para ' + near.name + ' ($' + near.price + ')');
+    return true;
+  }
+  buyItem(near);
+  buyHold = -0.4;
+  return true;
+}
 function updateBuying(dt) {
   const ring = ui('buyring');
   if (state.phase !== 'DAY' || state.buildMode || state.planet === 'platus' || cajaDePagoCerca()) { ring.style.display = 'none'; buyHold = 0; return; }
-  let near = null; for (const it of shopStands) { if (dist2D(player.position, it.pos) < 2.8) { near = it; break; } }
+  const near = productoDeSuperCerca();
   if (!near) { ring.style.display = 'none'; buyHold = 0; return; }
   ring.style.display = 'block';
   const enough = state.money >= near.price;
-  ui('ring-label').textContent = near.name + '  $' + near.price + (enough ? '  (mantén E)' : '  (sin plata)');
+  const tactil = document.body.classList.contains('touch');
+  ui('ring-label').textContent = near.name + '  $' + near.price + (enough ? (tactil ? '  (toca 🤝)' : '  (mantén E)') : '  (sin plata)');
   if (keys['KeyE'] && enough) buyHold += dt; else buyHold = Math.max(0, buyHold - dt * 2);
   const frac = Math.min(1, buyHold / 0.8);
   ui('ring-fg').setAttribute('stroke-dashoffset', String(239 * (1 - frac)));
@@ -25919,11 +26019,13 @@ function updateContextPrompt() {
       else if (nearestWorldSecret()) action = { key: 'E', touch: '🗺️', text: 'Descubrir secreto del mundo' };
       else if (nearestSport()) action = { key: 'E', touch: '🏟️', text: 'Unirte al partido · sesión de 45 segundos' };
       else if (dist2D(player.position, HOUSE) < 8 && houseStats().full) action = { key: 'E', touch: '🏪', text: state.business ? 'Administrar ' + BUSINESS_TYPES[state.business.type].name : 'Abrir un negocio familiar' };
+      else if (document.body.classList.contains('touch') && productoDeSuperCerca()) { const product = productoDeSuperCerca(); action = { key: 'E', touch: '🛒', text: 'Toca para comprar ' + product.name + ' · $' + product.price }; }
       else if (nearestCitizen() || (dad.visible && dist2D(dad.position, player.position) < 3.4)) action = { key: 'E', touch: '💬', text: 'Hablar o ayudar' };
       else if (state.phase === 'DAY') {
         let product = null;
-        for (const it of shopStands) if (dist2D(player.position, it.pos) < 2.8) { product = it; break; }
-        if (product && !cajaDePagoCerca()) action = { key: 'E', touch: '🤝', text: 'Mantén para comprar ' + product.name + ' · $' + product.price };
+        if (document.body.classList.contains('touch')) product = productoDeSuperCerca();
+        else for (const it of shopStands) if (dist2D(player.position, it.pos) < 2.8) { product = it; break; }
+        if (product && !cajaDePagoCerca()) action = { key: 'E', touch: '🛒', text: (document.body.classList.contains('touch') ? 'Toca para comprar ' : 'Mantén para comprar ') + product.name + ' · $' + product.price };
         else { const crop = CROP_DEFS[selectedCrop]; if ((state.inv[crop.seedKey] || 0) > 0) action = { key: 'E', touch: crop.icon, text: 'Plantar ' + crop.name.toLowerCase() + ' · Shift+K cambia cultivo' }; }
         if (!action && houseStats().ready) action = { key: 'N', touch: '🌙', text: 'Empezar la noche cuando estés preparado' };
       }
@@ -25981,12 +26083,20 @@ function renderHUD() {
     ui('sportRed').textContent = sportGame.teamScore[0]; ui('sportBlue').textContent = sportGame.teamScore[1]; ui('sportTime').textContent = fmt(sportGame.time);
     ui('sportHelp').textContent = controls[0] + ' · ' + controls[1] + ' · E salir';
   }
+  marcarRecuadro();
   const touchHit = document.querySelector('[data-act="hit"]'), touchTechnique = document.querySelector('[data-act="eat"]');
   if (touchHit) { setHTMLIfChanged(touchHit, sportGame ? '🏅<small>jugar</small>' : '👊<small>acción</small>'); touchHit.setAttribute('aria-label', sportGame ? 'Acción deportiva principal' : 'Acción principal'); }
   if (touchTechnique) { setHTMLIfChanged(touchTechnique, sportGame ? '✨<small>técnica</small>' : '🍖<small>comer</small>'); touchTechnique.setAttribute('aria-label', sportGame ? 'Técnica deportiva' : 'Comer'); }
   const heliDownBtn = ui('heliDownBtn');
   if (heliDownBtn) heliDownBtn.style.display = state.driving && car && car.helicopter ? 'flex' : 'none';
   updateContextPrompt();
+  const touchUse = document.querySelector('#touchBtns > [data-act="interact"]');
+  if (touchUse && document.body.classList.contains('touch')) {
+    const quiere = (ui('contextText') && ui('contextText').textContent || '').toLowerCase();
+    const comprar = /compr|pagar|carrito|vendedor/.test(quiere);
+    setHTMLIfChanged(touchUse, comprar ? '🛒<small>comprar</small>' : '🤝<small>usar</small>');
+    touchUse.setAttribute('aria-label', comprar ? 'Comprar' : 'Usar o hablar');
+  }
 
   // barra de construcción. En celular solo aparece en modo construir (para no tapar la pantalla).
   const bb = ui('buildbar');

@@ -519,11 +519,12 @@ export function puedeVerTito(modoLadron, totalEarned, creative, unlock) {
   return (Number(totalEarned) || 0) >= meta;
 }
 
+export const PLATA_CAJA = 5000;   // la caja del súper y la del mall, una sola vez
+
 export function asaltoTienda(rng) {
   const r = typeof rng === 'function' ? rng : Math.random;
-  const plata = 150 + Math.floor(r() * 251);
   const cosa = BOTIN_TIENDA[Math.floor(r() * BOTIN_TIENDA.length) % BOTIN_TIENDA.length];
-  return { plata, cosa };
+  return { plata: PLATA_CAJA, cosa };
 }
 
 // La plata del asalto sale de la caja donde se paga, una sola vez por partida.

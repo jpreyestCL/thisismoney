@@ -6,7 +6,7 @@ import {
   VIDA_ZOMBIE, VIDA_POLICIA, PERSECUCION_SEG, CELDA_LADRON_SEG, DEUDA_TITO, LLAMADA_SEG, NOCHES_TITO,
   arrestoLadron, asaltoTienda, atrapaPolicia, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, esCamuflaje, famaInicial, impactoOficial,
   masBuscado, mostrarCartel, mundoLadronNuevo, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, puedeComprarRopa, puedeVerTito, policiaReconoce, radioCaptura, trasDelito,
-  CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, bovedaPuedeAbrir, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
+  CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, PLATA_CAJA, POLICIA_FACTOR, bovedaNueva, bovedaPuedeAbrir, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
   precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
   ALARMA_BANCO_SEG, empezarAlarmaBanco, tickAlarmaBanco,
   PRENDA_FACTOR, CAMUFLAJE_FACTOR, ritmoPorRopa, alcancePolicia, alcanceDelacion, policiaMarcaPorVer, tickDelacion,
@@ -298,7 +298,9 @@ test('el asalto deja plata y algo de la tienda', () => {
   const seq = [0.1, 0.9];
   let i = 0;
   const botin = asaltoTienda(() => seq[i++ % seq.length]);
-  assert.ok(botin.plata >= 150 && botin.plata <= 400);
+  assert.equal(PLATA_CAJA, 5000);
+  assert.equal(botin.plata, 5000);
+  assert.equal(asaltoTienda(() => 0.99).plata, 5000);
   assert.ok(botin.cosa && botin.cosa.key && botin.cosa.n > 0);
 });
 
@@ -306,7 +308,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=15/);
+  assert.match(html, /modo-ladron\.js\?v=16/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -317,8 +319,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=15/);
-  assert.match(sw, /const VERSION = 'tim-v103'/);
+  assert.match(sw, /modo-ladron\.js\?v=16/);
+  assert.match(sw, /const VERSION = 'tim-v104'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -463,7 +465,7 @@ test('la plata del asalto sale de la caja, una vez, y la otra caja sigue llena',
   assert.deepEqual(normalizarCajas({ super: 1, mall: 0, otra: true }), { super: true, mall: false });
   const super1 = vaciarCaja(cajasNuevas(), 'super', rng);
   assert.equal(super1.ok, true);
-  assert.ok(super1.plata >= 150 && super1.plata <= 400);
+  assert.equal(super1.plata, 5000);
   assert.ok(super1.cosa && super1.cosa.n > 0);
   assert.equal(super1.cajas.super, true);
   assert.equal(super1.cajas.mall, false);
@@ -473,6 +475,7 @@ test('la plata del asalto sale de la caja, una vez, y la otra caja sigue llena',
   assert.equal(otraVez.plata, 0);
   const mall = vaciarCaja(super1.cajas, 'mall', rng);
   assert.equal(mall.ok, true);
+  assert.equal(mall.plata, 5000);
   assert.equal(mall.cajas.mall, true);
   assert.equal(mall.cajas.super, true);
   assert.equal(vaciarCaja(mall.cajas, 'mall', rng).razon, 'vacia');

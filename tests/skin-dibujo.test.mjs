@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import {
-  FIGURA_ALTO, FIGURA_BASE, FIGURA_Z, LIENZO_H, LIENZO_W,
+  FIGURA_ALTO, FIGURA_BASE, FIGURA_Z, LIENZO_H, LIENZO_W, VISTA_BRAZO,
   anchoFigura, aplicarSkin, esDistinta, indiceDe, influenciaDe, lienzoNuevo,
-  mallaEnReposo, parteEn, pintar, posarDibujo, posarMalla, restaurar, serializar,
+  mallaEnReposo, parteEn, pintar, posarDibujo, posarMalla, recorteDe, restaurar, serializar,
 } from '../src/skin-dibujo.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -276,10 +276,32 @@ test('en reposo el dibujo es el lienzo y al caminar se dobla sin desarmarse', ()
   assert.equal(mesh.parent, persona);
 });
 
+test('en primera persona el brazo de delante es el del dibujo', () => {
+  const px = lienzoNuevo();
+  pintar(px, 64, 54, 6, [250, 204, 21, 255], false);
+  pintar(px, 8, 54, 4, [37, 99, 235, 255], false);
+  const rec = recorteDe(px, VISTA_BRAZO);
+  assert.equal(rec.length, VISTA_BRAZO.w * VISTA_BRAZO.h * 4);
+  let amarillo = 0, azul = 0;
+  for (let i = 0; i < rec.length; i += 4) {
+    if (rec[i] === 250 && rec[i + 3] === 255) amarillo++;
+    if (rec[i + 2] === 235 && rec[i + 3] === 255) azul++;
+  }
+  assert.ok(amarillo > 10, 'el brazo derecho del queso entra en la vista');
+  assert.equal(azul, 0);
+  assert.ok(VISTA_BRAZO.x >= 40, 'es el brazo de la derecha, no el cuerpo entero');
+  assert.match(html, /arm\.userData\.humano = true/);
+  assert.match(html, /fist\.userData\.humano = true/);
+  assert.match(html, /function ponerBrazoVista\(px\)/);
+  assert.match(html, /mangaHumana\(false\)/);
+  assert.match(html, /ponerBrazoVista\(px\)/);
+  assert.match(html, /viewmodel\.children\[0\]/);
+});
+
 test('el juego pinta al jugador desde el inicio, guarda la skin y no cambia el balanceo', () => {
-  assert.match(html, /skin-dibujo\.js\?v=6/);
-  assert.match(sw, /skin-dibujo\.js\?v=6/);
-  assert.match(sw, /const VERSION = 'tim-v111'/);
+  assert.match(html, /skin-dibujo\.js\?v=7/);
+  assert.match(sw, /skin-dibujo\.js\?v=7/);
+  assert.match(sw, /const VERSION = 'tim-v112'/);
   assert.match(html, /m\.userData\.parte = parte; m\.userData\.superficie = true/);
   assert.match(html, /\{ parte: 'torso', superficie: true \}/);
   assert.match(html, /\{ parte: 'cabeza', superficie: true \}/);

@@ -1354,7 +1354,7 @@ import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MA
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=16';
-import { LIENZO_H, LIENZO_W, aplicarSkin, esDistinta, lienzoNuevo, pintar, posarDibujo, restaurar, serializar } from './src/skin-dibujo.js?v=6';
+import { LIENZO_H, LIENZO_W, VISTA_BRAZO, aplicarSkin, esDistinta, lienzoNuevo, pintar, posarDibujo, recorteDe, restaurar, serializar } from './src/skin-dibujo.js?v=7';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -1954,9 +1954,9 @@ function makeViewmodel() {
   const skin = new THREE.MeshStandardMaterial({ color: 0xe0ac69, roughness: 0.9 });
   const sleeve = new THREE.MeshStandardMaterial({ color: 0x3f6212, roughness: 0.9 });
   const arm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.7), sleeve);  // manga
-  arm.position.set(0, 0, 0.15); g.add(arm);
+  arm.position.set(0, 0, 0.15); arm.userData.humano = true; g.add(arm);
   const fist = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.34), skin);   // puño al frente
-  fist.position.set(0, 0.01, -0.35); g.add(fist);
+  fist.position.set(0, 0.01, -0.35); fist.userData.humano = true; g.add(fist);
   const mount = new THREE.Group(); mount.position.set(-.04, .04, -.44); mount.rotation.set(-.2, 0, -.22); g.add(mount); g.userData.toolMount = mount;
   return g;
 }
@@ -2158,12 +2158,12 @@ function applyPlayerArmor() {
 
 // El dibujo reemplaza al muñeco: una sola malla con el lienzo entero.
 // En reposo es ese rectángulo. posarDibujo la dobla con el paso.
-function texturaDeLienzo(px) {
+function texturaDeImagen(data, w, h) {
   const cv = document.createElement('canvas');
-  cv.width = LIENZO_W; cv.height = LIENZO_H;
+  cv.width = w; cv.height = h;
   const ctx = cv.getContext('2d');
-  const img = ctx.createImageData(LIENZO_W, LIENZO_H);
-  img.data.set(px);
+  const img = ctx.createImageData(w, h);
+  img.data.set(data);
   ctx.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -2173,6 +2173,38 @@ function texturaDeLienzo(px) {
   tex.flipY = true;
   tex.needsUpdate = true;
   return tex;
+}
+function texturaDeLienzo(px) {
+  return texturaDeImagen(px, LIENZO_W, LIENZO_H);
+}
+function mangaHumana(visible) {
+  for (const c of viewmodel.children) if (c.userData && c.userData.humano) c.visible = visible;
+}
+function soltarBrazoVista() {
+  const m = viewmodel.userData.brazoVista;
+  if (!m) return;
+  viewmodel.remove(m);
+  if (m.material && m.material.map && m.material.map.dispose) m.material.map.dispose();
+  if (m.geometry && m.geometry.dispose) m.geometry.dispose();
+  if (m.material && m.material.dispose) m.material.dispose();
+  viewmodel.userData.brazoVista = null;
+}
+// En primera persona el brazo de delante es el del dibujo (el costado del queso).
+function ponerBrazoVista(px) {
+  soltarBrazoVista();
+  if (!px || !esDistinta(px)) { mangaHumana(true); return; }
+  const rec = recorteDe(px, VISTA_BRAZO);
+  const tex = texturaDeImagen(rec, VISTA_BRAZO.w, VISTA_BRAZO.h);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, depthWrite: true, side: THREE.DoubleSide });
+  mat.skinPixels = rec;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.7), mat);
+  mesh.position.set(0.02, 0.28, -0.12);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 3;
+  mesh.userData.brazoVista = true;
+  viewmodel.add(mesh);
+  viewmodel.userData.brazoVista = mesh;
+  mangaHumana(false);
 }
 function crearMallaSkin(pixeles, reposo) {
   const tex = texturaDeLienzo(pixeles);
@@ -2195,6 +2227,7 @@ function aplicarSkinJugador() {
     alLiberar: (tex) => { if (tex && tex.dispose) tex.dispose(); },
   });
   posarDibujo(playerAvatar);
+  ponerBrazoVista(px);
 }
 let skinPx = null, skinTool = 'lapiz', skinColor = [220, 38, 38, 255], skinRadio = 3, skinDibujando = false, skinEraPausa = false, skinUltimo = null;
 const SKIN_COLORES = [[224,172,105],[248,250,252],[15,23,42],[220,38,38],[249,115,22],[250,204,21],[34,197,94],[14,165,233],[37,99,235],[168,85,247],[236,72,153],[120,53,15]];

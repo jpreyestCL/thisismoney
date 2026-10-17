@@ -43,5 +43,5 @@ test('un segundo quieto, corriendo y con heladera', () => {
 });
 
 test('el service worker sube al tocar el juego', () => {
-  assert.match(sw, /const VERSION = 'tim-v111'/);
+  assert.match(sw, /const VERSION = 'tim-v112'/);
 });

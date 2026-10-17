@@ -26,6 +26,9 @@ export const FIGURA_Z = 0.12;
 // Una celda por píxel: en reposo el dibujo calza con el lienzo.
 export const MALLA_COLS = LIENZO_W;
 export const MALLA_FILAS = LIENZO_H;
+// Lo que se ve delante en primera persona: el brazo derecho del dibujo,
+// no el muñeco. En un queso, es el costado derecho de ese queso.
+export const VISTA_BRAZO = Object.freeze({ x: 56, y: 22, w: 24, h: 68 });
 
 // Pivotes de makePerson (limb): el dibujo gira ahí, no en el origen.
 export const PIVOTES = Object.freeze({
@@ -92,6 +95,23 @@ export function pintar(px, x, y, radio, rgba, goma) {
     }
   }
   return px;
+}
+
+export function recorteDe(px, region) {
+  const out = new Uint8ClampedArray(region.w * region.h * 4);
+  if (!px) return out;
+  for (let y = 0; y < region.h; y++) {
+    const sy = region.y + y;
+    if (sy < 0 || sy >= LIENZO_H) continue;
+    for (let x = 0; x < region.w; x++) {
+      const sx = region.x + x;
+      if (sx < 0 || sx >= LIENZO_W) continue;
+      const s = idx(sx, sy);
+      const d = (y * region.w + x) * 4;
+      out[d] = px[s]; out[d + 1] = px[s + 1]; out[d + 2] = px[s + 2]; out[d + 3] = px[s + 3];
+    }
+  }
+  return out;
 }
 
 export function esDistinta(px) {

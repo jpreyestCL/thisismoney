@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import {
-  FIGURA_ALTO, FIGURA_BASE, FIGURA_Z, LIENZO_H, LIENZO_W, POSE_MANO,
-  anchoFigura, aplicarSkin, capaSobreSkin, cartelSeBusca, dentroDeSilueta, esDistinta, indiceDe, influenciaDe, lienzoNuevo,
+  FIGURA_ALTO, FIGURA_BASE, FIGURA_Z, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO,
+  anchoFigura, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, dentroDeSilueta, esDistinta, indiceDe, influenciaDe, lienzoNuevo,
   mallaEnReposo, mezclarSobreSkin, parteEn, pintar, posarDibujo, posarMalla, recorteManos, restaurar, serializar,
 } from '../src/skin-dibujo.js';
 
@@ -320,6 +320,26 @@ test('en la vista normal las manos son las del dibujo y van delante del cuerpo',
   assert.doesNotMatch(html, /function ponerBrazoVista/);
 });
 
+test('al pegar la mano avanza y vuelve', () => {
+  assert.equal(avanceDeGolpe(0), 0);
+  assert.ok(Math.abs(avanceDeGolpe(1)) < 1e-9, 'al empezar y al terminar está atrás');
+  assert.ok(avanceDeGolpe(0.5) > 0.9, 'a la mitad del swing va del todo adelante');
+  assert.ok(GOLPE_ADELANTE > 0.3);
+  const D = POSE_MANO.derecha;
+  const zDe = (sw) => D.z - avanceDeGolpe(sw) * GOLPE_ADELANTE;
+  assert.equal(zDe(0), D.z);
+  assert.ok(Math.abs(zDe(1) - D.z) < 1e-9);
+  assert.ok(zDe(0.5) < D.z - 0.3, 'a mitad del golpe la mano del dibujo está más adelante que en reposo');
+  assert.ok(zDe(0.25) < D.z && zDe(0.25) > zDe(0.5), 'sale y vuelve, no se queda adelante');
+  const humana = (sw) => -0.9 - avanceDeGolpe(sw) * GOLPE_ADELANTE;
+  assert.ok(humana(0.5) < humana(0) - 0.3, 'sin skin la mano normal también sale adelante');
+  assert.ok(Math.abs(humana(1) - humana(0)) < 1e-9);
+  assert.match(html, /D\.z - avanceDeGolpe\(sw\) \* GOLPE_ADELANTE/);
+  assert.match(html, /kind === 'gun' \|\| kind === 'bow'\) \? 0 : avanceDeGolpe\(sw\) \* GOLPE_ADELANTE/);
+  assert.match(html, /-0\.9 - adelanta \+ kick \* \.12/);
+  assert.match(html, /I\.z\)/);
+});
+
 test('la armadura y la ropa quedan dentro de la silueta de la skin', () => {
   const px = queso();
   const hueco = (50 * LIENZO_W + 32) * 4;
@@ -395,9 +415,9 @@ test('el cartel SE BUSCA muestra la skin y no la cara humana', () => {
 });
 
 test('el juego pinta al jugador desde el inicio, guarda la skin y no cambia el balanceo', () => {
-  assert.match(html, /skin-dibujo\.js\?v=8/);
-  assert.match(sw, /skin-dibujo\.js\?v=8/);
-  assert.match(sw, /const VERSION = 'tim-v113'/);
+  assert.match(html, /skin-dibujo\.js\?v=9/);
+  assert.match(sw, /skin-dibujo\.js\?v=9/);
+  assert.match(sw, /const VERSION = 'tim-v114'/);
   assert.match(html, /m\.userData\.parte = parte; m\.userData\.superficie = true/);
   assert.match(html, /\{ parte: 'torso', superficie: true \}/);
   assert.match(html, /\{ parte: 'cabeza', superficie: true \}/);

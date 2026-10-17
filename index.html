@@ -1354,7 +1354,7 @@ import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MA
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=16';
-import { CARTEL_H, CARTEL_W, LIENZO_H, LIENZO_W, POSE_MANO, aplicarSkin, capaSobreSkin, cartelSeBusca, esDistinta, lienzoNuevo, mezclarSobreSkin, pintar, posarDibujo, recorteManos, restaurar, serializar } from './src/skin-dibujo.js?v=8';
+import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, lienzoNuevo, mezclarSobreSkin, pintar, posarDibujo, recorteManos, restaurar, serializar } from './src/skin-dibujo.js?v=9';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -2229,7 +2229,7 @@ function poseManosVista(bob, sw) {
   const D = POSE_MANO.derecha, I = POSE_MANO.izquierda;
   if (d) {
     d.visible = ver;
-    d.position.set(D.x, D.y + bob, D.z);
+    d.position.set(D.x, D.y + bob, D.z - avanceDeGolpe(sw) * GOLPE_ADELANTE);
     d.rotation.set(D.rotX - sw * 1.4, D.rotY, D.rotZ);
   }
   if (i) {
@@ -25837,7 +25837,8 @@ function updateViewmodel(dt) {
     viewmodel.rotation.set(0.35, 0.5, -1.25);                        // el arma se pone DE LADO para cargarla
   } else {
     const kick = kind === 'gun' ? sw * .55 : 0;                      // retroceso corto del disparo
-    viewmodel.position.set(0.45, -0.55 + bob, -0.9 + kick * .12);
+    const adelanta = (kind === 'gun' || kind === 'bow') ? 0 : avanceDeGolpe(sw) * GOLPE_ADELANTE;
+    viewmodel.position.set(0.45, -0.55 + bob, -0.9 - adelanta + kick * .12);
     viewmodel.rotation.set(-sw * (kind === 'shovel' ? 2.25 : kind === 'bow' ? 1.1 : kind === 'gun' ? .45 : 1.8), 0, sw * (kind === 'sword' ? -.42 : kind === 'bow' ? -.28 : -.16));
   }
   poseManosVista(bob, sw);

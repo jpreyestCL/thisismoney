@@ -433,6 +433,14 @@ export const POSE_MANO = Object.freeze({
   izquierda: Object.freeze({ x: -0.36, y: -0.5, z: -0.98, tam: 0.32, rotX: 0.18, rotY: -0.3, rotZ: 0.34 }),
 });
 
+// El golpe va de 1 a 0 (vmSwing). En los extremos la mano está en reposo
+// y a la mitad queda del todo adelante. Adelante es Z más chica.
+export const GOLPE_ADELANTE = 0.55;
+export function avanceDeGolpe(sw) {
+  const t = Math.max(0, Math.min(1, Number(sw) || 0));
+  return Math.sin(t * Math.PI);
+}
+
 function recortarZona(px, x0, y0, w, h) {
   const out = new Uint8ClampedArray(w * h * 4);
   let n = 0;

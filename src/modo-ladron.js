@@ -11,6 +11,7 @@ export const NOCHES_TITO = 3;          // $500 cada 3 días del juego
 export const LLAMADA_SEG = 8;            // el npc tarda esto en terminar la llamada
 export const DELATA_CERCA = 4.8;
 export const CAMUFLAJE_FACTOR = 0.07;    // con el traje te reconocen mucho menos
+export const PRENDA_FACTOR = 0.2;        // chaqueta, polerón o gorra puestos también ocultan
 export const CASI_FACTOR = 0.04;         // al empezar casi nadie te reconoce
 export const VER_POLICIA = 16;
 export const OYE_GOLPE = 5;         // un bloque = 1: el policía a 5 o menos oye el golpe
@@ -111,6 +112,44 @@ export function ritmoReconocimiento(fama, camuflaje) {
   return 1;
 }
 
+// Cualquier prenda puesta baja el ritmo. El camuflaje usa su factor; el resto, el de prenda.
+export function ritmoPorRopa(fama, ropaId) {
+  if (!masBuscado(fama)) return CASI_FACTOR;
+  if (esCamuflaje(ropaId)) return CAMUFLAJE_FACTOR;
+  if (ropaPorId(ropaId)) return PRENDA_FACTOR;
+  return 1;
+}
+
+// La policía te marca solo por verte. Sin ropa y ya buscado, el alcance es el de siempre.
+// Con ropa el factor achica ese alcance: tienen que estar mucho más cerca.
+export function alcancePolicia(fama, ropaId) {
+  if (!masBuscado(fama)) return 0;
+  return VER_POLICIA * ritmoPorRopa(fama, ropaId);
+}
+
+export function policiaMarcaPorVer(fama, ropaId, distancia) {
+  const alcance = alcancePolicia(fama, ropaId);
+  const d = Number(distancia);
+  if (!(alcance > 0) || !(d >= 0)) return false;
+  return d <= alcance;
+}
+
+// Los npc te delatan desde más cerca si llevas ropa. El camuflaje es el radio más corto.
+export function alcanceDelacion(ropaId) {
+  if (esCamuflaje(ropaId)) return DELATA_CERCA * 0.5;
+  if (ropaPorId(ropaId)) return DELATA_CERCA * (PRENDA_FACTOR / 0.32);
+  return DELATA_CERCA;
+}
+
+export function tickDelacion(acum, dt, teVe, fama, ropaId) {
+  const d = Math.max(0, Number(dt) || 0);
+  let a = Math.max(0, Number(acum) || 0);
+  if (!teVe) return { acum: Math.max(0, a - d * 0.5), llama: false };
+  a += d * ritmoPorRopa(fama, ropaId);
+  if (a >= LLAMADA_SEG) return { acum: 0, llama: true };
+  return { acum: a, llama: false };
+}
+
 // La policía te reconoce (y puede perseguirte) cuando ya estás más buscado
 // y no llevas el camuflaje. Al empezar, o camuflado, no.
 export function policiaReconoce(fama, camuflaje) {
@@ -138,6 +177,7 @@ export function objetivoLadron(estado) {
   if (e.limpio) return '';
   if (e.persigue) return '🚨 TE VIERON · la policía te persigue · ' + (e.tiempo || '');
   if (e.llamando) return '📞 Te reconocieron · llamando a la policía · ' + (e.falta || '');
+  if (e.oculto) return '🥷 Con la ropa puesta casi no te reconocen. La policía tiene que estar encima para marcarte.';
   if (!e.masBuscado) return '😶 Casi nadie te reconoce. No te persiguen y todavía no hay cartel de SE BUSCA.';
   return '🚨 Más buscado. Sin el camuflaje, un vecino puede llamar y la policía te reconoce.';
 }

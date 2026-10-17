@@ -9,6 +9,7 @@ import {
   CAJA_MALL_RADIO, CAJA_RADIO, CAPTURA_LADRON_AUTO, CAPTURA_LADRON_PIE, CAPTURA_NORMAL_AUTO, CAPTURA_NORMAL_PIE, CASILLEROS_BOVEDA, PLATA_CASILLERO, POLICIA_FACTOR, bovedaNueva, bovedaPuedeAbrir, normalizarBoveda, plataBoveda, vaciarCaja, velocidadPolicia,
   precioArmaTito, precioRegaloTito, saquearCasillero, tickLlamada, tickPersecucion,
   ALARMA_BANCO_SEG, empezarAlarmaBanco, tickAlarmaBanco,
+  PRENDA_FACTOR, CAMUFLAJE_FACTOR, ritmoPorRopa, alcancePolicia, alcanceDelacion, policiaMarcaPorVer, tickDelacion,
   OYE_GOLPE, golpeSeEntera, persecucionSiCaen,
   cobrarTitoAuto,
   casilleroApuntado, puestosCasilleros,
@@ -231,6 +232,50 @@ test('comprar un arma y ropa te deja más buscado; el camuflaje casi no', () => 
   assert.equal(llamo, true, 'sin el camuflaje y ya más buscado, el npc delata');
 });
 
+test('con la ropa puesta cuesta mucho más que te vean', () => {
+  assert.equal(compraTeMarca(0, false), 0, 'fuera del modo comprar no te marca');
+  const fama = compraTeMarca(compraTeMarca(0, true), true);
+  assert.equal(masBuscado(fama), true, 'comprar la ropa sigue subiendo la fama');
+  assert.equal(ritmoPorRopa(fama, null), 1);
+  assert.equal(ritmoPorRopa(fama, 'camuflaje'), CAMUFLAJE_FACTOR);
+  assert.equal(ritmoPorRopa(fama, 'chaqueta'), PRENDA_FACTOR);
+  assert.equal(ritmoPorRopa(fama, 'poleron'), PRENDA_FACTOR);
+  assert.equal(ritmoPorRopa(fama, 'gorra'), PRENDA_FACTOR);
+  assert.ok(PRENDA_FACTOR <= 0.25);
+  assert.ok(CAMUFLAJE_FACTOR < PRENDA_FACTOR);
+  const segundos = (ropaId) => {
+    let acum = 0;
+    for (let t = 1; t <= 400; t++) {
+      const r = tickDelacion(acum, 1, true, fama, ropaId);
+      if (r.llama) return t;
+      acum = r.acum;
+    }
+    return 401;
+  };
+  const sinRopa = segundos(null);
+  const chaqueta = segundos('chaqueta');
+  const traje = segundos('camuflaje');
+  assert.equal(sinRopa, 8, 'sin ropa el npc delata en 8 segundos');
+  assert.ok(chaqueta >= sinRopa * 4, 'una prenda puesta alarga mucho la delación');
+  assert.ok(traje > chaqueta, 'el camuflaje oculta todavía más');
+  assert.equal(policiaMarcaPorVer(fama, null, 10), true);
+  assert.equal(policiaMarcaPorVer(fama, 'chaqueta', 10), false);
+  assert.equal(policiaMarcaPorVer(fama, 'poleron', 10), false);
+  assert.equal(policiaMarcaPorVer(fama, 'gorra', 10), false);
+  assert.equal(policiaMarcaPorVer(fama, 'camuflaje', 10), false);
+  assert.ok(alcancePolicia(fama, 'chaqueta') <= 16 * PRENDA_FACTOR + 0.001);
+  assert.ok(alcancePolicia(fama, 'camuflaje') <= 16 * CAMUFLAJE_FACTOR + 0.001);
+  assert.equal(alcancePolicia(fama, null), 16);
+  assert.ok(alcanceDelacion('camuflaje') < alcanceDelacion('chaqueta'));
+  assert.ok(alcanceDelacion('chaqueta') < alcanceDelacion(null));
+  assert.equal(policiaMarcaPorVer(0, 'chaqueta', 1), false, 'sin fama la ropa no hace falta para que no te marquen');
+  assert.match(html, /tickDelacion\(antesLlamada, dt, teVe, fama, state\.ropaPuesta\)/);
+  assert.match(html, /Con la ropa puesta te reconocen mucho menos/);
+  const aviso = objetivoLadron({ celda: false, limpio: false, persigue: false, oculto: true, masBuscado: true });
+  assert.match(aviso, /ropa puesta/);
+  assert.doesNotMatch(aviso, /TE VIERON/);
+});
+
 test('en la celda no queda el aviso de persecución', () => {
   const encerrado = objetivoLadron({
     celda: true, persigue: true, tiempo: '2:40', llamando: true, falta: '0:05', masBuscado: true,
@@ -259,7 +304,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=13/);
+  assert.match(html, /modo-ladron\.js\?v=14/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -270,8 +315,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=13/);
-  assert.match(sw, /const VERSION = 'tim-v101'/);
+  assert.match(sw, /modo-ladron\.js\?v=14/);
+  assert.match(sw, /const VERSION = 'tim-v102'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -555,7 +600,8 @@ test('matar a los policías apaga la persecución y pegar no avisa solo', () => 
   assert.match(html, /persecucionSiCaen\(perseguia, policiaPersiguiendoVivos\(\)\)/);
   assert.match(html, /if \(golpeSeEntera\(distanciaPoliciaViva\(\)\)\)/);
   assert.match(html, /if \(!npcVeElGolpe\(\)\) return/);
-  assert.match(html, /!state\.golpeCalla && policiaReconoce\(fama, camu\)/);
+  assert.match(html, /!state\.golpeCalla && !playerInSmoke\(\)/);
+  assert.match(html, /policiaMarcaPorVer\(fama, state\.ropaPuesta, dist2D\(p\.position, player\.position\)\)/);
   assert.match(html, /if \(state\.modoLadron\) return;/);
   assert.match(html, /state\.ladronLimpio = true;/);
   assert.equal(trasDelito(true, 'caja'), false, 'un delito nuevo puede volver a ensuciar');

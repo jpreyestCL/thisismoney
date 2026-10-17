@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VER_POLICIA, VIDA_POLICIA, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, puedeComprarRopa, puedeVerTito, policiaReconoce, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=13';
+import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=14';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -5728,10 +5728,10 @@ function updatePoliciaLadron(dt) {
     }
   }
   const callado = !!state.bancoSilencio && (state.alarmaBanco || 0) > 0;
-  const camu = esCamuflaje(state.ropaPuesta);
   const fama = state.ladronFama || 0;
+  const oculto = !!ropaPorId(state.ropaPuesta);
   let teVe = false;
-  const tope = camu ? 2.4 : DELATA_CERCA;
+  const tope = alcanceDelacion(state.ropaPuesta);
   for (const n of npcs) {
     if (!n.visible) continue;
     if (dist2D(n.position, player.position) <= tope) { teVe = true; break; }
@@ -5739,20 +5739,21 @@ function updatePoliciaLadron(dt) {
   if (!teVe) for (const k of keepers) if (dist2D(player.position, k) <= tope) { teVe = true; break; }
   const antesLlamada = state.ladronLlamada || 0;
   const famaLlamada = state.golpeCalla ? Math.max(fama, 1) : fama;
-  const camuLlamada = state.golpeCalla ? false : camu;
   const del = (state.ladronLimpio || callado)
     ? { acum: 0, llama: false }
-    : tickLlamada(antesLlamada, dt, teVe, famaLlamada, camuLlamada);
+    : state.golpeCalla
+      ? tickLlamada(antesLlamada, dt, teVe, famaLlamada, false)
+      : tickDelacion(antesLlamada, dt, teVe, fama, state.ropaPuesta);
   state.ladronLlamada = del.acum;
   if (del.llama) state.golpeCalla = false;
-  if (!callado && !state.ladronLimpio && teVe && antesLlamada < 0.2 && del.acum > antesLlamada && !del.llama && (state.golpeCalla || (masBuscado(fama) && !camu)))
+  if (!callado && !state.ladronLimpio && teVe && antesLlamada < 0.2 && del.acum > antesLlamada && !del.llama && (state.golpeCalla || (masBuscado(fama) && !oculto)))
     toast('📞 Un vecino te reconoció. Está llamando a la policía. Tarda 8 segundos.');
   let visto = false;
   if (!callado && !state.ladronLimpio && del.llama) { visto = true; toast('🚨 Terminó la llamada. Ahora la policía te persigue 3 minutos.'); }
-  if (!callado && !state.ladronLimpio && !state.golpeCalla && policiaReconoce(fama, camu) && !playerInSmoke()) {
+  if (!callado && !state.ladronLimpio && !state.golpeCalla && !playerInSmoke()) {
     for (const p of police.concat(mallGuardias)) {
       if (!p.visible || p.userData.muerto) continue;
-      if (dist2D(p.position, player.position) <= VER_POLICIA) { visto = true; break; }
+      if (policiaMarcaPorVer(fama, state.ropaPuesta, dist2D(p.position, player.position))) { visto = true; break; }
     }
   }
   const yaPersigue = !!(state.ladronChase && state.ladronChase.activa);
@@ -22101,7 +22102,7 @@ function buyItem(item) {
     state.money = r.money; state.ropaLadron = r.ropa; state.ropaPuesta = r.puesta;
     aplicarRopaPuesta();
     marcarCompraLadron();
-    toast('👕 ' + r.name + ' puesta. Se te ve en el cuerpo.' + (r.camuflaje ? ' Con el camuflaje te reconocen mucho menos.' : ''));
+    toast('👕 ' + r.name + ' puesta. Se te ve en el cuerpo. Con la ropa puesta te reconocen mucho menos.');
     saveGame(); return;
   }
   const fromAlley = !!(item && (item.gadget || (item.key && String(item.key).indexOf('bm_') === 0)));
@@ -25811,7 +25812,7 @@ function renderHUD() {
     const debeTito = deudaTito(state.night || 0, state.titoPagadoHasta || 0);
     if (!state.cellArrest) {
       if (!masBuscado(state.ladronFama || 0)) gear.push('😶 casi nadie te reconoce');
-      else gear.push(esCamuflaje(state.ropaPuesta) ? '🥷 camuflado · te reconocen mucho menos' : '🚨 más buscado');
+      else gear.push(ropaPorId(state.ropaPuesta) ? '🥷 con ropa · te reconocen mucho menos' : '🚨 más buscado');
     }
     if (debeTito > 0) gear.push('🕶️ le debes a Tito $' + debeTito);
     if (state.ropaPuesta && ropaPorId(state.ropaPuesta)) gear.push((esCamuflaje(state.ropaPuesta) ? '🥷 ' : '👕 ') + ropaPorId(state.ropaPuesta).name);
@@ -25893,7 +25894,8 @@ function renderHUD() {
       alarma: state.alarmaBanco || 0,
       callado: !!state.bancoSilencio && (state.alarmaBanco || 0) > 0,
       alarmaTxt: fmtCeldaTiempo(state.alarmaBanco || 0),
-      llamando: !!(masBuscado(state.ladronFama || 0) && !esCamuflaje(state.ropaPuesta) && (state.ladronLlamada || 0) > 0.2),
+      llamando: !!(masBuscado(state.ladronFama || 0) && !ropaPorId(state.ropaPuesta) && (state.ladronLlamada || 0) > 0.2),
+      oculto: !!ropaPorId(state.ropaPuesta),
       falta: fmtCeldaTiempo(Math.max(0, LLAMADA_SEG - (state.ladronLlamada || 0))),
       masBuscado: masBuscado(state.ladronFama || 0),
     });

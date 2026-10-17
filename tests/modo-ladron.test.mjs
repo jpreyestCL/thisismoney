@@ -11,6 +11,8 @@ import {
   ALARMA_BANCO_SEG, empezarAlarmaBanco, tickAlarmaBanco,
   PRENDA_FACTOR, CAMUFLAJE_FACTOR, ritmoPorRopa, alcancePolicia, alcanceDelacion, policiaMarcaPorVer, tickDelacion,
   OYE_GOLPE, golpeSeEntera, persecucionSiCaen,
+  enCerroNieve, lejosDeLaCiudad, nacimientoPolicia, naceJuntoAlJugador, puedeReponerPolicia, cuantosNacen,
+  reubicarParaAlcanzar, metaPoliciaLadron, CAMINO_CERRO,
   cobrarTitoAuto,
   casilleroApuntado, puestosCasilleros,
   titoEntrega, titoPuedeDarArma, togglearBoveda,
@@ -304,7 +306,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=14/);
+  assert.match(html, /modo-ladron\.js\?v=15/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -315,8 +317,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=14/);
-  assert.match(sw, /const VERSION = 'tim-v102'/);
+  assert.match(sw, /modo-ladron\.js\?v=15/);
+  assert.match(sw, /const VERSION = 'tim-v103'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -606,6 +608,42 @@ test('matar a los policías apaga la persecución y pegar no avisa solo', () => 
   assert.match(html, /state\.ladronLimpio = true;/);
   assert.equal(trasDelito(true, 'caja'), false, 'un delito nuevo puede volver a ensuciar');
   assert.equal(trasDelito(true, 'golpe'), false);
+});
+
+test('en el cerro no nacen encima del jugador ni se reponen al morir', () => {
+  const jugador = { x: 520, z: 700 };
+  assert.equal(enCerroNieve(jugador.x, jugador.z), true);
+  assert.equal(lejosDeLaCiudad(jugador.x, jugador.z), true);
+  assert.equal(enCerroNieve(10, 16), false, 'la casa no es el cerro');
+  assert.equal(lejosDeLaCiudad(10, 16), false);
+  const nacio = nacimientoPolicia(jugador, { x: CAMINO_CERRO[0].x, z: CAMINO_CERRO[0].z });
+  assert.equal(naceJuntoAlJugador(nacio, jugador), false);
+  assert.ok(Math.hypot(nacio.x - jugador.x, nacio.z - jugador.z) > 200, 'sale de la cárcel, no al lado');
+  assert.equal(enCerroNieve(nacio.x, nacio.z), false);
+  const encima = nacimientoPolicia(jugador, { x: jugador.x + 8, z: jugador.z + 4 });
+  assert.equal(naceJuntoAlJugador(encima, jugador), false, 'un punto encima del jugador se devuelve a la cárcel');
+  assert.equal(puedeReponerPolicia(true), false);
+  assert.equal(cuantosNacen(true, 3, 4), 0, 'matar a uno en el cerro no repone el cupo');
+  assert.equal(cuantosNacen(true, 0, 4), 0, 'aunque no quede ninguno, en el cerro no nace otro');
+  assert.equal(puedeReponerPolicia(false), true);
+  assert.equal(cuantosNacen(false, 1, 3), 2);
+  assert.equal(reubicarParaAlcanzar({ x: 82, z: -5.5 }, jugador), null);
+  const meta = metaPoliciaLadron({ x: 82, z: -5.5, tramo: -1 }, jugador, true);
+  assert.equal(meta.salta, false);
+  assert.ok(Math.hypot(meta.x - jugador.x, meta.z - jugador.z) > 150, 'en el cerro camina el camino, no salta');
+  assert.equal(metaPoliciaLadron({ x: 20, z: 14 }, { x: -208, z: -40 }, true), null, 'lejos de la ciudad se queda lejos');
+  const ciudad = metaPoliciaLadron({ x: 82, z: -5.5 }, { x: 10, z: 16 }, true);
+  assert.equal(ciudad.salta, false);
+  assert.equal(ciudad.x, 10);
+  assert.equal(ciudad.z, 16);
+  const spawn = html.slice(html.indexOf('function spawnPoliciaLadron'), html.indexOf('function avisarRoboBanco'));
+  assert.match(spawn, /puedeReponerPolicia\(enCerro\)/);
+  assert.match(spawn, /nacimientoPolicia\(/);
+  assert.match(spawn, /JAIL_GATE/);
+  assert.doesNotMatch(spawn, /player\.position\.x \+ Math\.cos/);
+  assert.match(html, /cuantosNacen\(enCerro, police\.length, quiere\)/);
+  assert.match(html, /metaPoliciaLadron\(/);
+  assert.equal(OYE_GOLPE, 5);
 });
 
 test('el robo del banco tarda 3 minutos en llegar a la policía', () => {

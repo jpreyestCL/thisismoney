@@ -1282,7 +1282,7 @@ import { CHAPTERS, GAME_RULES, dayDuration, houseRatings, monsterKillReward, nig
 import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MALL, MEDIA_CALLE, SEMAFOROS, avanzarPorTramo, callesDelMapa, caminoPorVereda, corregirAVereda, distritoEn, enAsfalto, enCalle, enCondominio, enCrucePeatonal, loteEn, lotePorId, lotesEnVenta, manzanasLibres, rectCalle, rectDistrito, rectLote, seCruzan, sobreVereda } from './src/city-map.js?v=9';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, deudaTito, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, mostrarCartel, mundoLadronNuevo, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=14';
+import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=15';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -5571,15 +5571,21 @@ function cobrarDeudaTito() {
   saveGame();
 }
 function spawnPoliciaLadron() {
+  const enCerro = enCerroNieve(player.position.x, player.position.z);
+  if (!puedeReponerPolicia(enCerro)) return null;
+  const nacio = nacimientoPolicia(
+    { x: player.position.x, z: player.position.z },
+    { x: JAIL_GATE.x, z: JAIL_GATE.z }
+  );
   const p = makePerson(0x1e3a8a, 0xf1c27d);
   const helm = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.22, 0.52), mat(0x1e40af));
   helm.position.y = 2.35; p.add(helm);
-  const ang = Math.random() * Math.PI * 2;
-  const rad = 10 + Math.random() * 8;
-  p.position.set(player.position.x + Math.cos(ang) * rad, 0, player.position.z + Math.sin(ang) * rad);
+  p.position.set(nacio.x + (Math.random() * 3 - 1.5), 0, nacio.z + Math.random() * 2);
   p.userData.hp = VIDA_POLICIA; p.userData.oficial = true;
-  p.userData.ox = p.position.x; p.userData.oz = p.position.z; p.userData.giro = ang;
+  p.userData.ox = p.position.x; p.userData.oz = p.position.z; p.userData.giro = Math.random() * Math.PI * 2;
+  p.userData.tramo = 0;
   scene.add(p); police.push(p);
+  return p;
 }
 function avisarRoboBanco() {
   if (!state.modoLadron) return;
@@ -5764,17 +5770,25 @@ function updatePoliciaLadron(dt) {
   if (tick.termino) toast('😌 Pasaron los 3 minutos y no te vieron. Se van.');
   state.ladronRefuerzo = Math.max(0, (state.ladronRefuerzo || 0) - dt);
   const quiere = tick.activa ? 4 : 3;
-  if (state.mission !== 'alley' && police.length < quiere && state.ladronRefuerzo <= 0) spawnPoliciaLadron();
+  const enCerro = enCerroNieve(player.position.x, player.position.z);
+  const faltan = cuantosNacen(enCerro, police.length, quiere);
+  if (state.mission !== 'alley' && faltan > 0 && state.ladronRefuerzo <= 0) spawnPoliciaLadron();
   for (const p of police) {
     if (p.userData.hp == null) p.userData.hp = VIDA_POLICIA;
-    if (tick.activa) {
+    const destino = tick.activa ? metaPoliciaLadron(
+      { x: p.position.x, z: p.position.z, tramo: p.userData.tramo },
+      { x: player.position.x, z: player.position.z },
+      true
+    ) : null;
+    if (tick.activa && destino) {
+      p.userData.tramo = destino.tramo;
       const speed = velocidadPolicia(state.driving ? 18 : 7.4, true);
       const d = dist2D(p.position, player.position);
       const puedeAtrapar = yaPersigue && !state.ladronLimpio && !(state.sueltaPolicia > 0);
       if (atrapaPolicia(puedeAtrapar, d, true, !!state.driving) && !playerAirborne()) { policeCatch(); return; }
-      moveToward(p, player.position, speed * dt);
-      p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
-      setPoliceCar(p, !!state.driving);
+      moveToward(p, destino, speed * dt);
+      p.rotation.y = Math.atan2(destino.x - p.position.x, destino.z - p.position.z);
+      setPoliceCar(p, !!state.driving && !enCerro);
       if (p.userData.car) {
         p.userData.car.position.set(p.position.x, mountainHeightAt(p.position.x, p.position.z), p.position.z);
         p.userData.car.rotation.y = p.rotation.y;

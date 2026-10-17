@@ -16,6 +16,18 @@ export const CASI_FACTOR = 0.04;         // al empezar casi nadie te reconoce
 export const VER_POLICIA = 16;
 export const OYE_GOLPE = 5;         // un bloque = 1: el policía a 5 o menos oye el golpe
 export const ROBO_ESPERA_SEG = 20;
+export const RADIO_CIUDAD = 180;     // más allá del anillo ya es lejos: no se reubica a la policía
+// El cerro de nieve (centro de esquí). Cerca incluye el portón y la nieve de alrededor.
+export const CERRO_NIEVE = Object.freeze({ x: 520, z: 500, cerca: 340 });
+// Salen por el portón de la cárcel y suben el camino del anillo. No saltan al jugador.
+export const CAMINO_CERRO = Object.freeze([
+  Object.freeze({ x: 82, z: -5.5 }),
+  Object.freeze({ x: 150, z: 130 }),
+  Object.freeze({ x: 200, z: 170 }),
+  Object.freeze({ x: 245, z: 215 }),
+  Object.freeze({ x: 285, z: 262 }),
+  Object.freeze({ x: 300, z: 300 }),
+]);
 
 export const ROPA = Object.freeze([
   Object.freeze({ id: 'camuflaje', name: 'Traje de camuflaje', price: 900, camuflaje: true, color: 0x4a5c2a }),
@@ -68,6 +80,87 @@ export function comprarRopa(state, id) {
 // Si te ve, arranca 3 minutos aunque no hayas hecho nada.
 // Si te pierde de vista, el tiempo sigue. A los 3 minutos se van
 // si no te vuelven a ver; si te ven en ese momento, otros 3 minutos.
+export function enCerroNieve(x, z) {
+  const dx = (Number(x) || 0) - CERRO_NIEVE.x;
+  const dz = (Number(z) || 0) - CERRO_NIEVE.z;
+  if (Math.hypot(dx, dz) <= CERRO_NIEVE.cerca) return true;
+  return Math.abs(dx) < 200 && dz < 360 && dz > -220;
+}
+
+export function lejosDeLaCiudad(x, z) {
+  return Math.hypot(Number(x) || 0, Number(z) || 0) > RADIO_CIUDAD;
+}
+
+// Nace en la cárcel (o en la salida de la ciudad que se le pase). Nunca encima del jugador
+// y nunca en el cerro: si el punto cae ahí, vuelve al portón.
+export function nacimientoPolicia(jugador, salida) {
+  const base = CAMINO_CERRO[0];
+  const s = salida && Number.isFinite(Number(salida.x)) && Number.isFinite(Number(salida.z)) ? salida : base;
+  let x = Number(s.x), z = Number(s.z);
+  const jx = jugador && Number(jugador.x);
+  const jz = jugador && Number(jugador.z);
+  const junto = Number.isFinite(jx) && Number.isFinite(jz) && Math.hypot(x - jx, z - jz) <= 24;
+  if (junto || enCerroNieve(x, z)) { x = base.x; z = base.z; }
+  return { x, z };
+}
+
+export function naceJuntoAlJugador(nacimiento, jugador, tope = 24) {
+  if (!nacimiento || !jugador) return false;
+  const topeN = Number(tope);
+  if (!(topeN >= 0)) return false;
+  return Math.hypot(Number(nacimiento.x) - Number(jugador.x), Number(nacimiento.z) - Number(jugador.z)) <= topeN;
+}
+
+// En el cerro no se reponen los que mueren. No hay oleada.
+export function puedeReponerPolicia(enCerro) {
+  return !enCerro;
+}
+
+export function cuantosNacen(enCerro, vivos, quiere) {
+  if (!puedeReponerPolicia(!!enCerro)) return 0;
+  return Math.max(0, (quiere | 0) - (vivos | 0));
+}
+
+// Lejos, o en el cerro, no se teletransporta al policía hasta el jugador.
+export function reubicarParaAlcanzar() {
+  return null;
+}
+
+// Siguiente hito del camino al cerro. No devuelve la posición del jugador.
+export function avanzarCamino(indice, x, z, llegado = 8) {
+  const n = CAMINO_CERRO.length;
+  let i = Number(indice);
+  if (!Number.isFinite(i) || i < 0) {
+    let best = 0, bestD = Infinity;
+    for (let k = 0; k < n; k++) {
+      const d = Math.hypot(CAMINO_CERRO[k].x - x, CAMINO_CERRO[k].z - z);
+      if (d < bestD) { bestD = d; best = k; }
+    }
+    i = best;
+  }
+  if (i >= n) i = n - 1;
+  const h = CAMINO_CERRO[i];
+  if (Math.hypot(h.x - x, h.z - z) <= llegado && i < n - 1) i += 1;
+  const meta = CAMINO_CERRO[i];
+  return { indice: i, x: meta.x, z: meta.z, salta: false };
+}
+
+// En la ciudad camina hacia el jugador. En el cerro, solo por el camino.
+// Lejos de la ciudad, sin ser el cerro, se queda donde está.
+export function metaPoliciaLadron(policia, jugador, persigue) {
+  const jx = Number(jugador && jugador.x) || 0;
+  const jz = Number(jugador && jugador.z) || 0;
+  const px = Number(policia && policia.x) || 0;
+  const pz = Number(policia && policia.z) || 0;
+  if (!persigue) return null;
+  if (enCerroNieve(jx, jz)) {
+    const paso = avanzarCamino(policia && policia.tramo, px, pz);
+    return { x: paso.x, z: paso.z, tramo: paso.indice, salta: false };
+  }
+  if (lejosDeLaCiudad(jx, jz)) return null;
+  return { x: jx, z: jz, tramo: policia && policia.tramo, salta: false };
+}
+
 export function tickPersecucion(persecucion, dt, visto) {
   const d = Math.max(0, Number(dt) || 0);
   const activa = !!(persecucion && persecucion.activa && persecucion.left > 0);

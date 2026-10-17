@@ -1354,7 +1354,7 @@ import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MA
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=16';
-import { LIENZO_H, LIENZO_W, VISTA_BRAZO, aplicarSkin, esDistinta, lienzoNuevo, pintar, posarDibujo, recorteDe, restaurar, serializar } from './src/skin-dibujo.js?v=7';
+import { CARTEL_H, CARTEL_W, LIENZO_H, LIENZO_W, POSE_MANO, aplicarSkin, capaSobreSkin, cartelSeBusca, esDistinta, lienzoNuevo, mezclarSobreSkin, pintar, posarDibujo, recorteManos, restaurar, serializar } from './src/skin-dibujo.js?v=8';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -2144,6 +2144,12 @@ function applyMinecraftArmor(person, tier, scale) {
 // El jugador: se ve en las cámaras de 3ª persona y en la manga del viewmodel
 function applyPlayerArmor() {
   const tier = armorTierFor(state.armorFactor);
+  if (skinPropia()) {
+    applyMinecraftArmor(playerAvatar, null);
+    if (viewmodel.userData.bracer) viewmodel.userData.bracer.visible = false;
+    aplicarRopaPuesta();
+    return;
+  }
   applyMinecraftArmor(playerAvatar, tier);
   const arm = viewmodel.children[0];   // manga del brazo en 1ª persona
   if (arm && arm.material) arm.material.color.setHex(tier ? ARMOR_TIERS[tier].color : 0x3f6212);
@@ -2180,31 +2186,57 @@ function texturaDeLienzo(px) {
 function mangaHumana(visible) {
   for (const c of viewmodel.children) if (c.userData && c.userData.humano) c.visible = visible;
 }
-function soltarBrazoVista() {
-  const m = viewmodel.userData.brazoVista;
+function soltarManoVista(clave) {
+  const m = viewmodel.userData[clave];
   if (!m) return;
-  viewmodel.remove(m);
+  if (m.parent) m.parent.remove(m);
   if (m.material && m.material.map && m.material.map.dispose) m.material.map.dispose();
   if (m.geometry && m.geometry.dispose) m.geometry.dispose();
   if (m.material && m.material.dispose) m.material.dispose();
-  viewmodel.userData.brazoVista = null;
+  viewmodel.userData[clave] = null;
 }
-// En primera persona el brazo de delante es el del dibujo (el costado del queso).
-function ponerBrazoVista(px) {
-  soltarBrazoVista();
-  if (!px || !esDistinta(px)) { mangaHumana(true); return; }
-  const rec = recorteDe(px, VISTA_BRAZO);
-  const tex = texturaDeImagen(rec, VISTA_BRAZO.w, VISTA_BRAZO.h);
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, depthWrite: true, side: THREE.DoubleSide });
-  mat.skinPixels = rec;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.7), mat);
-  mesh.position.set(0.02, 0.28, -0.12);
+function planoMano(recorte, pose) {
+  if (!recorte || !recorte.n) return null;
+  const tex = texturaDeImagen(recorte.px, recorte.w, recorte.h);
+  const material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, depthWrite: true, side: THREE.DoubleSide });
+  const aspecto = recorte.w / Math.max(1, recorte.h);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(pose.tam * aspecto, pose.tam), material);
+  mesh.position.set(pose.x, pose.y, pose.z);
+  mesh.rotation.set(pose.rotX, pose.rotY, pose.rotZ);
   mesh.frustumCulled = false;
   mesh.renderOrder = 3;
-  mesh.userData.brazoVista = true;
-  viewmodel.add(mesh);
-  viewmodel.userData.brazoVista = mesh;
+  mesh.userData.manoVista = true;
+  return mesh;
+}
+// En la vista normal las manos son las del dibujo, en la pose de siempre
+// (delante del cuerpo, una a cada lado). No el brazo humano ni un pedazo suelto.
+function ponerManosVista(px) {
+  soltarManoVista('manoD');
+  soltarManoVista('manoI');
+  if (!px || !esDistinta(px)) { mangaHumana(true); return; }
+  const manos = recorteManos(px);
+  const der = planoMano(manos.derecha, POSE_MANO.derecha);
+  const izq = planoMano(manos.izquierda, POSE_MANO.izquierda);
+  if (der) { camera.add(der); viewmodel.userData.manoD = der; }
+  if (izq) { camera.add(izq); viewmodel.userData.manoI = izq; }
   mangaHumana(false);
+  poseManosVista(0, 0);
+}
+function poseManosVista(bob, sw) {
+  const ver = cameraMode === 0 && !state.cinematic;
+  const d = viewmodel.userData.manoD;
+  const i = viewmodel.userData.manoI;
+  const D = POSE_MANO.derecha, I = POSE_MANO.izquierda;
+  if (d) {
+    d.visible = ver;
+    d.position.set(D.x, D.y + bob, D.z);
+    d.rotation.set(D.rotX - sw * 1.4, D.rotY, D.rotZ);
+  }
+  if (i) {
+    i.visible = ver;
+    i.position.set(I.x, I.y + bob * 0.65, I.z);
+    i.rotation.set(I.rotX, I.rotY, I.rotZ);
+  }
 }
 function crearMallaSkin(pixeles, reposo) {
   const tex = texturaDeLienzo(pixeles);
@@ -2220,14 +2252,74 @@ function crearMallaSkin(pixeles, reposo) {
   mesh.renderOrder = 2;
   return mesh;
 }
+function rgbDeHex(hex) {
+  const n = hex >>> 0;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function skinPropia() {
+  const px = restaurar(state.skinDibujo);
+  return px && esDistinta(px) ? px : null;
+}
+function pixelesVisibles(px) {
+  let out = px;
+  const id = state.modoLadron ? state.ropaPuesta : null;
+  const ropa = id ? ropaPorId(id) : null;
+  if (ropa) {
+    const puesto = { tipo: ropa.id, color: rgbDeHex(ropa.color) };
+    if (ropa.id === 'chaqueta') puesto.borde = [11, 18, 32];
+    if (ropa.id === 'poleron') puesto.borde = [55, 65, 81];
+    out = mezclarSobreSkin(out, capaSobreSkin(px, puesto), ropa.id === 'gorra' ? 0.9 : 0.8);
+  }
+  const tier = armorTierFor(state.armorFactor);
+  if (tier && ARMOR_TIERS[tier]) {
+    out = mezclarSobreSkin(out, capaSobreSkin(px, {
+      tipo: 'armadura',
+      color: rgbDeHex(ARMOR_TIERS[tier].color),
+      borde: rgbDeHex(ARMOR_TIERS[tier].trim),
+    }), 0.8);
+  }
+  return out;
+}
+function refrescarTexturaPuesta() {
+  const px = skinPropia();
+  if (!px) return false;
+  const visto = pixelesVisibles(px);
+  const mesh = playerAvatar.userData.dibujo && playerAvatar.userData.dibujo[0];
+  if (mesh && mesh.material) {
+    const vieja = mesh.material.map;
+    mesh.material.map = texturaDeLienzo(visto);
+    mesh.material.skinPixels = visto;
+    mesh.material.needsUpdate = true;
+    if (vieja && vieja.dispose) vieja.dispose();
+  }
+  ponerManosVista(visto);
+  if (viewmodel.userData.bracer) viewmodel.userData.bracer.visible = false;
+  return true;
+}
 function aplicarSkinJugador() {
   const px = restaurar(state.skinDibujo);
+  const propia = !!(px && esDistinta(px));
+  const soltarTex = (tex) => { if (tex && tex.dispose) tex.dispose(); };
+  if (!propia) {
+    aplicarSkin(playerAvatar, px, { crearMalla: crearMallaSkin, alLiberar: soltarTex });
+    posarDibujo(playerAvatar);
+    ponerManosVista(null);
+    applyPlayerArmor();
+    refrescarCarteles();
+    return;
+  }
+  const visto = pixelesVisibles(px);
   aplicarSkin(playerAvatar, px, {
-    crearMalla: crearMallaSkin,
-    alLiberar: (tex) => { if (tex && tex.dispose) tex.dispose(); },
+    crearMalla: (_pixeles, reposo) => crearMallaSkin(visto, reposo),
+    alLiberar: soltarTex,
   });
   posarDibujo(playerAvatar);
-  ponerBrazoVista(px);
+  ponerManosVista(visto);
+  applyMinecraftArmor(playerAvatar, null);
+  const prev = playerAvatar.userData.ropaVisual;
+  if (prev) { for (const m of prev) if (m.parent) m.parent.remove(m); playerAvatar.userData.ropaVisual = null; }
+  if (viewmodel.userData.bracer) viewmodel.userData.bracer.visible = false;
+  refrescarCarteles();
 }
 let skinPx = null, skinTool = 'lapiz', skinColor = [220, 38, 38, 255], skinRadio = 3, skinDibujando = false, skinEraPausa = false, skinUltimo = null;
 const SKIN_COLORES = [[224,172,105],[248,250,252],[15,23,42],[220,38,38],[249,115,22],[250,204,21],[34,197,94],[14,165,233],[37,99,235],[168,85,247],[236,72,153],[120,53,15]];
@@ -5731,25 +5823,41 @@ function setModoLadron(on, avisar) {
     : 'Volviste al juego normal.');
   if (state.running && state.phase !== 'OVER') saveGame();
 }
+let texClaveSeBusca = null;
 function texturaSeBusca() {
-  if (texSeBusca) return texSeBusca;
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 340;
+  const px = typeof skinPropia === 'function' ? skinPropia() : null;
+  const clave = (state && state.skinDibujo) || '';
+  if (texSeBusca && texClaveSeBusca === clave) return texSeBusca;
+  const buf = cartelSeBusca(px);
+  const cv = document.createElement('canvas'); cv.width = CARTEL_W; cv.height = CARTEL_H;
   const g = cv.getContext('2d');
-  g.fillStyle = '#f7f1df'; g.fillRect(0, 0, 256, 340);
-  g.strokeStyle = '#1c1917'; g.lineWidth = 10; g.strokeRect(8, 8, 240, 324);
-  g.fillStyle = '#b91c1c'; g.font = 'bold 46px sans-serif'; g.textAlign = 'center';
-  g.fillText('SE BUSCA', 128, 62);
-  g.fillStyle = '#3b2b1f'; g.fillRect(78, 84, 100, 28);
-  g.fillStyle = '#e0ac69'; g.fillRect(78, 104, 100, 100);
-  g.fillStyle = '#f8fafc'; g.fillRect(96, 132, 22, 16); g.fillRect(138, 132, 22, 16);
-  g.fillStyle = '#1f2937'; g.fillRect(104, 134, 10, 12); g.fillRect(146, 134, 10, 12);
-  g.fillStyle = '#7f3a35'; g.fillRect(112, 176, 32, 8);
+  g.putImageData(new ImageData(new Uint8ClampedArray(buf), CARTEL_W, CARTEL_H), 0, 0);
+  g.fillStyle = '#b91c1c'; g.font = 'bold 42px sans-serif'; g.textAlign = 'center';
+  g.fillText('SE BUSCA', CARTEL_W / 2, 58);
   g.fillStyle = '#111827'; g.font = 'bold 28px sans-serif';
-  g.fillText('LADRÓN', 128, 250);
-  g.font = '18px sans-serif'; g.fillText('Si lo ves, avisa', 128, 286); g.fillText('a la policía', 128, 310);
+  g.fillText('LADRÓN', CARTEL_W / 2, 268);
+  g.font = '18px sans-serif'; g.fillText('Si lo ves, avisa', CARTEL_W / 2, 302); g.fillText('a la policía', CARTEL_W / 2, 326);
+  if (texSeBusca && texSeBusca.dispose) texSeBusca.dispose();
   texSeBusca = new THREE.CanvasTexture(cv);
   if (THREE.SRGBColorSpace) texSeBusca.colorSpace = THREE.SRGBColorSpace;
+  texSeBusca.magFilter = THREE.NearestFilter;
+  texSeBusca.minFilter = THREE.NearestFilter;
+  texSeBusca.generateMipmaps = false;
+  texSeBusca.needsUpdate = true;
+  texClaveSeBusca = clave;
   return texSeBusca;
+}
+function refrescarCarteles() {
+  texClaveSeBusca = null;
+  if (texSeBusca && texSeBusca.dispose) texSeBusca.dispose();
+  texSeBusca = null;
+  const tex = texturaSeBusca();
+  for (const f of farolesLadron) {
+    for (const hijo of f.children) if (hijo.userData && hijo.userData.seBusca && hijo.material) {
+      hijo.material.map = tex;
+      hijo.material.needsUpdate = true;
+    }
+  }
 }
 function hacerFarolLadron(x, z, mira) {
   const grupo = new THREE.Group();
@@ -5784,6 +5892,11 @@ function aplicarRopaPuesta() {
   if (!av) return;
   const prev = av.userData.ropaVisual;
   if (prev) { for (const m of prev) if (m.parent) m.parent.remove(m); av.userData.ropaVisual = null; }
+  if (skinPropia()) {
+    if (viewmodel.userData.bracer) viewmodel.userData.bracer.visible = false;
+    refrescarTexturaPuesta();
+    return;
+  }
   const id = state.modoLadron ? state.ropaPuesta : null;
   const ropa = id ? ropaPorId(id) : null;
   const arm = (typeof viewmodel !== 'undefined' && viewmodel.children) ? viewmodel.children[0] : null;
@@ -25727,6 +25840,7 @@ function updateViewmodel(dt) {
     viewmodel.position.set(0.45, -0.55 + bob, -0.9 + kick * .12);
     viewmodel.rotation.set(-sw * (kind === 'shovel' ? 2.25 : kind === 'bow' ? 1.1 : kind === 'gun' ? .45 : 1.8), 0, sw * (kind === 'sword' ? -.42 : kind === 'bow' ? -.28 : -.16));
   }
+  poseManosVista(bob, sw);
 }
 function resolveCollisions() {
   const r = 0.45, p = player.position;

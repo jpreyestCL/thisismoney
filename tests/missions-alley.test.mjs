@@ -50,5 +50,5 @@ assert.doesNotMatch(html, /icon\(ALLEY\.x0/);
 
 assert.doesNotMatch(html, /coca[ií]na|hero[ií]na|metanfet|pistola 9mm|sicario/i);
 
-assert.match(sw, /tim-v112/);
+assert.match(sw, /tim-v113/);
 console.log('missions alley black market: ok');

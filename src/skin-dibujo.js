@@ -331,3 +331,200 @@ export function aplicarSkin(persona, pixeles, opciones) {
   persona.userData.dibujo = [mesh];
   return true;
 }
+
+// Lo que se pone encima (armadura, chaqueta, polerón, gorra, camuflaje)
+// se pinta solo donde el dibujo es opaco. Un queso sigue siendo un queso:
+// los agujeros quedan vacíos y nada flota fuera del trazo.
+const UMBRAL = 102;
+
+function opacoEn(px, x, y) {
+  if (!px || x < 0 || y < 0 || x >= LIENZO_W || y >= LIENZO_H) return false;
+  return px[(y * LIENZO_W + x) * 4 + 3] >= UMBRAL;
+}
+
+function cajaOpaca(px) {
+  let minX = LIENZO_W, minY = LIENZO_H, maxX = -1, maxY = -1, n = 0;
+  for (let y = 0; y < LIENZO_H; y++) {
+    for (let x = 0; x < LIENZO_W; x++) {
+      if (!opacoEn(px, x, y)) continue;
+      n++;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  return n ? { minX, minY, maxX, maxY, n } : null;
+}
+
+function rgbDe(color) {
+  if (Array.isArray(color)) return [color[0] | 0, color[1] | 0, color[2] | 0];
+  const n = color >>> 0;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function esBorde(px, x, y) {
+  return !opacoEn(px, x - 1, y) || !opacoEn(px, x + 1, y) || !opacoEn(px, x, y - 1) || !opacoEn(px, x, y + 1);
+}
+
+export function capaSobreSkin(px, puesto) {
+  const out = new Uint8ClampedArray(PIXELES);
+  if (!px || px.length !== PIXELES || !puesto || !puesto.tipo) return out;
+  const caja = cajaOpaca(px);
+  if (!caja) return out;
+  const col = rgbDe(puesto.color || [255, 255, 255]);
+  const borde = rgbDe(puesto.borde || col);
+  const alto = Math.max(1, caja.maxY - caja.minY + 1);
+  const tipo = puesto.tipo;
+  for (let y = caja.minY; y <= caja.maxY; y++) {
+    for (let x = caja.minX; x <= caja.maxX; x++) {
+      if (!opacoEn(px, x, y)) continue;
+      const t = (y - caja.minY) / alto;
+      let tinta = null;
+      if (tipo === 'gorra') {
+        if (t <= 0.34) tinta = col;
+      } else if (tipo === 'poleron') {
+        tinta = t <= 0.38 ? borde : col;
+      } else if (tipo === 'chaqueta') {
+        const medio = (caja.minX + caja.maxX) / 2;
+        tinta = Math.abs(x - medio) <= 1 ? borde : col;
+      } else if (tipo === 'camuflaje') {
+        const n = (x * 3 + y * 5) % 11;
+        tinta = n < 4 ? col : n < 8 ? [63, 74, 40] : [92, 74, 50];
+      } else if (tipo === 'armadura') {
+        tinta = esBorde(px, x, y) ? borde : col;
+      } else {
+        tinta = col;
+      }
+      if (!tinta) continue;
+      const i = (y * LIENZO_W + x) * 4;
+      out[i] = tinta[0]; out[i + 1] = tinta[1]; out[i + 2] = tinta[2]; out[i + 3] = 255;
+    }
+  }
+  return out;
+}
+
+export function dentroDeSilueta(capa, px) {
+  if (!capa || !px || capa.length !== px.length) return false;
+  for (let i = 3; i < capa.length; i += 4) {
+    if (capa[i] > 0 && px[i] < UMBRAL) return false;
+  }
+  return true;
+}
+
+export function mezclarSobreSkin(base, capa, fuerza) {
+  const out = new Uint8ClampedArray(base);
+  const f = fuerza == null ? 0.78 : Math.max(0, Math.min(1, fuerza));
+  if (!base || !capa || capa.length !== base.length) return out;
+  for (let i = 0; i < base.length; i += 4) {
+    if (base[i + 3] < UMBRAL || capa[i + 3] === 0) continue;
+    out[i] = Math.round(base[i] * (1 - f) + capa[i] * f);
+    out[i + 1] = Math.round(base[i + 1] * (1 - f) + capa[i + 1] * f);
+    out[i + 2] = Math.round(base[i + 2] * (1 - f) + capa[i + 2] * f);
+    out[i + 3] = base[i + 3];
+  }
+  return out;
+}
+
+// Las manos son los costados del dibujo (en un queso, el borde izquierdo
+// y el derecho). La pose es la de siempre: delante del cuerpo, una a cada lado.
+export const POSE_MANO = Object.freeze({
+  derecha: Object.freeze({ x: 0.42, y: -0.52, z: -1.02, tam: 0.36, rotX: 0.22, rotY: 0.32, rotZ: -0.4 }),
+  izquierda: Object.freeze({ x: -0.36, y: -0.5, z: -0.98, tam: 0.32, rotX: 0.18, rotY: -0.3, rotZ: 0.34 }),
+});
+
+function recortarZona(px, x0, y0, w, h) {
+  const out = new Uint8ClampedArray(w * h * 4);
+  let n = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const sx = x0 + x, sy = y0 + y;
+      if (!opacoEn(px, sx, sy)) continue;
+      const s = (sy * LIENZO_W + sx) * 4;
+      const d = (y * w + x) * 4;
+      out[d] = px[s]; out[d + 1] = px[s + 1]; out[d + 2] = px[s + 2]; out[d + 3] = px[s + 3];
+      n++;
+    }
+  }
+  return { px: out, w, h, x: x0, y: y0, n };
+}
+
+export function recorteManos(px) {
+  const vacio = () => ({ px: new Uint8ClampedArray(0), w: 0, h: 0, x: 0, y: 0, n: 0 });
+  const caja = px && cajaOpaca(px);
+  if (!caja) return { izquierda: vacio(), derecha: vacio() };
+  const ancho = caja.maxX - caja.minX + 1;
+  const alto = caja.maxY - caja.minY + 1;
+  const corte = Math.min(ancho, Math.max(4, Math.round(ancho * 0.22)));
+  const y0 = caja.minY + Math.floor(alto * 0.30);
+  const y1 = caja.minY + Math.floor(alto * 0.72);
+  const h = Math.max(1, y1 - y0 + 1);
+  return {
+    izquierda: recortarZona(px, caja.minX, y0, corte, h),
+    derecha: recortarZona(px, caja.maxX - corte + 1, y0, corte, h),
+  };
+}
+
+export const CARTEL_W = 256;
+export const CARTEL_H = 340;
+export const CARTEL_RETRATO = Object.freeze({ x: 58, y: 78, w: 140, h: 148 });
+
+function ponerPix(buf, w, x, y, rgba) {
+  if (x < 0 || y < 0 || x >= w) return;
+  const i = (y * w + x) * 4;
+  if (i < 0 || i + 3 >= buf.length) return;
+  buf[i] = rgba[0]; buf[i + 1] = rgba[1]; buf[i + 2] = rgba[2]; buf[i + 3] = rgba[3];
+}
+
+function relleno(buf, w, x, y, rw, rh, rgba) {
+  for (let yy = 0; yy < rh; yy++) {
+    for (let xx = 0; xx < rw; xx++) ponerPix(buf, w, x + xx, y + yy, rgba);
+  }
+}
+
+function blitSkin(out, px, caja, dest) {
+  const sw = caja.maxX - caja.minX + 1;
+  const sh = caja.maxY - caja.minY + 1;
+  const margen = 8;
+  const dw = Math.max(1, dest.w - margen * 2);
+  const dh = Math.max(1, dest.h - margen * 2);
+  const escala = Math.min(dw / sw, dh / sh);
+  const rw = Math.max(1, Math.round(sw * escala));
+  const rh = Math.max(1, Math.round(sh * escala));
+  const ox = dest.x + Math.floor((dest.w - rw) / 2);
+  const oy = dest.y + Math.floor((dest.h - rh) / 2);
+  for (let y = 0; y < rh; y++) {
+    const sy = caja.minY + Math.min(sh - 1, Math.floor(y / escala));
+    for (let x = 0; x < rw; x++) {
+      const sx = caja.minX + Math.min(sw - 1, Math.floor(x / escala));
+      const s = (sy * LIENZO_W + sx) * 4;
+      if (px[s + 3] < UMBRAL) continue;
+      ponerPix(out, CARTEL_W, ox + x, oy + y, [px[s], px[s + 1], px[s + 2], 255]);
+    }
+  }
+}
+
+// El cartel SE BUSCA. Sin skin, la cara de siempre. Con skin, ese dibujo
+// (un queso se ve como queso) en el retrato, sin la cara humana.
+export function cartelSeBusca(px) {
+  const out = new Uint8ClampedArray(CARTEL_W * CARTEL_H * 4);
+  relleno(out, CARTEL_W, 0, 0, CARTEL_W, CARTEL_H, [247, 241, 223, 255]);
+  const marco = [28, 25, 23, 255];
+  relleno(out, CARTEL_W, 0, 0, CARTEL_W, 8, marco);
+  relleno(out, CARTEL_W, 0, CARTEL_H - 8, CARTEL_W, 8, marco);
+  relleno(out, CARTEL_W, 0, 0, 8, CARTEL_H, marco);
+  relleno(out, CARTEL_W, CARTEL_W - 8, 0, 8, CARTEL_H, marco);
+  if (!(px && esDistinta(px))) {
+    relleno(out, CARTEL_W, 78, 84, 100, 28, [59, 43, 31, 255]);
+    relleno(out, CARTEL_W, 78, 104, 100, 100, [224, 172, 105, 255]);
+    relleno(out, CARTEL_W, 96, 132, 22, 16, [248, 250, 252, 255]);
+    relleno(out, CARTEL_W, 138, 132, 22, 16, [248, 250, 252, 255]);
+    relleno(out, CARTEL_W, 104, 134, 10, 12, [31, 41, 55, 255]);
+    relleno(out, CARTEL_W, 146, 134, 10, 12, [31, 41, 55, 255]);
+    relleno(out, CARTEL_W, 112, 176, 32, 8, [127, 58, 53, 255]);
+    return out;
+  }
+  const caja = cajaOpaca(px);
+  if (caja) blitSkin(out, px, caja, CARTEL_RETRATO);
+  return out;
+}

@@ -5,9 +5,9 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import {
-  FIGURA_ALTO, FIGURA_BASE, FIGURA_Z, LIENZO_H, LIENZO_W, VISTA_BRAZO,
-  anchoFigura, aplicarSkin, esDistinta, indiceDe, influenciaDe, lienzoNuevo,
-  mallaEnReposo, parteEn, pintar, posarDibujo, posarMalla, recorteDe, restaurar, serializar,
+  FIGURA_ALTO, FIGURA_BASE, FIGURA_Z, LIENZO_H, LIENZO_W, POSE_MANO,
+  anchoFigura, aplicarSkin, capaSobreSkin, cartelSeBusca, dentroDeSilueta, esDistinta, indiceDe, influenciaDe, lienzoNuevo,
+  mallaEnReposo, mezclarSobreSkin, parteEn, pintar, posarDibujo, posarMalla, recorteManos, restaurar, serializar,
 } from '../src/skin-dibujo.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -276,32 +276,128 @@ test('en reposo el dibujo es el lienzo y al caminar se dobla sin desarmarse', ()
   assert.equal(mesh.parent, persona);
 });
 
-test('en primera persona el brazo de delante es el del dibujo', () => {
+function queso() {
   const px = lienzoNuevo();
-  pintar(px, 64, 54, 6, [250, 204, 21, 255], false);
-  pintar(px, 8, 54, 4, [37, 99, 235, 255], false);
-  const rec = recorteDe(px, VISTA_BRAZO);
-  assert.equal(rec.length, VISTA_BRAZO.w * VISTA_BRAZO.h * 4);
-  let amarillo = 0, azul = 0;
-  for (let i = 0; i < rec.length; i += 4) {
-    if (rec[i] === 250 && rec[i + 3] === 255) amarillo++;
-    if (rec[i + 2] === 235 && rec[i + 3] === 255) azul++;
+  pintar(px, 40, 56, 26, [250, 204, 21, 255], false);
+  return px;
+}
+
+test('en la vista normal las manos son las del dibujo y van delante del cuerpo', () => {
+  const px = queso();
+  pintar(px, 32, 50, 5, [0, 0, 0, 0], true);
+  const manos = recorteManos(px);
+  assert.ok(manos.izquierda.n > 8, 'la mano izquierda sale del costado del queso');
+  assert.ok(manos.derecha.n > 8, 'la mano derecha sale del otro costado');
+  assert.ok(manos.izquierda.x < 40);
+  assert.ok(manos.derecha.x > 40);
+  assert.ok(manos.izquierda.x + manos.izquierda.w <= manos.derecha.x, 'no es un pedazo del centro');
+  for (const mano of [manos.izquierda, manos.derecha]) {
+    for (let y = 0; y < mano.h; y++) {
+      for (let x = 0; x < mano.w; x++) {
+        const d = (y * mano.w + x) * 4;
+        if (mano.px[d + 3] === 0) continue;
+        const sx = mano.x + x, sy = mano.y + y;
+        const s = (sy * LIENZO_W + sx) * 4;
+        assert.ok(px[s + 3] >= 102, 'la mano no sale de la silueta');
+        assert.equal(mano.px[d], px[s]);
+      }
+    }
   }
-  assert.ok(amarillo > 10, 'el brazo derecho del queso entra en la vista');
-  assert.equal(azul, 0);
-  assert.ok(VISTA_BRAZO.x >= 40, 'es el brazo de la derecha, no el cuerpo entero');
+  const D = POSE_MANO.derecha, I = POSE_MANO.izquierda;
+  assert.ok(D.x > 0.2 && I.x < -0.15, 'una mano a cada lado');
+  assert.ok(D.y < -0.3 && I.y < -0.3, 'delante del cuerpo, no al centro de la vista');
+  assert.ok(D.z < -0.7 && I.z < -0.7, 'por delante de la cámara');
+  assert.ok(D.tam < 0.5 && I.tam < 0.5, 'tamaño de mano, no un pedazo gigante');
   assert.match(html, /arm\.userData\.humano = true/);
   assert.match(html, /fist\.userData\.humano = true/);
-  assert.match(html, /function ponerBrazoVista\(px\)/);
+  assert.match(html, /function ponerManosVista\(px\)/);
   assert.match(html, /mangaHumana\(false\)/);
-  assert.match(html, /ponerBrazoVista\(px\)/);
-  assert.match(html, /viewmodel\.children\[0\]/);
+  assert.match(html, /POSE_MANO\.derecha/);
+  assert.match(html, /POSE_MANO\.izquierda/);
+  assert.match(html, /camera\.add\(der\)/);
+  assert.match(html, /camera\.add\(izq\)/);
+  assert.doesNotMatch(html, /mesh\.position\.set\(0\.02, 0\.28, -0\.12\)/);
+  assert.doesNotMatch(html, /function ponerBrazoVista/);
+});
+
+test('la armadura y la ropa quedan dentro de la silueta de la skin', () => {
+  const px = queso();
+  const hueco = (50 * LIENZO_W + 32) * 4;
+  pintar(px, 32, 50, 5, [0, 0, 0, 0], true);
+  assert.equal(px[hueco + 3], 0);
+  const tipos = [
+    { tipo: 'armadura', color: [215, 221, 229], borde: [154, 164, 178] },
+    { tipo: 'chaqueta', color: [17, 24, 39], borde: [11, 18, 32] },
+    { tipo: 'poleron', color: [107, 114, 128], borde: [55, 65, 81] },
+    { tipo: 'gorra', color: [220, 38, 38] },
+    { tipo: 'camuflaje', color: [74, 92, 42] },
+  ];
+  for (const puesto of tipos) {
+    const capa = capaSobreSkin(px, puesto);
+    assert.equal(capa.length, px.length);
+    assert.equal(dentroDeSilueta(capa, px), true, puesto.tipo);
+    assert.equal(capa[hueco + 3], 0, puesto.tipo + ' no tapa el agujero');
+    let n = 0;
+    for (let i = 3; i < capa.length; i += 4) if (capa[i] > 0) n++;
+    assert.ok(n > 0, puesto.tipo + ' pinta el dibujo');
+    const visto = mezclarSobreSkin(px, capa, 0.8);
+    for (let i = 3; i < px.length; i += 4) assert.equal(visto[i], px[i]);
+  }
+  const gorra = capaSobreSkin(px, { tipo: 'gorra', color: [220, 38, 38] });
+  const arriba = (40 * LIENZO_W + 40) * 4;
+  const abajo = (70 * LIENZO_W + 40) * 4;
+  assert.equal(gorra[arriba + 3], 255);
+  assert.equal(gorra[abajo + 3], 0);
+  const centro = (56 * LIENZO_W + 40) * 4;
+  const armadura = capaSobreSkin(px, { tipo: 'armadura', color: [215, 221, 229], borde: [154, 164, 178] });
+  assert.equal(armadura[centro + 3], 255);
+  const puesto = mezclarSobreSkin(px, armadura, 0.8);
+  assert.notEqual(puesto[centro], 250);
+  const manos = recorteManos(puesto);
+  assert.ok(manos.derecha.n > 0);
+  let teñida = 0;
+  for (let i = 0; i < manos.derecha.px.length; i += 4) {
+    if (manos.derecha.px[i + 3] === 0) continue;
+    assert.ok(manos.derecha.px[i + 3] >= 102);
+    if (manos.derecha.px[i] !== 250) teñida++;
+  }
+  assert.ok(teñida > 0, 'lo que lleva el brazo se ve en la mano de la skin');
+  assert.match(html, /function pixelesVisibles/);
+  assert.match(html, /function refrescarTexturaPuesta/);
+  assert.match(html, /capaSobreSkin/);
+  assert.match(html, /applyMinecraftArmor\(playerAvatar, null\)/);
+  assert.match(html, /viewmodel\.userData\.bracer\) viewmodel\.userData\.bracer\.visible = false/);
+});
+
+test('el cartel SE BUSCA muestra la skin y no la cara humana', () => {
+  const entero = queso();
+  const px = queso();
+  pintar(px, 40, 56, 6, [0, 0, 0, 0], true);
+  const cara = cartelSeBusca(null);
+  const poster = cartelSeBusca(entero);
+  const conHueco = cartelSeBusca(px);
+  assert.equal(cara.length, poster.length);
+  const contar = (buf, r, g, b) => {
+    let n = 0;
+    for (let i = 0; i < buf.length; i += 4) if (buf[i] === r && buf[i + 1] === g && buf[i + 2] === b && buf[i + 3] === 255) n++;
+    return n;
+  };
+  assert.ok(contar(cara, 224, 172, 105) > 100, 'sin skin queda la cara humana');
+  assert.equal(contar(poster, 224, 172, 105), 0, 'con skin no hay cara humana');
+  assert.ok(contar(poster, 250, 204, 21) > 40, 'el queso está en el cartel');
+  const papel = (20 * 256 + 20) * 4;
+  assert.equal(poster[papel], 247);
+  assert.equal(poster[papel + 1], 241);
+  assert.ok(contar(conHueco, 250, 204, 21) < contar(poster, 250, 204, 21));
+  assert.match(html, /cartelSeBusca\(px\)/);
+  assert.match(html, /function refrescarCarteles/);
+  assert.match(html, /refrescarCarteles\(\)/);
 });
 
 test('el juego pinta al jugador desde el inicio, guarda la skin y no cambia el balanceo', () => {
-  assert.match(html, /skin-dibujo\.js\?v=7/);
-  assert.match(sw, /skin-dibujo\.js\?v=7/);
-  assert.match(sw, /const VERSION = 'tim-v112'/);
+  assert.match(html, /skin-dibujo\.js\?v=8/);
+  assert.match(sw, /skin-dibujo\.js\?v=8/);
+  assert.match(sw, /const VERSION = 'tim-v113'/);
   assert.match(html, /m\.userData\.parte = parte; m\.userData\.superficie = true/);
   assert.match(html, /\{ parte: 'torso', superficie: true \}/);
   assert.match(html, /\{ parte: 'cabeza', superficie: true \}/);

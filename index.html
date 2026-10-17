@@ -581,6 +581,22 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
   }
+  #skinbox { position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; background:rgba(2,6,23,.92); pointer-events:all; padding:10px; }
+  #skinbox .skin-panel { display:flex; gap:14px; align-items:stretch; max-width:96vw; max-height:94vh; background:rgba(6,10,20,.96); border:2px solid #f472b6; border-radius:16px; padding:12px; }
+  #skinCanvas { height:min(78vh, 520px); width:auto; image-rendering:pixelated; touch-action:none; background:#0b1220; border-radius:10px; cursor:crosshair; }
+  .skin-tools { width:min(280px, 46vw); display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .skin-tools h2 { margin:0; font-size:18px; }
+  .skin-tools p { margin:0; font-size:12px; opacity:.8; line-height:1.35; }
+  .skin-colores { display:flex; flex-wrap:wrap; gap:6px; }
+  .skin-colores button, #skinColorPick { width:36px; height:36px; border-radius:8px; border:2px solid rgba(255,255,255,.35); padding:0; cursor:pointer; }
+  .skin-colores button.on { outline:2px solid #fff; outline-offset:1px; }
+  .skin-tools .fila { display:flex; gap:6px; flex-wrap:wrap; }
+  .skin-tools .fila button { flex:1; min-height:40px; }
+  @media (max-width: 720px), (max-height: 520px) {
+    #skinbox .skin-panel { flex-direction:column; align-items:center; overflow:auto; }
+    #skinCanvas { height:min(48vh, 360px); }
+    .skin-tools { width:min(440px, 92vw); }
+  }
 </style>
 </head>
 <body class="game-ui">
@@ -693,6 +709,7 @@
         <button class="bankBtn" id="pauseSound">🔊 Sonido</button>
         <button class="bankBtn" id="pausePerf">⚡ Detalle: ALTO</button>
         <button class="bankBtn" id="pauseFoto">📷 Foto</button>
+        <button class="bankBtn" id="pauseSkin">🎨 Dibujar skin</button>
         <button class="bankBtn" id="pauseHelp">📖 Ayuda</button>
         <button class="bankBtn" id="pauseCode">💾 Copiar código</button>
         <button class="bankBtn" id="pauseLoad">📥 Cargar código</button>
@@ -866,6 +883,7 @@
       <button type="button" class="tbtn" data-act="rocket" aria-label="Usar cohete">🚀<small>cohete</small></button>
       <button type="button" class="tbtn" data-act="chat" aria-label="Chat mundial">💬<small>chat</small></button>
       <button type="button" class="tbtn" data-act="fps" aria-label="Cambiar nivel de detalle">🎞️<small>detalle</small></button>
+      <button type="button" class="tbtn" data-act="skin" aria-label="Dibujar tu skin">🎨<small>skin</small></button>
       <button type="button" class="tbtn" data-act="help" aria-label="Abrir ayuda">❓<small>ayuda</small></button>
     </span>
   </div>
@@ -1262,6 +1280,29 @@
   </div>
   <p style="font-size:12px; opacity:.6; margin-top:14px;">Hecho con ❤️ — This is Money</p>
 </div>
+<div id="skinbox">
+  <div class="skin-panel">
+    <canvas id="skinCanvas" width="80" height="112"></canvas>
+    <div class="skin-tools">
+      <h2>🎨 Dibuja tu skin</h2>
+      <p>Pinta la cabeza, el torso, los brazos y las piernas. El cuerpo sigue caminando igual. La ropa del ladrón, si la llevas, queda encima.</p>
+      <div class="skin-colores" id="skinColores"></div>
+      <input id="skinColorPick" type="color" value="#dc2626" aria-label="Elegir color">
+      <div class="fila">
+        <button type="button" class="bankBtn on" id="skinLapiz">✏️ Lápiz</button>
+        <button type="button" class="bankBtn" id="skinGoma">🧽 Goma</button>
+      </div>
+      <div class="fila">
+        <button type="button" class="bankBtn" data-skin-radio="1">Fino</button>
+        <button type="button" class="bankBtn on" data-skin-radio="3">Medio</button>
+        <button type="button" class="bankBtn" data-skin-radio="6">Grueso</button>
+      </div>
+      <button type="button" class="bankBtn" id="skinClear">Borrar dibujo</button>
+      <button type="button" class="btn" id="skinSave">Usar esta skin</button>
+      <button type="button" class="btn secondary" id="skinClose">Cerrar</button>
+    </div>
+  </div>
+</div>
 <div id="fade" style="position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; z-index:20;"></div>
 <div id="rotateHint"><div style="font-size:44px">📱↻</div><div style="margin-top:10px;font-weight:800;font-size:18px">Gira el teléfono</div><div style="opacity:.75;font-size:13px;margin-top:4px">Se juega mejor en horizontal</div></div>
 
@@ -1283,6 +1324,7 @@ import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MA
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=16';
+import { LIENZO_H, LIENZO_W, PARTES, REGIONES, aplicarSkin, esDistinta, lienzoNuevo, pintar, restaurar, serializar } from './src/skin-dibujo.js?v=2';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -1920,11 +1962,14 @@ function makePerson(colorBody, colorHead, opciones) {
   const colorPoleron = poleron ? tonoRopa(ROPA_POLERONES) : polera;
   const pelo = variar ? tonoRopa(ROPA_PELOS) : 0x3b2b1f;
   const torso = poleron ? colorPoleron : polera;
-  const addBox = (w, h, d, col, x, y, z) => {
+  const addBox = (w, h, d, col, x, y, z, datos) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
-    m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+    m.position.set(x, y, z); m.castShadow = true;
+    m.userData.colorBase = col;
+    if (datos) Object.assign(m.userData, datos); else m.userData.adorno = true;
+    g.add(m); return m;
   };
-  addBox(poleron ? 0.84 : 0.75, 0.95, poleron ? 0.5 : 0.42, torso, 0, 1.35, 0);
+  addBox(poleron ? 0.84 : 0.75, 0.95, poleron ? 0.5 : 0.42, torso, 0, 1.35, 0, { parte: 'torso', superficie: true });
   if (poleron) {
     addBox(0.38, 0.28, 0.08, 0x0f172a, 0, 1.2, 0.28);                 // bolsillo canguro
     addBox(0.045, 0.36, 0.045, 0xe7e5e4, -0.08, 1.55, 0.28);          // cordón
@@ -1935,16 +1980,18 @@ function makePerson(colorBody, colorHead, opciones) {
   } else if (cortePolera === 'chaleco') {
     addBox(0.82, 0.62, 0.5, tonoRopa(ROPA_POLERONES), 0, 1.32, 0);
   }
-  addBox(0.5, 0.5, 0.5, piel, 0, 2.05, 0);
-  const limb = (col, w, h, d, x, pivotY) => {
+  addBox(0.5, 0.5, 0.5, piel, 0, 2.05, 0, { parte: 'cabeza', superficie: true });
+  const limb = (col, w, h, d, x, pivotY, parte) => {
     const pivot = new THREE.Group(); pivot.position.set(x, pivotY, 0);
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
-    m.position.y = -h / 2; m.castShadow = true; pivot.add(m); g.add(pivot); return pivot;
+    m.position.y = -h / 2; m.castShadow = true;
+    m.userData.colorBase = col; m.userData.parte = parte; m.userData.superficie = true;
+    pivot.add(m); g.add(pivot); return pivot;
   };
   // CARA estilo minecraft en el frente de la cabeza (ojos con pupila, cejas y boca)
   const facePiece = (w, h, col, x, y, z) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.04), new THREE.MeshStandardMaterial({ color: col, roughness: .9 }));
-    m.position.set(x, y, z); g.add(m); return m;
+    m.position.set(x, y, z); m.userData.adorno = true; g.add(m); return m;
   };
   for (const sx of [-0.12, 0.12]) {
     facePiece(0.13, 0.12, 0xf8fafc, sx, 2.11, 0.253);                 // ojo
@@ -1976,13 +2023,13 @@ function makePerson(colorBody, colorHead, opciones) {
   addBox(0.78, 0.14, 0.45, 0x27303f, 0, 0.94, 0);                     // cinturón
   addBox(0.18, 0.13, 0.05, 0xd4a017, 0, 0.94, 0.23);                  // hebilla
   const manga = poleron ? colorPoleron : polera;
-  const armL = limb(manga, 0.22, 0.8, 0.28, -0.5, 1.78);
-  const armR = limb(manga, 0.22, 0.8, 0.28,  0.5, 1.78);
+  const armL = limb(manga, 0.22, 0.8, 0.28, -0.5, 1.78, 'brazoI');
+  const armR = limb(manga, 0.22, 0.8, 0.28,  0.5, 1.78, 'brazoD');
   const legW = cortePantalon === 'ancho' ? 0.36 : 0.28;
   const legD = cortePantalon === 'ancho' ? 0.38 : 0.32;
   const legH = cortePantalon === 'corto' ? 0.48 : 0.85;
-  const legL = limb(pants, legW, legH, legD, -0.2, 0.9);
-  const legR = limb(pants, legW, legH, legD,  0.2, 0.9);
+  const legL = limb(pants, legW, legH, legD, -0.2, 0.9, 'piernaI');
+  const legR = limb(pants, legW, legH, legD,  0.2, 0.9, 'piernaD');
   // Manos y zapatos (cuelgan de los miembros, así se mueven al caminar)
   const parte = (pivot, w, h, d, col, y, z) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
@@ -2078,6 +2125,159 @@ function applyPlayerArmor() {
   if (tier) viewmodel.userData.bracer.material = mat(ARMOR_TIERS[tier].color);
   aplicarRopaPuesta();
 }
+
+// La skin dibujada va en las mismas cajas del cuerpo (cabeza, torso, brazos, piernas).
+// El balanceo lo sigue haciendo swingLimbs sobre esos pivotes.
+function texturaDeParte(rec, w, h) {
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    const src = (h - 1 - y) * w * 4;   // el lienzo tiene arriba la cabeza; la caja de Three, al revés
+    img.data.set(rec.subarray(src, src + w * 4), y * w * 4);
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  return tex;
+}
+function aplicarSkinJugador() {
+  const px = restaurar(state.skinDibujo);
+  aplicarSkin(playerAvatar, px, {
+    textura: (rec, region) => texturaDeParte(rec, region.w, region.h),
+    alLiberar: (tex) => { if (tex && tex.dispose) tex.dispose(); },
+  });
+}
+let skinPx = null, skinTool = 'lapiz', skinColor = [220, 38, 38, 255], skinRadio = 3, skinDibujando = false, skinEraPausa = false, skinUltimo = null;
+const SKIN_COLORES = [[224,172,105],[248,250,252],[15,23,42],[220,38,38],[249,115,22],[250,204,21],[34,197,94],[14,165,233],[37,99,235],[168,85,247],[236,72,153],[120,53,15]];
+function hexDeSkin(rgb) { return '#' + rgb.slice(0, 3).map(n => n.toString(16).padStart(2, '0')).join(''); }
+function refrescarLienzoSkin() {
+  const cv = ui('skinCanvas'); if (!cv || !skinPx) return;
+  const ctx = cv.getContext('2d');
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(skinPx), LIENZO_W, LIENZO_H), 0, 0);
+  ctx.strokeStyle = 'rgba(255,255,255,.75)';
+  ctx.lineWidth = 1;
+  for (const id of PARTES) {
+    const r = REGIONES[id];
+    ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+  }
+}
+function marcarHerramientaSkin() {
+  const lap = ui('skinLapiz'), gom = ui('skinGoma');
+  if (lap) lap.classList.toggle('on', skinTool === 'lapiz');
+  if (gom) gom.classList.toggle('on', skinTool === 'goma');
+  document.querySelectorAll('[data-skin-radio]').forEach(b => b.classList.toggle('on', +b.dataset.skinRadio === skinRadio));
+  document.querySelectorAll('#skinColores button').forEach(b => b.classList.toggle('on', b.dataset.hex === hexDeSkin(skinColor)));
+}
+function trazoSkin(a, b) {
+  const dist = Math.hypot(b.x - a.x, b.y - a.y);
+  const pasos = Math.max(1, Math.ceil(dist * 2));
+  for (let i = 0; i <= pasos; i++) {
+    const t = i / pasos;
+    pintar(skinPx, a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, skinRadio, skinColor, skinTool === 'goma');
+  }
+}
+function puntoSkin(e) {
+  const cv = ui('skinCanvas'), b = cv.getBoundingClientRect();
+  return { x: (e.clientX - b.left) / b.width * LIENZO_W, y: (e.clientY - b.top) / b.height * LIENZO_H };
+}
+function engancharLienzoSkin() {
+  const cv = ui('skinCanvas');
+  if (!cv || cv.dataset.listo) return;
+  cv.dataset.listo = '1';
+  const abajo = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    skinDibujando = true;
+    skinUltimo = puntoSkin(e);
+    trazoSkin(skinUltimo, skinUltimo);
+    refrescarLienzoSkin();
+  };
+  const mover = (e) => {
+    if (!skinDibujando) return;
+    e.preventDefault();
+    const p = puntoSkin(e);
+    trazoSkin(skinUltimo || p, p);
+    skinUltimo = p;
+    refrescarLienzoSkin();
+  };
+  const soltar = () => { skinDibujando = false; skinUltimo = null; };
+  cv.addEventListener('pointerdown', abajo);
+  cv.addEventListener('pointermove', mover);
+  cv.addEventListener('pointerup', soltar);
+  cv.addEventListener('pointercancel', soltar);
+}
+function abrirEditorSkin() {
+  if (!state.running) return;
+  skinEraPausa = !!state.paused;
+  state.paused = true;
+  if (typeof releaseLock === 'function') releaseLock();
+  for (const k in keys) keys[k] = false;
+  closeWheel();
+  skinPx = restaurar(state.skinDibujo) || lienzoNuevo();
+  ui('skinbox').style.display = 'flex';
+  typing = true;
+  engancharLienzoSkin();
+  refrescarLienzoSkin();
+  marcarHerramientaSkin();
+}
+function cerrarEditorSkin() {
+  const el = ui('skinbox'); if (!el || el.style.display === 'none') return;
+  el.style.display = 'none';
+  skinDibujando = false;
+  state.paused = skinEraPausa;
+  if (!skinEraPausa && ui('pause')) ui('pause').style.display = 'none';
+  typing = algunRecuadroAbierto();
+}
+function usarSkinDibujada() {
+  state.skinDibujo = esDistinta(skinPx) ? serializar(skinPx) : null;
+  aplicarSkinJugador();
+  saveGame();
+  const verFrente = !!state.skinDibujo && cameraMode === 0;
+  cerrarEditorSkin();
+  if (verFrente) {
+    cameraMode = 2;
+    viewmodel.visible = false;
+    playerAvatar.visible = !state.cinematic && !state.driving && !state.riding;
+  }
+  toast(state.skinDibujo ? '🎨 Skin guardada con la partida.' : '🎨 Volviste al personaje de siempre.');
+}
+(function armarEditorSkin() {
+  const caja = ui('skinColores');
+  if (caja) {
+    for (const rgb of SKIN_COLORES) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.dataset.hex = hexDeSkin(rgb);
+      b.style.background = b.dataset.hex;
+      b.setAttribute('aria-label', 'Color ' + b.dataset.hex);
+      b.onclick = () => { skinColor = [rgb[0], rgb[1], rgb[2], 255]; skinTool = 'lapiz'; ui('skinColorPick').value = b.dataset.hex; marcarHerramientaSkin(); };
+      caja.appendChild(b);
+    }
+  }
+  ui('skinLapiz').onclick = () => { skinTool = 'lapiz'; marcarHerramientaSkin(); };
+  ui('skinGoma').onclick = () => { skinTool = 'goma'; marcarHerramientaSkin(); };
+  ui('skinClear').onclick = () => { skinPx = lienzoNuevo(); refrescarLienzoSkin(); };
+  ui('skinSave').onclick = () => usarSkinDibujada();
+  ui('skinClose').onclick = () => cerrarEditorSkin();
+  ui('skinbox').onclick = (e) => { if (e.target === ui('skinbox')) cerrarEditorSkin(); };
+  ui('skinColorPick').addEventListener('input', () => {
+    const h = ui('skinColorPick').value;
+    skinColor = [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16), 255];
+    skinTool = 'lapiz';
+    marcarHerramientaSkin();
+  });
+  ui('skinColorPick').addEventListener('keydown', e => e.stopPropagation());
+  document.querySelectorAll('[data-skin-radio]').forEach(b => { b.onclick = () => { skinRadio = +b.dataset.skinRadio; marcarHerramientaSkin(); }; });
+  if (ui('pauseSkin')) ui('pauseSkin').onclick = () => abrirEditorSkin();
+  marcarHerramientaSkin();
+})();
 
 function replaceToolInMount(mount, kind, color, scale, flip) {
   const variant = kind === 'gun' ? (state.gun || 'laser') : kind === 'gadget' ? (state.handGadget || '') : '';
@@ -5887,6 +6087,7 @@ function wheelOptions() {
   if (state.phase === 'DAY') o.push({ icon: '🌙', label: 'Empezar la noche', key: 'N', run: tryStartNight });
   o.push({ icon: '📋', label: 'Misiones', key: '', run: openQuestPanel });
   o.push({ icon: '🎞️', label: 'Fotogramas ' + fpsModeName(), key: 'F3', run: cycleFpsMode });
+  o.push({ icon: '🎨', label: 'Dibujar skin', key: '', run: abrirEditorSkin });
   o.push({ icon: '📖', label: 'Ayuda y guía', key: 'I', run: () => toggleHelp(true) });
   return o;
 }
@@ -17175,6 +17376,7 @@ const state = {
   foundSecrets: {}, secretsFound: 0, stamina: 100, blocking: false, dodgeCd: 0, invulnerable: 0,
   hasPhone: false, skiPass: false, skiGear: null, skiGearWorn: false, skiing: false, skiLiftRide: null,
   story: {}, storyRewarded: {}, gadgets: {}, mission: null,
+  skinDibujo: null,
 };
 let lastHp = 100;   // para detectar cuándo te hacen daño
 
@@ -17673,7 +17875,7 @@ const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
 let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
 // Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
-const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'liftbox', 'aptbox', 'mallbox', 'rocketbox', 'chatbox', 'chatReply', 'stickerMake', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox', 'questbox', 'keypadbox', 'blackbox'];
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'liftbox', 'aptbox', 'mallbox', 'rocketbox', 'chatbox', 'chatReply', 'stickerMake', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox', 'questbox', 'keypadbox', 'blackbox', 'skinbox'];
 function algunRecuadroAbierto() {
   if (typeof wheelOpen === 'function' && wheelOpen()) return true;   // el menú de la rueda también cuenta
   return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
@@ -17731,6 +17933,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && ui('rocketbox').style.display === 'flex') { closeRocket(); return; }  // Esc cierra los cajones del cohete
   if (e.code === 'Escape' && ui('businessbox').style.display === 'block') { closeBusiness(); return; }
   if (e.code === 'Escape' && state.sportGame) { finishSportGame(true); return; }
+  if (e.code === 'Escape' && ui('skinbox') && ui('skinbox').style.display === 'flex') { cerrarEditorSkin(); return; }
   if (e.code === 'Escape' && wheelOpen()) { closeWheel(); return; }
   if (e.code === 'Tab' && state.running && !state.paused && (wheelOpen() || !algunRecuadroAbierto())) { e.preventDefault(); toggleWheel(); return; }   // Tab = menú de acciones
   if (e.code === 'Escape' && state.running && !typing) { togglePause(); return; }                   // Esc pausa / reanuda
@@ -18677,6 +18880,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       case 'rocket': tryLaunchRocket(); break;
       case 'fps': cycleFpsMode(); break;
       case 'help': toggleHelp(); break;
+      case 'skin': abrirEditorSkin(); break;
       case 'jump': touch.jump = true; break;
     }
   }
@@ -18797,6 +19001,7 @@ function startGame() {
   resetWeather();
   syncFarWorld();
   state.ropaLadron = {}; state.ropaPuesta = null; state.titoPagadoHasta = 0; state.ladronChase = null; state.ladronFama = famaInicial(); state.ladronLlamada = 0; state.ladronLimpio = false; state.golpeCalla = false; state.alarmaBanco = 0; state.bancoSilencio = false; state.sueltaPolicia = 0; state.cajasVacias = cajasNuevas();
+  state.skinDibujo = null; aplicarSkinJugador();
   pintarCajaVacia();
   resetBovedaPartida();
   // La celda, la ducha y el lugar del mundo anterior viven en memoria. Si no se
@@ -19761,6 +19966,7 @@ function saveGame() {
       guns: state.guns || {}, gun: state.gun || null, ammo: state.ammo || 0, clip: state.clip || 0, gadgetCharges: state.gadgetCharges || {}, handGadget: state.handGadget || null,   // armas de fuego y bombas de mano
       creative: !!state.creative,
       modoLadron: !!state.modoLadron, ropaLadron: state.ropaLadron || {}, ropaPuesta: state.ropaPuesta || null, titoPagadoHasta: state.titoPagadoHasta || 0, ladronFama: state.ladronFama || 0,
+      skinDibujo: typeof state.skinDibujo === 'string' ? state.skinDibujo : null,
       bovedaAbierta: !!state.bovedaAbierta, bovedaVacios: Array.isArray(state.bovedaVacios) ? state.bovedaVacios.slice() : [],
       cajeraMuerta: !!state.cajeraMuerta,
       cajeraLlega: state.cajeraMuerta ? (state.cajeraLlega || 0) : 0,
@@ -20804,6 +21010,8 @@ function loadGame() {
   state.recordShown = state.totalEarned >= ((getBest() || {}).total || 0);   // no re-celebrar el récord de esta misma partida
   restoreWorldClock(d);   // noche, tormenta, eclipse y monstruos: se quedan como al salir
   syncFarWorld();
+  state.skinDibujo = typeof d.skinDibujo === 'string' ? d.skinDibujo : null;
+  aplicarSkinJugador();
   aplicarRopaPuesta();
   asegurarFaroles(!!state.modoLadron);
   pintarBotonLadron();
@@ -20867,6 +21075,7 @@ function resetAll() {
   showAlleyWorld(false);
   setAlleyDoorOpen(false);
   if (alley.contact) { alley.contact.position.set(ALLEY.x0 - 0.6, 0, ALLEY.z); alley.contact.rotation.y = -Math.PI / 2; }
+  state.skinDibujo = null; aplicarSkinJugador();
 }
 
 // ===================================================================
@@ -24767,6 +24976,8 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   };
   timDump.cajeraCaida = () => ({ muerta: !!state.cajeraMuerta, llega: +(state.cajeraLlega || 0).toFixed(2), viva: cajeraViva(), abierta: !!state.bovedaAbierta, cuerpo: !!(cajeraCuerpo && cajeraCuerpo.visible), reemplazo: !!cajeraReemplazo, y: cajeraCuerpo ? +cajeraCuerpo.position.y.toFixed(2) : null });
   timDump.pintar = () => { renderHUD(); };
+  timDump.jugar = () => { setProfile('Piel'); startGame(); return true; };
+  timDump.abrirEditorSkin = () => { abrirEditorSkin(); return ui('skinbox').style.display; };
   timDump.ponerRopa = (id) => {
     state.modoLadron = true; state.creative = true; state.money = 5000;
     const r = comprarRopa(state, id || 'camuflaje');

@@ -320,6 +320,62 @@ test('en la vista normal las manos son las del dibujo y van delante del cuerpo',
   assert.doesNotMatch(html, /function ponerBrazoVista/);
 });
 
+test('todos los colores del lienzo llegan al personaje', () => {
+  const px = lienzoNuevo();
+  const colores = [
+    [220, 38, 38, 255],
+    [34, 197, 94, 255],
+    [37, 99, 235, 255],
+    [250, 204, 21, 255],
+    [168, 85, 247, 255],
+    [14, 165, 233, 255],
+  ];
+  const puntos = [[10, 8], [40, 10], [70, 16], [6, 50], [40, 48], [70, 52], [12, 96], [58, 100]];
+  puntos.forEach(([x, y], i) => pintar(px, x, y, 5, colores[i % colores.length]));
+  const vistos = new Map();
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 102) continue;
+    const k = px[i] + ',' + px[i + 1] + ',' + px[i + 2];
+    vistos.set(k, (vistos.get(k) || 0) + 1);
+  }
+  assert.ok(vistos.size >= 6, 'el lienzo tiene muchos colores, no un par');
+  const { persona } = muneco();
+  let recibidos = null;
+  assert.equal(aplicarSkin(persona, px, {
+    crearMalla: (pixeles, reposo) => {
+      recibidos = pixeles;
+      return mallaFalsa(pixeles, reposo);
+    },
+  }), true);
+  assert.ok(recibidos);
+  assert.equal(recibidos.length, px.length);
+  for (const [k, n] of vistos) {
+    const [r, g, b] = k.split(',').map(Number);
+    let llega = 0;
+    for (let i = 0; i < recibidos.length; i += 4) {
+      if (recibidos[i] === r && recibidos[i + 1] === g && recibidos[i + 2] === b && recibidos[i + 3] >= 102) llega++;
+    }
+    assert.equal(llega, n, k + ' tiene que llegar entero, no solo unas pocas piezas');
+  }
+  for (let i = 0; i < px.length; i += 4) {
+    assert.equal(recibidos[i], px[i]);
+    assert.equal(recibidos[i + 1], px[i + 1]);
+    assert.equal(recibidos[i + 2], px[i + 2]);
+    assert.equal(recibidos[i + 3], px[i + 3]);
+  }
+  const cabeza = (8 * LIENZO_W + 10) * 4;
+  const torso = (48 * LIENZO_W + 40) * 4;
+  const brazo = (52 * LIENZO_W + 70) * 4;
+  const pierna = (100 * LIENZO_W + 58) * 4;
+  assert.notEqual(px[cabeza], px[torso]);
+  assert.notEqual(px[torso], px[brazo]);
+  assert.notEqual(px[brazo], px[pierna]);
+  assert.match(html, /crearMallaSkin\(visto, reposo\)/);
+  assert.match(html, /toneMapped: false/);
+  const materiales = html.match(/new THREE\.MeshBasicMaterial\(\{ map: tex, transparent: true, alphaTest: 0\.4, depthWrite: true, side: THREE\.DoubleSide, toneMapped: false \}\)/g);
+  assert.ok(materiales && materiales.length >= 2, 'el cuerpo y las manos salen con el color pintado');
+});
+
 test('al pegar la mano avanza y vuelve', () => {
   assert.equal(avanceDeGolpe(0), 0);
   assert.ok(Math.abs(avanceDeGolpe(1)) < 1e-9, 'al empezar y al terminar está atrás');

@@ -2198,7 +2198,7 @@ function soltarManoVista(clave) {
 function planoMano(recorte, pose) {
   if (!recorte || !recorte.n) return null;
   const tex = texturaDeImagen(recorte.px, recorte.w, recorte.h);
-  const material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, depthWrite: true, side: THREE.DoubleSide });
+  const material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, depthWrite: true, side: THREE.DoubleSide, toneMapped: false });
   const aspecto = recorte.w / Math.max(1, recorte.h);
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(pose.tam * aspecto, pose.tam), material);
   mesh.position.set(pose.x, pose.y, pose.z);
@@ -2244,7 +2244,7 @@ function crearMallaSkin(pixeles, reposo) {
   geo.setAttribute('position', new THREE.BufferAttribute(reposo.posiciones.slice(), 3));
   geo.setAttribute('uv', new THREE.BufferAttribute(reposo.uvs, 2));
   geo.setIndex(new THREE.BufferAttribute(reposo.indices, 1));
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, depthWrite: true, side: THREE.DoubleSide });
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.4, depthWrite: true, side: THREE.DoubleSide, toneMapped: false });
   mat.skinPixels = pixeles;
   const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = false;

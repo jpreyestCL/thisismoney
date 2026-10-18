@@ -11,6 +11,7 @@ import {
   ALARMA_BANCO_SEG, empezarAlarmaBanco, tickAlarmaBanco,
   PRENDA_FACTOR, CAMUFLAJE_FACTOR, ritmoPorRopa, alcancePolicia, alcanceDelacion, policiaMarcaPorVer, tickDelacion,
   OYE_GOLPE, golpeSeEntera, persecucionSiCaen,
+  PISTOLA_POLICIA, armaPolicia, policiaContesta, tickPistolaPolicia,
   enCerroNieve, lejosDeLaCiudad, nacimientoPolicia, naceJuntoAlJugador, puedeReponerPolicia, cuantosNacen,
   reubicarParaAlcanzar, metaPoliciaLadron, CAMINO_CERRO,
   cobrarTitoAuto,
@@ -308,7 +309,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /id="modoLadronBtn"/);
   assert.match(html, /MODO LADRÓN/);
   assert.match(html, /id="pauseLadron"/);
-  assert.match(html, /modo-ladron\.js\?v=16/);
+  assert.match(html, /modo-ladron\.js\?v=17/);
   assert.match(html, /tickLlamada\(/);
   assert.match(html, /compraTeMarca\(/);
   assert.match(html, /mostrarCartel\(/);
@@ -319,8 +320,8 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /puedeComprarRopa\(/);
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
-  assert.match(sw, /modo-ladron\.js\?v=16/);
-  assert.match(sw, /const VERSION = 'tim-v122'/);
+  assert.match(sw, /modo-ladron\.js\?v=17/);
+  assert.match(sw, /const VERSION = 'tim-v123'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -698,4 +699,65 @@ test('la bóveda no se abre con la cajera viva y matarla es un golpe', () => {
   assert.match(html, /if \(!state\.cajeraMuerta\) state\.bovedaAbierta = false/);
   const golpes = html.split('oficialesYCajera()').length - 1;
   assert.ok(golpes >= 3, 'puños, balas y flechas pasan por la misma lista que la policía');
+});
+
+test('al recibir un disparo el policía contesta con la pistola', () => {
+  assert.equal(PISTOLA_POLICIA.dano, 9);
+  assert.equal(PISTOLA_POLICIA.alcance, 60);
+  assert.ok(PISTOLA_POLICIA.cadencia >= 0.3, 'hay espera entre tiros');
+  assert.ok(PISTOLA_POLICIA.recarga >= 1, 'el cargador vacío se recarga');
+  assert.ok(PISTOLA_POLICIA.cargador > 1);
+  assert.ok(PISTOLA_POLICIA.dano < 100, 'un tiro no mata: el jugador tiene 100 de vida');
+
+  assert.equal(policiaContesta({ golpeado: true, distancia: 12, disparo: true, aTiro: true }), true);
+  assert.equal(policiaContesta({ golpeado: false, distancia: 18, disparo: true, aTiro: true }), true, 'si disparas y te tiene a tiro, contesta');
+  assert.equal(policiaContesta({ golpeado: true, distancia: 80, disparo: true, aTiro: false }), false, 'fuera del alcance de su pistola no alcanza a devolver el tiro');
+  assert.equal(policiaContesta({ golpeado: false, distancia: 8, disparo: false, aTiro: true }), false);
+  assert.equal(policiaContesta({ golpeado: false, distancia: 10, disparo: true, aTiro: false }), false, 'sin línea de tiro no contesta un fallo');
+
+  const uno = tickPistolaPolicia(armaPolicia(), 0.016, true, false);
+  assert.equal(uno.disparo, true);
+  assert.equal(uno.fogonazo, true);
+  assert.equal(uno.trazadora, true);
+  assert.equal(uno.dano, 9);
+  assert.ok(uno.dano < 100);
+
+  const seguido = tickPistolaPolicia(uno.arma, 0.016, true, false);
+  assert.equal(seguido.disparo, false, 'no dispara cada frame');
+
+  const luego = tickPistolaPolicia(seguido.arma, PISTOLA_POLICIA.cadencia, true, false);
+  assert.equal(luego.disparo, true);
+  assert.equal(luego.dano, 9);
+
+  const crea = tickPistolaPolicia(armaPolicia(), 0, true, true);
+  assert.equal(crea.disparo, true);
+  assert.equal(crea.fogonazo, true);
+  assert.equal(crea.trazadora, true);
+  assert.equal(crea.dano, 0, 'en creativo la bala se ve pero no baja vida');
+
+  let a = armaPolicia();
+  let tiros = 0;
+  for (let i = 0; i < 40; i++) {
+    const r = tickPistolaPolicia(a, PISTOLA_POLICIA.cadencia, true, false);
+    a = r.arma;
+    if (r.disparo) tiros++;
+    if (r.recargando && !r.disparo) break;
+  }
+  assert.equal(tiros, PISTOLA_POLICIA.cargador);
+  const enRecarga = tickPistolaPolicia(a, 0.05, true, false);
+  assert.equal(enRecarga.disparo, false);
+  const listo = tickPistolaPolicia(enRecarga.arma, PISTOLA_POLICIA.recarga, true, false);
+  assert.equal(listo.arma.recarga, 0);
+  assert.equal(listo.arma.balas, PISTOLA_POLICIA.cargador);
+  const otra = tickPistolaPolicia(listo.arma, 0, true, false);
+  assert.equal(otra.disparo, true);
+
+  assert.match(html, /anotarTiroAPolicia\(oficialBala\.person\)/);
+  assert.match(html, /anotarTiroAPolicia\(null\)/);
+  assert.match(html, /function dispararPistolaPolicia\(p, dano\)/);
+  assert.match(html, /spawnTracer\(desde, hacia\)/);
+  assert.match(html, /if \(dano > 0 && !state\.creative\) damagePlayer\(dano, p\.position\)/);
+  assert.match(html, /tickPistolaPolicia\(p\.userData\.pistola, dt, contesta, !!state\.creative\)/);
+  assert.match(html, /policiaContesta\(\{/);
+  assert.match(html, /actualizarPistolasPolicia\(dt, tiro\)/);
 });

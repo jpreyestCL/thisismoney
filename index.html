@@ -1365,7 +1365,7 @@ import { AVENIDAS, CALLE, CERROS, CONDOMINIO, DISTRITOS, EJE_VEREDA, LUGARES, MA
 import { avanzarPrecipitacion, charcosTrasLluvia, quedaNieve, techoEn } from './src/clima-techo.js?v=1';
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
-import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=16';
+import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia, PISTOLA_POLICIA, armaPolicia, policiaContesta, tickPistolaPolicia } from './src/modo-ladron.js?v=17';
 import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, VIBRA_ATERRIZAJE, aplicarPesosDeDibujo, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, giroDeGolpe, lienzoNuevo, pintar, posarDibujo, poseCorrer, poseSaltar, recorteBrazoBlanco, recorteManos, restaurar, serializar, vestirSobreSkin, vibrarBrazos, vibrarPiernas } from './src/skin-dibujo.js?v=11';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -2624,7 +2624,14 @@ function poseGolpeCuerpo() {
   l.armR.rotation.x = golpe.x;
   l.armR.rotation.z = golpe.z;
 }
+let encuadrePolicia = null;
 function updatePlayerCamera(dt) {
+  if (encuadrePolicia) {
+    playerAvatar.visible = false; viewmodel.visible = false;
+    camera.position.set(encuadrePolicia.x, encuadrePolicia.y, encuadrePolicia.z);
+    camera.lookAt(encuadrePolicia.tx, encuadrePolicia.ty, encuadrePolicia.tz);
+    return;
+  }
   if (state.cinematic) { playerAvatar.visible = false; viewmodel.visible = false; return; }
   viewmodel.visible = cameraMode === 0;
   // En 1ª persona tu cuerpo NO se dibuja en tu vista (la cámara queda dentro de la cabeza y veías
@@ -6106,10 +6113,11 @@ function spawnPolice(n) {
     const tag = makeSign('POLICIA', 0x60a5fa); tag.scale.set(.5, .5, .5); tag.position.set(0, 3, 0); p.add(tag);
     // salen por el PORTÓN de la cárcel (no de cualquier parte), con un poco de dispersión
     p.position.set(JAIL_GATE.x + (Math.random() * 8 - 4), 0, JAIL_GATE.z + Math.random() * 3);
+    ponerPistolaPolicia(p);
     scene.add(p); police.push(p);
   }
 }
-function clearPolice() { police.forEach(p => { if (p.userData.car) scene.remove(p.userData.car); scene.remove(p); }); police.length = 0; }
+function clearPolice() { police.forEach(p => { if (p.userData.car) scene.remove(p.userData.car); scene.remove(p); }); police.length = 0; limpiarFogonazosPolicia(); }
 // Le engancha (o le quita) un auto patrulla con sirena al policía según si vas conduciendo
 function setPoliceCar(p, driving) {
   if (driving && !p.userData.car) {
@@ -6411,6 +6419,7 @@ function spawnPoliciaLadron() {
   helm.position.y = 2.35; p.add(helm);
   p.position.set(nacio.x + (Math.random() * 3 - 1.5), 0, nacio.z + Math.random() * 2);
   p.userData.hp = VIDA_POLICIA; p.userData.oficial = true;
+  ponerPistolaPolicia(p);
   p.userData.ox = p.position.x; p.userData.oz = p.position.z; p.userData.giro = Math.random() * Math.PI * 2;
   p.userData.tramo = 0;
   scene.add(p); police.push(p);
@@ -6543,15 +6552,152 @@ function gunRaycastOficial(from, dir, range) {
   }
   return best ? { person: best, head: bestHead, point: bestPoint, dist: bestT } : null;
 }
+// La bala del jugador (o un disparo con el policía a tiro) hace que ESE policía
+// conteste con su pistola: fogonazo, trazadora y daño. Cadencia y recarga, no cada frame.
+let tiroAPolicia = null;
+const fogonazosPolicia = [];
+function anotarTiroAPolicia(person) {
+  if (!state.modoLadron) { tiroAPolicia = null; return; }
+  if (!tiroAPolicia) tiroAPolicia = { golpeado: null };
+  if (person) tiroAPolicia.golpeado = person;
+}
+function ponerPistolaPolicia(p) {
+  if (!p || p.userData.pistolaMesh || p.userData.cajera) return;
+  const arma = new THREE.Group();
+  const corredera = new THREE.Mesh(new THREE.BoxGeometry(.08, .09, .36), mat(0x1f2937));
+  corredera.position.set(0, 0, .12); arma.add(corredera);
+  const cacha = new THREE.Mesh(new THREE.BoxGeometry(.07, .16, .08), mat(0x44403c));
+  cacha.position.set(0, -.1, -.02); arma.add(cacha);
+  const arm = p.userData.limbs && p.userData.limbs.armR;
+  if (arm) { arma.position.set(.02, -.92, .2); arm.add(arma); }
+  else { arma.position.set(.38, 1.15, .32); p.add(arma); }
+  p.userData.pistolaMesh = arma;
+}
+function posePistolaPolicia(p) {
+  if (!p || (p.userData.apunta || 0) <= 0) return;
+  const arm = p.userData.limbs && p.userData.limbs.armR;
+  if (!arm) return;
+  arm.rotation.x = -1.5; arm.rotation.z = -0.12;
+}
+function limpiarFogonazosPolicia() {
+  for (const f of fogonazosPolicia) {
+    if (f.m) scene.remove(f.m);
+    if (f.luz) scene.remove(f.luz);
+  }
+  fogonazosPolicia.length = 0;
+}
+function updateFogonazosPolicia(dt) {
+  for (let i = fogonazosPolicia.length - 1; i >= 0; i--) {
+    const f = fogonazosPolicia[i];
+    f.t -= dt;
+    const k = f.vida > 0 ? Math.max(0, f.t / f.vida) : 0;
+    if (f.t <= 0) {
+      if (f.m) scene.remove(f.m);
+      if (f.luz) scene.remove(f.luz);
+      fogonazosPolicia.splice(i, 1);
+      continue;
+    }
+    if (f.m && f.m.material) f.m.material.opacity = Math.min(1, k);
+    if (f.luz) f.luz.intensity = 4 * k;
+  }
+}
+function dispararPistolaPolicia(p, dano) {
+  ponerPistolaPolicia(p);
+  p.userData.apunta = 0.4;
+  p.rotation.y = Math.atan2(player.position.x - p.position.x, player.position.z - p.position.z);
+  posePistolaPolicia(p);
+  p.updateMatrixWorld(true);
+  const desde = new THREE.Vector3();
+  if (p.userData.pistolaMesh) p.userData.pistolaMesh.getWorldPosition(desde);
+  else desde.set(p.position.x, p.position.y + 1.35, p.position.z);
+  const hacia = player.position.clone(); hacia.y -= .35;
+  const dirv = new THREE.Vector3().subVectors(hacia, desde);
+  const total = dirv.length() || 1;
+  dirv.multiplyScalar(1 / total);
+  desde.addScaledVector(dirv, .2);
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 1 }));
+  flash.position.copy(desde); scene.add(flash);
+  const luz = new THREE.PointLight(0xfff1a8, 4, 9);
+  luz.position.copy(desde); scene.add(luz);
+  const largo = Math.min(5.5, Math.max(1.4, total * .7));
+  const rastro = new THREE.Mesh(new THREE.CylinderGeometry(.02, .06, largo, 6), new THREE.MeshBasicMaterial({ color: 0xfff4b0, transparent: true, opacity: 1 }));
+  rastro.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirv);
+  rastro.position.copy(desde).addScaledVector(dirv, largo * .5);
+  scene.add(rastro);
+  fogonazosPolicia.push({ m: flash, luz, t: .22, vida: .22 });
+  fogonazosPolicia.push({ m: rastro, luz: null, t: .2, vida: .2 });
+  spawnTracer(desde, hacia);
+  beep(210, .07, .05);
+  if (dano > 0 && !state.creative) damagePlayer(dano, p.position);
+}
+function policiaLoTieneATiro(p) {
+  if (!p || p.userData.muerto || p.userData.cajera) return false;
+  if (playerInSmoke()) return false;
+  const d = dist2D(p.position, player.position);
+  if (!(d >= 0) || d > PISTOLA_POLICIA.alcance) return false;
+  if (d <= 3) return true;
+  const pasos = Math.max(2, Math.ceil(d / 3));
+  for (let i = 1; i < pasos; i++) {
+    const k = i / pasos;
+    if (k < .12 || k > .88) continue;
+    const x = p.position.x + (player.position.x - p.position.x) * k;
+    const z = p.position.z + (player.position.z - p.position.z) * k;
+    if (obstacleAt(x, z, 1.1, .15)) return false;
+  }
+  return true;
+}
+function esPoliciaArmado(p) {
+  return !!(p && !p.userData.cajera && (police.includes(p) || mallGuardias.includes(p)));
+}
+function policiaQueContesta(tiro) {
+  if (!tiro) return null;
+  const golpeado = tiro.golpeado;
+  if (esPoliciaArmado(golpeado) && !golpeado.userData.muerto) {
+    const d = dist2D(golpeado.position, player.position);
+    if (policiaContesta({ golpeado: true, distancia: d, disparo: true, aTiro: false })) return golpeado;
+  }
+  let best = null, bestD = Infinity;
+  for (const p of police.concat(mallGuardias)) {
+    if (!p || p.userData.muerto || p.userData.cajera) continue;
+    if (!p.visible && !p.userData.car) continue;
+    if (!policiaLoTieneATiro(p)) continue;
+    const d = dist2D(p.position, player.position);
+    if (!policiaContesta({ golpeado: false, distancia: d, disparo: true, aTiro: true })) continue;
+    if (d < bestD) { best = p; bestD = d; }
+  }
+  return best;
+}
+function actualizarPistolasPolicia(dt, tiro) {
+  const elegido = policiaQueContesta(tiro);
+  for (const p of police.concat(mallGuardias)) {
+    if (!p || p.userData.muerto || p.userData.cajera) continue;
+    if ((p.userData.apunta || 0) > 0) p.userData.apunta = Math.max(0, p.userData.apunta - dt);
+    if (!p.userData.pistola) p.userData.pistola = armaPolicia();
+    const contesta = p === elegido;
+    const r = tickPistolaPolicia(p.userData.pistola, dt, contesta, !!state.creative);
+    p.userData.pistola = r.arma;
+    if (r.disparo) dispararPistolaPolicia(p, r.dano);
+    posePistolaPolicia(p);
+  }
+}
 function updatePoliciaLadron(dt) {
+  const tiro = tiroAPolicia; tiroAPolicia = null;
+  let pistolasListas = false;
+  const conPistolas = () => {
+    if (pistolasListas) return;
+    pistolasListas = true;
+    actualizarPistolasPolicia(dt, tiro);
+    updateFogonazosPolicia(dt);
+  };
   updateCajeraCaida(dt);
   if (state.planet !== 'tierra' || state.country) {
     if (police.length) clearPolice();
     asegurarFaroles(false);
+    updateFogonazosPolicia(dt);
     return;
   }
   asegurarFaroles(true);
-  if (state.cellArrest) return;
+  if (state.cellArrest) { updateFogonazosPolicia(dt); return; }
   let policiasAvisadas = false;
   if ((state.alarmaBanco || 0) > 0) {
     const alarma = tickAlarmaBanco(state.alarmaBanco, dt);
@@ -6614,7 +6760,7 @@ function updatePoliciaLadron(dt) {
       const speed = velocidadPolicia(state.driving ? 18 : 7.4, true);
       const d = dist2D(p.position, player.position);
       const puedeAtrapar = yaPersigue && !state.ladronLimpio && !(state.sueltaPolicia > 0);
-      if (atrapaPolicia(puedeAtrapar, d, true, !!state.driving) && !playerAirborne()) { policeCatch(); return; }
+      if (atrapaPolicia(puedeAtrapar, d, true, !!state.driving) && !playerAirborne()) { conPistolas(); policeCatch(); return; }
       moveToward(p, destino, speed * dt);
       p.rotation.y = Math.atan2(destino.x - p.position.x, destino.z - p.position.z);
       setPoliceCar(p, !!state.driving && !enCerro);
@@ -6647,11 +6793,12 @@ function updatePoliciaLadron(dt) {
     if (!g.userData.persigue) continue;
     const d = dist2D(g.position, player.position);
     const puedeAtrapar = yaPersigue && g.userData.persigue && !state.ladronLimpio && !(state.sueltaPolicia > 0);
-    if (atrapaPolicia(puedeAtrapar, d, true, false) && !playerAirborne()) { policeCatch(); return; }
+    if (atrapaPolicia(puedeAtrapar, d, true, false) && !playerAirborne()) { conPistolas(); policeCatch(); return; }
     moveToward(g, player.position, velocidadPolicia(6.2, true) * dt);
     g.rotation.y = Math.atan2(player.position.x - g.position.x, player.position.z - g.position.z);
     swingLimbs(g, dt);
   }
+  conPistolas();
 }
 function cajaDePagoCerca() {
   if (!state.modoLadron || state.planet !== 'tierra' || state.country) return null;
@@ -13687,6 +13834,7 @@ function updateMall(dt) {
     const mira = g.userData.haciaB ? g.userData.b : g.userData.a;
     g.rotation.y = Math.atan2(mira.x - g.position.x, mira.z - g.position.z);
     swingLimbs(g, dt);
+    posePistolaPolicia(g);
   }
   if (sitOn && sitOn.mallCine && state.phase === 'DAY') {
     mallCineT += dt;
@@ -13709,6 +13857,7 @@ function mallGuardia(x, z, ax, az, bx, bz) {
   gorra.position.y = 2.38; p.add(gorra);
   const placa = new THREE.Mesh(new THREE.BoxGeometry(.16, .12, .04), mat(0xfacc15));
   placa.position.set(.2, 1.5, .24); p.add(placa);
+  ponerPistolaPolicia(p);
   scene.add(p);
   mallGuardias.push(p);
   return p;
@@ -24302,6 +24451,7 @@ function fireGun(spec) {
   if (gunCd > 0) return true;
   if ((state.clip || 0) <= 0) { startReload(true) || beep(110, .1, .05); return true; }
   gunCd = spec.rate; state.clip--; gunIdle = 0;
+  anotarTiroAPolicia(null);
   vmSwing = .6; gunFlash = .06; cameraShake = Math.max(cameraShake, spec.kind === 'shotgun' ? .3 : .16);
   beep(spec.kind === 'shotgun' ? 130 : 240, .09, .06); vibr(25);
   const dir = new THREE.Vector3(); getAimDirection(dir);
@@ -24313,6 +24463,7 @@ function fireGun(spec) {
     const dmgBala = Math.round(spec.dmg * (oficialBala.head ? spec.head : 1));
     spawnTracer(from, oficialBala.point.clone());
     voxelImpact(oficialBala.point.clone(), 0xfecaca, 8);
+    anotarTiroAPolicia(oficialBala.person);
     pegarOficial(oficialBala.person, dmgBala);
     if ((state.clip || 0) <= 0) startReload(true);
     return true;
@@ -25926,6 +26077,51 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.cajeraCaida = () => ({ muerta: !!state.cajeraMuerta, llega: +(state.cajeraLlega || 0).toFixed(2), viva: cajeraViva(), abierta: !!state.bovedaAbierta, cuerpo: !!(cajeraCuerpo && cajeraCuerpo.visible), reemplazo: !!cajeraReemplazo, y: cajeraCuerpo ? +cajeraCuerpo.position.y.toFixed(2) : null });
   timDump.pintar = () => { renderHUD(); };
   timDump.jugar = () => { setProfile('Piel'); startGame(); return true; };
+  timDump.respuestaPolicia = () => {
+    menuModoLadron = true;
+    if (!state.running) startGame();
+    state.modoLadron = true;
+    state.creative = false;
+    state.phase = 'DAY';
+    state.paused = true;
+    state.dayTime = currentDayLength() * 0.45;
+    state.wanted = 0; state.cellArrest = null;
+    const intro = ui('intro'); if (intro) intro.style.display = 'none';
+    ui('start').classList.add('hidden');
+    clearPolice();
+    const x = 0, z = 62;
+    player.position.set(x, PLAYER_EYE, z); vy = 0; grounded = true;
+    dad.visible = false;
+    yaw = Math.PI; pitch = -0.08; cameraMode = 0;
+    state.guns = { bm_pistola: true }; state.gun = 'bm_pistola';
+    state.clip = GUN_CLIP; state.ammo = 40; state.reloadT = 0; gunCd = 0;
+    state.hp = 100;
+    for (const c of traffic) c.visible = false;
+    for (const c of parkedCars) if (Math.abs(c.position.x) < 12 && c.position.z > 50 && c.position.z < 90) c.visible = false;
+    const p = spawnPoliciaLadron();
+    const cz = z + 12;
+    p.position.set(x, mountainHeightAt(x, cz), cz);
+    p.userData.hp = VIDA_POLICIA; p.userData.muerto = false; p.visible = true;
+    p.userData.pistola = armaPolicia();
+    updatePlayerCamera(0);
+    const antes = state.hp;
+    const vida = p.userData.hp;
+    fireGun(GUN_SPECS.bm_pistola);
+    updatePoliciaLadron(0.016);
+    for (let i = 0; i < 28; i++) updateSky(0.25);
+    posePistolaPolicia(p);
+    p.updateMatrixWorld(true);
+    encuadrePolicia = { x: p.position.x, y: 1.32, z: p.position.z - 8.4, tx: p.position.x, ty: 1.62, tz: p.position.z };
+    camera.position.set(encuadrePolicia.x, encuadrePolicia.y, encuadrePolicia.z);
+    camera.lookAt(encuadrePolicia.tx, encuadrePolicia.ty, encuadrePolicia.tz);
+    renderer.render(scene, camera);
+    return {
+      vida: p.userData.hp, antesVida: vida, hp: state.hp, antes,
+      balas: p.userData.pistola && p.userData.pistola.balas,
+      fogonazos: fogonazosPolicia.length, trazas: bullets.length,
+      x: +p.position.x.toFixed(2), z: +p.position.z.toFixed(2),
+    };
+  };
   timDump.abrirEditorSkin = () => { abrirEditorSkin(); return ui('skinbox').style.display; };
   timDump.ponerRopa = (id) => {
     state.modoLadron = true; state.creative = true; state.money = 5000;

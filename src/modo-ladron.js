@@ -354,6 +354,63 @@ export function impactoOficial(desde, dir, pies, alcance, ancho) {
   return { dist: tc, cabeza: hy >= py + 1.7 };
 }
 
+// La pistola del policía se parece a la del callejón: 9 de daño y 60 m.
+// No dispara cada frame: espera entre tiros, gasta el cargador y recarga.
+// 9 no alcanza para matar de un tiro (el jugador tiene 100 de vida).
+export const PISTOLA_POLICIA = Object.freeze({
+  dano: 9,
+  alcance: 60,
+  cadencia: 0.45,
+  cargador: 8,
+  recarga: 2.4,
+});
+
+export function armaPolicia() {
+  return { espera: 0, balas: PISTOLA_POLICIA.cargador, recarga: 0 };
+}
+
+// Contesta si la bala le pegó y está a tiro de su pistola, o si el jugador
+// disparó y este policía lo tiene a tiro (dentro del alcance).
+export function policiaContesta(opts) {
+  const o = opts || {};
+  const d = Number(o.distancia);
+  if (!(d >= 0) || d > PISTOLA_POLICIA.alcance) return false;
+  if (o.golpeado) return true;
+  return !!(o.disparo && o.aTiro);
+}
+
+// Avanza cadencia y recarga. `contesta` es el disparo de este instante.
+// En creativo la pistola igual suelta fogonazo y trazadora, pero el daño es 0.
+export function tickPistolaPolicia(arma, dt, contesta, creativo) {
+  const base = arma && typeof arma === 'object' ? arma : armaPolicia();
+  const a = {
+    espera: Math.max(0, Number(base.espera) || 0),
+    balas: base.balas == null ? PISTOLA_POLICIA.cargador : Math.max(0, base.balas | 0),
+    recarga: Math.max(0, Number(base.recarga) || 0),
+  };
+  const paso = Math.max(0, Number(dt) || 0);
+  if (a.recarga > 0) {
+    a.recarga = Math.max(0, a.recarga - paso);
+    a.espera = Math.max(0, a.espera - paso);
+    if (a.recarga <= 0) { a.balas = PISTOLA_POLICIA.cargador; a.espera = 0; }
+    return { arma: a, disparo: false, dano: 0, fogonazo: false, trazadora: false, recargando: a.recarga > 0 };
+  }
+  a.espera = Math.max(0, a.espera - paso);
+  if (!contesta || a.espera > 0) {
+    return { arma: a, disparo: false, dano: 0, fogonazo: false, trazadora: false, recargando: false };
+  }
+  if (a.balas <= 0) {
+    a.recarga = PISTOLA_POLICIA.recarga;
+    return { arma: a, disparo: false, dano: 0, fogonazo: false, trazadora: false, recargando: true };
+  }
+  a.balas -= 1;
+  a.espera = PISTOLA_POLICIA.cadencia;
+  const vacio = a.balas <= 0;
+  if (vacio) a.recarga = PISTOLA_POLICIA.recarga;
+  const dano = creativo ? 0 : Math.min(PISTOLA_POLICIA.dano, 99);
+  return { arma: a, disparo: true, dano, fogonazo: true, trazadora: true, recargando: vacio };
+}
+
 export function deudaTito(night, pagadoHasta) {
   const n = Math.max(0, night | 0);
   const p = Math.max(0, Math.min(pagadoHasta | 0, n));

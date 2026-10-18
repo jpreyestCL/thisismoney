@@ -1366,7 +1366,7 @@ import { avanzarPrecipitacion, charcosTrasLluvia, quedaNieve, techoEn } from './
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=16';
-import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, VIBRA_ATERRIZAJE, aplicarPesosDeDibujo, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, giroDeGolpe, lienzoNuevo, pintar, posarDibujo, poseCorrer, poseSaltar, recorteBrazoBlanco, recorteManos, restaurar, serializar, vestirSobreSkin, vibrarBrazos } from './src/skin-dibujo.js?v=10';
+import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, VIBRA_ATERRIZAJE, aplicarPesosDeDibujo, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, giroDeGolpe, lienzoNuevo, pintar, posarDibujo, poseCorrer, poseSaltar, recorteBrazoBlanco, recorteManos, restaurar, serializar, vestirSobreSkin, vibrarBrazos, vibrarPiernas } from './src/skin-dibujo.js?v=11';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -1974,7 +1974,7 @@ function makeViewmodel() {
 }
 const viewmodel = makeViewmodel();
 camera.add(viewmodel);
-let vmSwing = 0, vmBob = 0, vmToolOverride = 0, weaponVisualColor = 0x94a3b8;
+let vmSwing = 0, vmBob = 0, manoBob = 0, vmToolOverride = 0, weaponVisualColor = 0x94a3b8;
 
 // ===================================================================
 //  PERSONAS (papá, enemigos, vendedor, mamá, ayudantes)
@@ -2248,10 +2248,15 @@ function poseManosVista(bob, sw) {
   const d = viewmodel.userData.manoD;
   const i = viewmodel.userData.manoI;
   const D = POSE_MANO.derecha, I = POSE_MANO.izquierda;
+  const brazo = playerAvatar && playerAvatar.userData.limbs && playerAvatar.userData.limbs.armR;
+  const ax = (brazo && brazo.rotation && brazo.rotation.x) || 0;
+  // Con el puño en marcha manda el golpe. Si no, el palo sigue el balanceo
+  // de correr y el temblor del aterrizaje (el mismo giro que el cuerpo).
+  const balanceo = sw > 0.05 ? 0 : Math.max(-0.9, Math.min(0.9, ax * 0.62));
   if (d) {
     d.visible = ver;
-    d.position.set(D.x, D.y + bob, D.z - avanceDeGolpe(sw) * GOLPE_ADELANTE);
-    d.rotation.set(D.rotX - sw * 1.4, D.rotY, D.rotZ);
+    d.position.set(D.x + balanceo * 0.18, D.y + bob + balanceo * 0.32, D.z - avanceDeGolpe(sw) * GOLPE_ADELANTE);
+    d.rotation.set(D.rotX - sw * 1.4, D.rotY, D.rotZ + balanceo);
   }
   if (i) {
     i.visible = ver;
@@ -2552,17 +2557,26 @@ function aplicarPoseLibre(l, p) {
   l.armL.rotation.z = p.armZL; l.armR.rotation.z = p.armZR;
   l.legL.rotation.x = p.legL; l.legR.rotation.x = p.legR;
 }
+function ponerVibraPiernas(l, v) {
+  if (l.legL) l.legL.vibra = v;
+  if (l.legR) l.legR.vibra = v;
+}
 function poseCuerpoJugador(dt) {
   const av = playerAvatar, l = av && av.userData.limbs;
   if (!l || !l.armL || !l.armR) return;
   cuerpoCorre = false;
-  if (cuerpoFoto === 'corre') { cuerpoCorre = true; aplicarPoseLibre(l, poseCorrer(Math.PI / 2)); return; }
-  if (cuerpoFoto === 'salta') { aplicarPoseLibre(l, poseSaltar(8)); return; }
+  if (cuerpoFoto === 'corre') { cuerpoCorre = true; ponerVibraPiernas(l, 0); aplicarPoseLibre(l, poseCorrer(Math.PI / 2)); return; }
+  if (cuerpoFoto === 'salta') {
+    aplicarPoseLibre(l, poseSaltar(8));
+    ponerVibraPiernas(l, vibrarPiernas(0.03));
+    return;
+  }
   if (cuerpoFoto === 'cae') {
-    const v = vibrarBrazos(0.04, VIBRA_ATERRIZAJE);
+    ponerVibraPiernas(l, 0);
+    const v = vibrarBrazos(0, VIBRA_ATERRIZAJE);
     l.armL.rotation.x = 0.15 + v; l.armR.rotation.x = 0.15 - v;
     l.armL.rotation.z = 0.35; l.armR.rotation.z = -0.35;
-    l.legL.rotation.x = 0.2; l.legR.rotation.x = -0.15;
+    l.legL.rotation.x = 0; l.legR.rotation.x = 0;
     return;
   }
   const paso = dt || 0.016;
@@ -2576,19 +2590,25 @@ function poseCuerpoJugador(dt) {
   const enAire = libre && !grounded;
   if (cuerpoEnAire && !enAire && libre) cuerpoVibra = VIBRA_ATERRIZAJE;
   cuerpoEnAire = enAire;
-  if (!libre) { cuerpoVibra = 0; return; }
-  if (enAire) aplicarPoseLibre(l, poseSaltar(vy));
-  else if (quiereCorrer && moviendo) { cuerpoCorre = true; cuerpoFase += paso * 16; aplicarPoseLibre(l, poseCorrer(cuerpoFase)); }
-  else if (!av.visible) {
+  if (!libre) { cuerpoVibra = 0; ponerVibraPiernas(l, 0); return; }
+  if (enAire) {
+    aplicarPoseLibre(l, poseSaltar(vy));
+    cuerpoFase += paso * 34;
+    ponerVibraPiernas(l, vibrarPiernas(cuerpoFase));
+  } else if (quiereCorrer && moviendo) {
+    ponerVibraPiernas(l, 0);
+    cuerpoCorre = true; cuerpoFase += paso * 16; aplicarPoseLibre(l, poseCorrer(cuerpoFase));
+  } else if (!av.visible) {
+    ponerVibraPiernas(l, 0);
     l.armL.rotation.set(0, 0, 0); l.armR.rotation.set(0, 0, 0);
     l.legL.rotation.x = 0; l.legR.rotation.x = 0;
-  }
-  if (cuerpoVibra > 0) {
+  } else ponerVibraPiernas(l, 0);
+  if (cuerpoVibra > 0 && !enAire) {
     const v = vibrarBrazos(VIBRA_ATERRIZAJE - cuerpoVibra, VIBRA_ATERRIZAJE);
     l.armL.rotation.x += v;
     l.armR.rotation.x -= v;
     cuerpoVibra = Math.max(0, cuerpoVibra - paso);
-  }
+  } else if (enAire) cuerpoVibra = 0;
 }
 // El puñetazo del cuerpo: la mano derecha (dibujo o muñeco) sale y vuelve
 // en las tres cámaras. El arma de fuego se queda con su retroceso.
@@ -2629,6 +2649,9 @@ function updatePlayerCamera(dt) {
       playerAvatar.position.y += Math.abs(Math.sin(cuerpoFase || Math.PI / 2)) * 0.09;
     }
   }
+  // Después de posar el cuerpo, para que la mano de primera persona use
+  // el balanceo de este frame y no el del anterior.
+  poseManosVista(manoBob, Math.max(0, vmSwing));
   if (cameraMode === 0) {
     camera.position.copy(player.position);
     camera.rotation.set(pitch, yaw, 0);
@@ -26469,7 +26492,7 @@ function dadWalkBob(dt) {
 }
 function updateViewmodel(dt) {
   const moving = keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'] || touch.moveX || touch.moveY;
-  vmBob += moving ? dt * 9 : 0; const bob = moving ? Math.sin(vmBob) * 0.02 : 0;
+  vmBob += moving ? dt * 9 : 0; const bob = moving ? Math.sin(vmBob) * 0.02 : 0; manoBob = bob;
   if (vmSwing > 0) vmSwing -= dt * 5; const sw = Math.max(0, vmSwing);
   if (vmToolOverride > 0) { vmToolOverride = Math.max(0, vmToolOverride - dt); syncHeldTool('shovel'); }
   else syncHeldTool();

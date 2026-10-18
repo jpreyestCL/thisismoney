@@ -193,8 +193,7 @@ function giroXYZ(rx, ry, rz, x, y, z) {
 }
 
 // Escribe la pose en `out`. Con los pivotes en cero, `out` queda igual al reposo.
-// Un palo blanco con punta roja no gira en el hombro del muñeco: se traslada
-// entero, y el resto del dibujo se queda donde se pintó.
+// Un palo blanco con punta roja gira en la unión con la raya y no se suelta.
 export function posarMalla(reposo, limbs, out) {
   if (reposo && reposo.brazoBlanco) return posarBrazoBlanco(reposo, limbs, out);
   const pos = reposo.posiciones;
@@ -230,8 +229,24 @@ export function posarMalla(reposo, limbs, out) {
 
 const ceroRot = { x: 0, y: 0, z: 0 };
 
-// El palo gira en el punto donde se une a la raya. La punta sale hacia
-// adelante y el arranque se queda pegado: no se traslada ni cae al suelo.
+// El puño es el único giro con z = 0.3·x y el brazo adelantado. Ese se queda
+// saliendo hacia la cara. Correr y caer se ven de frente: el palo gira en
+// el plano del dibujo, en la misma unión, y no se cae al suelo.
+function esPunio(rot) {
+  const x = rot.x || 0, z = rot.z || 0;
+  return x < -0.4 && Math.abs(z - x * 0.3) < 0.08;
+}
+
+function clampAng(a, tope) {
+  if (a > tope) return tope;
+  if (a < -tope) return -tope;
+  return a;
+}
+
+// El palo gira en el punto donde se une a la raya. La punta del puño sale
+// hacia adelante; al correr y al caer se balancea en el plano del dibujo.
+// El arranque se queda pegado. Al saltar, las piernas (debajo de la cadera)
+// tiemblan un poco y el palo no se levanta.
 function posarBrazoBlanco(reposo, limbs, out) {
   const pos = reposo.posiciones;
   const pesos = reposo.pesos;
@@ -243,26 +258,46 @@ function posarBrazoBlanco(reposo, limbs, out) {
   const Jx = -ancho / 2 + (junta.x / LIENZO_W) * ancho;
   const Jy = FIGURA_BASE + FIGURA_ALTO * (1 - junta.y / LIENZO_H);
   const Jz = FIGURA_Z;
-  let sx = ((punta.x - junta.x) / LIENZO_W) * ancho;
-  let sy = -((punta.y - junta.y) / LIENZO_H) * FIGURA_ALTO;
-  const sl = Math.hypot(sx, sy) || 1;
-  sx /= sl; sy /= sl;
-  const hx = sy, hy = -sx;
-  let ang = -(rot.x || 0) * 0.62;
-  if (ang > 0.95) ang = 0.95;
-  if (ang < -0.95) ang = -0.95;
+  const punio = esPunio(rot);
+  let ang, hx = 0, hy = 0;
+  if (punio) {
+    let sx = ((punta.x - junta.x) / LIENZO_W) * ancho;
+    let sy = -((punta.y - junta.y) / LIENZO_H) * FIGURA_ALTO;
+    const sl = Math.hypot(sx, sy) || 1;
+    sx /= sl; sy /= sl;
+    hx = sy; hy = -sx;
+    ang = clampAng(-(rot.x || 0) * 0.62, 0.95);
+  } else {
+    ang = clampAng((rot.x || 0) * 1.05, 0.58);
+  }
   const c = Math.cos(ang), s = Math.sin(ang), t = 1 - c;
+  let vib = (limbs && limbs.legL && limbs.legL.vibra) || 0;
+  vib = clampAng(vib, 0.45);
+  const cv = Math.cos(vib), sv = Math.sin(vib);
+  const hipY = FIGURA_BASE + FIGURA_ALTO * (1 - 70 / LIENZO_H);
   for (let v = 0; v < nv; v++) {
     const o = v * 3;
     const x = pos[o], y = pos[o + 1], z = pos[o + 2];
-    if (pesos[v * 4 + 1] <= 0 || ang === 0) {
+    if (pesos[v * 4 + 1] > 0 && ang !== 0) {
+      if (punio) {
+        const dx = x - Jx, dy = y - Jy, dz = z - Jz;
+        out[o] = Jx + (t * hx * hx + c) * dx + (t * hx * hy) * dy + (s * hy) * dz;
+        out[o + 1] = Jy + (t * hx * hy) * dx + (t * hy * hy + c) * dy - (s * hx) * dz;
+        out[o + 2] = Jz - (s * hy) * dx + (s * hx) * dy + c * dz;
+      } else {
+        const dx = x - Jx, dy = y - Jy;
+        out[o] = Jx + c * dx - s * dy;
+        out[o + 1] = Jy + s * dx + c * dy;
+        out[o + 2] = z;
+      }
+    } else if (vib !== 0 && y < hipY - 0.001) {
+      const dy = y - hipY;
+      out[o] = x - sv * dy;
+      out[o + 1] = hipY + cv * dy;
+      out[o + 2] = z;
+    } else {
       out[o] = x; out[o + 1] = y; out[o + 2] = z;
-      continue;
     }
-    const dx = x - Jx, dy = y - Jy, dz = z - Jz;
-    out[o] = Jx + (t * hx * hx + c) * dx + (t * hx * hy) * dy + (s * hy) * dz;
-    out[o + 1] = Jy + (t * hx * hy) * dx + (t * hy * hy + c) * dy - (s * hx) * dz;
-    out[o + 2] = Jz - (s * hy) * dx + (s * hx) * dy + c * dz;
   }
   return out;
 }
@@ -922,12 +957,18 @@ export function poseCorrer(fase) {
   };
 }
 
-// Al subir, brazos arriba y rodillas encogidas. Al caer, el cuerpo se abre un poco.
+// Al saltar los brazos no se levantan y las rodillas no se encogen.
+// El temblor de las piernas lo pone vibrarPiernas, aparte de esta pose.
 export function poseSaltar(vy) {
-  if ((Number(vy) || 0) >= 0) {
-    return { armL: -2.4, armR: -2.4, legL: -1.1, legR: -1.1, armZL: 0.5, armZR: -0.5 };
-  }
-  return { armL: -0.85, armR: -0.85, legL: 0.35, legR: -0.2, armZL: 0.2, armZR: -0.2 };
+  void vy;
+  return { armL: 0, armR: 0, legL: 0, legR: 0, armZL: 0, armZR: 0 };
+}
+
+// Vaivén corto de las piernas mientras estás en el aire. No es una flexión:
+// la raya de abajo se inclina un poco y vuelve, sin doblarse.
+export function vibrarPiernas(t) {
+  if (!(t >= 0)) return 0;
+  return Math.sin(t * 52) * 0.38;
 }
 
 // Al tocar el suelo los brazos vibran un instante y después quedan quietos.

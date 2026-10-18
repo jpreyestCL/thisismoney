@@ -8,7 +8,7 @@ import {
   CORRER_BRAZO, FIGURA_ALTO, FIGURA_BASE, FIGURA_Z, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, PASO_BRAZO, POSE_MANO, VIBRA_ATERRIZAJE,
   anchoFigura, aplicarPesosDeDibujo, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, dentroDeSilueta, esDistinta, giroDeGolpe, indiceDe, influenciaDe, lienzoNuevo,
   mallaEnReposo, mezclarSobreSkin, parteEn, pintar, posarDibujo, posarMalla, poseCorrer, poseSaltar, recorteBrazoBlanco, recorteManos, restaurar, serializar,
-  vestirSobreSkin, vibrarBrazos,
+  vestirSobreSkin, vibrarBrazos, vibrarPiernas,
 } from '../src/skin-dibujo.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -472,9 +472,9 @@ test('el cartel SE BUSCA muestra la skin y no la cara humana', () => {
 });
 
 test('el juego pinta al jugador desde el inicio, guarda la skin y no cambia el balanceo', () => {
-  assert.match(html, /skin-dibujo\.js\?v=10/);
-  assert.match(sw, /skin-dibujo\.js\?v=10/);
-  assert.match(sw, /const VERSION = 'tim-v121'/);
+  assert.match(html, /skin-dibujo\.js\?v=11/);
+  assert.match(sw, /skin-dibujo\.js\?v=11/);
+  assert.match(sw, /const VERSION = 'tim-v122'/);
   assert.match(html, /m\.userData\.parte = parte; m\.userData\.superficie = true/);
   assert.match(html, /\{ parte: 'torso', superficie: true \}/);
   assert.match(html, /\{ parte: 'cabeza', superficie: true \}/);
@@ -581,17 +581,26 @@ test('correr, saltar y el aterrizaje mueven los brazos', () => {
   assert.ok(correr.legR * correr.armR < 0);
   assert.equal(CORRER_BRAZO, 1.25);
   const salto = poseSaltar(8);
-  assert.ok(salto.armR < -2, 'al saltar los brazos suben');
-  assert.ok(salto.legR < -0.8, 'al saltar las rodillas se encogen');
+  assert.ok(Math.abs(salto.armR) < 0.05, 'al saltar los brazos no se levantan');
+  assert.ok(Math.abs(salto.armL) < 0.05);
+  assert.ok(Math.abs(salto.legR) < 0.05, 'al saltar las piernas no se flexionan');
+  assert.ok(Math.abs(salto.legL) < 0.05);
   const caida = poseSaltar(-6);
-  assert.ok(caida.armR > salto.armR, 'caer no es la misma pose que subir');
+  assert.ok(Math.abs(caida.armR) < 0.05 && Math.abs(caida.legR) < 0.05, 'en el aire tampoco se doblan');
+  const temblor = vibrarPiernas(0.03);
+  assert.ok(Math.abs(temblor) > 0.25, 'al saltar las piernas vibran');
+  assert.ok(Math.abs(temblor) < 0.5, 'el temblor no es una flexión');
+  assert.equal(vibrarPiernas(-0.01), 0);
   assert.ok(Math.abs(vibrarBrazos(0, VIBRA_ATERRIZAJE)) > 0.2, 'al tocar el suelo los brazos vibran');
   assert.equal(vibrarBrazos(VIBRA_ATERRIZAJE, VIBRA_ATERRIZAJE), 0, 'la vibración dura un momento');
   assert.equal(vibrarBrazos(-0.01, VIBRA_ATERRIZAJE), 0);
   assert.match(html, /poseCorrer\(cuerpoFase\)/);
   assert.match(html, /poseSaltar\(vy\)/);
+  assert.match(html, /vibrarPiernas\(cuerpoFase\)/);
   assert.match(html, /cuerpoVibra = VIBRA_ATERRIZAJE/);
   assert.match(html, /vibrarBrazos\(VIBRA_ATERRIZAJE - cuerpoVibra, VIBRA_ATERRIZAJE\)/);
+  assert.match(html, /const balanceo = sw > 0\.05 \? 0 :/);
+  assert.match(html, /poseManosVista\(manoBob, Math\.max\(0, vmSwing\)\)/);
 });
 
 function rayaConPalo() {
@@ -703,6 +712,80 @@ test('el palo blanco con punta roja es el brazo y el dibujo no se desarma', () =
   assert.match(html, /aplicarPesosDeDibujo\(reposo, pixeles\)/);
   assert.match(html, /recorteBrazoBlanco\(crudo\)/);
   assert.match(html, /body\.touch\.recuadro #hud\s*\{[^}]*z-index:\s*20/);
+});
+
+test('el palo blanco se balancea al correr, vibra al caer y al saltar solo tiemblan las piernas', () => {
+  const reposo = mallaEnReposo();
+  assert.equal(aplicarPesosDeDibujo(reposo, rayaConPalo()), true);
+  const outA = new Float32Array(reposo.posiciones.length);
+  const outB = new Float32Array(reposo.posiciones.length);
+  const tx = -anchoFigura() / 2 + (reposo.punta.x / LIENZO_W) * anchoFigura();
+  const ty = FIGURA_BASE + FIGURA_ALTO * (1 - reposo.punta.y / LIENZO_H);
+  const jx = -anchoFigura() / 2 + (reposo.articulacion.x / LIENZO_W) * anchoFigura();
+  const jy = FIGURA_BASE + FIGURA_ALTO * (1 - reposo.articulacion.y / LIENZO_H);
+  const puntaDe = (arr) => {
+    let mejor = 1e9, p = { x: 0, y: 0, z: 0 };
+    for (let v = 0; v < reposo.pesos.length / 4; v++) {
+      if (reposo.pesos[v * 4 + 1] !== 1) continue;
+      const o = v * 3;
+      const d = Math.hypot(reposo.posiciones[o] - tx, reposo.posiciones[o + 1] - ty);
+      if (d < mejor) { mejor = d; p = { x: arr[o], y: arr[o + 1], z: arr[o + 2] }; }
+    }
+    return p;
+  };
+  const juntaMov = (arr) => {
+    let cerca = 1e9, movio = 1e9;
+    for (let v = 0; v < reposo.pesos.length / 4; v++) {
+      if (reposo.pesos[v * 4 + 1] !== 1) continue;
+      const o = v * 3;
+      const d = Math.hypot(reposo.posiciones[o] - jx, reposo.posiciones[o + 1] - jy);
+      if (d < cerca) {
+        cerca = d;
+        movio = Math.hypot(arr[o] - reposo.posiciones[o], arr[o + 1] - reposo.posiciones[o + 1], arr[o + 2] - reposo.posiciones[o + 2]);
+      }
+    }
+    return movio;
+  };
+  const ida = poseCorrer(Math.PI / 2);
+  const vuelta = poseCorrer(-Math.PI / 2);
+  posarMalla(reposo, { armR: { rotation: { x: ida.armR, y: 0, z: ida.armZR } } }, outA);
+  posarMalla(reposo, { armR: { rotation: { x: vuelta.armR, y: 0, z: vuelta.armZR } } }, outB);
+  const pa = puntaDe(outA), pb = puntaDe(outB);
+  assert.ok(Math.abs(pa.y - pb.y) > 0.35, 'al correr la punta sube y baja ' + (pa.y - pb.y));
+  assert.ok(Math.abs(pa.z - pb.z) < 0.08, 'el balanceo se ve de frente');
+  assert.ok(juntaMov(outA) < 0.2 && juntaMov(outB) < 0.2, 'al correr el palo sigue pegado');
+  let minY = 99;
+  for (let v = 0; v < reposo.pesos.length / 4; v++) {
+    if (reposo.pesos[v * 4 + 1] !== 1) continue;
+    if (outB[v * 3 + 1] < minY) minY = outB[v * 3 + 1];
+  }
+  assert.ok(minY > FIGURA_BASE + 0.15, 'al correr el palo no cae al suelo ' + minY);
+
+  const v0 = vibrarBrazos(0, VIBRA_ATERRIZAJE);
+  const v1 = vibrarBrazos(0.05, VIBRA_ATERRIZAJE);
+  posarMalla(reposo, { armR: { rotation: { x: 0.15 - v0, y: 0, z: -0.35 } } }, outA);
+  posarMalla(reposo, { armR: { rotation: { x: 0.15 - v1, y: 0, z: -0.35 } } }, outB);
+  const ca = puntaDe(outA), cb = puntaDe(outB);
+  assert.ok(Math.abs(ca.y - cb.y) > 0.15, 'al caer la punta vibra ' + (ca.y - cb.y));
+  assert.ok(Math.abs(ca.z - cb.z) < 0.08, 'la vibración del aterrizaje también se ve de frente');
+  assert.ok(juntaMov(outA) < 0.2, 'al caer el palo sigue pegado');
+
+  posarMalla(reposo, { armR: { rotation: { x: 0, y: 0, z: 0 } } }, outA);
+  const quieta = puntaDe(outA);
+  posarMalla(reposo, {
+    armR: { rotation: { x: poseSaltar(8).armR, y: 0, z: poseSaltar(8).armZR } },
+    legL: { vibra: vibrarPiernas(0.03), rotation: { x: 0, y: 0, z: 0 } },
+  }, outB);
+  const ps = puntaDe(outB);
+  assert.ok(Math.abs(ps.y - quieta.y) < 0.04, 'al saltar el palo no se levanta');
+  assert.ok(Math.abs(ps.x - quieta.x) < 0.04);
+  const pie = indiceDe(36, 100) * 3;
+  const pecho = indiceDe(36, 30) * 3;
+  assert.ok(Math.abs(outB[pie] - reposo.posiciones[pie]) > 0.12, 'las piernas se mueven al saltar');
+  assert.ok(Math.abs(outB[pie + 1] - reposo.posiciones[pie + 1]) < 0.2, 'la pierna no se encoge');
+  assert.ok(Math.abs(outB[pecho] - reposo.posiciones[pecho]) < 1e-4, 'el cuerpo de arriba se queda');
+  assert.ok(outB[pie + 1] > FIGURA_BASE + 0.05, 'el pie no llega al suelo');
+  assert.ok(juntaMov(outB) < 0.2, 'al saltar el palo sigue pegado');
 });
 
 test('el puño sin arma anima la mano aunque no haya monstruos, con y sin palo blanco', () => {

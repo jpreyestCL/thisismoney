@@ -474,7 +474,7 @@ test('el cartel SE BUSCA muestra la skin y no la cara humana', () => {
 test('el juego pinta al jugador desde el inicio, guarda la skin y no cambia el balanceo', () => {
   assert.match(html, /skin-dibujo\.js\?v=11/);
   assert.match(sw, /skin-dibujo\.js\?v=11/);
-  assert.match(sw, /const VERSION = 'tim-v123'/);
+  assert.match(sw, /const VERSION = 'tim-v124'/);
   assert.match(html, /m\.userData\.parte = parte; m\.userData\.superficie = true/);
   assert.match(html, /\{ parte: 'torso', superficie: true \}/);
   assert.match(html, /\{ parte: 'cabeza', superficie: true \}/);

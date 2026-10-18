@@ -321,7 +321,7 @@ test('el juego engancha el modo sin cambiar la celda de 1 minuto', () => {
   assert.match(html, /deudaTito\(/);
   assert.match(html, /SE BUSCA/);
   assert.match(sw, /modo-ladron\.js\?v=17/);
-  assert.match(sw, /const VERSION = 'tim-v123'/);
+  assert.match(sw, /const VERSION = 'tim-v124'/);
   assert.match(html, /function tryBoveda\(\) \{\n  if \(!state\.modoLadron\) return false;/);
   assert.match(html, /precioRegaloTito\(item\.price, !!state\.modoLadron, tipo\)/);
   assert.match(html, /resetBovedaPartida\(\)/);
@@ -760,4 +760,7 @@ test('al recibir un disparo el policía contesta con la pistola', () => {
   assert.match(html, /tickPistolaPolicia\(p\.userData\.pistola, dt, contesta, !!state\.creative\)/);
   assert.match(html, /policiaContesta\(\{/);
   assert.match(html, /actualizarPistolasPolicia\(dt, tiro\)/);
+  const cuerpoPistola = html.slice(html.indexOf('function ponerPistolaPolicia'), html.indexOf('function posePistolaPolicia'));
+  assert.match(cuerpoPistola, /makeHandGun\('pistol'/);
+  assert.doesNotMatch(cuerpoPistola, /new THREE\.BoxGeometry\(\.08, \.09, \.36\)/);
 });

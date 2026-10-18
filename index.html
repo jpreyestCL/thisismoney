@@ -6563,14 +6563,20 @@ function anotarTiroAPolicia(person) {
 }
 function ponerPistolaPolicia(p) {
   if (!p || p.userData.pistolaMesh || p.userData.cajera) return;
-  const arma = new THREE.Group();
-  const corredera = new THREE.Mesh(new THREE.BoxGeometry(.08, .09, .36), mat(0x1f2937));
-  corredera.position.set(0, 0, .12); arma.add(corredera);
-  const cacha = new THREE.Mesh(new THREE.BoxGeometry(.07, .16, .08), mat(0x44403c));
-  cacha.position.set(0, -.1, -.02); arma.add(cacha);
+  // La misma pistola del jugador (corredera, cachas, guardamonte y cañón), en acero oscuro.
+  const arma = makeHandGun('pistol', 0x334155, .7);
   const arm = p.userData.limbs && p.userData.limbs.armR;
-  if (arm) { arma.position.set(.02, -.92, .2); arm.add(arma); }
-  else { arma.position.set(.38, 1.15, .32); p.add(arma); }
+  if (arm) {
+    // makeHandGun deja el cañón en -Z y la cacha en -Y. Con el brazo al frente, esta
+    // rotación apunta el cañón hacia adelante y deja la cacha colgando, fuera del puño.
+    arma.rotation.set(-Math.PI / 2, 0, -Math.PI);
+    arma.position.set(.16, -1.02, -.2);
+    arm.add(arma);
+  } else {
+    arma.rotation.y = Math.PI;
+    arma.position.set(.42, 1.05, .28);
+    p.add(arma);
+  }
   p.userData.pistolaMesh = arma;
 }
 function posePistolaPolicia(p) {
@@ -26121,6 +26127,43 @@ try { if (new URLSearchParams(location.search).has('debug')) {
       fogonazos: fogonazosPolicia.length, trazas: bullets.length,
       x: +p.position.x.toFixed(2), z: +p.position.z.toFixed(2),
     };
+  };
+  timDump.fotoPistola = () => {
+    menuModoLadron = true;
+    if (!state.running) startGame();
+    state.modoLadron = true;
+    state.creative = false;
+    state.phase = 'DAY';
+    state.paused = true;
+    state.dayTime = currentDayLength() * 0.45;
+    state.wanted = 0; state.cellArrest = null;
+    const intro = ui('intro'); if (intro) intro.style.display = 'none';
+    ui('start').classList.add('hidden');
+    clearPolice();
+    limpiarFogonazosPolicia();
+    player.position.set(0, PLAYER_EYE, 40); vy = 0; grounded = true;
+    dad.visible = false;
+    for (const c of traffic) c.visible = false;
+    for (const c of parkedCars) c.visible = false;
+    const p = spawnPoliciaLadron();
+    p.position.set(0, mountainHeightAt(0, 62), 62);
+    p.rotation.y = 0;
+    p.userData.hp = VIDA_POLICIA; p.userData.muerto = false; p.visible = true;
+    p.userData.apunta = 9;
+    posePistolaPolicia(p);
+    p.updateMatrixWorld(true);
+    const caja = new THREE.Box3().setFromObject(p.userData.pistolaMesh);
+    const centro = caja.getCenter(new THREE.Vector3());
+    camera.fov = 26; camera.updateProjectionMatrix();
+    encuadrePolicia = { x: centro.x + 1.12, y: centro.y + .16, z: centro.z + .72, tx: centro.x - .02, ty: centro.y - .12, tz: centro.z - .02 };
+    camera.position.set(encuadrePolicia.x, encuadrePolicia.y, encuadrePolicia.z);
+    camera.lookAt(encuadrePolicia.tx, encuadrePolicia.ty, encuadrePolicia.tz);
+    for (const id of ['hud', 'crosshair', 'objective', 'helpBtn', 'soundBtn', 'exitBtn', 'fotoBtn', 'questBtn']) {
+      const el = ui(id); if (el) el.style.display = 'none';
+    }
+    renderer.render(scene, camera);
+    const inner = p.userData.pistolaMesh.children[0];
+    return { x: +centro.x.toFixed(2), y: +centro.y.toFixed(2), z: +centro.z.toFixed(2), piezas: inner ? inner.children.length : 0 };
   };
   timDump.abrirEditorSkin = () => { abrirEditorSkin(); return ui('skinbox').style.display; };
   timDump.ponerRopa = (id) => {

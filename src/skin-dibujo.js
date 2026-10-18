@@ -193,7 +193,10 @@ function giroXYZ(rx, ry, rz, x, y, z) {
 }
 
 // Escribe la pose en `out`. Con los pivotes en cero, `out` queda igual al reposo.
+// Un palo blanco con punta roja no gira en el hombro del muñeco: se traslada
+// entero, y el resto del dibujo se queda donde se pintó.
 export function posarMalla(reposo, limbs, out) {
+  if (reposo && reposo.brazoBlanco) return posarBrazoBlanco(reposo, limbs, out);
   const pos = reposo.posiciones;
   const pesos = reposo.pesos;
   const nv = (reposo.cols + 1) * (reposo.filas + 1);
@@ -226,6 +229,43 @@ export function posarMalla(reposo, limbs, out) {
 }
 
 const ceroRot = { x: 0, y: 0, z: 0 };
+
+// El palo gira en el punto donde se une a la raya. La punta sale hacia
+// adelante y el arranque se queda pegado: no se traslada ni cae al suelo.
+function posarBrazoBlanco(reposo, limbs, out) {
+  const pos = reposo.posiciones;
+  const pesos = reposo.pesos;
+  const nv = pos.length / 3;
+  const rot = (limbs && limbs.armR && limbs.armR.rotation) || ceroRot;
+  const junta = reposo.articulacion || { x: LIENZO_W * 0.5, y: LIENZO_H * 0.45 };
+  const punta = reposo.punta || { x: junta.x + 12, y: junta.y };
+  const ancho = anchoFigura();
+  const Jx = -ancho / 2 + (junta.x / LIENZO_W) * ancho;
+  const Jy = FIGURA_BASE + FIGURA_ALTO * (1 - junta.y / LIENZO_H);
+  const Jz = FIGURA_Z;
+  let sx = ((punta.x - junta.x) / LIENZO_W) * ancho;
+  let sy = -((punta.y - junta.y) / LIENZO_H) * FIGURA_ALTO;
+  const sl = Math.hypot(sx, sy) || 1;
+  sx /= sl; sy /= sl;
+  const hx = sy, hy = -sx;
+  let ang = -(rot.x || 0) * 0.62;
+  if (ang > 0.95) ang = 0.95;
+  if (ang < -0.95) ang = -0.95;
+  const c = Math.cos(ang), s = Math.sin(ang), t = 1 - c;
+  for (let v = 0; v < nv; v++) {
+    const o = v * 3;
+    const x = pos[o], y = pos[o + 1], z = pos[o + 2];
+    if (pesos[v * 4 + 1] <= 0 || ang === 0) {
+      out[o] = x; out[o + 1] = y; out[o + 2] = z;
+      continue;
+    }
+    const dx = x - Jx, dy = y - Jy, dz = z - Jz;
+    out[o] = Jx + (t * hx * hx + c) * dx + (t * hx * hy) * dy + (s * hy) * dz;
+    out[o + 1] = Jy + (t * hx * hy) * dx + (t * hy * hy + c) * dy - (s * hx) * dz;
+    out[o + 2] = Jz - (s * hy) * dx + (s * hx) * dy + c * dz;
+  }
+  return out;
+}
 
 export function posarDibujo(persona) {
   const lista = persona && persona.userData && persona.userData.dibujo;
@@ -357,14 +397,386 @@ function cajaOpaca(px) {
   return n ? { minX, minY, maxX, maxY, n } : null;
 }
 
+// El palo del dibujo: blanco, alargado, con un puntito rojo en una punta.
+// El otro extremo es la articulación. El cuerpo (la raya roja, el amarillo)
+// no entra en la máscara, así que no se estira con el hombro del muñeco.
+function esBlanco(px, x, y) {
+  if (!opacoEn(px, x, y)) return false;
+  const i = (y * LIENZO_W + x) * 4;
+  const r = px[i], g = px[i + 1], b = px[i + 2];
+  const max = r > g ? (r > b ? r : b) : (g > b ? g : b);
+  const min = r < g ? (r < b ? r : b) : (g < b ? g : b);
+  return min > 200 && max - min < 36;
+}
+
+function esRojo(px, x, y) {
+  if (!opacoEn(px, x, y)) return false;
+  const i = (y * LIENZO_W + x) * 4;
+  const r = px[i], g = px[i + 1], b = px[i + 2];
+  return r > 140 && g < 110 && b < 110 && r > g + 50 && r > b + 50;
+}
+
+function componentesBlancos(px) {
+  const N = LIENZO_W * LIENZO_H;
+  const visto = new Uint8Array(N);
+  const grupos = [];
+  let opacos = 0;
+  for (let y = 0; y < LIENZO_H; y++) {
+    for (let x = 0; x < LIENZO_W; x++) {
+      if (!opacoEn(px, x, y)) continue;
+      opacos++;
+      const i = y * LIENZO_W + x;
+      if (!esBlanco(px, x, y) || visto[i]) continue;
+      const comp = [];
+      const stack = [i];
+      visto[i] = 1;
+      while (stack.length) {
+        const p = stack.pop();
+        comp.push(p);
+        const cx = p % LIENZO_W, cy = (p / LIENZO_W) | 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= LIENZO_W || ny >= LIENZO_H) continue;
+            const ni = ny * LIENZO_W + nx;
+            if (visto[ni] || !esBlanco(px, nx, ny)) continue;
+            visto[ni] = 1;
+            stack.push(ni);
+          }
+        }
+      }
+      grupos.push(comp);
+    }
+  }
+  return { grupos, opacos };
+}
+
+function extremosDe(comp) {
+  let sx = 0, sy = 0;
+  for (const p of comp) { sx += p % LIENZO_W; sy += (p / LIENZO_W) | 0; }
+  const mx = sx / comp.length, my = sy / comp.length;
+  let cxx = 0, cyy = 0, cxy = 0;
+  for (const p of comp) {
+    const x = p % LIENZO_W - mx, y = ((p / LIENZO_W) | 0) - my;
+    cxx += x * x; cyy += y * y; cxy += x * y;
+  }
+  let vx, vy;
+  if (Math.abs(cxy) < 1e-8) {
+    if (cxx >= cyy) { vx = 1; vy = 0; }
+    else { vx = 0; vy = 1; }
+  } else {
+    const tr = cxx + cyy;
+    const det = cxx * cyy - cxy * cxy;
+    const l1 = tr / 2 + Math.sqrt(Math.max(0, tr * tr / 4 - det));
+    vx = l1 - cyy; vy = cxy;
+  }
+  const n = Math.hypot(vx, vy) || 1;
+  vx /= n; vy /= n;
+  let minT = Infinity, maxT = -Infinity, ia = comp[0], ib = comp[0];
+  for (const p of comp) {
+    const x = p % LIENZO_W, y = (p / LIENZO_W) | 0;
+    const t = (x - mx) * vx + (y - my) * vy;
+    if (t < minT) { minT = t; ia = p; }
+    if (t > maxT) { maxT = t; ib = p; }
+  }
+  return {
+    a: { x: ia % LIENZO_W, y: (ia / LIENZO_W) | 0 },
+    b: { x: ib % LIENZO_W, y: (ib / LIENZO_W) | 0 },
+  };
+}
+
+function rojosTocando(px, x, y) {
+  const N = LIENZO_W * LIENZO_H;
+  const visto = new Uint8Array(N);
+  const stack = [];
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      if (dx * dx + dy * dy > 8) continue;
+      const nx = x + dx, ny = y + dy;
+      if (!esRojo(px, nx, ny)) continue;
+      const ni = ny * LIENZO_W + nx;
+      if (visto[ni]) continue;
+      visto[ni] = 1;
+      stack.push(ni);
+    }
+  }
+  const out = [];
+  while (stack.length) {
+    const p = stack.pop();
+    out.push(p);
+    if (out.length > 56) return out;
+    const cx = p % LIENZO_W, cy = (p / LIENZO_W) | 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= LIENZO_W || ny >= LIENZO_H) continue;
+        const ni = ny * LIENZO_W + nx;
+        if (visto[ni] || !esRojo(px, nx, ny)) continue;
+        visto[ni] = 1;
+        stack.push(ni);
+      }
+    }
+  }
+  return out;
+}
+
+function detectarBrazoBlanco(px) {
+  if (!px || px.length !== PIXELES) return null;
+  const { grupos, opacos } = componentesBlancos(px);
+  if (opacos < 12) return null;
+  let mejor = null;
+  for (const comp of grupos) {
+    if (comp.length < 8 || comp.length > opacos * 0.62) continue;
+    const ext = extremosDe(comp);
+    if (Math.hypot(ext.a.x - ext.b.x, ext.a.y - ext.b.y) < 6) continue;
+    const ca = rojosTocando(px, ext.a.x, ext.a.y);
+    const cb = rojosTocando(px, ext.b.x, ext.b.y);
+    const vale = (c) => c.length >= 1 && c.length <= 56;
+    let tipPix = null, joint = null;
+    if (vale(ca) && (!vale(cb) || ca.length <= cb.length)) { tipPix = ca; joint = ext.b; }
+    else if (vale(cb)) { tipPix = cb; joint = ext.a; }
+    if (!tipPix) continue;
+    if (!mejor || comp.length > mejor.comp.length) mejor = { comp, tipPix, joint };
+  }
+  if (!mejor) return null;
+  const mask = new Uint8Array(LIENZO_W * LIENZO_H);
+  for (const p of mejor.comp) mask[p] = 1;
+  let sx = 0, sy = 0;
+  for (const p of mejor.tipPix) {
+    mask[p] = 1;
+    sx += p % LIENZO_W;
+    sy += (p / LIENZO_W) | 0;
+  }
+  return {
+    mask,
+    joint: mejor.joint,
+    tip: { x: sx / mejor.tipPix.length, y: sy / mejor.tipPix.length },
+  };
+}
+
+// El palo (blanco + punta roja) es una copia rígida que gira en su unión
+// con la raya. El resto del dibujo no se estira.
+export function aplicarPesosDeDibujo(reposo, px) {
+  const info = detectarBrazoBlanco(px);
+  if (!info || !reposo || !reposo.posiciones) return false;
+  if (reposo.cols !== LIENZO_W || reposo.filas !== LIENZO_H) return false;
+  const cols = reposo.cols, filas = reposo.filas;
+  const baseN = (cols + 1) * (filas + 1);
+  const brazos = [];
+  for (let y = 0; y < LIENZO_H; y++) {
+    for (let x = 0; x < LIENZO_W; x++) {
+      if (info.mask[y * LIENZO_W + x]) brazos.push(x, y);
+    }
+  }
+  if (!brazos.length) return false;
+  const nPix = brazos.length / 2;
+  const extra = nPix * 4;
+  const posiciones = new Float32Array((baseN + extra) * 3);
+  const uvs = new Float32Array((baseN + extra) * 2);
+  const pesos = new Float32Array((baseN + extra) * 4);
+  posiciones.set(reposo.posiciones.subarray(0, baseN * 3));
+  uvs.set(reposo.uvs.subarray(0, baseN * 2));
+  const cuerpo = [];
+  for (let j = 0; j < filas; j++) {
+    for (let i = 0; i < cols; i++) {
+      if (!opacoEn(px, i, j) || info.mask[j * LIENZO_W + i]) continue;
+      const a = indiceDe(i, j, cols);
+      const b = a + 1, c = a + cols + 1, d = c + 1;
+      cuerpo.push(a, d, b, a, c, d);
+    }
+  }
+  let e = baseN;
+  const tris = [];
+  for (let p = 0; p < brazos.length; p += 2) {
+    const i = brazos[p], j = brazos[p + 1];
+    const esq = [[i, j], [i + 1, j], [i, j + 1], [i + 1, j + 1]];
+    const ids = [];
+    for (let c = 0; c < 4; c++) {
+      const src = indiceDe(esq[c][0], esq[c][1], cols);
+      posiciones[e * 3] = reposo.posiciones[src * 3];
+      posiciones[e * 3 + 1] = reposo.posiciones[src * 3 + 1];
+      posiciones[e * 3 + 2] = reposo.posiciones[src * 3 + 2];
+      uvs[e * 2] = reposo.uvs[src * 2];
+      uvs[e * 2 + 1] = reposo.uvs[src * 2 + 1];
+      pesos[e * 4 + 1] = 1;
+      ids.push(e);
+      e++;
+    }
+    tris.push(ids[0], ids[3], ids[1], ids[0], ids[2], ids[3]);
+  }
+  const indices = new Uint16Array(cuerpo.length + tris.length);
+  indices.set(cuerpo, 0);
+  indices.set(tris, cuerpo.length);
+  reposo.posiciones = posiciones;
+  reposo.uvs = uvs;
+  reposo.pesos = pesos;
+  reposo.indices = indices;
+  reposo.brazoBlanco = true;
+  reposo.articulacion = info.joint;
+  reposo.punta = info.tip;
+  return true;
+}
+
 function rgbDe(color) {
   if (Array.isArray(color)) return [color[0] | 0, color[1] | 0, color[2] | 0];
   const n = color >>> 0;
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function esBorde(px, x, y) {
-  return !opacoEn(px, x - 1, y) || !opacoEn(px, x + 1, y) || !opacoEn(px, x, y - 1) || !opacoEn(px, x, y + 1);
+function clamp8(n) {
+  n = Math.round(n);
+  return n < 0 ? 0 : n > 255 ? 255 : n;
+}
+function escalaColor(col, k) {
+  return [clamp8(col[0] * k), clamp8(col[1] * k), clamp8(col[2] * k)];
+}
+function mezclaColor(a, b, t) {
+  return [
+    clamp8(a[0] + (b[0] - a[0]) * t),
+    clamp8(a[1] + (b[1] - a[1]) * t),
+    clamp8(a[2] + (b[2] - a[2]) * t),
+  ];
+}
+// Trama de tela: un hilo claro y una pasada más oscura, no un bloque plano.
+function tela(col, x, y) {
+  if ((x + y * 2) % 5 === 0) return mezclaColor(col, [255, 255, 255], 0.28);
+  if (y % 4 === 0) return escalaColor(col, 0.72);
+  return col.slice();
+}
+function cerca(u, v, cu, cv, ru, rv) {
+  const du = (u - cu) / ru, dv = (v - cv) / rv;
+  return du * du + dv * dv;
+}
+
+function tintaGorra(u, v, col, borde, x, y) {
+  if (v > 0.36) return null;
+  if (cerca(u, v, 0.5, 0.05, 0.05, 0.045) < 1) return escalaColor(col, 0.4);
+  if (v > 0.27) {
+    if (u < 0.16 || u > 0.84) return null;
+    if (v > 0.32) return [28, 18, 18];
+    return escalaColor(col, 0.7);
+  }
+  if (Math.abs(u - 0.36) < 0.012 || Math.abs(u - 0.64) < 0.012) return escalaColor(col, 0.5);
+  if (cerca(u, v, 0.42, 0.16, 0.02, 0.02) < 1 || cerca(u, v, 0.58, 0.16, 0.02, 0.02) < 1) return [32, 16, 16];
+  if (v < 0.1) return mezclaColor(col, [255, 255, 255], 0.3);
+  return tela(col, x, y);
+}
+
+function tintaChaqueta(u, v, col, borde, x, y) {
+  if (v < 0.16 || v > 0.78) return null;
+  const cuello = 0.26 + Math.abs(u - 0.5) * 0.2;
+  if (v < cuello && Math.abs(u - 0.5) < 0.2) return null;
+  if (Math.abs(u - 0.5) < 0.016 && v > 0.3 && v < 0.74) {
+    return (y & 1) ? [236, 238, 242] : [150, 158, 170];
+  }
+  const solapa = Math.abs(Math.abs(u - 0.5) - (0.1 + (v - 0.26) * 0.12));
+  if (solapa < 0.02 && v > 0.26 && v < 0.5 && Math.abs(u - 0.5) < 0.28) return borde;
+  if (v < 0.32 && (u < 0.34 || u > 0.66)) return mezclaColor(borde, [255, 255, 255], 0.12);
+  const bolsillo = (cx) => Math.abs(u - cx) < 0.09 && v > 0.5 && v < 0.66;
+  if (bolsillo(0.32) || bolsillo(0.68)) {
+    const cx = Math.abs(u - 0.32) < 0.09 ? 0.32 : 0.68;
+    if (Math.abs(u - cx) > 0.065 || v < 0.53 || v > 0.63) return borde;
+    return escalaColor(col, 0.8);
+  }
+  if ((cerca(u, v, 0.42, 0.4, 0.018, 0.018) < 1 || cerca(u, v, 0.58, 0.4, 0.018, 0.018) < 1) && v < 0.46) return [212, 175, 55];
+  if ((u < 0.2 || u > 0.8) && v > 0.62) return (y % 3 === 0) ? borde : escalaColor(col, 0.85);
+  if (v > 0.73) return borde;
+  if (Math.abs(u - 0.22) < 0.01 || Math.abs(u - 0.78) < 0.01) return escalaColor(col, 0.55);
+  if (Math.abs(u - 0.4) < 0.012 && v > 0.34 && v < 0.7) return mezclaColor(col, [255, 255, 255], 0.55);
+  return tela(u < 0.5 ? escalaColor(col, 0.86) : col, x, y);
+}
+
+function tintaPoleron(u, v, col, borde, x, y) {
+  const cara = cerca(u, v, 0.5, 0.18, 0.15, 0.1);
+  if (cara < 1 && v < 0.3) return null;
+  if (v < 0.32) {
+    const capucha = cerca(u, v, 0.5, 0.16, 0.4, 0.2);
+    if (capucha > 1) return null;
+    if (cara < 1.45) return mezclaColor(col, [255, 255, 255], 0.4);
+    if (Math.abs(capucha - 0.9) < 0.1) return borde;
+    return tela(escalaColor(col, 0.9), x, y);
+  }
+  if (v > 0.84) return null;
+  if (v > 0.28 && v < 0.46 && (Math.abs(u - 0.46) < 0.01 || Math.abs(u - 0.54) < 0.01)) return [236, 236, 232];
+  if (Math.abs(u - 0.5) < 0.18 && v > 0.48 && v < 0.7) {
+    if (Math.abs(u - 0.5) > 0.145 || v < 0.52 || v > 0.66) return borde;
+    return escalaColor(col, 0.75);
+  }
+  if (v > 0.76) return (y % 3 === 0) ? borde : col.slice();
+  if ((u < 0.18 || u > 0.82) && v > 0.52 && v < 0.74) return (y % 3 === 0) ? borde : escalaColor(col, 0.9);
+  if (u < 0.22 || u > 0.78) return tela(escalaColor(col, 0.7), x, y);
+  return tela(col, x, y);
+}
+
+function tintaCamuflaje(u, v, col, borde, x, y) {
+  if (cerca(u, v, 0.5, 0.14, 0.14, 0.09) < 1) return null;
+  if (v < 0.06 || v > 0.94) return null;
+  if (v > 0.56 && v < 0.64 && u > 0.26 && u < 0.74) {
+    if (Math.abs(u - 0.5) < 0.03) return [190, 168, 92];
+    return [48, 40, 26];
+  }
+  if ((Math.abs(u - 0.34) < 0.07 || Math.abs(u - 0.66) < 0.07) && v > 0.36 && v < 0.5) return [36, 44, 24];
+  const n = Math.sin(x * 0.41 + y * 0.13) * 0.65 + Math.cos(y * 0.27 - x * 0.19) * 0.35;
+  if (n > 0.35) return col.slice();
+  if (n > 0.02) return [58, 72, 36];
+  if (n > -0.32) return [96, 78, 48];
+  return [34, 46, 26];
+}
+
+function tintaArmadura(u, v, col, borde, x, y) {
+  const claro = mezclaColor(col, [255, 255, 255], 0.5);
+  const oscuro = escalaColor(col, 0.55);
+  if (v < 0.24 && u > 0.2 && u < 0.8) {
+    if (v > 0.11 && v < 0.19 && u > 0.32 && u < 0.68) return null;
+    if (v > 0.2) return borde;
+    if (Math.abs(u - 0.5) < 0.018) return claro;
+    return v < 0.08 ? claro : col.slice();
+  }
+  const enPeto = v > 0.28 && v < 0.62 && u > 0.28 && u < 0.72;
+  if (enPeto) {
+    if (u < 0.33 || u > 0.67 || v < 0.32 || v > 0.58) return borde;
+    if (cerca(u, v, 0.38, 0.38, 0.02, 0.02) < 1 || cerca(u, v, 0.62, 0.38, 0.02, 0.02) < 1
+      || cerca(u, v, 0.38, 0.54, 0.02, 0.02) < 1 || cerca(u, v, 0.62, 0.54, 0.02, 0.02) < 1) return claro;
+    if (Math.abs(u - 0.5) < 0.016) return claro;
+    if (cerca(u, v, 0.5, 0.46, 0.06, 0.07) < 1) return borde;
+    return u < 0.46 ? oscuro : col.slice();
+  }
+  if (cerca(u, v, 0.22, 0.32, 0.11, 0.07) < 1 || cerca(u, v, 0.78, 0.32, 0.11, 0.07) < 1) {
+    return v < 0.3 ? claro : borde;
+  }
+  if ((u > 0.78 || u < 0.22) && v > 0.38 && v < 0.72) {
+    if ((y & 3) === 0) return borde;
+    if (v > 0.64) return oscuro;
+    return claro;
+  }
+  if (v > 0.6 && v < 0.66 && u > 0.32 && u < 0.68) return borde;
+  if (v > 0.7 && v < 0.93 && ((u > 0.3 && u < 0.46) || (u > 0.54 && u < 0.7))) {
+    if (v > 0.86) return borde;
+    if (Math.abs(u - 0.38) < 0.012 || Math.abs(u - 0.62) < 0.012) return claro;
+    return col.slice();
+  }
+  return null;
+}
+
+function perfilarCapa(out, mapa) {
+  for (let y = 0; y < LIENZO_H; y++) {
+    for (let x = 0; x < LIENZO_W; x++) {
+      if (!mapa[y * LIENZO_W + x]) continue;
+      let orilla = false;
+      for (let k = 0; k < 4; k++) {
+        const nx = x + (k === 0 ? 1 : k === 1 ? -1 : 0);
+        const ny = y + (k === 2 ? 1 : k === 3 ? -1 : 0);
+        if (nx < 0 || ny < 0 || nx >= LIENZO_W || ny >= LIENZO_H || !mapa[ny * LIENZO_W + nx]) { orilla = true; break; }
+      }
+      if (!orilla) continue;
+      const i = (y * LIENZO_W + x) * 4;
+      out[i] = clamp8(out[i] * 0.42);
+      out[i + 1] = clamp8(out[i + 1] * 0.42);
+      out[i + 2] = clamp8(out[i + 2] * 0.42);
+    }
+  }
 }
 
 export function capaSobreSkin(px, puesto) {
@@ -374,34 +786,66 @@ export function capaSobreSkin(px, puesto) {
   if (!caja) return out;
   const col = rgbDe(puesto.color || [255, 255, 255]);
   const borde = rgbDe(puesto.borde || col);
+  const ancho = Math.max(1, caja.maxX - caja.minX + 1);
   const alto = Math.max(1, caja.maxY - caja.minY + 1);
   const tipo = puesto.tipo;
+  const tintaDe = tipo === 'gorra' ? tintaGorra
+    : tipo === 'chaqueta' ? tintaChaqueta
+    : tipo === 'poleron' ? tintaPoleron
+    : tipo === 'camuflaje' ? tintaCamuflaje
+    : tipo === 'armadura' ? tintaArmadura
+    : null;
+  const mapa = new Uint8Array(LIENZO_W * LIENZO_H);
   for (let y = caja.minY; y <= caja.maxY; y++) {
     for (let x = caja.minX; x <= caja.maxX; x++) {
       if (!opacoEn(px, x, y)) continue;
-      const t = (y - caja.minY) / alto;
-      let tinta = null;
-      if (tipo === 'gorra') {
-        if (t <= 0.34) tinta = col;
-      } else if (tipo === 'poleron') {
-        tinta = t <= 0.38 ? borde : col;
-      } else if (tipo === 'chaqueta') {
-        const medio = (caja.minX + caja.maxX) / 2;
-        tinta = Math.abs(x - medio) <= 1 ? borde : col;
-      } else if (tipo === 'camuflaje') {
-        const n = (x * 3 + y * 5) % 11;
-        tinta = n < 4 ? col : n < 8 ? [63, 74, 40] : [92, 74, 50];
-      } else if (tipo === 'armadura') {
-        tinta = esBorde(px, x, y) ? borde : col;
-      } else {
-        tinta = col;
-      }
+      const u = (x - caja.minX) / ancho;
+      const v = (y - caja.minY) / alto;
+      const tinta = tintaDe ? tintaDe(u, v, col, borde, x, y) : col;
       if (!tinta) continue;
       const i = (y * LIENZO_W + x) * 4;
       out[i] = tinta[0]; out[i + 1] = tinta[1]; out[i + 2] = tinta[2]; out[i + 3] = 255;
+      mapa[y * LIENZO_W + x] = 1;
     }
   }
+  dejarVerElDibujo(px, out, mapa);
+  perfilarCapa(out, mapa);
   return out;
+}
+
+// Con un palo blanco, la prenda no se come el dibujo: el brazo y el amarillo
+// siguen del color pintado, y la tela solo ocupa una franja del cuerpo.
+function esAmarillo(px, x, y) {
+  if (!opacoEn(px, x, y)) return false;
+  const i = (y * LIENZO_W + x) * 4;
+  const r = px[i], g = px[i + 1], b = px[i + 2];
+  return r > 180 && g > 140 && b < 140 && g > b + 40;
+}
+
+function dejarVerElDibujo(px, out, mapa) {
+  const info = detectarBrazoBlanco(px);
+  if (!info) return;
+  let minY = LIENZO_H, maxY = -1;
+  for (let y = 0; y < LIENZO_H; y++) {
+    for (let x = 0; x < LIENZO_W; x++) {
+      if (!opacoEn(px, x, y) || info.mask[y * LIENZO_W + x]) continue;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  const alto = Math.max(1, maxY - minY);
+  for (let y = 0; y < LIENZO_H; y++) {
+    for (let x = 0; x < LIENZO_W; x++) {
+      const p = y * LIENZO_W + x;
+      if (!mapa[p]) continue;
+      const v = (y - minY) / alto;
+      if (info.mask[p] || esAmarillo(px, x, y) || v < 0.38 || v > 0.62) {
+        const i = p * 4;
+        out[i] = 0; out[i + 1] = 0; out[i + 2] = 0; out[i + 3] = 0;
+        mapa[p] = 0;
+      }
+    }
+  }
 }
 
 export function dentroDeSilueta(capa, px) {
@@ -426,6 +870,21 @@ export function mezclarSobreSkin(base, capa, fuerza) {
   return out;
 }
 
+// La prenda tapa solo sus píxeles. Donde no hay tela queda el color del dibujo,
+// y un agujero (alfa bajo) sigue vacío.
+export function vestirSobreSkin(base, capa) {
+  const out = new Uint8ClampedArray(base || 0);
+  if (!base || !capa || capa.length !== base.length) return out;
+  for (let i = 0; i < base.length; i += 4) {
+    if (base[i + 3] < UMBRAL || capa[i + 3] === 0) continue;
+    out[i] = capa[i];
+    out[i + 1] = capa[i + 1];
+    out[i + 2] = capa[i + 2];
+    out[i + 3] = base[i + 3];
+  }
+  return out;
+}
+
 // Las manos son los costados del dibujo (en un queso, el borde izquierdo
 // y el derecho). La pose es la de siempre: delante del cuerpo, una a cada lado.
 export const POSE_MANO = Object.freeze({
@@ -439,6 +898,45 @@ export const GOLPE_ADELANTE = 0.55;
 export function avanceDeGolpe(sw) {
   const t = Math.max(0, Math.min(1, Number(sw) || 0));
   return Math.sin(t * Math.PI);
+}
+
+// Giro del brazo derecho al pegar. En los extremos está en reposo y a la
+// mitad queda adelante (X negativa: el brazo cuelga y sale hacia la cara).
+export function giroDeGolpe(sw) {
+  const a = avanceDeGolpe(sw);
+  return { x: -1.5 * a, y: 0, z: -0.45 * a };
+}
+
+// El paso normal abre los brazos 0.6. Correr abre más y al revés entre lados.
+export const PASO_BRAZO = 0.6;
+export const CORRER_BRAZO = 1.25;
+export function poseCorrer(fase) {
+  const s = Math.sin(fase);
+  return {
+    armL: -s * CORRER_BRAZO,
+    armR: s * CORRER_BRAZO,
+    legL: s * CORRER_BRAZO,
+    legR: -s * CORRER_BRAZO,
+    armZL: s < 0 ? -0.22 * s : 0,
+    armZR: s > 0 ? -0.22 * s : 0,
+  };
+}
+
+// Al subir, brazos arriba y rodillas encogidas. Al caer, el cuerpo se abre un poco.
+export function poseSaltar(vy) {
+  if ((Number(vy) || 0) >= 0) {
+    return { armL: -2.4, armR: -2.4, legL: -1.1, legR: -1.1, armZL: 0.5, armZR: -0.5 };
+  }
+  return { armL: -0.85, armR: -0.85, legL: 0.35, legR: -0.2, armZL: 0.2, armZR: -0.2 };
+}
+
+// Al tocar el suelo los brazos vibran un instante y después quedan quietos.
+export const VIBRA_ATERRIZAJE = 0.34;
+export function vibrarBrazos(t, dur) {
+  const d = dur == null ? VIBRA_ATERRIZAJE : dur;
+  if (!(t >= 0) || !(d > 0) || t >= d) return 0;
+  const env = Math.cos((t / d) * Math.PI * 0.5);
+  return Math.sin(t * 62 + 1.15) * 0.48 * env;
 }
 
 function recortarZona(px, x0, y0, w, h) {
@@ -455,6 +953,32 @@ function recortarZona(px, x0, y0, w, h) {
     }
   }
   return { px: out, w, h, x: x0, y: y0, n };
+}
+
+// La mano de primera persona, cuando el dibujo trae palo blanco: ese palo
+// con su punta roja, no un costado cualquiera del cuerpo.
+export function recorteBrazoBlanco(px) {
+  const info = detectarBrazoBlanco(px);
+  if (!info) return null;
+  let minX = LIENZO_W, minY = LIENZO_H, maxX = -1, maxY = -1, n = 0;
+  for (let y = 0; y < LIENZO_H; y++) {
+    for (let x = 0; x < LIENZO_W; x++) {
+      if (!info.mask[y * LIENZO_W + x]) continue;
+      n++;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (!n) return null;
+  minX = Math.max(0, minX - 1);
+  minY = Math.max(0, minY - 1);
+  maxX = Math.min(LIENZO_W - 1, maxX + 1);
+  maxY = Math.min(LIENZO_H - 1, maxY + 1);
+  const rec = recortarZona(px, minX, minY, maxX - minX + 1, maxY - minY + 1);
+  rec.brazoBlanco = true;
+  return rec;
 }
 
 export function recorteManos(px) {

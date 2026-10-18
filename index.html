@@ -1366,7 +1366,7 @@ import { avanzarPrecipitacion, charcosTrasLluvia, quedaNieve, techoEn } from './
 import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocadoDeBolsa, casasConPrecio, dobleDeBolsa, escenaCine, frameCine, mallAgregar, mallPuedePagar, puestosSuper, tiempoDeEscena } from './src/mall.js?v=6';
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia } from './src/modo-ladron.js?v=16';
-import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, lienzoNuevo, mezclarSobreSkin, pintar, posarDibujo, recorteManos, restaurar, serializar } from './src/skin-dibujo.js?v=9';
+import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, VIBRA_ATERRIZAJE, aplicarPesosDeDibujo, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, giroDeGolpe, lienzoNuevo, pintar, posarDibujo, poseCorrer, poseSaltar, recorteBrazoBlanco, recorteManos, restaurar, serializar, vestirSobreSkin, vibrarBrazos } from './src/skin-dibujo.js?v=10';
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -2226,6 +2226,15 @@ function ponerManosVista(px) {
   soltarManoVista('manoD');
   soltarManoVista('manoI');
   if (!px || !esDistinta(px)) { mangaHumana(true); return; }
+  const crudo = (typeof skinPropia === 'function' && skinPropia()) || px;
+  const brazo = recorteBrazoBlanco(crudo);
+  if (brazo && brazo.n) {
+    const der = planoMano(brazo, POSE_MANO.derecha);
+    if (der) { camera.add(der); viewmodel.userData.manoD = der; }
+    mangaHumana(false);
+    poseManosVista(0, 0);
+    return;
+  }
   const manos = recorteManos(px);
   const der = planoMano(manos.derecha, POSE_MANO.derecha);
   const izq = planoMano(manos.izquierda, POSE_MANO.izquierda);
@@ -2280,15 +2289,16 @@ function pixelesVisibles(px) {
     const puesto = { tipo: ropa.id, color: rgbDeHex(ropa.color) };
     if (ropa.id === 'chaqueta') puesto.borde = [11, 18, 32];
     if (ropa.id === 'poleron') puesto.borde = [55, 65, 81];
-    out = mezclarSobreSkin(out, capaSobreSkin(px, puesto), ropa.id === 'gorra' ? 0.9 : 0.8);
+    if (ropa.id === 'camuflaje') puesto.borde = [42, 36, 24];
+    out = vestirSobreSkin(out, capaSobreSkin(px, puesto));
   }
   const tier = armorTierFor(state.armorFactor);
   if (tier && ARMOR_TIERS[tier]) {
-    out = mezclarSobreSkin(out, capaSobreSkin(px, {
+    out = vestirSobreSkin(out, capaSobreSkin(px, {
       tipo: 'armadura',
       color: rgbDeHex(ARMOR_TIERS[tier].color),
       borde: rgbDeHex(ARMOR_TIERS[tier].trim),
-    }), 0.8);
+    }));
   }
   return out;
 }
@@ -2322,7 +2332,10 @@ function aplicarSkinJugador() {
   }
   const visto = pixelesVisibles(px);
   aplicarSkin(playerAvatar, px, {
-    crearMalla: (_pixeles, reposo) => crearMallaSkin(visto, reposo),
+    crearMalla: (pixeles, reposo) => {
+      aplicarPesosDeDibujo(reposo, pixeles);
+      return crearMallaSkin(visto, reposo);
+    },
     alLiberar: soltarTex,
   });
   posarDibujo(playerAvatar);
@@ -2530,12 +2543,76 @@ function getAimDirection(out) {
   return camera.getWorldDirection(out);
 }
 
+// Corre, salta y, al caer, los brazos vibran un momento. No pisa la pose de
+// sentarse ni de la ducha. En primera persona el muñeco está oculto, pero
+// igual se posa para que el dibujo (y el espejo) acompañen.
+let cuerpoEnAire = false, cuerpoVibra = 0, cuerpoFase = 0, cuerpoFoto = null, cuerpoEncuadre = false, cuerpoCorre = false;
+function aplicarPoseLibre(l, p) {
+  l.armL.rotation.x = p.armL; l.armR.rotation.x = p.armR;
+  l.armL.rotation.z = p.armZL; l.armR.rotation.z = p.armZR;
+  l.legL.rotation.x = p.legL; l.legR.rotation.x = p.legR;
+}
+function poseCuerpoJugador(dt) {
+  const av = playerAvatar, l = av && av.userData.limbs;
+  if (!l || !l.armL || !l.armR) return;
+  cuerpoCorre = false;
+  if (cuerpoFoto === 'corre') { cuerpoCorre = true; aplicarPoseLibre(l, poseCorrer(Math.PI / 2)); return; }
+  if (cuerpoFoto === 'salta') { aplicarPoseLibre(l, poseSaltar(8)); return; }
+  if (cuerpoFoto === 'cae') {
+    const v = vibrarBrazos(0.04, VIBRA_ATERRIZAJE);
+    l.armL.rotation.x = 0.15 + v; l.armR.rotation.x = 0.15 - v;
+    l.armL.rotation.z = 0.35; l.armR.rotation.z = -0.35;
+    l.legL.rotation.x = 0.2; l.legR.rotation.x = -0.15;
+    return;
+  }
+  const paso = dt || 0.016;
+  const sentado = !!(av.userData.seated || sitOn || ducha);
+  const crouch = keys['ControlLeft'] || keys['ControlRight'] || touch.crouch;
+  const quiereCorrer = !!(keys['ShiftLeft'] || keys['ShiftRight'] || touch.run) && state.hunger > 5 && !crouch;
+  const ax = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0) + (touch.moveX || 0);
+  const az = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0) + (touch.moveY || 0);
+  const moviendo = Math.hypot(ax, az) > 0.12;
+  const libre = !sentado && !state.driving && !state.riding && !state.inFlight && !state.inWater && !creativeFlying && !state.skiing;
+  const enAire = libre && !grounded;
+  if (cuerpoEnAire && !enAire && libre) cuerpoVibra = VIBRA_ATERRIZAJE;
+  cuerpoEnAire = enAire;
+  if (!libre) { cuerpoVibra = 0; return; }
+  if (enAire) aplicarPoseLibre(l, poseSaltar(vy));
+  else if (quiereCorrer && moviendo) { cuerpoCorre = true; cuerpoFase += paso * 16; aplicarPoseLibre(l, poseCorrer(cuerpoFase)); }
+  else if (!av.visible) {
+    l.armL.rotation.set(0, 0, 0); l.armR.rotation.set(0, 0, 0);
+    l.legL.rotation.x = 0; l.legR.rotation.x = 0;
+  }
+  if (cuerpoVibra > 0) {
+    const v = vibrarBrazos(VIBRA_ATERRIZAJE - cuerpoVibra, VIBRA_ATERRIZAJE);
+    l.armL.rotation.x += v;
+    l.armR.rotation.x -= v;
+    cuerpoVibra = Math.max(0, cuerpoVibra - paso);
+  }
+}
+// El puñetazo del cuerpo: la mano derecha (dibujo o muñeco) sale y vuelve
+// en las tres cámaras. El arma de fuego se queda con su retroceso.
+function poseGolpeCuerpo() {
+  const av = playerAvatar, l = av && av.userData.limbs;
+  if (!l || !l.armR || av.userData.seated || sitOn || ducha) return;
+  if (cuerpoFoto && cuerpoFoto !== 'golpe') return;
+  const sw = Math.max(0, vmSwing);
+  if (sw <= 0) return;
+  const kind = vmToolOverride > 0 ? 'shovel' : weaponKindFromName(state.weaponName);
+  if (kind === 'gun' || kind === 'bow') return;
+  const golpe = giroDeGolpe(sw);
+  l.armR.rotation.x = golpe.x;
+  l.armR.rotation.z = golpe.z;
+}
 function updatePlayerCamera(dt) {
   if (state.cinematic) { playerAvatar.visible = false; viewmodel.visible = false; return; }
   viewmodel.visible = cameraMode === 0;
   // En 1ª persona tu cuerpo NO se dibuja en tu vista (la cámara queda dentro de la cabeza y veías
   // tus brazos como cuadros gigantes): solo aparece dentro del reflejo (lunaConCuerpo).
   playerAvatar.visible = cameraMode !== 0 && !state.driving && !state.riding;
+  // Pausado, updateViewmodel no corre: sin esto las manos de primera persona
+  // se quedan pegadas a la cámara en tercera y en frontal.
+  if (cameraMode !== 0) poseManosVista(0, Math.max(0, vmSwing));
   // El cuerpo acompaña al jugador SIEMPRE (en 1ª persona sirve para verte en el espejo).
   // Mira hacia DONDE MIRAS (la cara de las personas apunta a +z y la vista va a -z), así en
   // el espejo te ves la cara y en tercera persona te ves la espalda.
@@ -2543,7 +2620,15 @@ function updatePlayerCamera(dt) {
   playerAvatar.rotation.y = yaw + Math.PI + (state.skiing && skiGearMesh ? skiGearMesh.rotation.y : 0);
   swingLimbs(playerAvatar, dt || 0.016);
   poseJugador();
+  poseCuerpoJugador(dt || 0.016);
+  poseGolpeCuerpo();
   posarDibujo(playerAvatar);
+  if (cuerpoCorre) {
+    const malla = playerAvatar.userData.dibujo && playerAvatar.userData.dibujo[0];
+    if (malla && malla.userData.reposo && malla.userData.reposo.brazoBlanco) {
+      playerAvatar.position.y += Math.abs(Math.sin(cuerpoFase || Math.PI / 2)) * 0.09;
+    }
+  }
   if (cameraMode === 0) {
     camera.position.copy(player.position);
     camera.rotation.set(pitch, yaw, 0);
@@ -2579,6 +2664,16 @@ function updatePlayerCamera(dt) {
   }
   camera.position.lerp(cameraDesired, 1 - Math.exp(-14 * Math.min(dt || 0.016, 0.05)));
   camera.lookAt(cameraAim);
+  if (cuerpoEncuadre && cameraMode !== 0) {
+    const foco = cameraAim.clone();
+    foco.y = playerAvatar.position.y + 1.15;
+    const atras = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const derecha = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const frente = atras.clone().multiplyScalar(-1);
+    camera.position.copy(foco).addScaledVector(frente, 3.4).addScaledVector(derecha, 2.3);
+    camera.position.y += 1.05;
+    camera.lookAt(foco);
+  }
   applyCameraFeedback(dt);
 }
 function makeSign(text, color) {
@@ -6203,16 +6298,29 @@ function aplicarRopaPuesta() {
       piece(leg, .22, .2, .4, 0, -.55, .02, 0x5c4a32);
     }
   } else if (ropa.id === 'chaqueta') {
-    piece(av, .9, .8, .52, 0, 1.42, 0, ropa.color);
-    piece(av, .16, .62, .1, -.32, 1.42, .2, 0x0b1220);
-    piece(av, .16, .62, .1, .32, 1.42, .2, 0x0b1220);
+    piece(av, .92, .78, .5, 0, 1.4, 0, ropa.color);
+    piece(av, .18, .58, .12, -.34, 1.46, .22, 0x0b1220);
+    piece(av, .18, .58, .12, .34, 1.46, .22, 0x0b1220);
+    piece(av, .08, .62, .08, 0, 1.38, .28, 0xd6d3d1);
+    piece(av, .55, .12, .42, 0, 1.78, .04, 0x0b1220);
+    piece(av, .2, .14, .08, -.22, 1.18, .28, 0x1f2937);
+    piece(av, .2, .14, .08, .22, 1.18, .28, 0x1f2937);
+    for (const arm of [limbs.armL, limbs.armR]) if (arm) {
+      piece(arm, .36, .46, .36, 0, -.36, 0, ropa.color);
+      piece(arm, .38, .1, .38, 0, -.58, 0, 0x0b1220);
+    }
   } else if (ropa.id === 'poleron') {
-    piece(av, .88, .82, .54, 0, 1.4, 0, ropa.color);
-    piece(av, .7, .16, .52, 0, 2.38, -.04, ropa.color);
-    piece(av, .64, .38, .14, 0, 2.12, -.26, ropa.color);
+    piece(av, .9, .8, .52, 0, 1.38, 0, ropa.color);
+    piece(av, .72, .28, .5, 0, 2.22, -.08, ropa.color);
+    piece(av, .46, .22, .16, 0, 2.05, .22, 0xe5e7eb);
+    piece(av, .5, .22, .12, 0, 1.15, .28, 0x4b5563);
+    piece(av, .04, .28, .04, -.06, 1.85, .3, 0xf8fafc);
+    piece(av, .04, .28, .04, .06, 1.85, .3, 0xf8fafc);
+    for (const arm of [limbs.armL, limbs.armR]) if (arm) piece(arm, .34, .4, .34, 0, -.34, 0, ropa.color);
   } else if (ropa.id === 'gorra') {
-    piece(av, .64, .16, .58, 0, 2.38, 0, ropa.color);
-    piece(av, .44, .08, .24, 0, 2.3, .3, ropa.color);
+    piece(av, .62, .18, .56, 0, 2.4, -.02, ropa.color);
+    piece(av, .5, .06, .28, 0, 2.3, .32, 0x7f1d1d);
+    piece(av, .12, .08, .12, 0, 2.5, -.02, 0x450a0a);
   }
   av.userData.ropaVisual = parts;
   if (arm && arm.material) arm.material.color.setHex(ropa.color);
@@ -25799,6 +25907,23 @@ try { if (new URLSearchParams(location.search).has('debug')) {
     aplicarRopaPuesta(); asegurarFaroles(true);
     cameraMode = 2; yaw = 0.4; pitch = -0.2;
     return { ok: !!r.ok, puesta: state.ropaPuesta, partes: (playerAvatar.userData.ropaVisual || []).length };
+  };
+  timDump.ponerArmadura = () => {
+    state.ropaPuesta = null; state.modoLadron = false; state.armorFactor = 0.5;
+    aplicarRopaPuesta();
+    return armorTierFor(state.armorFactor);
+  };
+  timDump.congelarCuerpo = (modo) => {
+    cuerpoFoto = modo && modo !== 'golpe' ? modo : null;
+    cuerpoEncuadre = true;
+    state.paused = true;
+    vmSwing = modo === 'golpe' ? 0.5 : 0;
+    if (!playerAvatar.userData.prevPos) playerAvatar.userData.prevPos = new THREE.Vector3();
+    playerAvatar.userData.prevPos.set(player.position.x, player.position.y - PLAYER_EYE, player.position.z);
+    updatePlayerCamera(0.05);
+    renderer.render(scene, camera);
+    const l = playerAvatar.userData.limbs;
+    return { ax: +l.armR.rotation.x.toFixed(3), lx: +l.armL.rotation.x.toFixed(3), foto: cuerpoFoto, sw: +vmSwing.toFixed(3) };
   };
   timDump.verCartel = () => {
     state.modoLadron = true; state.planet = 'tierra'; state.country = null;

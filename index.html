@@ -2807,7 +2807,7 @@ function butlerDestination() {
 function resetButler() {
   butler.position.copy(BUTLER_HOME); butler.position.y = mountainHeightAt(BUTLER_HOME.x, BUTLER_HOME.z);
   butler.userData.task = 'idle'; butler.userData.order = null; butlerSpaceTaps.length = 0;
-  Object.assign(butler.userData, { hired: false, workDays: 0, wageDebt: 0, lastWageNight: -1, world: null }); butler.visible = false;
+  Object.assign(butler.userData, { hired: false, workDays: 0, wageDebt: 0, lastWageNight: -1, world: null, rumbo: null, rumboFirma: null, rumboI: 0 }); butler.visible = false;
 }
 function restoreButler(saved) {
   resetButler();
@@ -2857,13 +2857,277 @@ function requestButlerOrder() {
   if (text.includes('super')) { butler.userData.task = 'visitStore'; butler.userData.order = null; toast('🤵 Iré al súper'); return; }
   toast('🤵 Puedo comprar artículos del catálogo: «compra 2 sillas», «compra una espada de metal» o «compra comida». Un producto por viaje; también puedo seguirte o volver a casa.');
 }
+// Sale y entra por el vano: si el recto cruza un muro, el rumbo pasa por la puerta
+// (la abre si está cerrada) y rodea la casa. No se teletransporta ni atraviesa la pared.
+function piezasDelMayordomo(a, b) {
+  if (typeof placed === 'undefined' || !placed || !placed.length) return [];
+  const bx = b ? b.x : a.x, bz = b ? b.z : a.z;
+  const out = [];
+  for (const o of placed) {
+    if (!o || !o.mesh || o.hp <= 0 || o.baseY) continue;
+    if ((o.country || null) !== ((typeof state !== 'undefined' && state.country) || null)) continue;
+    const key = o.key;
+    const muro = key === 'wallWood' || key === 'wallRock' || key === 'wallMetal' || key === 'wallDoor';
+    if (!muro && key !== 'door') continue;
+    const x = o.mesh.position.x, z = o.mesh.position.z;
+    if (Math.hypot(x - a.x, z - a.z) > 26 && Math.hypot(x - bx, z - bz) > 26) continue;
+    out.push({ key, muro, x, z, rot: (o.mesh.rotation && o.mesh.rotation.y) || 0, ref: o });
+  }
+  return out;
+}
+function localMayordomo(dx, dz, rot) {
+  const c = Math.cos(rot), s = Math.sin(rot);
+  return { x: dx * c - dz * s, z: dx * s + dz * c };
+}
+function mayordomoChocaMuro(x, z, m, radio) {
+  const p = localMayordomo(x - m.x, z - m.z, m.rot), r = radio == null ? 0.34 : radio;
+  if (m.key === 'wallDoor') {
+    if (Math.abs(p.z) > 0.22 + r) return false;
+    const ax = Math.abs(p.x);
+    if (ax <= Math.max(0.08, 0.75 - r)) return false;
+    return ax < 2.05 + r;
+  }
+  return Math.abs(p.x) < 2 + r && Math.abs(p.z) < 0.2 + r;
+}
+function mayordomoEnVano(x, z, puerta) {
+  const p = localMayordomo(x - puerta.x, z - puerta.z, puerta.rot);
+  return Math.abs(p.x) <= 0.7 && Math.abs(p.z) <= 1.05;
+}
+function mayordomoAdentro(pos, muros) {
+  if (muros.length < 2) return false;
+  const lejos = 7.5;
+  let golpes = 0;
+  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const n = Math.ceil(lejos / 0.25);
+    for (let i = 1; i <= n && golpes < 4; i++) {
+      const x = pos.x + dx * lejos * i / n, z = pos.z + dz * lejos * i / n;
+      if (muros.some(m => mayordomoChocaMuro(x, z, m, 0.2))) { golpes++; break; }
+    }
+  }
+  return golpes >= 3;
+}
+function barreraDePuerta(puertas, muros) {
+  return puertas.map(puerta => {
+    const n = { x: Math.sin(puerta.rot), z: Math.cos(puerta.rot) };
+    const t = { x: Math.cos(puerta.rot), z: -Math.sin(puerta.rot) };
+    let min = -1.15, max = 1.15;
+    for (const m of muros) {
+      const lx = (m.x - puerta.x) * t.x + (m.z - puerta.z) * t.z;
+      const lz = (m.x - puerta.x) * n.x + (m.z - puerta.z) * n.z;
+      if (Math.abs(lz) > 2.7) continue;
+      min = Math.min(min, lx - 0.55); max = Math.max(max, lx + 0.55);
+    }
+    return { puerta, n, t, min, max };
+  });
+}
+function bloqueadoMayordomo(x, z, muros, barreras) {
+  if (barreras) for (const b of barreras) {
+    const lx = (x - b.puerta.x) * b.t.x + (z - b.puerta.z) * b.t.z;
+    const lz = (x - b.puerta.x) * b.n.x + (z - b.puerta.z) * b.n.z;
+    if (Math.abs(lz) <= 0.42 && lx >= b.min && lx <= b.max && Math.abs(lx) > 0.62) return true;
+  }
+  // 0.58: el cuerpo no roza el muro al seguir el segmento entre dos celdas libres
+  return muros.some(m => mayordomoChocaMuro(x, z, m, 0.58));
+}
+function lineaBloqueadaMayordomo(a, b, bloqueado) {
+  const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz);
+  const n = Math.max(1, Math.ceil(len / 0.22));
+  for (let i = 1; i < n; i++) if (bloqueado(a.x + dx * i / n, a.z + dz * i / n)) return true;
+  return false;
+}
+function estirarMayordomo(pts, bloqueado) {
+  if (pts.length < 3) return pts.slice();
+  const out = [pts[0]];
+  let i = 0;
+  while (i < pts.length - 1) {
+    let j = pts.length - 1;
+    while (j > i + 1 && lineaBloqueadaMayordomo(pts[i], pts[j], bloqueado)) j--;
+    out.push(pts[j]);
+    i = j;
+  }
+  return out;
+}
+function cruzaElVano(a, b, puerta) {
+  const la = localMayordomo(a.x - puerta.x, a.z - puerta.z, puerta.rot);
+  const lb = localMayordomo(b.x - puerta.x, b.z - puerta.z, puerta.rot);
+  const dz = lb.z - la.z;
+  if (Math.abs(dz) < 1e-4) return Math.abs(la.z) <= 0.35 && Math.abs(la.x) <= 0.7 && Math.abs(lb.x) <= 0.7;
+  const t = -la.z / dz;
+  if (t < -0.02 || t > 1.02) return false;
+  return Math.abs(la.x + (lb.x - la.x) * t) <= 0.7;
+}
+function marcarPuertasMayordomo(pts, puertas) {
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    if (i > 0) {
+      const a = pts[i - 1], b = pts[i];
+      for (const puerta of puertas) {
+        if (!cruzaElVano(a, b, puerta)) continue;
+        // Entra y sale en recto por el vano. Un atajo en diagonal se mete en el marco.
+        const n = { x: Math.sin(puerta.rot), z: Math.cos(puerta.rot) };
+        const za = localMayordomo(a.x - puerta.x, a.z - puerta.z, puerta.rot).z;
+        const zb = localMayordomo(b.x - puerta.x, b.z - puerta.z, puerta.rot).z;
+        const ladoA = za === 0 ? (zb > 0 ? -1 : 1) : Math.sign(za);
+        const ladoB = -ladoA;
+        out.push({ x: puerta.x + n.x * ladoA * 1.2, z: puerta.z + n.z * ladoA * 1.2 });
+        out.push({ x: puerta.x, z: puerta.z, puerta: puerta.ref });
+        out.push({ x: puerta.x + n.x * ladoB * 1.2, z: puerta.z + n.z * ladoB * 1.2 });
+        break;
+      }
+    }
+    out.push({ x: pts[i].x, z: pts[i].z, puerta: pts[i].puerta });
+  }
+  return out;
+}
+function caminoDelMayordomo(desde, hasta) {
+  const piezas = piezasDelMayordomo(desde, hasta);
+  const muros = piezas.filter(p => p.muro);
+  const puertas = piezas.filter(p => p.key === 'door');
+  const final = { x: hasta.x, z: hasta.z };
+  if (!muros.length || !puertas.length) return [final];
+  const bloqueadoPuro = (x, z) => bloqueadoMayordomo(x, z, muros, null);
+  const adentro = mayordomoAdentro(desde, muros), destinoAdentro = mayordomoAdentro(hasta, muros);
+  const cruza = lineaBloqueadaMayordomo(desde, hasta, bloqueadoPuro);
+  if (!cruza && adentro === destinoAdentro) return [final];
+  const forzar = adentro !== destinoAdentro;
+  const barreras = forzar ? barreraDePuerta(puertas, muros) : null;
+  const bloqueado = (x, z) => bloqueadoMayordomo(x, z, muros, barreras);
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const m of muros) {
+    minX = Math.min(minX, m.x - 2.5); maxX = Math.max(maxX, m.x + 2.5);
+    minZ = Math.min(minZ, m.z - 2.5); maxZ = Math.max(maxZ, m.z + 2.5);
+  }
+  const caja = { minX: minX - 3.2, maxX: maxX + 3.2, minZ: minZ - 3.2, maxZ: maxZ + 3.2 };
+  let meta = final, lejos = false;
+  if (final.x < caja.minX || final.x > caja.maxX || final.z < caja.minZ || final.z > caja.maxZ) {
+    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    const dx = final.x - cx, dz = final.z - cz;
+    let t = Infinity;
+    if (dx > 0) t = Math.min(t, (caja.maxX - 0.6 - cx) / dx);
+    if (dx < 0) t = Math.min(t, (caja.minX + 0.6 - cx) / dx);
+    if (dz > 0) t = Math.min(t, (caja.maxZ - 0.6 - cz) / dz);
+    if (dz < 0) t = Math.min(t, (caja.minZ + 0.6 - cz) / dz);
+    const u = Math.max(0.2, t);
+    meta = { x: cx + dx * u, z: cz + dz * u };
+    lejos = true;
+  }
+  // La cuadrícula tiene que cubrir el rodeo, no solo la línea de salida al meta.
+  const origen = { x: Math.min(caja.minX, desde.x, meta.x), z: Math.min(caja.minZ, desde.z, meta.z) };
+  const esquina = { x: Math.max(caja.maxX, desde.x, meta.x), z: Math.max(caja.maxZ, desde.z, meta.z) };
+  const pts = astarEnCaja(desde, meta, origen, esquina, bloqueado);
+  if (!pts || !pts.length) {
+    const puerta = puertas.slice().sort((a, b) => Math.hypot(desde.x - a.x, desde.z - a.z) - Math.hypot(desde.x - b.x, desde.z - b.z))[0];
+    const n = { x: Math.sin(puerta.rot), z: Math.cos(puerta.rot) };
+    const lado = Math.sign((desde.x - puerta.x) * n.x + (desde.z - puerta.z) * n.z) || 1;
+    const rumbo = [
+      { x: puerta.x + n.x * lado * 1.15, z: puerta.z + n.z * lado * 1.15 },
+      { x: puerta.x, z: puerta.z, puerta: puerta.ref },
+      { x: puerta.x - n.x * lado * 1.7, z: puerta.z - n.z * lado * 1.7 }
+    ];
+    if (lejos) rumbo.push(meta);
+    rumbo.push(final);
+    return rumbo;
+  }
+  const camino = estirarMayordomo([{ x: desde.x, z: desde.z }, ...pts], bloqueado);
+  const marcado = marcarPuertasMayordomo(camino, puertas);
+  if (lejos) marcado.push(final);
+  return marcado;
+}
+// A* con la caja de la casa ya medida (el rodeo no cabe en el segmento de salida).
+function astarEnCaja(desde, meta, origen, esquina, bloqueado) {
+  const celda = 0.5;
+  const cols = Math.min(72, Math.max(4, Math.ceil((esquina.x - origen.x) / celda)));
+  const rows = Math.min(72, Math.max(4, Math.ceil((esquina.z - origen.z) / celda)));
+  const minX = origen.x, minZ = origen.z;
+  const en = (c, r) => c >= 0 && r >= 0 && c < cols && r < rows;
+  const wx = c => minX + (c + 0.5) * celda, wz = r => minZ + (r + 0.5) * celda;
+  const cerca = (x, z) => {
+    let cc = Math.round((x - minX) / celda - 0.5), rr = Math.round((z - minZ) / celda - 0.5);
+    if (en(cc, rr) && !bloqueado(wx(cc), wz(rr))) return rr * cols + cc;
+    for (let rad = 1; rad <= 8; rad++) for (let dz = -rad; dz <= rad; dz++) for (let dx = -rad; dx <= rad; dx++) {
+      const c = cc + dx, r = rr + dz;
+      if (en(c, r) && !bloqueado(wx(c), wz(r))) return r * cols + c;
+    }
+    return -1;
+  };
+  const inicio = cerca(desde.x, desde.z), fin = cerca(meta.x, meta.z);
+  if (inicio < 0 || fin < 0) return null;
+  const total = cols * rows, gScore = new Float64Array(total);
+  gScore.fill(Infinity); gScore[inicio] = 0;
+  const vino = new Int32Array(total); vino.fill(-1);
+  const abiertos = [inicio];
+  const visto = new Uint8Array(total);
+  let guard = total * 6;
+  while (abiertos.length && guard-- > 0) {
+    let bi = 0;
+    for (let i = 1; i < abiertos.length; i++) if (gScore[abiertos[i]] < gScore[abiertos[bi]]) bi = i;
+    const cur = abiertos[bi];
+    abiertos.splice(bi, 1);
+    if (visto[cur]) continue;
+    visto[cur] = 1;
+    if (cur === fin) {
+      const pts = [];
+      let i = fin;
+      while (i !== inicio && i >= 0) {
+        pts.push({ x: wx(i % cols), z: wz((i / cols) | 0) });
+        i = vino[i];
+      }
+      pts.reverse();
+      return pts;
+    }
+    const c = cur % cols, r = (cur / cols) | 0;
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nc = c + dc, nr = r + dr;
+      if (!en(nc, nr) || bloqueado(wx(nc), wz(nr))) continue;
+      const ni = nr * cols + nc, g = gScore[cur] + 1;
+      if (g >= gScore[ni]) continue;
+      gScore[ni] = g; vino[ni] = cur;
+      abiertos.push(ni);
+    }
+  }
+  return null;
+}
+function abrirPuertaDelMayordomo(rumbo) {
+  for (const p of rumbo) {
+    const puerta = p.puerta;
+    if (!puerta || puerta.open || !puerta.hinge) continue;
+    const px = puerta.mesh.position.x, pz = puerta.mesh.position.z;
+    if (Math.hypot(butler.position.x - px, butler.position.z - pz) > 1.8) continue;
+    if (typeof setDoorOpen === 'function') setDoorOpen(puerta, true);
+    else puerta.open = true;
+    if (typeof tone === 'function') tone(480, .07, .04);
+    return;
+  }
+}
+function pasoDelMayordomo(target) {
+  const ud = butler.userData;
+  const firma = (ud.task || '') + '|' + Math.round(target.x) + '|' + Math.round(target.z);
+  if (ud.rumboFirma !== firma || !ud.rumbo || !ud.rumbo.length) {
+    ud.rumboFirma = firma;
+    ud.rumbo = caminoDelMayordomo(butler.position, target);
+    ud.rumboI = 0;
+  }
+  const rumbo = ud.rumbo;
+  let i = ud.rumboI || 0;
+  while (i < rumbo.length - 1 && dist2D(butler.position, rumbo[i]) < 0.42) i++;
+  ud.rumboI = i;
+  abrirPuertaDelMayordomo(rumbo);
+  return rumbo[i];
+}
 function updateButler(dt) {
   butler.visible = !!butler.userData.hired; if (!butler.visible) return;
   if (state.inFlight) return;
   const world = state.planet + ':' + (state.country || '');
   if (butler.userData.world !== world) {
-    butler.userData.world = world; butler.position.copy(player.position);
-    butler.position.y = mountainHeightAt(player.position.x, player.position.z);
+    const previo = butler.userData.world;
+    butler.userData.world = world;
+    butler.userData.rumboFirma = null;
+    // Cambiar de planeta sí lo acerca. La primera vez, o al pedirle algo, camina:
+    // no aparece de golpe al otro lado del muro.
+    if (previo) {
+      butler.position.copy(player.position);
+      butler.position.y = mountainHeightAt(player.position.x, player.position.z);
+    }
   }
   const pending = butler.userData.order;
   if (pending && ((pending.planet || 'tierra') !== state.planet || (pending.country || null) !== (state.country || null))) return;
@@ -2874,8 +3138,13 @@ function updateButler(dt) {
     if (dist2D(butler.position, player.position) > 3) target = player.position;
   }
   if (target) {
+    const wp = pasoDelMayordomo(target);
     const d = dist2D(butler.position, target);
-    if (d > 1.1) { moveToward(butler, target, Math.min(d, 4.2 * dt)); butler.rotation.y = Math.atan2(target.x - butler.position.x, target.z - butler.position.z); }
+    if (d > 1.1) {
+      const paso = dist2D(butler.position, wp);
+      moveToward(butler, wp, Math.min(paso, 4.2 * dt));
+      butler.rotation.y = Math.atan2(wp.x - butler.position.x, wp.z - butler.position.z);
+    }
     else if (butler.userData.task === 'toStore') {
       const order = butler.userData.order; let bought = 0;
       if (order) { state.money += order.reserved || 0; order.reserved = 0; }

@@ -299,8 +299,11 @@
   #toqueFuera { display: none; }
   body.touch.recuadro #toqueFuera { display: block; position: absolute; inset: 0; z-index: 7; pointer-events: all; background: transparent; }
   body.touch.recuadro #lookLayer { pointer-events: none; }
+  /* El botón de misión y los de ayuda viven FUERA del HUD (z-index 6–7) y se comían
+     el toque de las filas del vendedor. Con un recuadro abierto el HUD queda arriba. */
+  body.touch.recuadro #hud { z-index: 20; }
   body.touch #shopbox, body.touch #mallbox { top: 4px !important; transform: translate(-50%, 0) !important; max-height: calc(100% - 8px) !important; z-index: 18 !important; }
-  body.touch #shopbox { height: calc(100% - 8px) !important; overflow: hidden !important; }
+  body.touch #shopbox { height: calc(100% - 8px) !important; overflow: hidden !important; background: #060a14 !important; }
   body.touch #shopbox > :not(#shopList) { flex: 0 0 auto; }
   body.touch #mallbox { overflow: auto !important; }
   body.touch #shopList { flex: 1 1 auto; min-height: 0; overflow-y: auto; }

@@ -1367,6 +1367,8 @@ import { CINE_DURACION, COMIDAS_MALL, PALOMITAS_BOCADOS, PALOMITAS_PRECIO, bocad
 import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LEN, CHAT_NAME_MAX, CHAT_STICKERS, accountNameKey, accountRankingId, chatSendWait, chatTime, cleanAccountName, cleanChatName, cleanChatText, cleanStickerLabel, customStickerPayload, stickerFromText, stickerPayload } from './src/chat.js?v=5';
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia, PISTOLA_POLICIA, armaPolicia, policiaContesta, tickPistolaPolicia } from './src/modo-ladron.js?v=17';
 import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, VIBRA_ATERRIZAJE, aplicarPesosDeDibujo, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, giroDeGolpe, lienzoNuevo, pintar, posarDibujo, poseCorrer, poseSaltar, recorteBrazoBlanco, recorteManos, restaurar, serializar, vestirSobreSkin, vibrarBrazos, vibrarPiernas } from './src/skin-dibujo.js?v=11';
+import { crearIndice, moverNpc } from './src/npc-solido.js?v=1';
+const indiceNpc = crearIndice();
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
 const gltfLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -2783,7 +2785,7 @@ function makeSprite(frames, w, h) {
 const HOUSE = new THREE.Vector3(LUGARES.casa.x, 0, LUGARES.casa.z);   // tu manzana: pasto abierto entre las avenidas
 const dad = new THREE.Group();
 dad.position.set(LUGARES.spawnPapa.x, 0, LUGARES.spawnPapa.z);
-dad.userData = { mode: 'follow', armed: false, atkCd: 0 };
+dad.userData = { mode: 'follow', armed: false, atkCd: 0, gente: true };
 scene.add(dad);
 const dadTag = makeSign('PAPÁ', 0x38bdf8);
 dadTag.scale.set(.5, .5, .5); dadTag.position.set(0, 3, 0); dad.add(dadTag);
@@ -2810,6 +2812,7 @@ gltfLoader.load('assets/papa_anim.glb', (gltf) => {
 
 // La mamá (aparece a las 20.000)
 const mom = makePerson(0xdb2777, 0xf1c27d);
+mom.userData.gente = true;
 mom.visible = false; scene.add(mom);
 const momTag = makeSign('MAMÁ', 0xf9a8d4);
 momTag.scale.set(.5, .5, .5); momTag.position.set(0, 3, 0); mom.add(momTag); momTag.visible = false;
@@ -2885,7 +2888,7 @@ const STORE_A = [   // SÚPER 1: construcción y comida
 // y vuelve físicamente desde el súper para entregar el pedido.
 const butler = makePerson(0x111827, 0xd6b98c);
 butler.position.set(HOUSE.x + 3, 0, HOUSE.z + 2);
-butler.userData.task = 'idle'; butler.userData.order = null;
+butler.userData.task = 'idle'; butler.userData.order = null; butler.userData.gente = true;
 const butlerShirt = new THREE.Mesh(new THREE.BoxGeometry(.34, .58, .44), mat(0xf8fafc));
 butlerShirt.position.set(0, 1.43, .02); butler.add(butlerShirt);
 const butlerBow = new THREE.Mesh(new THREE.BoxGeometry(.3, .13, .48), mat(0xdc2626));
@@ -4566,6 +4569,7 @@ function initCitizenBrain(n, center, radius, extra) {
     id: 'citizen-' + id, name: CITIZEN_NAMES[id % CITIZEN_NAMES.length], job: CITIZEN_JOBS[id % CITIZEN_JOBS.length], trust: 0,
     modo: ex.modo || 'manzana', puntos: ex.puntos || [], rect: ex.rect || null, camino: [], wp: 0, intentos: 0,
   };
+  n.userData.gente = true;
 }
 function citizenPointBlocked(x, z) {
   if (Math.abs(x) > 228 || Math.abs(z) > 228) return true;
@@ -4676,7 +4680,8 @@ function chooseCitizenGoal(n) {
     } else elegirLugar(n);
   } else elegirLugar(n);
 }
-// En la vereda no hay atajo: cada paso queda sobre el tramo (acera o cebra).
+// En la vereda no hay atajo: el paso sigue el tramo y, si hay un muro, se desliza.
+// No salta al destino ni se queda parado contra el obstáculo.
 function seguirVereda(n, dt) {
   const b = n.userData.brain;
   if (b.wait > 0) {
@@ -4687,40 +4692,37 @@ function seguirVereda(n, dt) {
   if (!b.camino || !b.camino.length || b.wp >= b.camino.length) chooseCitizenGoal(n);
   const dest = b.camino && b.camino[b.wp];
   if (!dest) { swingLimbs(n, 0); return; }
-  const prev = b.wp > 0 ? b.camino[b.wp - 1] : { x: n.position.x, z: n.position.z };
-  if (!sobreVereda(n.position.x, n.position.z)) { n.position.x = dest.x; n.position.z = dest.z; }
   const speed = b.speed * (b.activity === 'flee' ? 2.4 : 1);
-  let r = avanzarPorTramo(n.position.x, n.position.z, prev.x, prev.z, dest.x, dest.z, speed * dt);
-  if (!sobreVereda(r.x, r.z)) {
-    const c = corregirAVereda(r.x, r.z);
-    if (sobreVereda(c.x, c.z)) r = { x: c.x, z: c.z, llego: r.llego };
-    else r = { x: n.position.x, z: n.position.z, llego: false };
-  }
-  if (citizenPointBlocked(r.x, r.z)) {
-    let libre = null;
-    for (let extra = 0.8; extra <= 2.4; extra += 0.8) {
-      const q = avanzarPorTramo(n.position.x, n.position.z, prev.x, prev.z, dest.x, dest.z, speed * dt + extra);
-      if (!citizenPointBlocked(q.x, q.z) && sobreVereda(q.x, q.z)) { libre = q; break; }
-    }
-    if (libre) r = libre;
-    else {
-      b.wp++;
-      if (b.wp >= b.camino.length) b.wait = .4;
-      swingLimbs(n, 0); n.userData.activity = b.activity; return;
-    }
-  }
-  const moved = Math.hypot(r.x - n.position.x, r.z - n.position.z) > 0.002;
-  n.position.x = r.x; n.position.z = r.z;
-  if (enCrucePeatonal(r.x, r.z)) n.userData.cruzo = true;
-  if (moved) n.rotation.y = Math.atan2(dest.x - prev.x, dest.z - prev.z);
-  b.goal.set(dest.x, 0, dest.z);
-  if (r.llego) {
+  const dist = Math.hypot(dest.x - n.position.x, dest.z - n.position.z);
+  if (dist < 0.6) {
     b.wp++;
     if (b.wp >= b.camino.length) {
       b.wait = b.pausaAlLlegar > 0 ? b.pausaAlLlegar : .45;
       b.pausaAlLlegar = 0;
     } else b.goal.set(b.camino[b.wp].x, 0, b.camino[b.wp].z);
+    swingLimbs(n, 0); n.userData.activity = b.activity; return;
   }
+  const prev = b.wp > 0 ? b.camino[b.wp - 1] : { x: n.position.x, z: n.position.z };
+  const paso = Math.min(dist, speed * dt);
+  let sx, sz;
+  if (!sobreVereda(n.position.x, n.position.z)) {
+    const c = corregirAVereda(n.position.x, n.position.z);
+    const vx = c.x - n.position.x, vz = c.z - n.position.z, vl = Math.hypot(vx, vz) || 1;
+    sx = vx / vl * paso; sz = vz / vl * paso;
+  } else {
+    const guia = avanzarPorTramo(n.position.x, n.position.z, prev.x, prev.z, dest.x, dest.z, paso);
+    sx = guia.x - n.position.x; sz = guia.z - n.position.z;
+    const sl = Math.hypot(sx, sz);
+    if (sl > paso + 0.05 && sl > 0) { sx *= paso / sl; sz *= paso / sl; }
+  }
+  if (!n.userData.solido) n.userData.solido = { quieto: 0, lado: 1 };
+  const m = moverNpc(n.position.x, n.position.z, sx, sz, (x, z) => npcOcupado(x, z, n.position.y || 0, 0.42, n), n.userData.solido, dt);
+  if (m.cambio) elegirLugar(n);
+  const moved = Math.hypot(m.x - n.position.x, m.z - n.position.z) > 0.002;
+  n.position.x = m.x; n.position.z = m.z;
+  if (enCrucePeatonal(n.position.x, n.position.z)) n.userData.cruzo = true;
+  if (moved) n.rotation.y = Math.atan2(sx, sz);
+  b.goal.set(dest.x, 0, dest.z);
   if (moved) swingLimbs(n, dt); else swingLimbs(n, 0);
   n.userData.activity = b.activity;
 }
@@ -4733,11 +4735,6 @@ function updateNPCs(dt) {
     if (state.phase === 'NIGHT' && b.activity !== 'goingHome') chooseCitizenGoal(n);
     else if (state.weather === 'rain' && b.activity !== 'shelter' && b.activity !== 'goingHome') chooseCitizenGoal(n);
     else if (state.wanted > 0 && dist2D(n.position, player.position) < 16 && b.activity !== 'flee') chooseCitizenGoal(n);
-    else if (b.trabado) {
-      b.trabado = false; b.intentos = (b.intentos || 0) + 1;
-      if (b.intentos > 4) { b.intentos = 0; b.activity = 'idle'; b.wait = 1.2; b.camino = []; b.goal.copy(n.position); }
-      else chooseCitizenGoal(n);
-    }
     if (b.modo === 'vereda') {
       seguirVereda(n, dt);
       if (state.phase === 'NIGHT' && dist2D(n.position, b.home) < 1.35) n.visible = false;
@@ -4776,21 +4773,22 @@ function updateNPCs(dt) {
         const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
       }
       const speed = b.speed * (b.activity === 'flee' ? 2.6 : 1), step = Math.min(distance, speed * dt);
-      let nx = n.position.x + dx * step, nz = n.position.z + dz * step;
-      if (b.modo === 'vereda' && enAsfalto(nx, nz) && !enCrucePeatonal(nx, nz)) {
-        const c = corregirAVereda(nx, nz); nx = c.x; nz = c.z;
-      } else if (b.rect) {
-        nx = THREE.MathUtils.clamp(nx, b.rect.minX, b.rect.maxX);
-        nz = THREE.MathUtils.clamp(nz, b.rect.minZ, b.rect.maxZ);
-      }
-      if (!pasoLegal(b, nx, nz) || citizenPointBlocked(nx, nz)) {
-        const sx = n.position.x - dz * step, sz = n.position.z + dx * step;
-        if (pasoLegal(b, sx, sz) && !citizenPointBlocked(sx, sz)) { nx = sx; nz = sz; }
-        else { b.trabado = true; nx = n.position.x; nz = n.position.z; }
-      }
-      moved = nx !== n.position.x || nz !== n.position.z;
-      n.position.x = nx; n.position.z = nz;
-      if (moved) n.rotation.y = Math.atan2(b.goal.x - n.position.x, b.goal.z - n.position.z);
+      if (!n.userData.solido) n.userData.solido = { quieto: 0, lado: 1 };
+      const m = moverNpc(n.position.x, n.position.z, dx * step, dz * step, (x, z) => {
+        if (b.rect && (x < b.rect.minX || x > b.rect.maxX || z < b.rect.minZ || z > b.rect.maxZ)) {
+          const fuera = (px, pz) => {
+            const ex = px < b.rect.minX ? b.rect.minX - px : px > b.rect.maxX ? px - b.rect.maxX : 0;
+            const ez = pz < b.rect.minZ ? b.rect.minZ - pz : pz > b.rect.maxZ ? pz - b.rect.maxZ : 0;
+            return ex * ex + ez * ez;
+          };
+          if (fuera(x, z) >= fuera(n.position.x, n.position.z) - 1e-6) return true;
+        }
+        return npcOcupado(x, z, n.position.y || 0, 0.42, n);
+      }, n.userData.solido, dt);
+      if (m.cambio) elegirLugar(n);
+      moved = m.x !== n.position.x || m.z !== n.position.z;
+      n.position.x = m.x; n.position.z = m.z;
+      if (moved) n.rotation.y = Math.atan2(dx, dz);
     }
     if (state.phase === 'NIGHT' && dist2D(n.position, b.home) < 1.35) n.visible = false;
     if (moved) swingLimbs(n, dt); else swingLimbs(n, 0);
@@ -5947,6 +5945,7 @@ function buildJail() {
       sentarPersona(preso, ex - 1, 1.05, celdaZ - .5, 0);
     } else {
       preso.position.set(ex, 0, celdaZ + celdaD / 2 - 1.2); preso.rotation.y = 0;
+      preso.userData.gente = true;
       preso.userData.jail = { tipo: 'celda', ox: ex, oz: celdaZ, r: 1.2, heading: Math.random() * 6.28, wait: Math.random() * 2 };
       jailFolk.push(preso);
     }
@@ -5966,12 +5965,14 @@ function buildJail() {
   // Un guardia recorriendo el pasillo y dos vigilando el patio
   [[cx - 6, pz + 4.4, 'pasillo', 9], [cx + 8, cz + 5, 'patio', 6], [cx - 4, cz + 12, 'patio', 7]].forEach(([gx, gz, tipo, r]) => {
     const g = makeGuard(); g.position.set(gx, 0, gz);
+    g.userData.gente = true;
     g.userData.jail = { tipo, ox: gx, oz: gz, r, heading: Math.random() * 6.28, wait: Math.random() * 2 };
     scene.add(g); jailFolk.push(g);
   });
   // Tres presos paseando por el patio
   [[cx - 7, cz + 7], [cx + 4, cz + 11], [cx + 11, cz + 4]].forEach(([px, pz2], i) => {
     const p = makePrisoner(5 + i); p.position.set(px, 0, pz2);
+    p.userData.gente = true;
     p.userData.jail = { tipo: 'patio', ox: px, oz: pz2, r: 5.5, heading: Math.random() * 6.28, wait: Math.random() * 2 };
     scene.add(p); jailFolk.push(p);
   });
@@ -6066,7 +6067,7 @@ function mostrarCeldaLadron(on, sec) {
 // buildBank() y buildJail() se llaman más abajo, junto al condominio: los dos usan
 // los helpers de parques (mcFloor, mcBench…), que todavía no existen en esta línea.
 function puntoJailLibre(x, z) {
-  return !obstacles.some(o => x > o.minX + .2 && x < o.maxX - .2 && z > o.minZ + .2 && z < o.maxZ - .2);
+  return !npcOcupado(x, z, 0, 0.42, null);
 }
 function metaJail(ud, desde) {
   for (let i = 0; i < 8; i++) {
@@ -6094,13 +6095,21 @@ function updateJailFolk(dt) {
     const dx = ud.meta.x - p.position.x, dz = ud.meta.z - p.position.z, d = Math.hypot(dx, dz) || 1;
     if (d < .4) { ud.meta = null; ud.espera = 1.1 + Math.random() * 2.2; swingLimbs(p, 0); continue; }
     const step = Math.min(d, 1.15 * dt);
-    const nx = p.position.x + dx / d * step, nz = p.position.z + dz / d * step;
-    if (Math.hypot(nx - ud.ox, nz - ud.oz) > ud.r - .12 || !puntoJailLibre(nx, nz)) {
-      ud.meta = null; ud.espera = .25; swingLimbs(p, 0); continue;
-    }
-    p.position.x = nx; p.position.z = nz;
-    p.rotation.y = Math.atan2(dx, dz);
-    swingLimbs(p, dt);
+    if (!p.userData.gente) p.userData.gente = true;
+    if (!p.userData.solido) p.userData.solido = { quieto: 0, lado: 1 };
+    const radioZona = ud.r - 0.12;
+    const ahora = Math.hypot(p.position.x - ud.ox, p.position.z - ud.oz);
+    const m = moverNpc(p.position.x, p.position.z, dx / d * step, dz / d * step, (x, z) => {
+      if (npcOcupado(x, z, p.position.y || 0, 0.42, p)) return true;
+      const lejos = Math.hypot(x - ud.ox, z - ud.oz);
+      return lejos > radioZona && lejos >= ahora - 1e-4;
+    }, p.userData.solido, dt);
+    if (m.cambio) { ud.meta = null; ud.espera = 0; }
+    const movio = m.x !== p.position.x || m.z !== p.position.z;
+    p.position.x = m.x; p.position.z = m.z;
+    if (m.cambio) { swingLimbs(p, movio ? dt : 0); continue; }
+    if (movio) { p.rotation.y = Math.atan2(dx, dz); swingLimbs(p, dt); }
+    else swingLimbs(p, 0);
   }
 }
 
@@ -6114,6 +6123,7 @@ function spawnPolice(n) {
     // salen por el PORTÓN de la cárcel (no de cualquier parte), con un poco de dispersión
     p.position.set(JAIL_GATE.x + (Math.random() * 8 - 4), 0, JAIL_GATE.z + Math.random() * 3);
     ponerPistolaPolicia(p);
+    p.userData.gente = true;
     scene.add(p); police.push(p);
   }
 }
@@ -6420,6 +6430,7 @@ function spawnPoliciaLadron() {
   p.position.set(nacio.x + (Math.random() * 3 - 1.5), 0, nacio.z + Math.random() * 2);
   p.userData.hp = VIDA_POLICIA; p.userData.oficial = true;
   ponerPistolaPolicia(p);
+  p.userData.gente = true;
   p.userData.ox = p.position.x; p.userData.oz = p.position.z; p.userData.giro = Math.random() * Math.PI * 2;
   p.userData.tramo = 0;
   scene.add(p); police.push(p);
@@ -9058,11 +9069,11 @@ function buildCountry(c) {
   const guia = makePerson(0x0f766e, 0xf1c27d);
   guia.position.set(cx + 4, 0, cz - 52); guia.rotation.y = Math.PI;
   const gt = makeSign(c.flag + ' guía', 0xfde047); gt.scale.set(.4, .4, .4); gt.position.set(0, 3, 0); gt.userData.billboard = true; guia.add(gt);
-  scene.add(guia); countryNPCs.push(guia); guia.userData.fijo = true;
+  scene.add(guia); countryNPCs.push(guia); guia.userData.fijo = true; guia.userData.gente = true;
   for (let i = 0; i < 16; i++) {
     const n = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a][i % 5], 0xf1c27d);
     n.position.set(cx + (Math.random() * 130 - 65), 0, cz + (Math.random() * 220 - 110));
-    n.userData.country = c.id;
+    n.userData.country = c.id; n.userData.gente = true;
     scene.add(n); countryNPCs.push(n);
   }
   return g;
@@ -13856,6 +13867,7 @@ function mallGuardia(x, z, ax, az, bx, bz) {
   const p = makePerson(0x1e3a8a, 0xf1c27d);
   p.position.set(x, 0, z);
   p.userData.mallGuardia = true;
+  p.userData.gente = true;
   p.userData.a = { x: ax, z: az };
   p.userData.b = { x: bx, z: bz };
   p.userData.haciaB = true;
@@ -17030,14 +17042,74 @@ function pickTarget(from, attacker) {
 }
 function livingRadius(e) { return (e && e.userData && e.userData.type === 'bull') ? 0.8 : 0.5; }
 function bodyIgnoresWalls(e) { return !!(e && e.userData && (e.userData.fly || e.userData.ufo || e.userData.mineHole)); }
-function obstacleAt(x, z, feetY, r) {
-  for (const o of obstacles) {
-    if (o.country !== undefined && (o.country || null) !== (state.country || null)) continue;
-    if (o.bottom != null && (feetY || 0) + 1.8 < o.bottom) continue;
-    if (o.top != null && (feetY || 0) >= o.top) continue;
-    if (x > o.minX - r && x < o.maxX + r && z > o.minZ - r && z < o.maxZ + r) return o;
+let piesNpc = 0;
+function cajaSirve(o, pies) {
+  if (o.country !== undefined && (o.country || null) !== (state.country || null)) return false;
+  if (o.bottom != null && (pies || 0) + 1.8 < o.bottom) return false;
+  if (o.top != null && (pies || 0) >= o.top) return false;
+  return true;
+}
+function filtrarCaja(o) { return cajaSirve(o, piesNpc); }
+const autosNpc = [];
+let autosN = 0, solidoEpoch = 0, solidoHecho = -1, solidoLargo = -1, tickDt = 0.016;
+function prepararIndiceNpc() {
+  if (solidoHecho === solidoEpoch && solidoLargo === obstacles.length) return;
+  solidoHecho = solidoEpoch; solidoLargo = obstacles.length;
+  indiceNpc.llenar(obstacles);
+  autosN = 0;
+  const meter = (obj, hx, hz, quien) => {
+    if (!obj || obj.visible === false || (obj.position.y || 0) > 4) return;
+    let a = autosNpc[autosN];
+    if (!a) { a = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, quien: null }; autosNpc.push(a); }
+    const y = obj.rotation.y || 0, c = Math.abs(Math.cos(y)), s = Math.abs(Math.sin(y));
+    const ex = hx * c + hz * s, ez = hx * s + hz * c;
+    a.minX = obj.position.x - ex; a.maxX = obj.position.x + ex;
+    a.minZ = obj.position.z - ez; a.maxZ = obj.position.z + ez;
+    a.quien = quien || null;
+    autosN++;
+  };
+  for (let i = 0; i < traffic.length; i++) if (traffic[i].visible) meter(traffic[i], 1.15, 2.35, traffic[i]);
+  for (let i = 0; i < vehicles.length; i++) {
+    const v = vehicles[i];
+    if (!v || !v.group || v.helicopter) continue;
+    meter(v.group, v.moto ? 0.55 : 1.15, v.moto ? 1.7 : 2.35, v.group);
   }
-  return null;
+  for (let i = 0; i < police.length; i++) {
+    const coche = police[i].userData && police[i].userData.car;
+    if (coche) meter(coche, 1.15, 2.35, police[i]);
+  }
+}
+function npcOcupado(x, z, pies, radio, quien) {
+  prepararIndiceNpc();
+  piesNpc = pies || 0;
+  if (indiceNpc.tocar(x, z, radio, filtrarCaja)) return true;
+  for (let i = 0; i < autosN; i++) {
+    const a = autosNpc[i];
+    if (a.quien === quien) continue;
+    if (x > a.minX - radio && x < a.maxX + radio && z > a.minZ - radio && z < a.maxZ + radio) return true;
+  }
+  return false;
+}
+function sitioLibreCerca(x, z, radio, quien) {
+  if (!npcOcupado(x, z, 0, radio, quien)) return { x, z };
+  for (let anillo = 1; anillo <= 8; anillo++) {
+    const r = anillo * 0.75;
+    for (let k = 0; k < 8; k++) {
+      const a = k * 0.78539816339, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
+      if (!npcOcupado(px, pz, 0, radio, quien)) return { x: px, z: pz };
+    }
+  }
+  return { x, z };
+}
+function esPersona(e) {
+  const ud = e && e.userData;
+  if (!ud || ud.type || ud.fly || ud.ufo || ud.mineHole) return false;
+  return !!ud.gente;
+}
+function obstacleAt(x, z, feetY, r) {
+  prepararIndiceNpc();
+  piesNpc = feetY || 0;
+  return indiceNpc.tocar(x, z, r, filtrarCaja);
 }
 function resolveLivingWall(pos, prevX, prevZ, r) {
   const fy = pos.y || 0;
@@ -17111,12 +17183,21 @@ function moveToward(e, target, step) {
   if (e.userData && (e.userData.slow || 0) > 0) { e.userData.slow = Math.max(0, e.userData.slow - 0.016); step *= 0.38; }
   const dx = target.x - e.position.x, dz = target.z - e.position.z; const len = Math.hypot(dx, dz) || 1;
   const flies = bodyIgnoresWalls(e);
-  const parts = flies ? 1 : Math.max(1, Math.ceil(Math.abs(step) / 0.32));
-  const sub = step / parts;
-  for (let i = 0; i < parts; i++) {
-    const px = e.position.x, pz = e.position.z;
-    e.position.x += (dx / len) * sub; e.position.z += (dz / len) * sub;
-    if (!flies && resolveLivingWall(e.position, px, pz, livingRadius(e)) === 'stop') break;
+  if (!flies && esPersona(e)) {
+    if (!e.userData.solido) e.userData.solido = { quieto: 0, lado: 1 };
+    const radio = e.userData.car ? 2.05 : 0.42;
+    const m = moverNpc(e.position.x, e.position.z, dx / len * step, dz / len * step,
+      (x, z) => npcOcupado(x, z, e.position.y || 0, radio, e), e.userData.solido, tickDt);
+    e.position.x = m.x; e.position.z = m.z;
+    if (m.cambio && e.userData.jail) e.userData.jail.meta = null;
+  } else {
+    const parts = flies ? 1 : Math.max(1, Math.ceil(Math.abs(step) / 0.32));
+    const sub = step / parts;
+    for (let i = 0; i < parts; i++) {
+      const px = e.position.x, pz = e.position.z;
+      e.position.x += (dx / len) * sub; e.position.z += (dz / len) * sub;
+      if (!flies && resolveLivingWall(e.position, px, pz, livingRadius(e)) === 'stop') break;
+    }
   }
   const flyHigh = e.userData && (e.userData.fly || e.userData.ufo);
   if (flyHigh) e.position.y = flyerChaseY(e);
@@ -17402,7 +17483,7 @@ function applyHelperGearTo(h) {   // pone/quita arma y armadura a UN hijo según
 function applyHelperGear() { for (const h of helpers) applyHelperGearTo(h); }   // a TODOS los hijos (al comprar)
 function makeHelperAt(x, z, hp = 100) {   // crea un ayudante en (x,z) sin cobrar (usado por spawnHelper y loadGame)
   const h = makePerson(HELPER_COLORS[helpers.length % HELPER_COLORS.length], 0xf1c27d); h.scale.set(0.7, 0.7, 0.7);
-  h.position.set(x, 0, z); h.userData.atkCd = 0; initCompanionHealth(h, 100, hp); scene.add(h); helpers.push(h);
+  h.position.set(x, 0, z); h.userData.atkCd = 0; h.userData.gente = true; initCompanionHealth(h, 100, hp); scene.add(h); helpers.push(h);
   applyHelperGearTo(h);   // el hijo nuevo llega ya equipado si compraste arma/armadura
   return h;
 }
@@ -18102,8 +18183,8 @@ function updateDad(dt) {
     const d = dist2D(dad.position, player.position);
     if (d > 40 && !state.inRuins && !state.inCastle && !state.inArena && !state.underground) {
       // quedó MUY atrás (p.ej. al volver del aeropuerto o al viajar rápido): te alcanza solo
-      const dx = player.position.x + 2, dz = player.position.z + 2;
-      dad.position.set(dx, mountainHeightAt(dx, dz), dz);
+      const spot = sitioLibreCerca(player.position.x + 2, player.position.z + 2, 0.42, dad);
+      dad.position.set(spot.x, mountainHeightAt(spot.x, spot.z), spot.z);
       floatText(dad.position, '💨 papá te alcanzó', '#e2e8f0', 15);
     }
     else if (d > 3) { moveToward(dad, player.position, 2.6 * dt); dad.rotation.y = Math.atan2(player.position.x - dad.position.x, player.position.z - dad.position.z); }
@@ -25253,6 +25334,7 @@ function loop() {
   if (document.hidden) return;
   updateFpsVisor();
   const dt = Math.min(clock.getDelta(), 0.05);
+  tickDt = dt; solidoEpoch++;
   updateAutoPerf();   // si el juego va lento un par de segundos, baja la calidad solo
   lodTick += dt; if (lodTick >= .25) { syncFarWorld(); lodTick = 0; }
   updateSkiFar(dt);
@@ -25288,6 +25370,11 @@ function loop() {
     if (nearParksNow()) updateParks(dt);  // rueda, carrusel y montaña rusa solo si estás cerca
     if (nearSkiNow()) updateSkiVisitors(dt);
     swingLimbs(mom, dt);
+    if (mom.visible && npcOcupado(mom.position.x, mom.position.z, mom.position.y || 0, 0.42, mom)) {
+      if (!mom.userData.solido) mom.userData.solido = { quieto: 0, lado: 1 };
+      const sale = moverNpc(mom.position.x, mom.position.z, 0, 0, (x, z) => npcOcupado(x, z, mom.position.y || 0, 0.42, mom), mom.userData.solido, dt);
+      mom.position.x = sale.x; mom.position.z = sale.z;
+    }
     updateArrow();
     updateTutorial();
     updateChapters();
@@ -26217,6 +26304,50 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.beginCreative = () => {
     pendingMode = 'creative'; startGame(); state.creative = true; state.money = 999999999;
     const intro = ui('intro'); if (intro) intro.style.display = 'none';
+  };
+  timDump.fotoNpcEdificio = () => {
+    state.phase = 'DAY'; state.running = true; state.paused = true;
+    state.planet = 'tierra'; state.country = null; state.weather = 'clear';
+    state.dayTime = currentDayLength() * 0.45;
+    dad.visible = false; if (mom) mom.visible = false;
+    let caja = null, mejor = 1e9;
+    for (const o of obstacles) {
+      const w = o.maxX - o.minX, d = o.maxZ - o.minZ;
+      if (w < 7 || w > 22 || d < 7 || d > 22) continue;
+      if (o.top != null && o.top < 8) continue;
+      if (o.bottom != null && o.bottom > 1) continue;
+      const cx = (o.minX + o.maxX) / 2, cz = (o.minZ + o.maxZ) / 2;
+      const cerca = Math.hypot(cx, cz);
+      if (cerca > 70 || cerca < 8) continue;
+      if (cerca < mejor) { mejor = cerca; caja = o; }
+    }
+    if (!caja) return { ok: false, dentro: true };
+    for (const p of npcs) p.visible = false;
+    const n = npcs[0];
+    n.visible = true;
+    n.userData.gente = true;
+    if (!n.userData.solido) n.userData.solido = { quieto: 0, lado: 1 };
+    const cx = (caja.minX + caja.maxX) / 2;
+    n.position.set(cx, 0, caja.minZ - 3.2);
+    for (let i = 0; i < 24; i++) {
+      const m = moverNpc(n.position.x, n.position.z, 0, 0.22, (x, z) => npcOcupado(x, z, 0, 0.42, n), n.userData.solido, 0.05);
+      n.position.x = m.x; n.position.z = m.z;
+    }
+    n.position.y = 0;
+    n.rotation.y = Math.PI;
+    const dentro = !!npcOcupado(n.position.x, n.position.z, 0, 0.2, n);
+    cameraMode = 0;
+    player.position.set(n.position.x, PLAYER_EYE + 0.35, n.position.z - 5.2);
+    yaw = Math.PI; pitch = 0.12;
+    updatePlayerCamera(0.016);
+    for (let i = 0; i < 24; i++) updateSky(0.25);
+    renderer.render(scene, camera);
+    return {
+      ok: true, dentro,
+      x: +n.position.x.toFixed(2), z: +n.position.z.toFixed(2),
+      muro: +caja.minZ.toFixed(2),
+      edificio: { x: +cx.toFixed(1), w: +(caja.maxX - caja.minX).toFixed(1), d: +(caja.maxZ - caja.minZ).toFixed(1), top: caja.top || null },
+    };
   };
   timDump.unlockDavid = (k) => { if (!davidKeyOk(k)) return false; davidGateOpen = true; return true; };
   timDump.setPos = (x, y, z) => { player.position.set(x, y, z); vy = 0; grounded = false; };

@@ -24,7 +24,7 @@ test('el celular tiene botón de comprar y de pantalla completa', () => {
   assert.match(pantalla, /exitFullscreen/);
   assert.equal(html.split('requestFullscreen').length - 1, 1, 'la pantalla completa solo se pide desde el botón');
   assert.doesNotMatch(bloque('startGame'), /requestFullscreen|toggleFullscreen/);
-  assert.match(sw, /const VERSION = 'tim-v116'/);
+  assert.match(sw, /const VERSION = 'tim-v117'/);
 });
 
 test('en el celular un toque compra y en PC se sigue manteniendo E', () => {
@@ -37,4 +37,18 @@ test('en el celular un toque compra y en PC se sigue manteniendo E', () => {
   assert.match(html, /id="toqueFuera"/);
   assert.match(html, /body\.touch\.recuadro #lookLayer\s*\{[^}]*pointer-events:\s*none/);
   assert.match(html, /body\.touch #mallCatalogo\s*\{[^}]*min-height:\s*150px/);
+});
+
+test('en táctil un toque compra y los avisos usan una clase más chica', () => {
+  assert.match(html, /function tryComprarAlTocar\(\)/);
+  assert.match(html, /tryComprarAlTocar\(\)/);
+  const mall = bloque('mallElegirItem');
+  assert.match(mall, /classList\.contains\('touch'\)/);
+  assert.match(mall, /buyItem\(item\)/);
+  assert.match(mall, /mallAgregar\(mallCart/);
+  assert.match(html, /id="toast" class="aviso"/);
+  assert.match(html, /id="objective" class="aviso"/);
+  assert.match(html, /id="missions" class="aviso"/);
+  assert.match(html, /id="jobBtn" class="aviso"/);
+  assert.match(html, /body\.touch \.aviso\s*\{[^}]*font-size:\s*10px/);
 });

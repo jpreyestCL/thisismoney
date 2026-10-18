@@ -259,7 +259,15 @@
   #minimap.expanded { width:min(72vw,360px) !important; height:min(72vw,360px) !important; background:rgba(2,6,23,.88) !important; border:2px solid #facc15; z-index:15; }
   body.touch #toast, body.touch #toastStack, body.touch #phase, body.touch #combo, body.touch #fuelWarning, body.touch #escape { right: 8px; max-width: min(240px, 44vw); }
   body.touch #toast { bottom: 34%; font-size: 13px; padding: 7px 11px; }
-  body.touch #toastStack { bottom: calc(34% + 42px); }
+  body.touch #toastStack { bottom: calc(34% + 28px); }
+  /* Avisos chicos solo en el celular: la clase no cambia el tamaño en PC. */
+  body.touch .aviso { font-size: 10px !important; line-height: 1.2 !important; padding: 2px 6px !important; max-width: min(168px, 32vw) !important; }
+  body.touch #objective.aviso { top: 44px; font-size: 10px !important; padding: 2px 7px !important; max-width: min(210px, 40vw) !important; }
+  body.touch #missions.aviso { top: 88px !important; left: 8px !important; font-size: 9px !important; line-height: 1.25 !important; padding: 2px 5px !important; max-width: min(200px, 36vw) !important; }
+  body.touch #jobBtn.aviso { bottom: 96px; font-size: 10px !important; min-height: 22px !important; padding: 1px 8px !important; max-width: min(210px, 42vw) !important; }
+  body.touch #contextPrompt.aviso { top: calc(50% + 16px); font-size: 10px !important; padding: 2px 6px !important; max-width: min(190px, 36vw) !important; gap: 4px; }
+  body.touch #phase.aviso { font-size: 11px !important; bottom: calc(28% + 36px); }
+  body.touch #toastStack.aviso > div, body.touch #toastStack .aviso { font-size: 10px !important; padding: 2px 6px !important; max-width: min(168px, 32vw) !important; }
   body.touch #phase { bottom: calc(34% + 84px); font-size: 14px; }
   body.touch #combo { bottom: calc(34% + 108px); font-size: 15px; }
   body.touch #fuelWarning { bottom: calc(34% + 136px); font-size: 13px; }
@@ -655,8 +663,8 @@
   <div id="coldfx" style="position:absolute;inset:0;box-shadow:inset 0 0 140px 50px rgba(59,130,246,.85);opacity:0;transition:opacity .4s;pointer-events:none"></div>
   <div id="alleyfx"></div>
   <div id="waterfx" style="position:absolute;inset:0;background:rgba(14,116,144,.22);box-shadow:inset 0 0 140px 35px rgba(8,47,73,.75);opacity:0;transition:opacity .2s;pointer-events:none"></div>
-  <div id="missions" style="position:absolute; top:66px; left:12px; background:rgba(0,0,0,.42); padding:6px 10px; border-radius:10px; font-size:11px; line-height:1.7; pointer-events:none; max-width:46vw;"></div>
-  <div id="phase"></div>
+  <div id="missions" class="aviso" style="position:absolute; top:66px; left:12px; background:rgba(0,0,0,.42); padding:6px 10px; border-radius:10px; font-size:11px; line-height:1.7; pointer-events:none; max-width:46vw;"></div>
+  <div id="phase" class="aviso"></div>
   <div id="celdaLadron" style="display:none; position:absolute; top:16%; left:50%; transform:translateX(-50%); z-index:6; pointer-events:none; text-align:center; background:rgba(15,23,42,.9); border:2px solid #f87171; border-radius:14px; padding:12px 22px; min-width:240px;">
     <div style="font-size:13px; letter-spacing:.14em; color:#fecaca;">CELDA</div>
     <div id="celdaReloj" style="font-size:44px; font-weight:800; color:#fff; line-height:1.1;">10:00</div>
@@ -664,15 +672,15 @@
   </div>
   <div id="combo"></div>
   <div id="escape"></div>
-  <div id="objective">Objetivo</div>
+  <div id="objective" class="aviso">Objetivo</div>
   <div id="crosshair"></div>
   <div id="bowcharge"><i></i><span id="bowdmg"></span></div>
   <div id="laserBar" role="status" aria-label="Energía del láser"><div class="lb-track"><div class="lb-fill" id="laserFill"></div></div><div class="lb-txt" id="laserTxt">LÁSER</div></div>
-  <div id="contextPrompt" role="status" aria-live="polite"><span id="contextKey">E</span><span id="contextText">Interactuar</span></div>
+  <div id="contextPrompt" class="aviso" role="status" aria-live="polite"><span id="contextKey">E</span><span id="contextText">Interactuar</span></div>
   <div id="tvbar" role="group" aria-label="Programas de la tele"><button type="button" id="tvPrev" aria-label="Programa anterior">◀</button><span><span id="tvNombre">El partido</span><small id="tvHint">, y . cambian · flechas si estás sentado</small></span><button type="button" id="tvNext" aria-label="Programa siguiente">▶</button></div>
   <div id="lavadofx" aria-hidden="true"><i style="left:42%;top:36%"></i><i style="left:49%;top:32%;animation-delay:.12s"></i><i style="left:57%;top:38%;animation-delay:.28s"></i><i style="left:37%;top:46%;animation-delay:.08s"></i><i style="left:63%;top:44%;animation-delay:.2s"></i><i style="left:51%;top:26%;animation-delay:.36s"></i></div>
-  <div id="toastStack"></div>
-  <div id="toast"></div>
+  <div id="toastStack" class="aviso"></div>
+  <div id="toast" class="aviso"></div>
   <div id="cineCaption" role="status" aria-live="polite"></div>
   <div id="chatFeed" role="log" aria-live="polite" aria-label="Mensajes del chat mundial"></div>
   <div id="chatReply">
@@ -1132,7 +1140,7 @@
 <button id="fotoBtn" aria-label="Guardar captura" style="position:fixed; top:58px; left:196px; z-index:6; pointer-events:all; cursor:pointer; background:rgba(0,0,0,.55); color:#fff; border:2px solid rgba(255,255,255,.3); border-radius:10px; font-size:16px; width:40px; height:40px; display:none;">📷</button>
 <button id="fsBtn" type="button" aria-label="Pantalla completa">⛶</button>
 <button id="questBtn" aria-label="Abrir misiones" type="button"><span class="qdot"></span>📋 Misiones</button>
-<button id="jobBtn" aria-label="Empezar la misión" type="button">▶️ HACER MISIÓN</button>
+<button id="jobBtn" class="aviso" aria-label="Empezar la misión" type="button">▶️ HACER MISIÓN</button>
 <div id="wheelMenu" role="menu" aria-label="Acciones"><div class="wheel-title">ACCIONES<br><small>clic para elegir · Tab o Esc para cerrar</small></div></div>
 <div id="scopeMask" aria-hidden="true"></div>
 <div id="aimDot" aria-hidden="true"></div>
@@ -13348,6 +13356,8 @@ function mallElegirCasa(id) {
 function mallElegirItem(key) {
   const item = shopCatalog().find(it => it.key === key);
   if (!item) return false;
+  // En el celular el carrito no alcanza: el toque compra y guarda el objeto.
+  if (document.body.classList.contains('touch')) { buyItem(item); return true; }
   mallCart = mallAgregar(mallCart, { kind: 'tienda', key: item.key, name: item.name, price: item.price, color: item.color || 0x38bdf8 });
   dibujarCarritoMall();
   if (ui('mallbox') && ui('mallbox').style.display === 'flex') renderCajaMall();
@@ -13472,7 +13482,8 @@ function sacarDelMall() {
 function radioDePuesto(p) {
   const base = p.radio || 0;
   // En el celular el pasillo es angosto: el dedo no tiene que clavarse en el centro de la góndola.
-  if (document.body.classList.contains('touch') && (p.tipo === 'tienda' || p.tipo === 'pieza' || p.tipo === 'casa')) return base + 0.75;
+  if (document.body.classList.contains('touch') && (p.tipo === 'tienda' || p.tipo === 'pieza')) return base + 1.5;
+  if (document.body.classList.contains('touch') && p.tipo === 'casa') return base + 0.75;
   return base;
 }
 function mallPuestoCerca() {
@@ -19365,6 +19376,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       if (typing) { closeShopInput(); closeMathBox(); closeChatReply(); return; }   // tocar fuera del recuadro cierra el vendedor / los desafíos / el chat
       if (trySeatedGamerKeyboard()) return;
       if (state.running && state.inCastle) attackCastleFoe();    // en el castillo, toque rápido = pegar al alien malo
+      else if (state.running && state.phase === 'DAY' && tryComprarAlTocar()) { /* el toque compra lo que tienes delante */ }
       else if (state.running && bowEquipped()) shootBowArrow(.42);
       else if (state.running && (state.phase === 'NIGHT' || hostileInStrikeRange())) attack();   // toque rápido: golpear monstruo (noche o zombi de suciedad)
     }
@@ -21623,16 +21635,30 @@ let buyHold = 0;
 function productoDeSuperCerca() {
   if (state.phase !== 'DAY' || state.buildMode || state.planet === 'platus' || cajaDePagoCerca()) return null;
   const tactil = document.body.classList.contains('touch');
-  let near = null, mejor = 2.8;
+  const radio = tactil ? 4.6 : 2.8;
+  let near = null, mejor = radio, delante = null, mejorDot = 0.5;
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
   for (const it of shopStands) {
-    const d = dist2D(player.position, it.pos);
-    if (d < mejor) {
-      near = it;
-      if (!tactil) return it;   // PC: el primero que entra en el radio, como siempre
-      mejor = d;                 // celular: el mesón más cercano al dedo
-    }
+    const dx = it.pos.x - player.position.x, dz = it.pos.z - player.position.z;
+    const d = Math.hypot(dx, dz);
+    if (d >= radio) continue;
+    if (!tactil) return it;   // PC: el primero que entra en el radio, como siempre
+    if (d < mejor) { mejor = d; near = it; }
+    const dot = d < 0.15 ? 1 : (dx * fx + dz * fz) / d;
+    if (dot > mejorDot) { mejorDot = dot; delante = it; }
   }
-  return near;
+  if (!tactil) return null;
+  if (near && mejor <= 2.4) return near;   // parado en el pasillo: el mesón de al lado
+  return delante;                           // más lejos: el que estás mirando
+}
+function tryComprarAlTocar() {   // toque en la pantalla, de día: compra sin buscar el botón del carrito
+  if (!document.body.classList.contains('touch') || state.phase !== 'DAY' || state.buildMode) return false;
+  if (tryBuyStandTouch()) return true;
+  const p = typeof mallPuestoCerca === 'function' ? mallPuestoCerca() : null;
+  if (p && (p.tipo === 'tienda' || p.tipo === 'pieza')) return mallElegirItem(p.key);
+  if (p && p.tipo === 'comida') return comprarComidaMall(p.comida);
+  if (typeof nearKeeper === 'function' && nearKeeper()) { openShopInput(); return true; }
+  return false;
 }
 function tryBuyStandTouch() {
   if (!document.body.classList.contains('touch')) return false;
@@ -24601,6 +24627,7 @@ function toast(msg) {   // cola de avisos: el anterior sube a una pila (hasta 2)
   if (t.textContent && Number(t.style.opacity) > 0 && t.textContent !== msg) {
     const st = ui('toastStack');
     const d = document.createElement('div');
+    d.className = 'aviso';
     d.textContent = t.textContent;
     d.style.cssText = 'background:rgba(0,0,0,.5); padding:4px 12px; border-radius:9px; font-size:12px; opacity:.85; transition:opacity .6s; max-width:min(340px,34vw); text-align:left;';
     st.appendChild(d);

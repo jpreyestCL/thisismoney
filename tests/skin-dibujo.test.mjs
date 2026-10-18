@@ -474,7 +474,7 @@ test('el cartel SE BUSCA muestra la skin y no la cara humana', () => {
 test('el juego pinta al jugador desde el inicio, guarda la skin y no cambia el balanceo', () => {
   assert.match(html, /skin-dibujo\.js\?v=10/);
   assert.match(sw, /skin-dibujo\.js\?v=10/);
-  assert.match(sw, /const VERSION = 'tim-v120'/);
+  assert.match(sw, /const VERSION = 'tim-v121'/);
   assert.match(html, /m\.userData\.parte = parte; m\.userData\.superficie = true/);
   assert.match(html, /\{ parte: 'torso', superficie: true \}/);
   assert.match(html, /\{ parte: 'cabeza', superficie: true \}/);
@@ -703,4 +703,100 @@ test('el palo blanco con punta roja es el brazo y el dibujo no se desarma', () =
   assert.match(html, /aplicarPesosDeDibujo\(reposo, pixeles\)/);
   assert.match(html, /recorteBrazoBlanco\(crudo\)/);
   assert.match(html, /body\.touch\.recuadro #hud\s*\{[^}]*z-index:\s*20/);
+});
+
+test('el puño sin arma anima la mano aunque no haya monstruos, con y sin palo blanco', () => {
+  const sandbox = {
+    state: { buildMode: false, handGadget: null, weaponName: 'Puños', weaponDmg: 2, planet: 'tierra', inCastle: false, inArena: false, modoLadron: false },
+    vmSwing: 0,
+    beeps: 0,
+    beep() { sandbox.beeps++; },
+    throwHandGadget() {},
+    laserEquipped() { return false; },
+    laserSpendShot() { return true; },
+    currentGunSpec() { return null; },
+    fireGun() {},
+    titan: null,
+    hitTitan() { return false; },
+    tryHitFloatingCitizen() { return false; },
+    tryHitGeode() { return false; },
+    tryMineCrystal() { return false; },
+    tryMineCoal() { return false; },
+    tryMineIslandOre() { return false; },
+    player: { position: { x: 0, y: 1.7, z: 0 } },
+    getAimDirection(d) { d.set(0, 0, -1); return d; },
+    MELEE_REACH: 3,
+    npcs: [],
+    victims: [],
+    enemies: [],
+    dist3D() { return 99; },
+    oficialEnGolpe() { return null; },
+    THREE: { Vector3: class {
+      constructor() { this.x = 0; this.y = 0; this.z = 0; }
+      set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; }
+      subVectors() { return this; }
+      normalize() { return this; }
+      dot() { return 0; }
+      setY() { return this; }
+      multiplyScalar() { return this; }
+    } },
+  };
+  const kindFn = html.slice(html.indexOf('function weaponKindFromName'), html.indexOf('function firearmEquipped'));
+  const atkFn = html.slice(html.indexOf('function attackNPC()'), html.indexOf('// ===================================================================\n//  MINAS VOXEL'));
+  vm.createContext(sandbox);
+  vm.runInContext(kindFn + '\n' + atkFn + '\nthis.attackNPC = attackNPC;', sandbox);
+  sandbox.attackNPC();
+  assert.equal(sandbox.enemies.length, 0);
+  assert.equal(sandbox.vmSwing, 1, 'con los puños y nadie delante la mano arranca el golpe');
+  assert.equal(sandbox.beeps, 1);
+  sandbox.vmSwing = 0;
+  sandbox.beeps = 0;
+  sandbox.state.weaponName = 'Espada de madera';
+  sandbox.attackNPC();
+  assert.equal(sandbox.vmSwing, 0, 'con un arma el aire no dispara esta animación');
+  const compra = html.indexOf('tryComprarAlTocar()');
+  const puñoAire = html.indexOf("weaponKindFromName(state.weaponName) === 'fist') tryCombatStrike()");
+  assert.ok(compra > 0 && puñoAire > compra, 'el toque sigue comprando antes de pegar al aire');
+
+  const golpe = giroDeGolpe(0.5);
+  const manoVista = POSE_MANO.derecha.z - avanceDeGolpe(0.5) * GOLPE_ADELANTE;
+  assert.ok(manoVista < POSE_MANO.derecha.z - 0.4, 'en primera persona la mano libre avanza');
+  assert.ok(Math.abs(POSE_MANO.derecha.z - (POSE_MANO.derecha.z - avanceDeGolpe(0) * GOLPE_ADELANTE)) < 1e-9);
+  assert.ok(Math.abs(POSE_MANO.derecha.z - (POSE_MANO.derecha.z - avanceDeGolpe(1) * GOLPE_ADELANTE)) < 1e-9, 'al terminar vuelve');
+
+  const sinBlanco = mallaEnReposo();
+  assert.equal(aplicarPesosDeDibujo(sinBlanco, queso()), false);
+  const outQ = new Float32Array(sinBlanco.posiciones.length);
+  posarMalla(sinBlanco, { armR: { rotation: { x: golpe.x, y: 0, z: golpe.z } } }, outQ);
+  let movioQueso = 0;
+  for (let v = 0; v < sinBlanco.pesos.length / 4; v++) {
+    if (sinBlanco.pesos[v * 4 + 1] < 0.4) continue;
+    const o = v * 3;
+    movioQueso = Math.max(movioQueso, Math.abs(outQ[o + 2] - sinBlanco.posiciones[o + 2]));
+  }
+  assert.ok(movioQueso > 0.15, 'sin palo blanco el puño igual mueve la mano ' + movioQueso);
+
+  const px = rayaConPalo();
+  const conBlanco = mallaEnReposo();
+  assert.equal(aplicarPesosDeDibujo(conBlanco, px), true);
+  const outB = new Float32Array(conBlanco.posiciones.length);
+  posarMalla(conBlanco, { armR: { rotation: { x: golpe.x, y: 0, z: golpe.z } } }, outB);
+  const jx = -anchoFigura() / 2 + (conBlanco.articulacion.x / LIENZO_W) * anchoFigura();
+  const jy = FIGURA_BASE + FIGURA_ALTO * (1 - conBlanco.articulacion.y / LIENZO_H);
+  let cerca = 1e9, movioJunta = 1e9, dzPunta = 0;
+  for (let v = 0; v < conBlanco.pesos.length / 4; v++) {
+    if (conBlanco.pesos[v * 4 + 1] !== 1) continue;
+    const o = v * 3;
+    const d = Math.hypot(conBlanco.posiciones[o] - jx, conBlanco.posiciones[o + 1] - jy);
+    if (d < cerca) {
+      cerca = d;
+      movioJunta = Math.hypot(outB[o] - conBlanco.posiciones[o], outB[o + 1] - conBlanco.posiciones[o + 1], outB[o + 2] - conBlanco.posiciones[o + 2]);
+    }
+    const dx = conBlanco.posiciones[o] - (-anchoFigura() / 2 + (conBlanco.punta.x / LIENZO_W) * anchoFigura());
+    const dy = conBlanco.posiciones[o + 1] - (FIGURA_BASE + FIGURA_ALTO * (1 - conBlanco.punta.y / LIENZO_H));
+    if (dx * dx + dy * dy < 0.02) dzPunta = outB[o + 2] - conBlanco.posiciones[o + 2];
+  }
+  assert.ok(movioJunta < 0.2, 'el palo sigue pegado a la raya ' + movioJunta);
+  assert.ok(dzPunta > 0.35, 'la punta roja avanza en el puño al aire ' + dzPunta);
+  assert.doesNotMatch(html.slice(html.indexOf('function poseGolpeCuerpo()'), html.indexOf('function updatePlayerCamera(dt)')), /enemies/);
 });

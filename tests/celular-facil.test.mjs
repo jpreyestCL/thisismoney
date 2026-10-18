@@ -24,7 +24,7 @@ test('el celular tiene botón de comprar y de pantalla completa', () => {
   assert.match(pantalla, /exitFullscreen/);
   assert.equal(html.split('requestFullscreen').length - 1, 1, 'la pantalla completa solo se pide desde el botón');
   assert.doesNotMatch(bloque('startGame'), /requestFullscreen|toggleFullscreen/);
-  assert.match(sw, /const VERSION = 'tim-v120'/);
+  assert.match(sw, /const VERSION = 'tim-v121'/);
 });
 
 test('en el celular un toque compra y en PC se sigue manteniendo E', () => {

@@ -19491,6 +19491,7 @@ function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_wa
       else if (state.running && state.phase === 'DAY' && tryComprarAlTocar()) { /* el toque compra lo que tienes delante */ }
       else if (state.running && bowEquipped()) shootBowArrow(.42);
       else if (state.running && (state.phase === 'NIGHT' || hostileInStrikeRange())) attack();   // toque rápido: golpear monstruo (noche o zombi de suciedad)
+      else if (state.running && weaponKindFromName(state.weaponName) === 'fist') tryCombatStrike();   // puños: el golpe sale aunque no haya nadie
     }
   });
   look.addEventListener('touchcancel', () => { lookId = null; });
@@ -24389,6 +24390,9 @@ function attackNPC() {
   if (laserEquipped() && !laserSpendShot()) return;      // sin energía el láser no dispara
   const gunNPC = currentGunSpec();
   if (gunNPC) { fireGun(gunNPC); return; }   // de día el arma de fuego también dispara (a los monstruos de suciedad)
+  // Puños: la mano sale y vuelve aunque no haya monstruo ni persona delante.
+  const libre = weaponKindFromName(state.weaponName) === 'fist';
+  if (libre) vmSwing = 1;
   if (state.inCastle) { vmSwing = 1; beep(320, 0.05, 0.03); attackCastleFoe(); return; }   // en el castillo (de día también) el golpe pega a los aliens malos
   if (state.inArena) { vmSwing = 1; beep(320, 0.05, 0.03); hitArenaFoe(); return; }   // en el coliseo (de día también)
   if (titan && hitTitan(state.weaponDmg)) { vmSwing = 1; return; }   // golpear al TITÁN (de día también)
@@ -24403,7 +24407,7 @@ function attackNPC() {
   }
   const oficial = oficialEnGolpe(dir, range);
   if (oficial && (!best || dist3D(p, oficial.position) <= bestD)) { vmSwing = 1; beep(300, 0.05, 0.03); pegarOficial(oficial, state.weaponDmg); if (laserEquipped()) shootBeam(oficial.position); return; }
-  if (!best) return;
+  if (!best) { if (libre) beep(300, 0.05, 0.03); return; }
   vmSwing = 1; beep(300, 0.05, 0.03);
   marcarDelitoLadron('golpe');
   const push = new THREE.Vector3().subVectors(best.position, p).setY(0).normalize().multiplyScalar(1.2);

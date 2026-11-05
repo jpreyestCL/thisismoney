@@ -1379,6 +1379,7 @@ import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LE
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia, PISTOLA_POLICIA, armaPolicia, policiaContesta, tickPistolaPolicia } from './src/modo-ladron.js?v=17';
 import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, VIBRA_ATERRIZAJE, aplicarPesosDeDibujo, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, giroDeGolpe, lienzoNuevo, pintar, posarDibujo, poseCorrer, poseSaltar, recorteBrazoBlanco, recorteManos, restaurar, serializar, vestirSobreSkin, vibrarBrazos, vibrarPiernas } from './src/skin-dibujo.js?v=11';
 import { crearIndice, moverNpc } from './src/npc-solido.js?v=1';
+import { deslizarJugador, RADIO_JUGADOR } from './src/jugador-solido.js?v=1';
 const indiceNpc = crearIndice();
 const ui = id => document.getElementById(id);
 // Loader compartido con soporte meshopt. Los .glb están comprimidos (texturas WebP 1024 + geometría meshopt).
@@ -2852,6 +2853,33 @@ function addObstacle(cx, cz, w, d, top, grupo) {
   if (grupo) o.grupo = grupo;
   obstacles.push(o);
   return o;
+}
+// Sólidos que solo frenan al JUGADOR. No entran en `obstacles`: eso también
+// pararía a los NPC, y ellos ya se frenan solos en src/npc-solido.js.
+const solidosJugador = [];
+function agregarSolidoJugador(cx, cz, w, d, top, extra) {
+  const o = { minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, top: top == null ? 2 : top };
+  if (extra) Object.assign(o, extra);
+  solidosJugador.push(o);
+  return o;
+}
+function tramoReja(cx, cz, largo, aLoLargoDeX, hueco) {
+  const grosor = 0.35, alto = 1.45;
+  const poner = (x, z, w, d) => agregarSolidoJugador(x, z, w, d, alto, { tierra: true });
+  if (!(hueco > 0.4) || hueco >= largo - 0.4) {
+    if (aLoLargoDeX) poner(cx, cz, largo, grosor); else poner(cx, cz, grosor, largo);
+    return;
+  }
+  const lado = (largo - hueco) / 2, medio = hueco / 2 + lado / 2;
+  if (aLoLargoDeX) { poner(cx - medio, cz, lado, grosor); poner(cx + medio, cz, lado, grosor); }
+  else { poner(cx, cz - medio, grosor, lado); poner(cx, cz + medio, grosor, lado); }
+}
+function rejaSolida(cx, cz, w, d, gapW, gapNorte, huecoOeste) {
+  const gap = gapW || 0;
+  tramoReja(cx, cz - d / 2, w, true, gapNorte ? 0 : gap);
+  tramoReja(cx, cz + d / 2, w, true, gapNorte ? gap : 0);
+  tramoReja(cx - w / 2, cz, d, false, huecoOeste || 0);
+  tramoReja(cx + w / 2, cz, d, false, 0);
 }
 function addLandingSurface(x, z, w, d, top, root) {
   landingSurfaces.push({ x, z, w, d, top, root });
@@ -7772,6 +7800,7 @@ function mcTree(parent, x, z, h, leaf, baseY) {     // árbol de parque: tronco 
     c.position.set(x, y0 + y, z); c.rotation.y = giro; c.castShadow = true; c.receiveShadow = true; parent.add(c);
   };
   capa(t + .9, 3.5, .3); capa(t + 1.9, 2.7, -.4); capa(t + 2.7, 1.6, .8);
+  agregarSolidoJugador(x, z, 0.9, 0.9, y0 + t, { tierra: true, bottom: y0 });   // el tronco; la copa se atraviesa
 }
 function mcDeadTree(parent, x, z, h, baseY) {       // árbol SECO: tronco pelado + ramas, sin hojas
   const t = h || 4, y0 = baseY || 0;
@@ -7783,6 +7812,7 @@ function mcDeadTree(parent, x, z, h, baseY) {       // árbol SECO: tronco pelad
     mcBox(parent, x + dx * .9, y, z + dz * .9, 1.5 * Math.abs(dx) + .28, .28, 1.5 * Math.abs(dz) + .28, 0x3b2b1f);
     mcBox(parent, x + dx * 1.6, y + .5, z + dz * 1.6, .28, .9, .28, 0x3b2b1f);
   }
+  agregarSolidoJugador(x, z, 0.8, 0.8, y0 + t, { platus: true, bottom: y0 });
 }
 function mcBench(parent, x, z, rot) {              // banca de plaza: tablas, respaldo y patas de fierro
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot || 0; parent.add(g);
@@ -7794,6 +7824,8 @@ function mcBench(parent, x, z, rot) {              // banca de plaza: tablas, re
     mcBox(g, sx, .62, .18, .1, .1, .42, 0x475569);            // apoyabrazos
     mcBox(g, sx, .78, 0, .1, .35, .1, 0x475569);
   }
+  const ang = rot || 0, ca = Math.abs(Math.cos(ang)), sa = Math.abs(Math.sin(ang));
+  agregarSolidoJugador(x, z, 2.3 * ca + 0.8 * sa, 2.3 * sa + 0.8 * ca, 0.95, { tierra: true });
   return g;
 }
 function mcLamp(parent, x, z, color) {             // farol de parque: base, poste, farola de vidrio y remate
@@ -7806,6 +7838,7 @@ function mcLamp(parent, x, z, color) {             // farol de parque: base, pos
   vidrio.position.y = 3.85; g.add(vidrio);
   const techito = new THREE.Mesh(new THREE.ConeGeometry(.5, .38, 6), mat(0x27272a)); techito.position.y = 4.42; techito.castShadow = true; g.add(techito);
   const perilla = new THREE.Mesh(new THREE.SphereGeometry(.08, 6, 5), mat(0x52525b)); perilla.position.y = 4.68; g.add(perilla);
+  agregarSolidoJugador(x, z, 0.4, 0.4, 4.2, { tierra: true });   // el poste no se atraviesa
   return g;
 }
 function mcFlowers(parent, x, z, r) {   // macizo de flores de colores
@@ -7832,7 +7865,7 @@ function mcBush(parent, x, z, r) {   // arbusto redondeado
   }
   return g;
 }
-function mcFence(parent, cx, cz, w, d, color, gapW, gapNorte) {   // reja baja (decorativa, no bloquea)
+function mcFence(parent, cx, cz, w, d, color, gapW, gapNorte, huecoOeste) {   // reja: frena al jugador; el vano de la entrada queda libre
   const step = 2, g = new THREE.Group(); parent.add(g);
   for (let x = -w / 2; x <= w / 2; x += step) {   // gapNorte deja la entrada por el lado +z
     if (gapNorte || Math.abs(x) > gapW / 2) mcBox(g, cx + x, .6, cz - d / 2, .25, 1.2, .25, color);
@@ -7848,6 +7881,7 @@ function mcFence(parent, cx, cz, w, d, color, gapW, gapNorte) {   // reja baja (
     mcBox(g, cx, 1.18, cz + sx * d / 2, w, .1, .12, color);
     mcBox(g, cx, .35, cz + sx * d / 2, w, .08, .1, color);
   }
+  rejaSolida(cx, cz, w, d, gapW, gapNorte, huecoOeste);
   return g;
 }
 function mcSign(parent, x, y, z, text, color) {
@@ -8302,7 +8336,9 @@ function mcMountain(parent, cx, cz, r, h, rock, cap, seed, planet, opts) {
   for (let i = 0; i < 10; i++) {
     const a = rand() * 6.28, d = r * (.2 + rand() * .7);
     const px = Math.cos(a) * d, pz = Math.sin(a) * d;
-    mcBox(parent, cx + px, mountainProfile(m, px, pz) + .8, cz + pz, 2.2, 1.8, 2.2, rock);
+    const suelo = mountainProfile(m, px, pz);
+    mcBox(parent, cx + px, suelo + .8, cz + pz, 2.2, 1.8, 2.2, rock);
+    agregarSolidoJugador(cx + px, cz + pz, 2, 2, suelo + 1.7, { bottom: suelo, tierra: (planet || 'tierra') !== 'platus', platus: (planet || 'tierra') === 'platus' });
   }
   // ÁRBOLES sembrados en la ladera (hasta media montaña; arriba queda pelado)
   for (let i = 0; i < treeN; i++) {
@@ -13185,7 +13221,7 @@ function buildCondominio() {
   addNoGrassZone(centroPasaje, pas.z, largoPasaje, pas.ancho + 2.4);
 
   // Reja perimetral y portón al pasaje (mira a la avenida del oeste).
-  mcFence(g, cx, cz, manzana.w - 1.4, manzana.d - 1.4, 0x7c8798, 0);
+  mcFence(g, cx, cz, manzana.w - 1.4, manzana.d - 1.4, 0x7c8798, 0, false, pas.ancho + 2.4);   // el hueco del oeste es el portón
   const porton = CONDOMINIO.porton;
   for (const sz of [-1, 1]) {   // pilares del portón
     mcBox(g, porton.x, 1.9, porton.z + sz * (pas.ancho / 2 + .9), 1.2, 3.8, 1.2, 0xb9a88a);
@@ -14161,7 +14197,7 @@ if (typeof buildDarkAlley === 'function') buildDarkAlley();
 // ===================================================================
 //  PLATUS: árboles muertos, rocas de carbón, fogatas y frío nocturno
 // ===================================================================
-const platusStuff = [], platusObstacles = [], coalRocks = [], campfires = [], miners = [];
+const platusStuff = [], platusObstacles = [], coalRocks = [], campfires = [], miners = [], platusTroncos = [];
 const platusKeepers = [];   // posiciones del/los vendedor(es) zombi de Platus (para comprar con Y)
 let platusNuclear = null;
 let platusTrunkMat = null, platusBranchMat = null;   // materiales de los árboles muertos (se recolorean por planeta)
@@ -14172,7 +14208,7 @@ function buildPlatus() {
     const a = Math.random() * Math.PI * 2, r = 15 + Math.random() * 200;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (Math.abs(x) < 8 && Math.abs(z) < 8) continue;
-    spots.push([x, z]);
+    spots.push([x, z]); platusTroncos.push([x, z]);
   }
   platusTrunkMat = mat(0x4a3728); platusBranchMat = mat(0x3b2b1f);   // materiales guardados para recolorear por planeta
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.22, .38, 3.6, 6), platusTrunkMat, spots.length);
@@ -14191,7 +14227,9 @@ function buildPlatus() {
   scene.add(trunks); scene.add(branches); platusStuff.push(trunks, branches);
   for (let i = 0; i < 26; i++) {   // rocas de CARBÓN: pícalas a golpes (👊/clic) para sacar carbón
     const a = Math.random() * Math.PI * 2, r = 12 + Math.random() * 170;
-    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 + Math.random() * 0.5), new THREE.MeshStandardMaterial({ color: 0x1f2430, roughness: .9 }));
+    const rad = 0.9 + Math.random() * 0.5;
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rad), new THREE.MeshStandardMaterial({ color: 0x1f2430, roughness: .9 }));
+    rock.userData.r = rad * 0.75;
     rock.position.set(Math.cos(a) * r, 0.55, Math.sin(a) * r); rock.castShadow = true;
     rock.visible = false; scene.add(rock); platusStuff.push(rock); coalRocks.push(rock);
   }
@@ -16055,6 +16093,30 @@ function updateBuild(dt) {
   }
 }
 
+// Muebles y paneles que el jugador no atraviesa. La ducha, la alfombra, la
+// planta y la piscina no están: el agua se entra y lo blando no es un muro.
+// La ventana es un panel (aunque se vea a través), no un hueco para caminar.
+const MUEBLE_SOLIDO = {
+  mesa: [1.6, 1, 0.9], silla: [0.6, 0.6, 0.9], cama: [2, 1.4, 0.7], sofa: [2, 0.9, 0.9],
+  mesa_tele: [2.2, 0.72, 0.85], heladera: [0.9, 0.8, 1.95], oven: [1.2, 1, 1.4],
+  congelador: [0.9, 0.95, 2], lavamanos: [0.65, 0.55, 0.95], bano: [0.7, 0.85, 0.8],
+  silla_gamer: [0.75, 0.75, 1.3], mesa_gamer: [2.4, 1.1, 0.95], pc_gamer: [0.62, 0.72, 1.2],
+  parlante_gamer: [0.65, 0.55, 1.25], pilar: [0.7, 0.7, 3.2], lamp: [0.45, 0.45, 2.5],
+  lampara_pie: [0.45, 0.45, 1.75], ballesta: [0.8, 1.2, 0.9], torreta: [0.8, 1.2, 0.9], laser: [0.7, 0.7, 1.1],
+  window: [2.6, 0.28, 2], cuadro: [1.4, 0.16, 1], espejo: [1.1, 0.16, 1.7], tele: [1.6, 0.16, 0.9],
+  computador_gamer: [1.25, 0.2, 0.75],
+};
+function ponerSolidoMueble(obj) {
+  const spec = MUEBLE_SOLIDO[obj.key];
+  if (!spec) return;
+  const sx = obj.scale.x || 1, sy = obj.scale.y || 1, sz = obj.scale.z || 1;
+  const rot = obj.mesh.rotation.y || 0, ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
+  const w = spec[0] * sx, d = spec[1] * sz, h = spec[2] * sy;
+  const centro = obj.mesh.position.y;
+  obj.solido = agregarSolidoJugador(obj.mesh.position.x, obj.mesh.position.z, w * ca + d * sa, w * sa + d * ca, centro + h / 2, {
+    bottom: centro - h / 2, country: obj.country,
+  });
+}
 // Crea y coloca un objeto en (x,z) con rotación rot (reutilizado por placeObject y al cargar la partida).
 // baseY = altura del piso donde se apoya: 0 = suelo · baseY del segundo piso = su loza.
 function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, scaleData) {
@@ -16229,6 +16291,7 @@ function spawnPlaced(key, x, z, rot, hp, variantId, baseY, mountY, countryId, sc
     obj.aabb = { minX: m.position.x - w / 2, maxX: m.position.x + w / 2, minZ: m.position.z - d / 2, maxZ: m.position.z + d / 2, bottom: by, top: by + 3 * sc.y, country:region };
     obstacles.push(obj.aabb);
   }
+  ponerSolidoMueble(obj);
   placed.push(obj);
   if (WALL_SNAP_KEYS[key] && !by) rebuildPlayerStructureZones();
   if (obj.rgbParts) rgbPlaced.push(obj);   // set gamer: sus luces laten con updateGamerRGB
@@ -16342,6 +16405,7 @@ function removePlaced(o) {
   const ir = rgbPlaced.indexOf(o); if (ir >= 0) rgbPlaced.splice(ir, 1);   // deja de animarse su RGB
   if (o.mirrors) { const i = mirrorObjs.indexOf(o); if (i >= 0) mirrorObjs.splice(i, 1); o.mirrors.forEach(mi => { if (mi.dispose) mi.dispose(); }); }
   if (sitOn === o) sitOn = null;   // te sacaron el mueble en el que estabas sentado
+  if (o.solido) { const i = solidosJugador.indexOf(o.solido); if (i >= 0) solidosJugador.splice(i, 1); }
   if (o.aabb) { const i = obstacles.indexOf(o.aabb); if (i >= 0) obstacles.splice(i, 1); }
   if (o.aabbs) for (const b of o.aabbs) { const i = obstacles.indexOf(b); if (i >= 0) obstacles.splice(i, 1); }
   const i = placed.indexOf(o); if (i >= 0) placed.splice(i, 1);
@@ -25673,6 +25737,7 @@ function updateSkiMovement(dt) {
   let spd = Math.hypot(skiVelX, skiVelZ);
   const maxSpd = 24 + skiRampBoost;
   if (spd > maxSpd) { skiVelX *= maxSpd / spd; skiVelZ *= maxSpd / spd; spd = maxSpd; }
+  recordarPasoJugador();
   player.position.x += skiVelX * dt;
   player.position.z += skiVelZ * dt;
   player.position.x = THREE.MathUtils.clamp(player.position.x, SKI_RESORT.x - 210, SKI_RESORT.x + 210);
@@ -25735,6 +25800,7 @@ function updateCreativeFlight(dt) {
   const fromX = player.position.x, fromZ = player.position.z, fromY = player.position.y;
   const parts = Math.max(1, Math.ceil(speed * dt / 0.32));
   for (let i = 0; i < parts; i++) {
+    recordarPasoJugador();
     const px = player.position.x, pz = player.position.z, py = player.position.y;
     player.position.addScaledVector(forward, az * speed * dt / parts);
     player.position.addScaledVector(rightV, ax * speed * dt / parts);
@@ -25782,6 +25848,7 @@ function updateMovement(dt) {
   if (updateSkiLiftRide(dt)) return;
   if (updateSkiMovement(dt)) return;
   const moveStartX = player.position.x, moveStartZ = player.position.z;
+  recordarPasoJugador();
   const fwd = keys['KeyW'], back = keys['KeyS'];
   const left = keys['KeyA'], right = keys['KeyD'];
   // Flechas = mirar (mover la cámara), WASD = caminar
@@ -25818,6 +25885,7 @@ function updateMovement(dt) {
     player.position.y = FLIGHT.y + (crouch ? CROUCH_EYE : PLAYER_EYE);
     vy = 0; grounded = true; state.inWater = state.underwater = false;
     resolveFlightWalls();
+    resolveCollisions();
     camera.rotation.y = yaw; camera.rotation.x = pitch;
     return;
   }
@@ -25860,6 +25928,7 @@ function updateMovement(dt) {
     }
     state.underwater = player.position.y < zone.surface;
     grounded = player.position.y <= minY + .01; touch.jump = false;
+    resolveCollisions();
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   state.underwater = false;
@@ -26894,20 +26963,84 @@ function updateViewmodel(dt) {
   }
   poseManosVista(bob, sw);
 }
-function resolveCollisions() {
-  const r = 0.45, p = player.position;
-  const pies = p.y - PLAYER_EYE + .05;   // altura de tus pies (para pasar por encima de lo bajo)
-  for (const o of obstacles) {
-    if (o.country !== undefined && (o.country || null) !== (state.country || null)) continue;
-    if (o.bottom != null && pies + 2.2 < o.bottom) continue;
-    if (o.top != null && pies >= o.top) continue;   // vas caminando más arriba que esa pared
-    if (p.x > o.minX - r && p.x < o.maxX + r && p.z > o.minZ - r && p.z < o.maxZ + r) {
-      const left = (o.minX - r) - p.x, right = (o.maxX + r) - p.x, up = (o.minZ - r) - p.z, down = (o.maxZ + r) - p.z;
-      const px = Math.abs(left) < Math.abs(right) ? left : right;
-      const pz = Math.abs(up) < Math.abs(down) ? up : down;
-      if (Math.abs(px) < Math.abs(pz)) p.x += px; else p.z += pz;
+let pasoDesdeX = 0, pasoDesdeZ = 0, pasoListo = false;
+function recordarPasoJugador() {
+  pasoDesdeX = player.position.x; pasoDesdeZ = player.position.z; pasoListo = true;
+}
+function piesJugador() {
+  const ojo = (keys['ControlLeft'] || keys['ControlRight'] || touch.crouch) ? CROUCH_EYE : PLAYER_EYE;
+  return player.position.y - ojo + 0.05;
+}
+function cajaBloqueaJugador(o, pies) {
+  if (o.tierra && (state.planet !== 'tierra' || state.country)) return false;
+  if (o.platus && state.planet !== 'platus') return false;
+  if (o.country !== undefined && (o.country || null) !== (state.country || null)) return false;
+  if (o.bottom != null && pies + 2.2 < o.bottom) return false;
+  if (o.top != null && pies >= o.top - 0.02) return false;
+  return true;
+}
+function filtrarCajaJugador(o) { return cajaBloqueaJugador(o, piesJugador()); }
+function tocaCajaJugador(x, z, o) {
+  return x > o.minX - RADIO_JUGADOR && x < o.maxX + RADIO_JUGADOR && z > o.minZ - RADIO_JUGADOR && z < o.maxZ + RADIO_JUGADOR;
+}
+function cercaPlano(x, z, px, pz, alcance) {
+  return Math.abs(x - px) < alcance && Math.abs(z - pz) < alcance;
+}
+function jugadorOcupado(x, z) {
+  prepararIndiceNpc();
+  if (indiceNpc.tocar(x, z, RADIO_JUGADOR, filtrarCajaJugador)) return true;
+  for (let i = 0; i < autosN; i++) {
+    const a = autosNpc[i];
+    if (state.driving && car && a.quien === car.group) continue;
+    if (tocaCajaJugador(x, z, a)) return true;
+  }
+  for (let i = 0; i < vehicles.length; i++) {
+    const v = vehicles[i];
+    if (!v || !v.helicopter || !v.group || v.group.visible === false || (v.group.position.y || 0) > 3.5) continue;
+    if (state.driving && car === v) continue;
+    if (cercaPlano(x, z, v.group.position.x, v.group.position.z, RADIO_JUGADOR + 1.4)) return true;
+  }
+  const pies = piesJugador();
+  for (let i = 0; i < solidosJugador.length; i++) {
+    const o = solidosJugador[i];
+    if (cajaBloqueaJugador(o, pies) && tocaCajaJugador(x, z, o)) return true;
+  }
+  if (state.planet === 'tierra' && !state.country && !state.underground) {
+    const alcance = RADIO_JUGADOR + 0.55;
+    for (let i = 0; i < worldTreeSpots.length; i++) {
+      const tx = worldTreeSpots[i][0], tz = worldTreeSpots[i][1];
+      if (!cercaPlano(x, z, tx, tz, alcance)) continue;
+      if (insidePlayerStructure(tx, tz, 1.4)) continue;
+      return true;
     }
   }
+  if (state.planet === 'platus') {
+    for (let i = 0; i < platusTroncos.length; i++) {
+      if (cercaPlano(x, z, platusTroncos[i][0], platusTroncos[i][1], RADIO_JUGADOR + 0.5)) return true;
+    }
+    for (let i = 0; i < coalRocks.length; i++) {
+      const r = coalRocks[i];
+      if (r.visible && cercaPlano(x, z, r.position.x, r.position.z, RADIO_JUGADOR + (r.userData.r || 0.8))) return true;
+    }
+    for (let i = 0; i < geodes.length; i++) {
+      const ge = geodes[i];
+      if (ge.ready && ge.group.visible && cercaPlano(x, z, ge.group.position.x, ge.group.position.z, RADIO_JUGADOR + 1.5)) return true;
+    }
+  }
+  if (chest && cercaPlano(x, z, chest.position.x, chest.position.z, RADIO_JUGADOR + 0.55)) return true;
+  if (jobCrate && cercaPlano(x, z, jobCrate.position.x, jobCrate.position.z, RADIO_JUGADOR + 0.7)) return true;
+  return false;
+}
+function resolveCollisions() {
+  if (!pasoListo) { recordarPasoJugador(); return; }
+  const dx = player.position.x - pasoDesdeX, dz = player.position.z - pasoDesdeZ;
+  if (dx * dx + dz * dz > 64) {   // más de 8 m en el mismo frame: traslado del juego, no un paso
+    recordarPasoJugador(); return;
+  }
+  const m = deslizarJugador(pasoDesdeX, pasoDesdeZ, dx, dz, jugadorOcupado);
+  const nx = m.x, nz = m.z;
+  player.position.x = nx; player.position.z = nz;
+  pasoDesdeX = nx; pasoDesdeZ = nz;
 }
 // Las luces del set gamer cambian de color solas (arcoíris que corre por teclas, fans y tiras)
 function updateGamerRGB() {

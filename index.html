@@ -1467,7 +1467,7 @@ sun.shadow.camera.left = -70; sun.shadow.camera.right = 70;
 sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
 sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.02; sun.shadow.radius = 2.5;
 scene.add(sun);
-const rim = new THREE.DirectionalLight(0xcfe4ff, 0.35);   // relleno frío del lado opuesto: los bloques se ven redondos
+const rim = new THREE.DirectionalLight(0xcfe4ff, 0.48);   // relleno frío del lado opuesto: los bloques se ven redondos
 rim.position.set(-45, 30, -35); scene.add(rim);
 scene.add(sun.target);   // si el target no está en la escena, moverlo no gira la luz
 const _sunDir = new THREE.Vector3(), _lightDir = new THREE.Vector3(), _moonDir = new THREE.Vector3();
@@ -1563,10 +1563,53 @@ const groundTex = makeGroundDetailTexture();
 groundTex.repeat.set(200, 200);
 const groundNormalTex = makeGroundNormalTexture();
 groundNormalTex.repeat.set(200, 200);
+function makeBumpNormal(seed, fuerza) {   // relieve chico, una sola vez: el sol deja de pintar cada cara pareja
+  const N = 48, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const cx = cv.getContext('2d'), img = cx.createImageData(N, N);
+  const rnd = (i) => { const v = Math.sin(i * seed + 47.9) * 24634.6345; return v - Math.floor(v); };
+  const alt = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    let a = 0;
+    for (let k = 0; k < 4; k++) a += rnd((y * N + x) * 4 + k);
+    alt[y * N + x] = a * 0.25;
+  }
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x;
+    const dx = alt[y * N + ((x + 1) % N)] - alt[y * N + ((x + N - 1) % N)];
+    const dy = alt[((y + 1) % N) * N + x] - alt[((y + N - 1) % N) * N + x];
+    img.data[i * 4] = Math.round(128 - dx * fuerza);
+    img.data[i * 4 + 1] = Math.round(128 - dy * fuerza);
+    img.data[i * 4 + 2] = 255;
+    img.data[i * 4 + 3] = 255;
+  }
+  cx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+// En rendimiento no hay mapas extra: el mismo material, sin la muestra de normal.
+let obraNormal = null, asfaltoNormal = null, veredaNormal = null;
+if (!preferLowPerf) {
+  obraNormal = makeBumpNormal(12.7, 64); obraNormal.repeat.set(2.2, 2.2);
+  asfaltoNormal = makeBumpNormal(4.2, 36); asfaltoNormal.repeat.set(14, 14);
+  veredaNormal = makeBumpNormal(8.1, 48); veredaNormal.repeat.set(7, 7);
+}
 const groundMat = new THREE.MeshStandardMaterial({
   map: groundTex, normalMap: preferLowPerf ? null : groundNormalTex,
-  normalScale: new THREE.Vector2(.45, .45), color: 0x4a7c3a, roughness: .97, metalness: 0,
+  normalScale: new THREE.Vector2(preferLowPerf ? 0 : .82, preferLowPerf ? 0 : .82),
+  color: 0x4a7c3a, roughness: .84, metalness: 0,
 });
+const obraCache = new Map();
+function matObra(color) {   // muro y teja: responden al sol, sin el brillo de plástico
+  let m = obraCache.get(color);
+  if (m) return m;
+  m = new THREE.MeshStandardMaterial({
+    map: makePixelTexture(color), color: 0xffffff, roughness: .76, metalness: .03,
+    normalMap: obraNormal, normalScale: obraNormal ? new THREE.Vector2(.4, .4) : undefined,
+  });
+  obraCache.set(color, m);
+  return m;
+}
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(1800, 1800), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
 scene.add(ground);
@@ -2000,6 +2043,17 @@ const ROPA_POLERONES = [0x1f2937, 0x7f1d1d, 0x1e3a8a, 0x365314, 0x4c1d95, 0x9a34
 const ROPA_PELOS = [0x1c1410, 0x3b2b1f, 0x78350f, 0x111827, 0xb45309, 0xf5e6c8, 0x7f1d1d, 0x292524];
 const ROPA_PIELES = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xf6d7b8, 0xa56b45];
 function tonoRopa(lista) { return lista[(Math.random() * lista.length) | 0]; }
+const genteCache = new Map();
+function matGente(color, tipo) {   // piel, tela, pelo y zapato no comparten el mismo brillo
+  const key = (tipo || 'tela') + ':' + color;
+  let m = genteCache.get(key);
+  if (m) return m;
+  const tabla = { piel: [.52, 0], tela: [.84, 0], pelo: [.44, .06], zapato: [.56, .14], metal: [.3, .76] };
+  const par = tabla[tipo] || tabla.tela;
+  m = new THREE.MeshStandardMaterial({ color, roughness: par[0], metalness: par[1] });
+  genteCache.set(key, m);
+  return m;
+}
 // colorBody / colorHead siguen siendo la polera y la piel cuando se pasan (uniforme,
 // equipo, policía). Con { variar: true } cada persona sale distinta, y una parte
 // lleva polerón con la capucha puesta. El sorteo es al crearla: no cambia cada frame.
@@ -2018,9 +2072,9 @@ function makePerson(colorBody, colorHead, opciones) {
   const colorPoleron = poleron ? tonoRopa(ROPA_POLERONES) : polera;
   const pelo = variar ? tonoRopa(ROPA_PELOS) : 0x3b2b1f;
   const torso = poleron ? colorPoleron : polera;
-  const addBox = (w, h, d, col, x, y, z, datos) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
-    m.position.set(x, y, z); m.castShadow = true;
+  const addBox = (w, h, d, col, x, y, z, datos, tipo) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matGente(col, tipo || (datos && datos.parte === 'cabeza' ? 'piel' : 'tela')));
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
     m.userData.colorBase = col;
     if (datos) Object.assign(m.userData, datos); else m.userData.adorno = true;
     g.add(m); return m;
@@ -2036,11 +2090,11 @@ function makePerson(colorBody, colorHead, opciones) {
   } else if (cortePolera === 'chaleco') {
     addBox(0.82, 0.62, 0.5, tonoRopa(ROPA_POLERONES), 0, 1.32, 0);
   }
-  addBox(0.5, 0.5, 0.5, piel, 0, 2.05, 0, { parte: 'cabeza', superficie: true });
+  addBox(0.5, 0.5, 0.5, piel, 0, 2.05, 0, { parte: 'cabeza', superficie: true }, 'piel');
   const limb = (col, w, h, d, x, pivotY, parte) => {
     const pivot = new THREE.Group(); pivot.position.set(x, pivotY, 0);
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
-    m.position.y = -h / 2; m.castShadow = true;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matGente(col, 'tela'));
+    m.position.y = -h / 2; m.castShadow = true; m.receiveShadow = true;
     m.userData.colorBase = col; m.userData.parte = parte; m.userData.superficie = true;
     pivot.add(m); g.add(pivot); return pivot;
   };
@@ -2056,7 +2110,7 @@ function makePerson(colorBody, colorHead, opciones) {
   }
   facePiece(0.2, 0.05, 0x7f3a35, 0, 1.94, 0.253);                     // boca
   facePiece(0.07, 0.09, 0xcf9b6d, 0, 2.02, 0.255);                    // nariz
-  for (const sx of [-0.26, 0.26]) addBox(0.06, 0.18, 0.16, piel, sx, 2.05, 0);   // orejas
+  for (const sx of [-0.26, 0.26]) addBox(0.06, 0.18, 0.16, piel, sx, 2.05, 0, null, 'piel');   // orejas
   if (poleron) {
     // Capucha ARRIBA: tapa la nuca y los lados, y deja la cara al descubierto.
     addBox(0.66, 0.18, 0.5, colorPoleron, 0, 2.38, -0.06);            // techo de la capucha
@@ -2065,19 +2119,19 @@ function makePerson(colorBody, colorHead, opciones) {
     addBox(0.14, 0.42, 0.4, colorPoleron, 0.28, 2.1, -0.1);
     addBox(0.1, 0.4, 0.12, colorPoleron, -0.22, 2.12, 0.16);          // borde de la capucha, enmarca la cara
     addBox(0.1, 0.4, 0.12, colorPoleron, 0.22, 2.12, 0.16);
-    addBox(0.36, 0.08, 0.08, pelo, 0, 2.24, 0.22);                    // un mechón bajo la abertura
+    addBox(0.36, 0.08, 0.08, pelo, 0, 2.24, 0.22, null, 'pelo');      // un mechón bajo la abertura
     g.userData.capucha = true;
   } else {
     // Pelo (gorro de pelo estilo voxel): tapa arriba y la nuca, y deja la cara libre
-    addBox(0.54, 0.12, 0.54, pelo, 0, 2.31, 0);                       // capa de arriba
-    addBox(0.54, 0.3, 0.1, pelo, 0, 2.14, -0.22);                     // nuca
-    for (const sx of [-0.25, 0.25]) addBox(0.06, 0.3, 0.5, pelo, sx, 2.12, 0);        // patillas
-    addBox(0.5, 0.1, 0.1, pelo, 0, 2.26, 0.22);                       // chasquilla
+    addBox(0.54, 0.12, 0.54, pelo, 0, 2.31, 0, null, 'pelo');         // capa de arriba
+    addBox(0.54, 0.3, 0.1, pelo, 0, 2.14, -0.22, null, 'pelo');       // nuca
+    for (const sx of [-0.25, 0.25]) addBox(0.06, 0.3, 0.5, pelo, sx, 2.12, 0, null, 'pelo');   // patillas
+    addBox(0.5, 0.1, 0.1, pelo, 0, 2.26, 0.22, null, 'pelo');         // chasquilla
   }
   // Ropa: cuello, cinturón y hebilla
-  addBox(0.4, 0.1, 0.44, piel, 0, 1.84, 0);                           // cuello
+  addBox(0.4, 0.1, 0.44, piel, 0, 1.84, 0, null, 'piel');             // cuello
   addBox(0.78, 0.14, 0.45, 0x27303f, 0, 0.94, 0);                     // cinturón
-  addBox(0.18, 0.13, 0.05, 0xd4a017, 0, 0.94, 0.23);                  // hebilla
+  addBox(0.18, 0.13, 0.05, 0xd4a017, 0, 0.94, 0.23, null, 'metal');   // hebilla
   const manga = poleron ? colorPoleron : polera;
   const armL = limb(manga, 0.22, 0.8, 0.28, -0.5, 1.78, 'brazoI');
   const armR = limb(manga, 0.22, 0.8, 0.28,  0.5, 1.78, 'brazoD');
@@ -2087,27 +2141,27 @@ function makePerson(colorBody, colorHead, opciones) {
   const legL = limb(pants, legW, legH, legD, -0.2, 0.9, 'piernaI');
   const legR = limb(pants, legW, legH, legD,  0.2, 0.9, 'piernaD');
   // Manos y zapatos (cuelgan de los miembros, así se mueven al caminar)
-  const parte = (pivot, w, h, d, col, y, z) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: .85 }));
-    m.position.set(0, y, z || 0); m.castShadow = true; m.userData.doll = true; pivot.add(m); return m;
+  const parte = (pivot, w, h, d, col, y, z, tipo) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matGente(col, tipo || 'tela'));
+    m.position.set(0, y, z || 0); m.castShadow = true; m.receiveShadow = true; m.userData.doll = true; pivot.add(m); return m;
   };
-  parte(armL, 0.24, 0.2, 0.3, piel, -0.88);                           // mano izquierda
-  parte(armR, 0.24, 0.2, 0.3, piel, -0.88);                           // mano derecha
+  parte(armL, 0.24, 0.2, 0.3, piel, -0.88, 0, 'piel');                // mano izquierda
+  parte(armR, 0.24, 0.2, 0.3, piel, -0.88, 0, 'piel');                // mano derecha
   if (cortePantalon === 'corto') {
-    parte(legL, 0.26, 0.38, 0.28, piel, -0.66);                       // pantorrilla
-    parte(legR, 0.26, 0.38, 0.28, piel, -0.66);
+    parte(legL, 0.26, 0.38, 0.28, piel, -0.66, 0, 'piel');            // pantorrilla
+    parte(legR, 0.26, 0.38, 0.28, piel, -0.66, 0, 'piel');
   }
   const shoeH = corteZapato === 'bota' ? 0.34 : corteZapato === 'sandalia' ? 0.1 : 0.16;
   const shoeY = -0.98 + shoeH / 2;
   const shoeD = corteZapato === 'sandalia' ? 0.36 : 0.46;
-  parte(legL, 0.32, shoeH, shoeD, zapatoCol, shoeY, 0.06);
-  parte(legR, 0.32, shoeH, shoeD, zapatoCol, shoeY, 0.06);
+  parte(legL, 0.32, shoeH, shoeD, zapatoCol, shoeY, 0.06, 'zapato');
+  parte(legR, 0.32, shoeH, shoeD, zapatoCol, shoeY, 0.06, 'zapato');
   if (corteZapato === 'tenis') {
-    parte(legL, 0.33, 0.05, 0.47, 0xf8fafc, shoeY + 0.02, 0.07);
-    parte(legR, 0.33, 0.05, 0.47, 0xf8fafc, shoeY + 0.02, 0.07);
+    parte(legL, 0.33, 0.05, 0.47, 0xf8fafc, shoeY + 0.02, 0.07, 'zapato');
+    parte(legR, 0.33, 0.05, 0.47, 0xf8fafc, shoeY + 0.02, 0.07, 'zapato');
   } else if (corteZapato === 'bota') {
-    parte(legL, 0.3, 0.08, 0.34, 0x111827, shoeY + shoeH / 2 + 0.02, 0.02);
-    parte(legR, 0.3, 0.08, 0.34, 0x111827, shoeY + shoeH / 2 + 0.02, 0.02);
+    parte(legL, 0.3, 0.08, 0.34, 0x111827, shoeY + shoeH / 2 + 0.02, 0.02, 'zapato');
+    parte(legR, 0.3, 0.08, 0.34, 0x111827, shoeY + shoeH / 2 + 0.02, 0.02, 'zapato');
   }
   g.userData.limbs = { armL, armR, legL, legR };
   g.userData.ropa = { poleron, polera: torso, pantalon: pants, zapatos: zapatoCol, cortePolera, cortePantalon, corteZapato };
@@ -3786,7 +3840,7 @@ function repartirManzana(r, fondoFila) {
 // Devuelve la altura a la que queda la cumbrera (para la chimenea).
 function techoCasa(g, tipo, cx, cz, w, d, y, color) {
   const pieza = (px, py, pz, pw, ph, pd, c) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd), mat(c));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd), matObra(c));
     m.position.set(px, py, pz); m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
   };
   pieza(cx, y + .11, cz, w * 1.1, .22, d * 1.1, color);   // alero que sobresale
@@ -3812,7 +3866,7 @@ function techoCasa(g, tipo, cx, cz, w, d, y, color) {
   const alto = 1.7 + Math.min(w, d) * .15;
   const geo = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4);
   geo.rotateY(Math.PI / 4);   // la base queda cuadrada y alineada: así se puede estirar a w × d
-  const cono = new THREE.Mesh(geo, mat(color));
+  const cono = new THREE.Mesh(geo, matObra(color));
   cono.scale.set(w * 1.06, alto, d * 1.06);
   cono.position.set(cx, y + .22 + alto / 2, cz); cono.castShadow = true; g.add(cono);
   return y + .22 + alto;
@@ -3827,13 +3881,13 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
   const w = plan.w, d = plan.d, h1 = plan.h1;
   if (golden) {
     // CASA SECRETA: hueca, con puerta abierta para ENTRAR y un cofre de oro adentro
-    const gw = Math.max(5.2, Math.min(6.5, w, d)), gh = 5, t = 0.25, wm = mat(col);
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(gw, 0.2, gw), mat(0x6b4423)); floor.position.y = 0.1; floor.receiveShadow = true; g.add(floor);
+    const gw = Math.max(5.2, Math.min(6.5, w, d)), gh = 5, t = 0.25, wm = matObra(col);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(gw, 0.2, gw), matObra(0x6b4423)); floor.position.y = 0.1; floor.receiveShadow = true; g.add(floor);
     const back = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, t), wm); back.position.set(0, gh / 2, -gw / 2); g.add(back);
     [-gw / 2, gw / 2].forEach(sx => { const s = new THREE.Mesh(new THREE.BoxGeometry(t, gh, gw), wm); s.position.set(sx, gh / 2, 0); g.add(s); });
     [-1, 1].forEach(sgn => { const fseg = new THREE.Mesh(new THREE.BoxGeometry(gw / 2 - 0.7, gh, t), wm); fseg.position.set(sgn * (gw / 4 + 0.35), gh / 2, gw / 2); g.add(fseg); });   // pared frontal con hueco-puerta
     const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, t), wm); lintel.position.set(0, gh - 0.6, gw / 2); g.add(lintel);
-    const roofG = new THREE.Mesh(new THREE.ConeGeometry(gw * 0.8, 2.2, 4), mat(plan.tejas)); roofG.position.y = gh + 1.1; roofG.rotation.y = Math.PI / 4; roofG.castShadow = true; g.add(roofG);
+    const roofG = new THREE.Mesh(new THREE.ConeGeometry(gw * 0.8, 2.2, 4), matObra(plan.tejas)); roofG.position.y = gh + 1.1; roofG.rotation.y = Math.PI / 4; roofG.castShadow = true; g.add(roofG);
     // TESORO adentro: cofre + monedas de oro brillantes
     const chest = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 0.9), mat(0x7c4a1e)); chest.position.set(0, 0.55, -1.3); chest.castShadow = true; g.add(chest);
     for (let i = 0; i < 8; i++) { const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, roughness: 0.25 })); coin.position.set((Math.random() - 0.5) * 1.4, 0.18 + Math.random() * 0.4, -0.3 + (Math.random() - 0.5) * 1.2); coin.rotation.set(Math.random(), Math.random(), Math.random()); g.add(coin); }
@@ -3847,7 +3901,7 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
   const detalle = !preferLowPerf;   // en celular/equipos lentos la casa va simple (si no, son miles de piezas)
   const cuerpos = [];               // los volúmenes que ocupan sitio (de ahí salen las colisiones)
   const caja = (px, py, pz, pw, ph, pd, c, sombra = true) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd), mat(c));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd), matObra(c));
     m.position.set(px, py, pz); m.castShadow = sombra; m.receiveShadow = true; g.add(m); return m;
   };
   // El cuerpo principal no siempre ocupa toda la parcela: la casa en L y la del
@@ -3940,7 +3994,7 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
     caja(bx, .12, pz, bw * .94, .24, 1.7, 0xd6cdbb, false);
     for (const sx of [-1, 1]) for (const f of [.42, .16]) {
       const cxp = bx + sx * bw * f;
-      const colu = new THREE.Mesh(new THREE.CylinderGeometry(.22, .26, h1 - .1, 10), mat(0xf2ece0));
+      const colu = new THREE.Mesh(new THREE.CylinderGeometry(.22, .26, h1 - .1, 10), matObra(0xf2ece0));
       colu.position.set(cxp, (h1 - .1) / 2 + .24, pz + .55); colu.castShadow = true; g.add(colu);
     }
     caja(bx, h1 + .1, pz, bw * .98, .34, 2.1, plan.tejas);
@@ -4719,12 +4773,41 @@ function chooseCitizenGoal(n) {
     } else elegirLugar(n);
   } else elegirLugar(n);
 }
+// El paso pedido entra con inercia y, si el muro se come parte, se pierde ese impulso.
+// src/npc-solido.js sigue decidiendo si el sitio está libre.
+function soltarPesoNpc(n) {
+  const s = n.userData.solido;
+  if (!s) return;
+  s.vx = 0; s.vz = 0;
+}
+function desplazarConPeso(n, dx, dz, dt, tau) {
+  const s = n.userData.solido || (n.userData.solido = { quieto: 0, lado: 1 });
+  const t = dt > 0.001 ? dt : 0.016;
+  const k = 1 - Math.exp(-t / (tau || 0.17));
+  s.vx = (s.vx || 0) + (dx / t - (s.vx || 0)) * k;
+  s.vz = (s.vz || 0) + (dz / t - (s.vz || 0)) * k;
+  return { x: s.vx * t, z: s.vz * t };
+}
+function frenarPesoNpc(n, ax, az, nx, nz, pedidoX, pedidoZ) {
+  const s = n.userData.solido;
+  if (!s) return;
+  const mx = nx - ax, mz = nz - az;
+  const pedido = Math.hypot(pedidoX, pedidoZ), hecho = Math.hypot(mx, mz);
+  if (pedido < 1e-5) { s.vx = 0; s.vz = 0; return; }
+  if (hecho >= pedido * 0.9) return;
+  if (hecho < 1e-4) { s.vx *= 0.22; s.vz *= 0.22; return; }
+  const ux = mx / hecho, uz = mz / hecho;
+  const along = s.vx * ux + s.vz * uz;
+  s.vx = ux * along * 0.58;
+  s.vz = uz * along * 0.58;
+}
 // En la vereda no hay atajo: el paso sigue el tramo y, si hay un muro, se desliza.
 // No salta al destino ni se queda parado contra el obstáculo.
 function seguirVereda(n, dt) {
   const b = n.userData.brain;
   if (b.wait > 0) {
     b.wait -= dt;
+    soltarPesoNpc(n);
     if (b.wait > 0) { swingLimbs(n, 0); n.userData.activity = b.activity; return; }
     if (b.activity !== 'goingHome' && b.activity !== 'shelter') chooseCitizenGoal(n);
   }
@@ -4739,10 +4822,12 @@ function seguirVereda(n, dt) {
       b.wait = b.pausaAlLlegar > 0 ? b.pausaAlLlegar : .45;
       b.pausaAlLlegar = 0;
     } else b.goal.set(b.camino[b.wp].x, 0, b.camino[b.wp].z);
+    soltarPesoNpc(n);
     swingLimbs(n, 0); n.userData.activity = b.activity; return;
   }
   const prev = b.wp > 0 ? b.camino[b.wp - 1] : { x: n.position.x, z: n.position.z };
-  const paso = Math.min(dist, speed * dt);
+  const cerca = dist < 1.7 ? Math.max(0.42, dist / 1.7) : 1;
+  const paso = Math.min(dist, speed * cerca * dt);
   let sx, sz;
   if (!sobreVereda(n.position.x, n.position.z)) {
     const c = corregirAVereda(n.position.x, n.position.z);
@@ -4755,10 +4840,14 @@ function seguirVereda(n, dt) {
     if (sl > paso + 0.05 && sl > 0) { sx *= paso / sl; sz *= paso / sl; }
   }
   if (!n.userData.solido) n.userData.solido = { quieto: 0, lado: 1 };
-  const m = moverNpc(n.position.x, n.position.z, sx, sz, (x, z) => npcOcupado(x, z, n.position.y || 0, 0.42, n), n.userData.solido, dt);
+  const pedido = desplazarConPeso(n, sx, sz, dt, b.activity === 'flee' ? 0.08 : 0.17);
+  const ax0 = n.position.x, az0 = n.position.z;
+  const m = moverNpc(n.position.x, n.position.z, pedido.x, pedido.z, (x, z) => npcOcupado(x, z, n.position.y || 0, 0.42, n), n.userData.solido, dt);
+  const nx = m.x, nz = m.z;
   if (m.cambio) elegirLugar(n);
-  const moved = Math.hypot(m.x - n.position.x, m.z - n.position.z) > 0.002;
-  n.position.x = m.x; n.position.z = m.z;
+  frenarPesoNpc(n, ax0, az0, nx, nz, pedido.x, pedido.z);
+  const moved = Math.hypot(nx - ax0, nz - az0) > 0.002;
+  n.position.x = nx; n.position.z = nz;
   if (enCrucePeatonal(n.position.x, n.position.z)) n.userData.cruzo = true;
   if (moved) n.rotation.y = Math.atan2(sx, sz);
   b.goal.set(dest.x, 0, dest.z);
@@ -4785,15 +4874,15 @@ function updateNPCs(dt) {
       if (b.camino && b.wp < b.camino.length - 1) {
         b.wp++; const p = b.camino[b.wp]; b.goal.set(p.x, 0, p.z);
       } else if (b.pausaAlLlegar > 0) {
-        b.wait = b.pausaAlLlegar; b.pausaAlLlegar = 0;
+        b.wait = b.pausaAlLlegar; b.pausaAlLlegar = 0; soltarPesoNpc(n);
         swingLimbs(n, 0); n.userData.activity = b.activity; continue;
       } else if (b.activity === 'socialize' && b.targetPerson && b.targetPerson.visible && b.wait > 0) {
         n.rotation.y = Math.atan2(b.targetPerson.position.x - n.position.x, b.targetPerson.position.z - n.position.z);
-        b.wait -= dt; swingLimbs(n, 0); n.userData.activity = b.activity; continue;
+        b.wait -= dt; soltarPesoNpc(n); swingLimbs(n, 0); n.userData.activity = b.activity; continue;
       } else if (b.wait > 0) {
-        b.wait -= dt; swingLimbs(n, 0); n.userData.activity = b.activity; continue;
+        b.wait -= dt; soltarPesoNpc(n); swingLimbs(n, 0); n.userData.activity = b.activity; continue;
       } else if (b.activity === 'goingHome' || b.activity === 'shelter') {
-        b.wait = 6; swingLimbs(n, 0); n.userData.activity = b.activity; continue;
+        b.wait = 6; soltarPesoNpc(n); swingLimbs(n, 0); n.userData.activity = b.activity; continue;
       } else {
         b.intentos = 0; chooseCitizenGoal(n);
       }
@@ -4811,9 +4900,13 @@ function updateNPCs(dt) {
         dx += sx * .4; dz += sz * .4;
         const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
       }
-      const speed = b.speed * (b.activity === 'flee' ? 2.6 : 1), step = Math.min(distance, speed * dt);
+      const speed = b.speed * (b.activity === 'flee' ? 2.6 : 1);
+      const cerca = distance < 1.7 ? Math.max(0.42, distance / 1.7) : 1;
+      const step = Math.min(distance, speed * cerca * dt);
       if (!n.userData.solido) n.userData.solido = { quieto: 0, lado: 1 };
-      const m = moverNpc(n.position.x, n.position.z, dx * step, dz * step, (x, z) => {
+      const pedido = desplazarConPeso(n, dx * step, dz * step, dt, b.activity === 'flee' ? 0.08 : 0.17);
+      const ax0 = n.position.x, az0 = n.position.z;
+      const m = moverNpc(n.position.x, n.position.z, pedido.x, pedido.z, (x, z) => {
         if (b.rect && (x < b.rect.minX || x > b.rect.maxX || z < b.rect.minZ || z > b.rect.maxZ)) {
           const fuera = (px, pz) => {
             const ex = px < b.rect.minX ? b.rect.minX - px : px > b.rect.maxX ? px - b.rect.maxX : 0;
@@ -4824,9 +4917,11 @@ function updateNPCs(dt) {
         }
         return npcOcupado(x, z, n.position.y || 0, 0.42, n);
       }, n.userData.solido, dt);
+      const nx = m.x, nz = m.z;
       if (m.cambio) elegirLugar(n);
-      moved = m.x !== n.position.x || m.z !== n.position.z;
-      n.position.x = m.x; n.position.z = m.z;
+      frenarPesoNpc(n, ax0, az0, nx, nz, pedido.x, pedido.z);
+      moved = nx !== ax0 || nz !== az0;
+      n.position.x = nx; n.position.z = nz;
       if (moved) n.rotation.y = Math.atan2(dx, dz);
     }
     if (state.phase === 'NIGHT' && dist2D(n.position, b.home) < 1.35) n.visible = false;
@@ -6127,25 +6222,30 @@ function updateJailFolk(dt) {
     const ud = p.userData.jail;
     if (!ud.meta) {
       ud.espera = (ud.espera || 0) - dt;
-      if (ud.espera > 0) { swingLimbs(p, 0); continue; }
+      if (ud.espera > 0) { soltarPesoNpc(p); swingLimbs(p, 0); continue; }
       ud.meta = metaJail(ud, p.position);
       if (!ud.meta) { ud.espera = .6; swingLimbs(p, 0); continue; }
     }
     const dx = ud.meta.x - p.position.x, dz = ud.meta.z - p.position.z, d = Math.hypot(dx, dz) || 1;
-    if (d < .4) { ud.meta = null; ud.espera = 1.1 + Math.random() * 2.2; swingLimbs(p, 0); continue; }
-    const step = Math.min(d, 1.15 * dt);
+    if (d < .4) { ud.meta = null; ud.espera = 1.1 + Math.random() * 2.2; soltarPesoNpc(p); swingLimbs(p, 0); continue; }
+    const cerca = d < 1.7 ? Math.max(0.42, d / 1.7) : 1;
+    const step = Math.min(d, 1.15 * cerca * dt);
     if (!p.userData.gente) p.userData.gente = true;
     if (!p.userData.solido) p.userData.solido = { quieto: 0, lado: 1 };
     const radioZona = ud.r - 0.12;
     const ahora = Math.hypot(p.position.x - ud.ox, p.position.z - ud.oz);
-    const m = moverNpc(p.position.x, p.position.z, dx / d * step, dz / d * step, (x, z) => {
+    const pedido = desplazarConPeso(p, dx / d * step, dz / d * step, dt, 0.17);
+    const ax0 = p.position.x, az0 = p.position.z;
+    const m = moverNpc(p.position.x, p.position.z, pedido.x, pedido.z, (x, z) => {
       if (npcOcupado(x, z, p.position.y || 0, 0.42, p)) return true;
       const lejos = Math.hypot(x - ud.ox, z - ud.oz);
       return lejos > radioZona && lejos >= ahora - 1e-4;
     }, p.userData.solido, dt);
+    const nx = m.x, nz = m.z;
     if (m.cambio) { ud.meta = null; ud.espera = 0; }
-    const movio = m.x !== p.position.x || m.z !== p.position.z;
-    p.position.x = m.x; p.position.z = m.z;
+    frenarPesoNpc(p, ax0, az0, nx, nz, pedido.x, pedido.z);
+    const movio = nx !== ax0 || nz !== az0;
+    p.position.x = nx; p.position.z = nz;
     if (m.cambio) { swingLimbs(p, movio ? dt : 0); continue; }
     if (movio) { p.rotation.y = Math.atan2(dx, dz); swingLimbs(p, dt); }
     else swingLimbs(p, 0);
@@ -7382,9 +7482,15 @@ function makeCar(color) {
   return g;
 }
 // ---- Calles: la cuadrícula de la ciudad (el trazado vive en src/city-map.js) ----
-const roadMat = new THREE.MeshStandardMaterial({ color: 0x34383f, roughness: 1 });
-const lineMat = new THREE.MeshStandardMaterial({ color: 0xd9dee6, roughness: 1 });
-const veredaMat = new THREE.MeshStandardMaterial({ color: 0xb2b8c0, roughness: .96 });
+const roadMat = new THREE.MeshStandardMaterial({
+  color: 0x2e333a, roughness: .88, metalness: .05,
+  normalMap: asfaltoNormal, normalScale: asfaltoNormal ? new THREE.Vector2(.45, .45) : undefined,
+});
+const lineMat = new THREE.MeshStandardMaterial({ color: 0xd9dee6, roughness: .9 });
+const veredaMat = new THREE.MeshStandardMaterial({
+  color: 0xaeb4bc, roughness: .8, metalness: .02,
+  normalMap: veredaNormal, normalScale: veredaNormal ? new THREE.Vector2(.38, .38) : undefined,
+});
 const roadMeshes = [];
 // Las horizontales y las verticales van a alturas apenas distintas para que el
 // asfalto de un cruce no pelee con el de la otra calle (z-fighting).
@@ -7721,16 +7827,19 @@ function buildSkyline(distritoId, alturas) {
     // Ventanas de tamaño real: ~1,5 m de ancho y un piso cada 3,4 m (la planta baja es el hall)
     const vent = FACHADA_VENTANAS;
     tex.repeat.set(Math.max(1, Math.round(w / 1.5)) / vent, (alto - 4.2) / 3.4 / vent);
-    const torreMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: .55, metalness: .25 });
+    const torreMat = new THREE.MeshStandardMaterial({
+      map: tex, color: 0xffffff, roughness: .7, metalness: .08,
+      normalMap: obraNormal, normalScale: obraNormal ? new THREE.Vector2(.2, .2) : undefined,
+    });
     const torre = new THREE.Mesh(new THREE.BoxGeometry(w, alto - 4.2, d), torreMat);
     torre.position.set(x, 4.2 + (alto - 4.2) / 2, z); torre.castShadow = true; torre.receiveShadow = true; scene.add(torre);
     // Planta baja: hall de vidrio un poco más adentro, columnas, marquesina y puerta hacia la calle más cercana
-    const hall = new THREE.Mesh(new THREE.BoxGeometry(w - 1, 4.2, d - 1), new THREE.MeshStandardMaterial({ color: 0x9fc4dd, roughness: .08, metalness: .45, emissive: 0x334155, emissiveIntensity: .25 }));
+    const hall = new THREE.Mesh(new THREE.BoxGeometry(w - 1, 4.2, d - 1), new THREE.MeshStandardMaterial({ color: 0x9fc4dd, roughness: .22, metalness: .14, emissive: 0x1e293b, emissiveIntensity: .16 }));
     hall.position.set(x, 2.1, z); scene.add(hall);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      const col = new THREE.Mesh(new THREE.BoxGeometry(.7, 4.2, .7), mat(muro)); col.position.set(x + sx * (w / 2 - .35), 2.1, z + sz * (d / 2 - .35)); col.castShadow = true; scene.add(col);
+      const col = new THREE.Mesh(new THREE.BoxGeometry(.7, 4.2, .7), matObra(muro)); col.position.set(x + sx * (w / 2 - .35), 2.1, z + sz * (d / 2 - .35)); col.castShadow = true; scene.add(col);
     }
-    const losaHall = new THREE.Mesh(new THREE.BoxGeometry(w + .3, .5, d + .3), mat(0x64748b)); losaHall.position.set(x, 4.2, z); scene.add(losaHall);
+    const losaHall = new THREE.Mesh(new THREE.BoxGeometry(w + .3, .5, d + .3), matObra(0x64748b)); losaHall.position.set(x, 4.2, z); scene.add(losaHall);
     const haciaX = Math.abs(x - Math.round(x / 55) * 55) < Math.abs(z - Math.round(z / 55) * 55);   // la avenida más cercana
     const lado = haciaX ? Math.sign(Math.round(x / 55) * 55 - x) || 1 : Math.sign(Math.round(z / 55) * 55 - z) || 1;
     const fx = haciaX ? x + lado * (w / 2 + .9) : x, fz = haciaX ? z : z + lado * (d / 2 + .9);
@@ -7739,7 +7848,7 @@ function buildSkyline(distritoId, alturas) {
     puerta.position.set(haciaX ? x + lado * (w / 2 - .45) : x, 1.4, haciaX ? z : z + lado * (d / 2 - .45)); scene.add(puerta);
     // Azotea: sala de máquinas, estanque y equipos de clima
     const maqD = Math.min(4, d * .4);
-    const maq = new THREE.Mesh(new THREE.BoxGeometry(Math.min(4, w * .4), 2.6, maqD), mat(0xcbd5e1)); maq.position.set(x - w * .2, alto + 2, z - d * .15); maq.castShadow = true; scene.add(maq);
+    const maq = new THREE.Mesh(new THREE.BoxGeometry(Math.min(4, w * .4), 2.6, maqD), matObra(0xcbd5e1)); maq.position.set(x - w * .2, alto + 2, z - d * .15); maq.castShadow = true; scene.add(maq);
     const puertaAzotea = new THREE.Mesh(new THREE.BoxGeometry(1, 2, .08), mat(0x475569)); puertaAzotea.position.set(x - w * .2, alto + 1.7, z - d * .15 + maqD / 2 + .04); scene.add(puertaAzotea);
     // E en la puerta de la calle te sube en ascensor a la azotea; E en la puerta de la azotea te baja
     const yawFuera = haciaX ? (lado > 0 ? -Math.PI / 2 : Math.PI / 2) : (lado > 0 ? Math.PI : 0);
@@ -7748,7 +7857,7 @@ function buildSkyline(distritoId, alturas) {
       b: { x: x - w * .2, y: alto + .7, z: z - d * .15 + maqD / 2 + 1.3, yaw: Math.PI } });
     const est = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1.8, 12), mat(0x94a3b8)); est.position.set(x + w * .22, alto + 1.6, z + d * .2); scene.add(est);
     const clima = new THREE.Mesh(new THREE.BoxGeometry(1.6, .9, 1.1), mat(0xe5e7eb)); clima.position.set(x + w * .2, alto + 1.15, z - d * .25); scene.add(clima);
-    const remate = new THREE.Mesh(new THREE.BoxGeometry(w + .8, .7, d + .8), mat(0x94a3b8));
+    const remate = new THREE.Mesh(new THREE.BoxGeometry(w + .8, .7, d + .8), matObra(0x94a3b8));
     remate.position.set(x, alto + .35, z); remate.castShadow = true; scene.add(remate);
     if (alto > 26) {   // antena con luz roja para los aviones
       const antena = new THREE.Mesh(new THREE.CylinderGeometry(.12, .18, 5, 6), mat(0x9ca3af));
@@ -17261,9 +17370,13 @@ function moveToward(e, target, step) {
   if (!flies && esPersona(e)) {
     if (!e.userData.solido) e.userData.solido = { quieto: 0, lado: 1 };
     const radio = e.userData.car ? 2.05 : 0.42;
-    const m = moverNpc(e.position.x, e.position.z, dx / len * step, dz / len * step,
+    const pedido = desplazarConPeso(e, dx / len * step, dz / len * step, tickDt, 0.15);
+    const ax0 = e.position.x, az0 = e.position.z;
+    const m = moverNpc(e.position.x, e.position.z, pedido.x, pedido.z,
       (x, z) => npcOcupado(x, z, e.position.y || 0, radio, e), e.userData.solido, tickDt);
-    e.position.x = m.x; e.position.z = m.z;
+    const nx = m.x, nz = m.z;
+    frenarPesoNpc(e, ax0, az0, nx, nz, pedido.x, pedido.z);
+    e.position.x = nx; e.position.z = nz;
     if (m.cambio && e.userData.jail) e.userData.jail.meta = null;
   } else {
     const parts = flies ? 1 : Math.max(1, Math.ceil(Math.abs(step) / 0.32));
@@ -25819,34 +25932,55 @@ function updateCreativeFlight(dt) {
   grounded = false; vy = 0; camera.rotation.y = yaw; camera.rotation.x = pitch;
 }
 let ojoAntes = PLAYER_EYE;   // altura de los ojos del frame anterior (de pie o agachado)
+let pasoVelX = 0, pasoVelZ = 0;
+function cortarPaso() { pasoVelX = 0; pasoVelZ = 0; }
+function absorberChoqueJugador(desdeX, desdeZ, dt) {
+  const t = dt > 0.001 ? dt : 0.016;
+  const mx = player.position.x - desdeX, mz = player.position.z - desdeZ;
+  const pedido = Math.hypot(pasoVelX, pasoVelZ) * t;
+  const hecho = Math.hypot(mx, mz);
+  if (pedido < 0.004) {
+    if (hecho < 0.004) { pasoVelX = 0; pasoVelZ = 0; }
+    return;
+  }
+  if (hecho >= pedido * 0.9) return;
+  if (hecho < 0.004) { pasoVelX *= 0.2; pasoVelZ *= 0.2; return; }
+  const ux = mx / hecho, uz = mz / hecho;
+  const along = pasoVelX * ux + pasoVelZ * uz;
+  pasoVelX = ux * along * 0.62;
+  pasoVelZ = uz * along * 0.62;
+}
 function updateMovement(dt) {
-  if (raceState) return;   // durante la carrera 3D el auto y la cámara siguen la pista aérea
+  if (raceState) { cortarPaso(); return; }   // durante la carrera 3D el auto y la cámara siguen la pista aérea
   if (state.mission === 'alley' && alley.following) {
+    cortarPaso();
     camera.rotation.y = yaw; camera.rotation.x = pitch;
     player.position.y = PLAYER_EYE; vy = 0; grounded = true;
     return;
   }
-  if (state.cinematic) return;   // durante la cinemática del cohete el personaje se mueve solo
-  if (state.sailing) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }
-  if (torreLift.rider) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // en el ascensor: te lleva la cabina
-  if (typing) clearInput();   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
-  if (ducha) { vy = 0; grounded = true; camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // duchándote: updateDucha te tiene bajo el agua
+  if (state.cinematic) { cortarPaso(); return; }   // durante la cinemática del cohete el personaje se mueve solo
+  if (state.sailing) { cortarPaso(); camera.rotation.y = yaw; camera.rotation.x = pitch; return; }
+  if (torreLift.rider) { cortarPaso(); camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // en el ascensor: te lleva la cabina
+  if (typing) { cortarPaso(); clearInput(); }   // con un menú abierto (vendedor, banco, mates…) no se camina (la gravedad sigue)
+  if (ducha) { cortarPaso(); vy = 0; grounded = true; camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // duchándote: updateDucha te tiene bajo el agua
   if (sitOn && sitOn.acostado) {   // acostado: los ojos van en la almohada
+    cortarPaso();
     const o = sitOn.acostado.ojo; player.position.set(o.x, o.y, o.z);
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   if (sitOn) {   // sentado: te quedas en el mueble hasta que te pares con E
+    cortarPaso();
     const p = sitOn.mesh.position, rot = sitOn.mesh.rotation.y;
     // un poco hacia el frente del mueble, para no quedar dentro del estanque/respaldo
     player.position.set(p.x + Math.sin(rot) * .22, p.y + 1.05, p.z + Math.cos(rot) * .22);
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
-  if (parkRide) { camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // montado en una atracción: te lleva ella
-  if (state.driving && car) { updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
-  if (state.riding && mount) { updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
-  if (state.creative && creativeFlying) { updateCreativeFlight(dt); return; }
-  if (updateSkiLiftRide(dt)) return;
-  if (updateSkiMovement(dt)) return;
+  if (parkRide) { cortarPaso(); camera.rotation.y = yaw; camera.rotation.x = pitch; return; }   // montado en una atracción: te lleva ella
+  if (state.driving && car) { cortarPaso(); updateDriving(dt); return; }   // conduciendo: el auto reemplaza al caminar
+  if (state.riding && mount) { cortarPaso(); updateRiding(dt); return; }   // montando una criatura: reemplaza al caminar
+  if (state.creative && creativeFlying) { cortarPaso(); updateCreativeFlight(dt); return; }
+  if (updateSkiLiftRide(dt)) { cortarPaso(); return; }
+  if (updateSkiMovement(dt)) { cortarPaso(); return; }
   const moveStartX = player.position.x, moveStartZ = player.position.z;
   recordarPasoJugador();
   const fwd = keys['KeyW'], back = keys['KeyS'];
@@ -25870,15 +26004,22 @@ function updateMovement(dt) {
   let spd = running ? 14 : (crouch ? 4 : 9);
   if (state.hunger <= 0) spd = 6;     // muerto de hambre: caminas lento
   if (running) state.hunger = Math.max(0, state.hunger - HAMBRE_CORRER * dt);
-  const step = spd * dt;
   // ejes de movimiento: teclado (WASD, discreto) + joystick táctil (analógico)
   let ax = 0, az = 0;
   if (fwd) az += 1; if (back) az -= 1;
   if (right) ax += 1; if (left) ax -= 1;
   az += touch.moveY; ax += touch.moveX;
   const mag = Math.hypot(ax, az); if (mag > 1) { ax /= mag; az /= mag; }   // no ir más rápido en diagonal
-  player.position.addScaledVector(forward, az * step);
-  player.position.addScaledVector(rightV, ax * step);
+  // Peso: el cuerpo llega a la velocidad y se frena. Un muro se come el impulso, no se patina.
+  const deseoX = (forward.x * az + rightV.x * ax) * spd;
+  const deseoZ = (forward.z * az + rightV.z * ax) * spd;
+  const tau = state.inWater ? 0.2 : (!grounded ? 0.32 : (mag > 0.08 ? (running ? 0.09 : 0.14) : 0.11));
+  const kPaso = 1 - Math.exp(-dt / tau);
+  pasoVelX += (deseoX - pasoVelX) * kPaso;
+  pasoVelZ += (deseoZ - pasoVelZ) * kPaso;
+  if (mag < 0.08 && Math.hypot(pasoVelX, pasoVelZ) < 0.08) { pasoVelX = 0; pasoVelZ = 0; }
+  player.position.x += pasoVelX * dt;
+  player.position.z += pasoVelZ * dt;
   if (state.inFlight) {   // cabina en el cielo: el pasillo es el suelo, no caigas al vacío
     player.position.x = THREE.MathUtils.clamp(player.position.x, FLIGHT.x - 1.85, FLIGHT.x + 1.85);
     player.position.z = THREE.MathUtils.clamp(player.position.z, FLIGHT.z - 11.05, FLIGHT.z + 8.55);
@@ -25886,6 +26027,7 @@ function updateMovement(dt) {
     vy = 0; grounded = true; state.inWater = state.underwater = false;
     resolveFlightWalls();
     resolveCollisions();
+    absorberChoqueJugador(moveStartX, moveStartZ, dt);
     camera.rotation.y = yaw; camera.rotation.x = pitch;
     return;
   }
@@ -25929,6 +26071,7 @@ function updateMovement(dt) {
     state.underwater = player.position.y < zone.surface;
     grounded = player.position.y <= minY + .01; touch.jump = false;
     resolveCollisions();
+    absorberChoqueJugador(moveStartX, moveStartZ, dt);
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   state.underwater = false;
@@ -26012,11 +26155,13 @@ function updateMovement(dt) {
     const h = state.shelterHole;
     const cx = Math.round((player.position.x - h.x) / MINE_CELL), cz = Math.round((player.position.z - h.z) / MINE_CELL);
     if (!h.tunnels.has(tunnelKey(cx, cz))) { player.position.x = moveStartX; player.position.z = moveStartZ; }
+    absorberChoqueJugador(moveStartX, moveStartZ, dt);
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;   // sin colisiones de la superficie bajo tierra
   }
   if (state.inRuins) {   // caminar dentro de la cámara de las ruinas (lejos del mundo)
     player.position.x = THREE.MathUtils.clamp(player.position.x, RUINS_C.x - 11, RUINS_C.x + 11);
     player.position.z = THREE.MathUtils.clamp(player.position.z, RUINS_C.z - 11, RUINS_C.z + 11);
+    absorberChoqueJugador(moveStartX, moveStartZ, dt);
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   if (state.inCastle) {   // caminar por el laberinto del castillo (choca con las paredes)
@@ -26024,11 +26169,13 @@ function updateMovement(dt) {
     player.position.x = THREE.MathUtils.clamp(player.position.x, CASTLE_C.x - H, CASTLE_C.x + H);
     player.position.z = THREE.MathUtils.clamp(player.position.z, CASTLE_C.z - H, CASTLE_C.z + H);
     resolveMazeCollisions();
+    absorberChoqueJugador(moveStartX, moveStartZ, dt);
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   if (state.inArena) {   // dentro del coliseo: te mueves dentro del círculo de la arena
     const dx = player.position.x - COLI_C.x, dz = player.position.z - COLI_C.z, dd = Math.hypot(dx, dz);
     if (dd > COLI_R - 0.6) { const k = (COLI_R - 0.6) / dd; player.position.x = COLI_C.x + dx * k; player.position.z = COLI_C.z + dz * k; }
+    absorberChoqueJugador(moveStartX, moveStartZ, dt);
     camera.rotation.y = yaw; camera.rotation.x = pitch; return;
   }
   if (state.country) {   // de visita en otro país: los límites son los de ese lugar
@@ -26059,6 +26206,7 @@ function updateMovement(dt) {
     }
   }
   resolveCollisions();
+  absorberChoqueJugador(moveStartX, moveStartZ, dt);
   camera.rotation.y = yaw; camera.rotation.x = pitch;
 }
 

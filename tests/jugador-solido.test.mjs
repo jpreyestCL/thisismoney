@@ -70,7 +70,7 @@ test('el aire, el pasto y el humo no están en el choque del jugador', () => {
   assert.match(html, /const MUEBLE_SOLIDO = \{/);
   assert.match(html, /window: \[2\.6, 0\.28/);
   assert.doesNotMatch(html, /if \(Math\.abs\(px\) < Math\.abs\(pz\)\) p\.x \+= px/);
-  assert.match(sw, /const VERSION = 'tim-v127'/);
+  assert.match(sw, /const VERSION = 'tim-v128'/);
   assert.match(sw, /jugador-solido\.js\?v=1/);
   assert.match(sw, /npc-solido\.js\?v=1/);
 });

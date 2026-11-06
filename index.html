@@ -1465,9 +1465,9 @@ sun.shadow.mapSize.set(preferLowPerf ? 512 : 2048, preferLowPerf ? 512 : 2048); 
 sun.shadow.camera.near = 1; sun.shadow.camera.far = 240;
 sun.shadow.camera.left = -70; sun.shadow.camera.right = 70;
 sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
-sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.02; sun.shadow.radius = 2.5;
+sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.012; sun.shadow.radius = 1.1;
 scene.add(sun);
-const rim = new THREE.DirectionalLight(0xcfe4ff, 0.48);   // relleno frío del lado opuesto: los bloques se ven redondos
+const rim = new THREE.DirectionalLight(0xcfe4ff, 0.16);   // relleno frío, bajo: si no, borra la sombra del sol
 rim.position.set(-45, 30, -35); scene.add(rim);
 scene.add(sun.target);   // si el target no está en la escena, moverlo no gira la luz
 const _sunDir = new THREE.Vector3(), _lightDir = new THREE.Vector3(), _moonDir = new THREE.Vector3();
@@ -1516,23 +1516,23 @@ const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el 
 function makeGroundDetailTexture() {
   const N = 64, cv = document.createElement('canvas'); cv.width = cv.height = N;
   const cx = cv.getContext('2d');
-  cx.fillStyle = '#d2d2d2'; cx.fillRect(0, 0, N, N);
+  cx.fillStyle = '#bdbdbd'; cx.fillRect(0, 0, N, N);
   const rnd = (i) => { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
-  for (let i = 0; i < 1500; i++) {                     // manchas de tono (parches de pasto)
-    const x = rnd(i) * N, y = rnd(i + 999) * N, t = .74 + rnd(i + 55) * .42;
-    const g = Math.round(210 * t);
+  for (let i = 0; i < 900; i++) {                      // manchas grandes: de lejos se ve pasto, no un verde liso
+    const x = rnd(i) * N, y = rnd(i + 999) * N, t = .42 + rnd(i + 55) * .85;
+    const g = Math.round(150 * t);
     cx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
-    cx.fillRect(x, y, 1 + rnd(i + 7) * 2, 1 + rnd(i + 13) * 2);
+    cx.fillRect(x, y, 3 + rnd(i + 7) * 7, 2 + rnd(i + 13) * 5);
   }
-  for (let i = 0; i < 340; i++) {                      // briznas: rayitas verticales claras y oscuras
-    const x = Math.floor(rnd(i + 3000) * N), y = Math.floor(rnd(i + 4000) * N), h = 2 + Math.floor(rnd(i + 5000) * 3);
-    const claro = rnd(i + 6000) > .5;
-    cx.fillStyle = claro ? 'rgba(255,255,255,.55)' : 'rgba(60,60,60,.35)';
+  for (let i = 0; i < 520; i++) {                      // briznas: rayitas verticales claras y oscuras
+    const x = Math.floor(rnd(i + 3000) * N), y = Math.floor(rnd(i + 4000) * N), h = 4 + Math.floor(rnd(i + 5000) * 7);
+    const claro = rnd(i + 6000) > .45;
+    cx.fillStyle = claro ? 'rgba(255,255,255,.8)' : 'rgba(20,20,20,.55)';
     cx.fillRect(x, y, 1, h);
   }
-  for (let i = 0; i < 60; i++) {                       // tierrita entre el pasto
+  for (let i = 0; i < 80; i++) {                       // tierrita entre el pasto
     const x = rnd(i + 7000) * N, y = rnd(i + 8000) * N;
-    cx.fillStyle = 'rgba(120,105,80,.35)'; cx.fillRect(x, y, 2, 2);
+    cx.fillStyle = 'rgba(90,70,40,.55)'; cx.fillRect(x, y, 3, 3);
   }
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -1549,8 +1549,8 @@ function makeGroundNormalTexture() {   // relieve suave: el pasto reacciona a la
     const i = y * N + x;
     const dx = alt[y * N + ((x + 1) % N)] - alt[y * N + ((x + N - 1) % N)];
     const dy = alt[((y + 1) % N) * N + x] - alt[((y + N - 1) % N) * N + x];
-    img.data[i * 4] = Math.round(128 - dx * 90);
-    img.data[i * 4 + 1] = Math.round(128 - dy * 90);
+    img.data[i * 4] = Math.round(128 - dx * 150);
+    img.data[i * 4 + 1] = Math.round(128 - dy * 150);
     img.data[i * 4 + 2] = 255;
     img.data[i * 4 + 3] = 255;
   }
@@ -1560,53 +1560,140 @@ function makeGroundNormalTexture() {   // relieve suave: el pasto reacciona a la
   return tex;
 }
 const groundTex = makeGroundDetailTexture();
-groundTex.repeat.set(200, 200);
+groundTex.repeat.set(280, 280);
 const groundNormalTex = makeGroundNormalTexture();
-groundNormalTex.repeat.set(200, 200);
-function makeBumpNormal(seed, fuerza) {   // relieve chico, una sola vez: el sol deja de pintar cada cara pareja
-  const N = 48, cv = document.createElement('canvas'); cv.width = cv.height = N;
+groundNormalTex.colorSpace = THREE.NoColorSpace;
+groundNormalTex.repeat.set(280, 280);
+function hash01(i) { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); }
+function texLienzo(N, pintar, color) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const cx = cv.getContext('2d');
+  pintar(cx, N);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.colorSpace = color ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  return tex;
+}
+function normalDeAltura(alt, fuerza) {
+  const N = Math.round(Math.sqrt(alt.length));
+  const cv = document.createElement('canvas'); cv.width = cv.height = N;
   const cx = cv.getContext('2d'), img = cx.createImageData(N, N);
-  const rnd = (i) => { const v = Math.sin(i * seed + 47.9) * 24634.6345; return v - Math.floor(v); };
-  const alt = new Float32Array(N * N);
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    let a = 0;
-    for (let k = 0; k < 4; k++) a += rnd((y * N + x) * 4 + k);
-    alt[y * N + x] = a * 0.25;
-  }
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const i = y * N + x;
     const dx = alt[y * N + ((x + 1) % N)] - alt[y * N + ((x + N - 1) % N)];
     const dy = alt[((y + 1) % N) * N + x] - alt[((y + N - 1) % N) * N + x];
-    img.data[i * 4] = Math.round(128 - dx * fuerza);
-    img.data[i * 4 + 1] = Math.round(128 - dy * fuerza);
-    img.data[i * 4 + 2] = 255;
+    const nx = -dx * fuerza, ny = -dy * fuerza, nz = 1;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    img.data[i * 4] = Math.round((nx / len) * 127 + 128);
+    img.data[i * 4 + 1] = Math.round((ny / len) * 127 + 128);
+    img.data[i * 4 + 2] = Math.round((nz / len) * 127 + 128);
     img.data[i * 4 + 3] = 255;
   }
   cx.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(cv);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.NoColorSpace;
   return tex;
 }
-// En rendimiento no hay mapas extra: el mismo material, sin la muestra de normal.
-let obraNormal = null, asfaltoNormal = null, veredaNormal = null;
-if (!preferLowPerf) {
-  obraNormal = makeBumpNormal(12.7, 64); obraNormal.repeat.set(2.2, 2.2);
-  asfaltoNormal = makeBumpNormal(4.2, 36); asfaltoNormal.repeat.set(14, 14);
-  veredaNormal = makeBumpNormal(8.1, 48); veredaNormal.repeat.set(7, 7);
+// El ladrillo, la losa y el asfalto se miden en metros: si no, la textura se estira
+// por toda la pared y de la calle se ve un color liso.
+function relieveEnMetros(material, metros) {
+  material.customProgramCacheKey = () => 'relieve-m-' + metros;
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace('#include <uv_vertex>', `#include <uv_vertex>
+      vec3 relieveN = normalize(mat3(modelMatrix) * normal);
+      vec3 relieveP = (modelMatrix * vec4(position, 1.0)).xyz;
+      vec2 relieveUv = abs(relieveN.y) > 0.55 ? relieveP.xz : (abs(relieveN.x) > abs(relieveN.z) ? relieveP.zy : relieveP.xy);
+      relieveUv /= ${metros.toFixed(2)};
+      #ifdef USE_MAP
+        vMapUv = relieveUv;
+      #endif
+      #ifdef USE_NORMALMAP
+        vNormalMapUv = relieveUv;
+      #endif`);
+  };
 }
+const FACHADA_N = 128;
+const fachadaAltura = new Float32Array(FACHADA_N * FACHADA_N);
+const fachadaTex = texLienzo(FACHADA_N, (cx, N) => {
+  const fila = 11, ladrillo = 22;
+  for (let y = 0; y < N; y++) {
+    const juntaH = (y % fila) >= fila - 2;
+    const filaI = Math.floor(y / fila);
+    const despl = (filaI % 2) * 11;
+    for (let x = 0; x < N; x++) {
+      const xx = (x + despl) % N;
+      const juntaV = (xx % ladrillo) >= ladrillo - 2;
+      const id = filaI * 40 + Math.floor(xx / ladrillo);
+      let g = juntaH || juntaV ? 78 : Math.round(198 + (hash01(id) - 0.5) * 42 + (hash01(x * 7 + y) - 0.5) * 16);
+      fachadaAltura[y * N + x] = juntaH || juntaV ? 0.08 : 0.72 + hash01(id + 3) * 0.28;
+      cx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
+      cx.fillRect(x, y, 1, 1);
+    }
+  }
+}, true);
+let obraNormal = null;
+if (!preferLowPerf) obraNormal = normalDeAltura(fachadaAltura, 5.5);
+const ASF_N = 128;
+const asfaltoAltura = new Float32Array(ASF_N * ASF_N);
+const asfaltoTex = texLienzo(ASF_N, (cx, N) => {
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const n = hash01(x * 13 + y * 17);
+    let g = 62 + Math.floor(n * 28);
+    asfaltoAltura[y * N + x] = 0.35 + n * 0.25;
+    cx.fillStyle = 'rgb(' + g + ',' + (g + 2) + ',' + (g + 4) + ')';
+    cx.fillRect(x, y, 1, 1);
+  }
+  for (let i = 0; i < 700; i++) {                 // piedritas claras y oscuras
+    const x = Math.floor(hash01(i) * N), y = Math.floor(hash01(i + 9) * N);
+    const g = hash01(i + 4) > 0.5 ? 118 : 38;
+    asfaltoAltura[y * N + x] = g > 80 ? 0.9 : 0.12;
+    cx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
+    cx.fillRect(x, y, 1 + (hash01(i + 2) > 0.7 ? 1 : 0), 1);
+  }
+  for (let k = 0; k < 7; k++) {                  // grietas
+    let x = Math.floor(hash01(k + 20) * N), y = Math.floor(hash01(k + 80) * N);
+    cx.fillStyle = '#2a2e33';
+    for (let s = 0; s < 28; s++) {
+      cx.fillRect(x, y, 1, 1);
+      if (y * N + x < asfaltoAltura.length) asfaltoAltura[y * N + x] = 0;
+      x = (x + N + (hash01(k * 50 + s) > 0.5 ? 1 : -1)) % N;
+      y = (y + 1) % N;
+    }
+  }
+}, true);
+let asfaltoNormal = null;
+if (!preferLowPerf) asfaltoNormal = normalDeAltura(asfaltoAltura, 6);
+const VER_N = 128;
+const veredaAltura = new Float32Array(VER_N * VER_N);
+const veredaTex = texLienzo(VER_N, (cx, N) => {
+  const losa = 40;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const junta = (x % losa) < 3 || (y % losa) < 3;
+    const id = Math.floor(x / losa) + Math.floor(y / losa) * 8;
+    const t = junta ? 96 : Math.round(176 + (hash01(id) - 0.5) * 28 + (hash01(x + y * 3) - 0.5) * 10);
+    veredaAltura[y * N + x] = junta ? 0.05 : 0.8 + hash01(id + 5) * 0.2;
+    cx.fillStyle = 'rgb(' + t + ',' + (t + (junta ? 0 : 2)) + ',' + (t - (junta ? 4 : 0)) + ')';
+    cx.fillRect(x, y, 1, 1);
+  }
+}, true);
+let veredaNormal = null;
+if (!preferLowPerf) veredaNormal = normalDeAltura(veredaAltura, 6.5);
 const groundMat = new THREE.MeshStandardMaterial({
   map: groundTex, normalMap: preferLowPerf ? null : groundNormalTex,
-  normalScale: new THREE.Vector2(preferLowPerf ? 0 : .82, preferLowPerf ? 0 : .82),
-  color: 0x4a7c3a, roughness: .84, metalness: 0,
+  normalScale: new THREE.Vector2(preferLowPerf ? 0 : 1.55, preferLowPerf ? 0 : 1.55),
+  color: 0x4a7c3a, roughness: .9, metalness: 0,
 });
 const obraCache = new Map();
-function matObra(color) {   // muro y teja: responden al sol, sin el brillo de plástico
+function matObra(color) {   // muro y teja: hiladas que se leen desde la calle, sin brillo de plástico
   let m = obraCache.get(color);
   if (m) return m;
   m = new THREE.MeshStandardMaterial({
-    map: makePixelTexture(color), color: 0xffffff, roughness: .76, metalness: .03,
-    normalMap: obraNormal, normalScale: obraNormal ? new THREE.Vector2(.4, .4) : undefined,
+    map: fachadaTex, color, roughness: .88, metalness: 0.02,
+    normalMap: obraNormal, normalScale: obraNormal ? new THREE.Vector2(1.35, 1.35) : undefined,
   });
+  relieveEnMetros(m, 2.4);
   obraCache.set(color, m);
   return m;
 }
@@ -2079,7 +2166,10 @@ function makePerson(colorBody, colorHead, opciones) {
     if (datos) Object.assign(m.userData, datos); else m.userData.adorno = true;
     g.add(m); return m;
   };
-  addBox(poleron ? 0.84 : 0.75, 0.95, poleron ? 0.5 : 0.42, torso, 0, 1.35, 0, { parte: 'torso', superficie: true });
+  addBox(poleron ? 0.84 : 0.7, 0.92, poleron ? 0.52 : 0.48, torso, 0, 1.32, 0, { parte: 'torso', superficie: true });
+  addBox(poleron ? 1.06 : 1.0, 0.24, poleron ? 0.58 : 0.54, torso, 0, 1.7, 0.03);          // hombros: de lejos no es un cubo
+  addBox(poleron ? 0.66 : 0.5, 0.48, 0.24, torso, 0, 1.36, poleron ? 0.3 : 0.28);         // pecho hacia adelante
+  addBox(0.82, 0.28, 0.52, pants, 0, 0.98, 0.02);                                          // cadera
   if (poleron) {
     addBox(0.38, 0.28, 0.08, 0x0f172a, 0, 1.2, 0.28);                 // bolsillo canguro
     addBox(0.045, 0.36, 0.045, 0xe7e5e4, -0.08, 1.55, 0.28);          // cordón
@@ -2122,11 +2212,12 @@ function makePerson(colorBody, colorHead, opciones) {
     addBox(0.36, 0.08, 0.08, pelo, 0, 2.24, 0.22, null, 'pelo');      // un mechón bajo la abertura
     g.userData.capucha = true;
   } else {
-    // Pelo (gorro de pelo estilo voxel): tapa arriba y la nuca, y deja la cara libre
-    addBox(0.54, 0.12, 0.54, pelo, 0, 2.31, 0, null, 'pelo');         // capa de arriba
-    addBox(0.54, 0.3, 0.1, pelo, 0, 2.14, -0.22, null, 'pelo');       // nuca
-    for (const sx of [-0.25, 0.25]) addBox(0.06, 0.3, 0.5, pelo, sx, 2.12, 0, null, 'pelo');   // patillas
-    addBox(0.5, 0.1, 0.1, pelo, 0, 2.26, 0.22, null, 'pelo');         // chasquilla
+    // Pelo con volumen: copete, nuca y chasquilla que sale de la cara. De lejos se distingue de la piel.
+    addBox(0.66, 0.24, 0.66, pelo, 0, 2.38, -0.02, null, 'pelo');     // copete
+    addBox(0.28, 0.18, 0.28, pelo, 0.08, 2.54, -0.04, null, 'pelo');  // mechón de arriba
+    addBox(0.6, 0.38, 0.16, pelo, 0, 2.12, -0.26, null, 'pelo');      // nuca
+    for (const sx of [-0.28, 0.28]) addBox(0.14, 0.4, 0.52, pelo, sx, 2.1, -0.02, null, 'pelo');   // patillas
+    addBox(0.5, 0.14, 0.18, pelo, 0, 2.28, 0.3, null, 'pelo');        // chasquilla, por delante de la frente
   }
   // Ropa: cuello, cinturón y hebilla
   addBox(0.4, 0.1, 0.44, piel, 0, 1.84, 0, null, 'piel');             // cuello
@@ -2151,14 +2242,21 @@ function makePerson(colorBody, colorHead, opciones) {
     parte(legL, 0.26, 0.38, 0.28, piel, -0.66, 0, 'piel');            // pantorrilla
     parte(legR, 0.26, 0.38, 0.28, piel, -0.66, 0, 'piel');
   }
-  const shoeH = corteZapato === 'bota' ? 0.34 : corteZapato === 'sandalia' ? 0.1 : 0.16;
+  const shoeH = corteZapato === 'bota' ? 0.38 : corteZapato === 'sandalia' ? 0.12 : 0.24;
   const shoeY = -0.98 + shoeH / 2;
-  const shoeD = corteZapato === 'sandalia' ? 0.36 : 0.46;
-  parte(legL, 0.32, shoeH, shoeD, zapatoCol, shoeY, 0.06, 'zapato');
-  parte(legR, 0.32, shoeH, shoeD, zapatoCol, shoeY, 0.06, 'zapato');
+  const shoeD = corteZapato === 'sandalia' ? 0.42 : 0.58;
+  const shoeW = 0.4;
+  parte(legL, shoeW, shoeH, shoeD, zapatoCol, shoeY, 0.12, 'zapato');
+  parte(legR, shoeW, shoeH, shoeD, zapatoCol, shoeY, 0.12, 'zapato');
+  parte(legL, shoeW + 0.04, 0.07, shoeD + 0.06, 0x111827, shoeY - shoeH / 2 + 0.03, 0.12, 'zapato');   // suela
+  parte(legR, shoeW + 0.04, 0.07, shoeD + 0.06, 0x111827, shoeY - shoeH / 2 + 0.03, 0.12, 'zapato');
+  if (corteZapato !== 'sandalia') {
+    parte(legL, 0.22, 0.05, 0.14, 0xf8fafc, shoeY, 0.28, 'zapato');   // puntera clara: el zapato se lee de lejos
+    parte(legR, 0.22, 0.05, 0.14, 0xf8fafc, shoeY, 0.28, 'zapato');
+  }
   if (corteZapato === 'tenis') {
-    parte(legL, 0.33, 0.05, 0.47, 0xf8fafc, shoeY + 0.02, 0.07, 'zapato');
-    parte(legR, 0.33, 0.05, 0.47, 0xf8fafc, shoeY + 0.02, 0.07, 'zapato');
+    parte(legL, 0.36, 0.05, 0.5, 0xf8fafc, shoeY + 0.02, 0.12, 'zapato');
+    parte(legR, 0.36, 0.05, 0.5, 0xf8fafc, shoeY + 0.02, 0.12, 'zapato');
   } else if (corteZapato === 'bota') {
     parte(legL, 0.3, 0.08, 0.34, 0x111827, shoeY + shoeH / 2 + 0.02, 0.02, 'zapato');
     parte(legR, 0.3, 0.08, 0.34, 0x111827, shoeY + shoeH / 2 + 0.02, 0.02, 'zapato');
@@ -7483,14 +7581,16 @@ function makeCar(color) {
 }
 // ---- Calles: la cuadrícula de la ciudad (el trazado vive en src/city-map.js) ----
 const roadMat = new THREE.MeshStandardMaterial({
-  color: 0x2e333a, roughness: .88, metalness: .05,
-  normalMap: asfaltoNormal, normalScale: asfaltoNormal ? new THREE.Vector2(.45, .45) : undefined,
+  map: asfaltoTex, color: 0xffffff, roughness: .94, metalness: .03,
+  normalMap: asfaltoNormal, normalScale: asfaltoNormal ? new THREE.Vector2(1.2, 1.2) : undefined,
 });
-const lineMat = new THREE.MeshStandardMaterial({ color: 0xd9dee6, roughness: .9 });
+relieveEnMetros(roadMat, 3.2);
+const lineMat = new THREE.MeshStandardMaterial({ color: 0xe8edf2, roughness: .85 });
 const veredaMat = new THREE.MeshStandardMaterial({
-  color: 0xaeb4bc, roughness: .8, metalness: .02,
-  normalMap: veredaNormal, normalScale: veredaNormal ? new THREE.Vector2(.38, .38) : undefined,
+  map: veredaTex, color: 0xffffff, roughness: .86, metalness: 0,
+  normalMap: veredaNormal, normalScale: veredaNormal ? new THREE.Vector2(1.45, 1.45) : undefined,
 });
+relieveEnMetros(veredaMat, 2.6);
 const roadMeshes = [];
 // Las horizontales y las verticales van a alturas apenas distintas para que el
 // asfalto de un cruce no pelee con el de la otra calle (z-fighting).
@@ -7501,6 +7601,20 @@ function makeRoad(cx, cz, len, horizontal, ramal) {
   scene.add(acera); roadMeshes.push(acera);
   const r = new THREE.Mesh(horizontal ? new THREE.PlaneGeometry(len, w) : new THREE.PlaneGeometry(w, len), roadMat);
   r.rotation.x = -Math.PI / 2; r.position.set(cx, .026 + y, cz); r.receiveShadow = true; scene.add(r); roadMeshes.push(r);
+  // Cordón: una cara vertical. El plano de la calle no tiene canto, y sin eso el sol no deja sombra.
+  for (const sgn of [-1, 1]) {
+    const cordon = new THREE.Mesh(
+      new THREE.BoxGeometry(horizontal ? len : 0.22, 0.16, horizontal ? 0.22 : len),
+      veredaMat
+    );
+    cordon.position.set(
+      cx + (horizontal ? 0 : sgn * (w / 2 + 0.08)),
+      0.08,
+      cz + (horizontal ? sgn * (w / 2 + 0.08) : 0)
+    );
+    cordon.castShadow = !preferLowPerf; cordon.receiveShadow = true;
+    scene.add(cordon); roadMeshes.push(cordon);
+  }
   if (ramal) return;   // los ramales cortos a las afueras van sin línea central
   const dashN = Math.floor(len / 6);
   for (let i = 0; i < dashN; i++) {
@@ -27322,7 +27436,7 @@ function skyWantColor(sol) {
 }
 function solarLight(sol) {
   const lift = Math.max(0, Math.min(1, sol.el / 0.55));   // la luz sube antes que el disco, para ver durante el amanecer
-  return { sun: 0.16 + lift * 0.92, amb: 0.26 + lift * 0.85 };
+  return { sun: 0.22 + lift * 1.25, amb: 0.14 + lift * 0.42 };
 }
 function dirFromAzEl(az, el, out) {
   const ce = Math.cos(el);

@@ -1516,23 +1516,23 @@ const dist2D = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);   // distancia en el 
 function makeGroundDetailTexture() {
   const N = 64, cv = document.createElement('canvas'); cv.width = cv.height = N;
   const cx = cv.getContext('2d');
-  cx.fillStyle = '#bdbdbd'; cx.fillRect(0, 0, N, N);
+  cx.fillStyle = '#d2d2d2'; cx.fillRect(0, 0, N, N);
   const rnd = (i) => { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
-  for (let i = 0; i < 900; i++) {                      // manchas grandes: de lejos se ve pasto, no un verde liso
-    const x = rnd(i) * N, y = rnd(i + 999) * N, t = .42 + rnd(i + 55) * .85;
-    const g = Math.round(150 * t);
+  for (let i = 0; i < 1500; i++) {                     // manchas de tono (parches de pasto)
+    const x = rnd(i) * N, y = rnd(i + 999) * N, t = .74 + rnd(i + 55) * .42;
+    const g = Math.round(210 * t);
     cx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
-    cx.fillRect(x, y, 3 + rnd(i + 7) * 7, 2 + rnd(i + 13) * 5);
+    cx.fillRect(x, y, 1 + rnd(i + 7) * 2, 1 + rnd(i + 13) * 2);
   }
-  for (let i = 0; i < 520; i++) {                      // briznas: rayitas verticales claras y oscuras
-    const x = Math.floor(rnd(i + 3000) * N), y = Math.floor(rnd(i + 4000) * N), h = 4 + Math.floor(rnd(i + 5000) * 7);
-    const claro = rnd(i + 6000) > .45;
-    cx.fillStyle = claro ? 'rgba(255,255,255,.8)' : 'rgba(20,20,20,.55)';
+  for (let i = 0; i < 340; i++) {                      // briznas: rayitas verticales claras y oscuras
+    const x = Math.floor(rnd(i + 3000) * N), y = Math.floor(rnd(i + 4000) * N), h = 2 + Math.floor(rnd(i + 5000) * 3);
+    const claro = rnd(i + 6000) > .5;
+    cx.fillStyle = claro ? 'rgba(255,255,255,.55)' : 'rgba(60,60,60,.35)';
     cx.fillRect(x, y, 1, h);
   }
-  for (let i = 0; i < 80; i++) {                       // tierrita entre el pasto
+  for (let i = 0; i < 60; i++) {                       // tierrita entre el pasto
     const x = rnd(i + 7000) * N, y = rnd(i + 8000) * N;
-    cx.fillStyle = 'rgba(90,70,40,.55)'; cx.fillRect(x, y, 3, 3);
+    cx.fillStyle = 'rgba(120,105,80,.35)'; cx.fillRect(x, y, 2, 2);
   }
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -1549,8 +1549,8 @@ function makeGroundNormalTexture() {   // relieve suave: el pasto reacciona a la
     const i = y * N + x;
     const dx = alt[y * N + ((x + 1) % N)] - alt[y * N + ((x + N - 1) % N)];
     const dy = alt[((y + 1) % N) * N + x] - alt[((y + N - 1) % N) * N + x];
-    img.data[i * 4] = Math.round(128 - dx * 150);
-    img.data[i * 4 + 1] = Math.round(128 - dy * 150);
+    img.data[i * 4] = Math.round(128 - dx * 90);
+    img.data[i * 4 + 1] = Math.round(128 - dy * 90);
     img.data[i * 4 + 2] = 255;
     img.data[i * 4 + 3] = 255;
   }
@@ -1560,10 +1560,9 @@ function makeGroundNormalTexture() {   // relieve suave: el pasto reacciona a la
   return tex;
 }
 const groundTex = makeGroundDetailTexture();
-groundTex.repeat.set(280, 280);
+groundTex.repeat.set(200, 200);
 const groundNormalTex = makeGroundNormalTexture();
-groundNormalTex.colorSpace = THREE.NoColorSpace;
-groundNormalTex.repeat.set(280, 280);
+groundNormalTex.repeat.set(200, 200);
 function hash01(i) { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); }
 function texLienzo(N, pintar, color) {
   const cv = document.createElement('canvas'); cv.width = cv.height = N;
@@ -1682,8 +1681,7 @@ let veredaNormal = null;
 if (!preferLowPerf) veredaNormal = normalDeAltura(veredaAltura, 6.5);
 const groundMat = new THREE.MeshStandardMaterial({
   map: groundTex, normalMap: preferLowPerf ? null : groundNormalTex,
-  normalScale: new THREE.Vector2(preferLowPerf ? 0 : 1.55, preferLowPerf ? 0 : 1.55),
-  color: 0x4a7c3a, roughness: .9, metalness: 0,
+  normalScale: new THREE.Vector2(.45, .45), color: 0x4a7c3a, roughness: .97, metalness: 0,
 });
 const obraCache = new Map();
 function matObra(color) {   // muro y teja: hiladas que se leen desde la calle, sin brillo de plástico
@@ -1696,6 +1694,78 @@ function matObra(color) {   // muro y teja: hiladas que se leen desde la calle, 
   relieveEnMetros(m, 2.4);
   obraCache.set(color, m);
   return m;
+}
+// Cancha: franjas de cortadora, medidas en metros. No es el pasto del mundo.
+const cespedCanchaTex = texLienzo(128, (cx, N) => {
+  for (let y = 0; y < N; y++) {
+    const franja = Math.floor(y / 16) % 2;
+    for (let x = 0; x < N; x++) {
+      const n = hash01(x * 3 + y * 7);
+      const g = (franja ? 148 : 222) + Math.floor((n - 0.5) * 14);
+      cx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
+      cx.fillRect(x, y, 1, 1);
+    }
+  }
+}, true);
+const cespedCache = new Map();
+function matCesped(color) {
+  let m = cespedCache.get(color);
+  if (m) return m;
+  m = new THREE.MeshStandardMaterial({ map: cespedCanchaTex, color, roughness: .92, metalness: 0 });
+  relieveEnMetros(m, 8);
+  cespedCache.set(color, m);
+  return m;
+}
+const losaCache = new Map();
+function matLosa(color) {   // piso construido: pasto cortado, asfalto o baldosa, según el color
+  const c = new THREE.Color(color);
+  if (c.g > c.r + 0.05 && c.g >= c.b && c.g > 0.22) return matCesped(color);
+  const suma = c.r + c.g + c.b;
+  const asfalto = suma < 1.05;
+  const clave = (asfalto ? 'a' : 'p') + color;
+  let m = losaCache.get(clave);
+  if (m) return m;
+  const mapa = asfalto ? asfaltoTex : veredaTex;
+  const normal = asfalto ? asfaltoNormal : veredaNormal;
+  m = new THREE.MeshStandardMaterial({
+    map: mapa, color: asfalto ? 0xffffff : color, roughness: asfalto ? .94 : .86, metalness: 0.02,
+    normalMap: normal, normalScale: normal ? new THREE.Vector2(1.05, 1.05) : undefined,
+  });
+  relieveEnMetros(m, asfalto ? 3.2 : 2.6);
+  losaCache.set(clave, m);
+  return m;
+}
+let mallaMat = null;
+function materialMalla() {   // red de arco, aro y tenis: se lee como malla, no como un vidrio
+  if (mallaMat) return mallaMat;
+  const N = 64, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const cx = cv.getContext('2d');
+  cx.clearRect(0, 0, N, N);
+  cx.strokeStyle = 'rgba(255,255,255,.95)';
+  cx.lineWidth = 3;
+  for (let i = 2; i < N; i += 8) {
+    cx.beginPath(); cx.moveTo(i, 0); cx.lineTo(i, N); cx.stroke();
+    cx.beginPath(); cx.moveTo(0, i); cx.lineTo(N, i); cx.stroke();
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(8, 5);
+  mallaMat = new THREE.MeshStandardMaterial({
+    map: t, color: 0xf8fafc, transparent: true, alphaTest: .35,
+    side: THREE.DoubleSide, roughness: .75, depthWrite: false,
+  });
+  return mallaMat;
+}
+function esVidrioFino(color, w, h, d) {
+  const c = new THREE.Color(color);
+  const claro = c.r + c.g + c.b > 1.7;
+  return Math.min(Math.abs(w), Math.abs(h), Math.abs(d)) < 0.55 && claro && c.b > c.r * 1.12 && c.b > 0.55;
+}
+function matVolumen(color, w, h, d) {   // muro grande: hiladas. Vidrio fino y postes flacos se quedan lisos
+  const dims = [Math.abs(w), Math.abs(h), Math.abs(d)].sort((a, b) => a - b);
+  if (dims[0] < 0.4 || dims[2] < 1.4 || esVidrioFino(color, w, h, d)) return null;
+  return matObra(color);
 }
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(1800, 1800), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
@@ -3037,7 +3107,7 @@ function addLandingSurface(x, z, w, d, top, root) {
   landingSurfaces.push({ x, z, w, d, top, root });
 }
 function addWallMesh(cx, cz, w, d, h, color, addColl) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matVolumen(color, w, h, d) || mat(color));
   mesh.position.set(cx, h / 2, cz); mesh.castShadow = true; mesh.receiveShadow = true;
   scene.add(mesh);
   if (addColl) addObstacle(cx, cz, w, d, h);   // con su altura: si caes encima te quedas ARRIBA, no la atraviesas
@@ -5096,13 +5166,15 @@ function updateScoreboard() {
   soccer.scoreTex.needsUpdate = true;
 }
 function makeStadium(cx, cz, fieldColor, name) {
-  const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), mat(fieldColor));
+  const pisoCancha = (tono) => name === 'FUTBOL' ? matCesped(tono) : matLosa(tono);
+  const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), pisoCancha(fieldColor));
   field.rotation.x = -Math.PI / 2; field.position.set(cx, 0.05, cz); field.receiveShadow = true; scene.add(field);
-  if (name !== 'FUTBOL') addNoGrassZone(cx, cz, 24, 20);   // básquet y tenis son piso duro; la de fútbol SÍ lleva pasto
+  if (name !== 'FUTBOL') addNoGrassZone(cx, cz, 24, 20);   // básquet y tenis son piso duro
+  else addNoGrassZone(cx, cz, 20, 14);   // la cancha es césped cortado en franjas, no el pasto suelto del barrio
   // Rayas de cortadora: franjas más claras y más oscuras, como una cancha de verdad
   const claro = new THREE.Color(fieldColor).offsetHSL(0, 0, .06).getHex();
   for (let i = 0; i < 5; i++) {
-    const franja = new THREE.Mesh(new THREE.PlaneGeometry(4, 14), mat(i % 2 ? claro : fieldColor));
+    const franja = new THREE.Mesh(new THREE.PlaneGeometry(4, 14), pisoCancha(i % 2 ? claro : fieldColor));
     franja.rotation.x = -Math.PI / 2; franja.position.set(cx - 8 + i * 4, .06, cz); franja.receiveShadow = true; scene.add(franja);
   }
   // Líneas pintadas: borde, mitad de cancha y círculo central
@@ -5115,11 +5187,11 @@ function makeStadium(cx, cz, fieldColor, name) {
   const asientoCols = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e];
   [[0, -9, 20, 2], [-6, 9, 8, 2], [6, 9, 8, 2], [-11, 0, 2, 16], [11, 0, 2, 16]].forEach(([dx, dz, w, d], idx) => {
     const largoX = w > d;
-    const base = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, d), mat(0x9ca3af));
+    const base = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, d), matObra(0x9ca3af));
     base.position.set(cx + dx, .55, cz + dz); base.castShadow = true; base.receiveShadow = true; scene.add(base);
     for (let g = 0; g < 3; g++) {   // tres gradas que van subiendo hacia afuera
       const fuera = Math.sign(largoX ? dz : dx) || 1;
-      const paso = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w : .62, .55 + g * .5, largoX ? .62 : d), mat(0xb6bcc6));
+      const paso = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w : .62, .55 + g * .5, largoX ? .62 : d), matObra(0xb6bcc6));
       paso.position.set(cx + dx + (largoX ? 0 : fuera * (g * .62 - .1)), (.55 + g * .5) / 2 + .55, cz + dz + (largoX ? fuera * (g * .62 - .1) : 0));
       paso.castShadow = true; paso.receiveShadow = true; scene.add(paso);
       const asientos = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w - .4 : .46, .22, largoX ? .46 : d - .4), mat(asientoCols[(idx + g) % asientoCols.length]));
@@ -5132,9 +5204,9 @@ function makeStadium(cx, cz, fieldColor, name) {
   // Torres de iluminación en las cuatro esquinas
   for (const [lx, lz] of [[-11.5, -9.5], [11.5, -9.5], [-11.5, 9.5], [11.5, 9.5]]) {
     const torre = new THREE.Group(); torre.position.set(cx + lx, 0, cz + lz); scene.add(torre);
-    const poste = new THREE.Mesh(new THREE.CylinderGeometry(.16, .26, 9, 8), mat(0x64748b)); poste.position.y = 4.5; poste.castShadow = true; torre.add(poste);
-    for (const h of [3, 6]) { const travesa = new THREE.Mesh(new THREE.BoxGeometry(.7, .12, .12), mat(0x64748b)); travesa.position.set(0, h, 0); torre.add(travesa); }
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, .3), mat(0x475569)); panel.position.y = 9.3; panel.castShadow = true; torre.add(panel);
+    const poste = new THREE.Mesh(new THREE.CylinderGeometry(.16, .26, 9, 8), matObra(0x64748b)); poste.position.y = 4.5; poste.castShadow = true; torre.add(poste);
+    for (const h of [3, 6]) { const travesa = new THREE.Mesh(new THREE.BoxGeometry(.7, .12, .12), matObra(0x64748b)); travesa.position.set(0, h, 0); torre.add(travesa); }
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, .3), matObra(0x475569)); panel.position.y = 9.3; panel.castShadow = true; torre.add(panel);
     for (let i = 0; i < 6; i++) {
       const foco = new THREE.Mesh(new THREE.BoxGeometry(.62, .46, .16), new THREE.MeshStandardMaterial({ color: 0xfff8e1, emissive: 0xfff3c4, emissiveIntensity: 1.15, roughness: .4 }));
       foco.position.set(-.9 + (i % 3) * .9, 9.3 + (i < 3 ? .28 : -.28), .2);
@@ -5143,8 +5215,8 @@ function makeStadium(cx, cz, fieldColor, name) {
   }
   // Arco de entrada con el nombre
   const arco = new THREE.Group(); arco.position.set(cx, 0, cz + 10.6); scene.add(arco);
-  for (const sx of [-3.2, 3.2]) { const col = new THREE.Mesh(new THREE.BoxGeometry(.7, 5.2, .7), mat(0xe2e8f0)); col.position.set(sx, 2.6, 0); col.castShadow = true; arco.add(col); }
-  const dintel = new THREE.Mesh(new THREE.BoxGeometry(7.6, 1.1, .8), mat(0xf8fafc)); dintel.position.y = 5.6; dintel.castShadow = true; arco.add(dintel);
+  for (const sx of [-3.2, 3.2]) { const col = new THREE.Mesh(new THREE.BoxGeometry(.7, 5.2, .7), matObra(0xe2e8f0)); col.position.set(sx, 2.6, 0); col.castShadow = true; arco.add(col); }
+  const dintel = new THREE.Mesh(new THREE.BoxGeometry(7.6, 1.1, .8), matObra(0xf8fafc)); dintel.position.y = 5.6; dintel.castShadow = true; arco.add(dintel);
   const bandera = makeSign(name, 0xfacc15); bandera.scale.set(.62, .62, .62); bandera.position.set(0, 5.6, .5); arco.add(bandera);
   const sign = makeSign(name, 0xfacc15); sign.position.set(cx, 5, cz - 9); scene.add(sign);
   // Público SENTADO en las graderías y MIRANDO la cancha (son las víctimas a las que puedes robar)
@@ -5193,6 +5265,8 @@ function setupSoccer(cx, cz) {
     const goal = new THREE.Group();
     [-2, 2].forEach(zp => { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4), postMat); post.position.set(0, 1.2, zp); post.castShadow = true; goal.add(post); });
     const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4), postMat); bar.rotation.x = Math.PI / 2; bar.position.set(0, 2.4, 0); goal.add(bar);
+    const red = new THREE.Mesh(new THREE.PlaneGeometry(4, 2.25), materialMalla());
+    red.rotation.y = Math.PI / 2; red.position.set(Math.sign(gx) * 0.45, 1.12, 0); goal.add(red);
     goal.position.set(cx + gx, 0, cz); scene.add(goal);
   });
   // pelota
@@ -5289,6 +5363,8 @@ function setupBasketball(cx, cz) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(.1, .14, 3.2, 8), metal); pole.position.set(cx + gx, 1.6, cz); scene.add(pole);
     const back = new THREE.Mesh(new THREE.BoxGeometry(.18, 2.1, 3), mat(0xf1f5f9)); back.position.set(cx + gx - (side ? .15 : -.15), 3.15, cz); scene.add(back);
     const rim = new THREE.Mesh(new THREE.TorusGeometry(.48, .07, 7, 18), rimMat); rim.rotation.y = Math.PI / 2; rim.position.set(cx + gx + (side ? -.55 : .55), 2.75, cz); scene.add(rim);
+    const red = new THREE.Mesh(new THREE.CylinderGeometry(.42, .22, .55, 10, 1, true), materialMalla());
+    red.position.set(rim.position.x, 2.48, cz); scene.add(red);
   });
   const ball = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 12), new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: .9 })); ball.castShadow = true; scene.add(ball); basketball.ball = ball;
   const roster = [
@@ -5356,7 +5432,8 @@ function updateBasketball(dt) {
 
 function setupTennis(cx, cz) {
   tennis.cx = cx; tennis.cz = cz; tennis.board = makeSportScoreboard(cx, cz);
-  const net = new THREE.Mesh(new THREE.BoxGeometry(.12, 1.05, 11), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, transparent: true, opacity: .72 })); net.position.set(cx, .55, cz); scene.add(net);
+  const net = new THREE.Mesh(new THREE.PlaneGeometry(11, 1.05), materialMalla()); net.rotation.y = Math.PI / 2; net.position.set(cx, .55, cz); scene.add(net);
+  for (const sz of [-5.6, 5.6]) { const poste = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 1.25, 6), mat(0xe2e8f0)); poste.position.set(cx, .62, cz + sz); poste.castShadow = true; scene.add(poste); }
   for (let side = 0; side < 2; side++) {
     const p = makePerson(side ? 0x2563eb : 0xdc2626, 0xf1c27d); p.scale.set(.9, .9, .9); p.position.set(cx + (side ? 4.7 : -4.7), 0, cz); p.userData.side = side;
     const racket = new THREE.Mesh(new THREE.TorusGeometry(.28, .055, 6, 12), mat(0xfacc15)); racket.rotation.y = Math.PI / 2; racket.position.set(side ? -.58 : .58, 1.45, 0); p.add(racket);
@@ -5531,7 +5608,7 @@ function finishSportGame(abandoned) {
 // Caja sencilla: devuelve la malla y, si se pide, deja su caja de choque.
 function edifCaja(x, y, z, w, h, d, color, grupo, choca, opts) {
   const o = opts || {};
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), o.material || mat(color));
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), o.material || matVolumen(color, w, h, d) || mat(color));
   m.position.set(x, y, z); m.castShadow = o.sombra !== false; m.receiveShadow = true; scene.add(m);
   if (choca) addObstacle(x, z, w, d, y + h / 2, grupo);
   return m;
@@ -5973,7 +6050,7 @@ function buildBank() {
   // Columnas acanaladas del pórtico (tres a cada lado de la puerta)
   for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
     const px = cx + sx * (3.2 + i * 3.1);
-    const fuste = new THREE.Mesh(new THREE.CylinderGeometry(.48, .54, h - .8, 12), mat(piedra));
+    const fuste = new THREE.Mesh(new THREE.CylinderGeometry(.48, .54, h - .8, 12), matObra(piedra));
     fuste.position.set(px, (h - .8) / 2 + .6, frente + 1.2); fuste.castShadow = true; scene.add(fuste);
     edifCaja(px, .3, frente + 1.2, 1.5, .6, 1.5, piedraOsc, 'banco', false);          // basa
     edifCaja(px, h - .1, frente + 1.2, 1.6, .5, 1.6, piedraOsc, 'banco', false);      // capitel
@@ -7943,10 +8020,15 @@ function buildSkyline(distritoId, alturas) {
     tex.repeat.set(Math.max(1, Math.round(w / 1.5)) / vent, (alto - 4.2) / 3.4 / vent);
     const torreMat = new THREE.MeshStandardMaterial({
       map: tex, color: 0xffffff, roughness: .7, metalness: .08,
-      normalMap: obraNormal, normalScale: obraNormal ? new THREE.Vector2(.2, .2) : undefined,
+      normalMap: obraNormal, normalScale: obraNormal ? new THREE.Vector2(.7, .7) : undefined,
     });
     const torre = new THREE.Mesh(new THREE.BoxGeometry(w, alto - 4.2, d), torreMat);
     torre.position.set(x, 4.2 + (alto - 4.2) / 2, z); torre.castShadow = true; torre.receiveShadow = true; scene.add(torre);
+    for (const sx of [-1, 1]) {   // nervios de hormigón: la torre deja de ser una caja lisa
+      const aleta = new THREE.Mesh(new THREE.BoxGeometry(.42, alto - 4.2, .55), matObra(muro));
+      aleta.position.set(x + sx * (w * .34), 4.2 + (alto - 4.2) / 2, z + d / 2);
+      aleta.castShadow = true; scene.add(aleta);
+    }
     // Planta baja: hall de vidrio un poco más adentro, columnas, marquesina y puerta hacia la calle más cercana
     const hall = new THREE.Mesh(new THREE.BoxGeometry(w - 1, 4.2, d - 1), new THREE.MeshStandardMaterial({ color: 0x9fc4dd, roughness: .22, metalness: .14, emissive: 0x1e293b, emissiveIntensity: .16 }));
     hall.position.set(x, 2.1, z); scene.add(hall);
@@ -8000,12 +8082,13 @@ let parkRide = null;             // {att, seat} si vas montado en una atracción
 const parkMatCache = new Map();  // un material por color: muchos bloques, pocos materiales
 function mcMat(c) { let m = parkMatCache.get(c); if (!m) { m = mat(c); parkMatCache.set(c, m); } return m; }
 function mcBox(parent, x, y, z, w, h, d, color) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mcMat(color));
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matVolumen(color, w, h, d) || mcMat(color));
   m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
 }
 const _mcFloorV = new THREE.Vector3();
 function mcFloor(parent, x, z, w, d, color, y) {   // loza/pasto/camino
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, .3, d), mcMat(color));
+  const lineaPintada = Math.min(w, d) < 0.45 && new THREE.Color(color).r + new THREE.Color(color).g + new THREE.Color(color).b > 2.5;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, .3, d), lineaPintada ? mcMat(color) : matLosa(color));
   m.position.set(x, (y != null ? y : .05) - .15, z); m.receiveShadow = true; parent.add(m);
   parent.updateWorldMatrix(true, false);            // por si el grupo está desplazado
   _mcFloorV.set(x, 0, z).applyMatrix4(parent.matrixWorld);

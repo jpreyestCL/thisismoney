@@ -132,7 +132,7 @@ test('la gente del juego usa el paso sólido y el cache sube', () => {
   assert.match(html, /moverNpc\(/);
   assert.match(html, /function esPersona\(/);
   assert.match(html, /gente: true/);
-  assert.match(sw, /const VERSION = 'tim-v133'/);
+  assert.match(sw, /const VERSION = 'tim-v134'/);
   assert.match(sw, /npc-solido\.js\?v=1/);
   assert.doesNotMatch(html, /n\.position\.x = dest\.x/);
   assert.match(html, /seguirVereda\(/);

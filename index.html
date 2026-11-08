@@ -215,6 +215,9 @@
   /* ===== CONTROLES TÁCTILES (solo en celular/tablet) ===== */
   #buildbar { z-index: 4; pointer-events: all; }
   #lookLayer, #joystick, #touchBtns, #moveBtns { display: none; }
+  body:not(.touch) #desktopStartBtn, body:not(.touch) #pauseDesktop { display: none; }
+  #pauseDesktop, #desktopStartBtn { touch-action: manipulation; pointer-events: auto; cursor: pointer; }
+  body.watch #pauseDesktop { min-height: 32px; font-size: 11px; }
   body.touch #lookLayer { display: block; position: absolute; inset: 0; z-index: 1; pointer-events: all; touch-action: none; }
   body.touch #joystick { display: block; position: absolute; left: 24px; bottom: 26px; width: 130px; height: 130px; z-index: 4;
     border-radius: 50%; background: rgba(255,255,255,.10); border: 2px solid rgba(255,255,255,.28); pointer-events: all; touch-action: none; }
@@ -765,6 +768,7 @@
         <button class="bankBtn" id="pauseLoad">📥 Cargar código</button>
         <button class="bankBtn" id="pauseCloud" style="grid-column:1 / span 2;">☁️ Guardar en la nube</button>
         <button class="bankBtn" id="pauseAccount" style="grid-column:1 / span 2;">👤 Mi cuenta</button>
+        <button class="bankBtn" id="pauseDesktop" type="button" style="grid-column:1 / span 2;">🖥️ Modo computador</button>
         <button class="bankBtn" id="pauseWatch" style="grid-column:1 / span 2;">⌚ Modo reloj</button>
         <button class="bankBtn" id="pauseFps" style="grid-column:1 / span 2;">🎞️ Detalle: ALTO</button>
       </div>
@@ -968,6 +972,7 @@
         <button class="btn secondary" id="startRankingBtn">🌎 RANKING MUNDIAL</button>
         <button class="btn secondary" id="friendsBtn">🌐 JUGAR CON AMIGOS</button>
         <button class="btn secondary" id="startChatBtn">💬 MURO GLOBAL</button>
+        <button class="btn secondary" id="desktopStartBtn" type="button">🖥️ MODO COMPUTADOR</button>
       </div>
       <p id="bestline" style="display:none; color:var(--warning); font-weight:800; font-size:13px;"></p>
       <p id="chatTeaser" style="display:none;" role="button" tabindex="0"></p>
@@ -22045,7 +22050,7 @@ ui('buildbar').addEventListener('click', e => {
 const AUTO_TOUCH = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 let touchForced = null; try { const v = localStorage.getItem('tim_touch'); if (v === '1') touchForced = true; else if (v === '0') touchForced = false; } catch (e) {}
 function applyTouchMode(on) { document.body.classList.toggle('touch', on); const b = ui('touchToggle'); if (b) b.textContent = on ? '📱 Controles táctiles: SÍ' : '📱 Controles táctiles: NO'; }
-function setTouchMode(on) { touchForced = on; try { localStorage.setItem('tim_touch', on ? '1' : '0'); } catch (e) {} applyTouchMode(on); }
+function setTouchMode(on) { if (!on && document.body.classList.contains('watch')) { setWatchMode(false); } touchForced = on; try { localStorage.setItem('tim_touch', on ? '1' : '0'); } catch (e) {} applyTouchMode(on); }
 applyTouchMode(touchForced !== null ? touchForced : AUTO_TOUCH);
 // ----- MODO RELOJ: solo a mano (botón ⌚ en pausa). Encoge todo para smartwatch. NO se auto-activa. -----
 let watchForced = null; try { const v = localStorage.getItem('tim_watch'); if (v === '1') watchForced = true; else if (v === '0') watchForced = false; } catch (e) {}
@@ -22056,6 +22061,14 @@ function applyWatchMode(on) {
   if (typeof resize === 'function') resize();
 }
 function setWatchMode(on) { watchForced = on; try { localStorage.setItem('tim_watch', on ? '1' : '0'); } catch (e) {} applyWatchMode(on); }
+function setComputerMode() {
+  setWatchMode(false);
+  setTouchMode(false);
+  if (state && state.running && ui('moreBtns')) ui('moreBtns').classList.remove('open');
+  if (typeof resize === 'function') resize();
+  if (typeof toast === 'function') toast('🖥️ Modo computador');
+}
+[ui('pauseDesktop'), ui('desktopStartBtn')].forEach(b => { if (b) b.onclick = setComputerMode; });
 // Los controles táctiles SIEMPRE se enganchan (en PC no molestan: quedan ocultos sin la clase 'touch').
 {
   const TOUCH_LOOK_SENS = 0.0042;   // sensibilidad de mirar en celular (más bajo = más preciso)

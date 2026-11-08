@@ -5152,7 +5152,7 @@ const victims = [];     // gente sentada en los estadios (les puedes robar)
 const stadiums = [];    // centros (para el mini-mapa)
 const soccer = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0, scoreRed: 0, scoreBlue: 0 };   // partido de fútbol
 const basketball = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0, holder: null, shotTeam: null, scoreRed: 0, scoreBlue: 0, resetIn: 0 };
-const tennis = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0, server: 0, lastHit: 1, bounceSide: null, bounces: 0, points: [0, 0], games: [0, 0], serveIn: 1 };
+const tennis = { ball: null, vel: new THREE.Vector3(), players: [], cx: 0, cz: 0, server: 0, lastHit: 1, bounceSide: null, bounces: 0, points: [0, 0], games: [0, 0], sets: [0, 0], serveIn: 1 };
 // Marcador gigante: dibuja "ROJO x - y AZUL" en un canvas y lo pone en una pantalla sobre la cancha
 function updateScoreboard() {
   if (!soccer.scoreCtx) return;
@@ -5165,82 +5165,220 @@ function updateScoreboard() {
   ctx.fillText(soccer.scoreRed + '  -  ' + soccer.scoreBlue, 256, 135);
   soccer.scoreTex.needsUpdate = true;
 }
+// La manzana se llena con un bowl: la cancha es el interior y las gradas suben hacia la calle.
+// La fachada es hormigón claro (sin ladrillo), con franjas del club y pórticos.
+const ESTADIO = { muro: 7.6, torre: 24, filas: 6, grada: 4.7 };
+const CANCHA = {
+  FUTBOL: { mitadL: 13.2, mitadA: 12.4, gol: 12.4, posta: 3.5 },
+  BASQUET: { mitadL: 12.6, mitadA: 11.8, aro: 11.8 },
+  TENIS: { mitadL: 12.2, mitadA: 9.6 },
+};
+function medidasCancha(name) { return CANCHA[name] || CANCHA.FUTBOL; }
+function loteEstadio(cx, cz) {
+  return rectDistrito(distritoEn(cx, cz), -.55);   // adentro de la manzana, sin pisar la vereda
+}
+const hormigonCache = new Map();
+function hormigon(color) {   // muro liso, pintado: no usa la textura de ladrillo
+  let m = hormigonCache.get(color);
+  if (m) return m;
+  m = new THREE.MeshStandardMaterial({ color, roughness: .76, metalness: .04 });
+  hormigonCache.set(color, m);
+  return m;
+}
+let maderaCanchaTex = null;
+function texturaMadera() {
+  if (maderaCanchaTex) return maderaCanchaTex;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const g = c.getContext('2d');
+  for (let x = 0; x < 256; x += 16) {
+    const t = 168 + (x % 48);
+    g.fillStyle = 'rgb(' + (t + 28) + ',' + (t - 8) + ',70)';
+    g.fillRect(x, 0, 16, 64);
+    g.fillStyle = 'rgba(90,48,18,.35)';
+    g.fillRect(x, 0, 1, 64);
+  }
+  maderaCanchaTex = new THREE.CanvasTexture(c);
+  maderaCanchaTex.wrapS = maderaCanchaTex.wrapT = THREE.RepeatWrapping;
+  maderaCanchaTex.repeat.set(8, 14);
+  maderaCanchaTex.colorSpace = THREE.SRGBColorSpace;
+  return maderaCanchaTex;
+}
+function coloresClub(name) {
+  if (name === 'BASQUET') return { muro: 0xf6f1e8, a: 0xea580c, b: 0x1e3a8a, c: 0xfff7ed };
+  if (name === 'TENIS') return { muro: 0xf8fafc, a: 0x1d4ed8, b: 0x16a34a, c: 0xfef9c3 };
+  return { muro: 0xf3f7f2, a: 0x15803d, b: 0xffffff, c: 0x166534 };
+}
+function logoClub(name) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const g = c.getContext('2d');
+  const fondo = name === 'BASQUET' ? '#ea580c' : name === 'TENIS' ? '#1d4ed8' : '#15803d';
+  g.fillStyle = fondo; g.beginPath(); g.arc(128, 128, 122, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#ffffff'; g.lineWidth = 14; g.stroke();
+  g.fillStyle = '#ffffff'; g.font = 'bold 128px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(name === 'BASQUET' ? 'B' : name === 'TENIS' ? 'T' : 'F', 128, 138);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.CircleGeometry(1.7, 28), new THREE.MeshBasicMaterial({ map: tex }));
+  return m;
+}
 function makeStadium(cx, cz, fieldColor, name) {
-  const pisoCancha = (tono) => name === 'FUTBOL' ? matCesped(tono) : matLosa(tono);
-  const field = new THREE.Mesh(new THREE.PlaneGeometry(20, 14), pisoCancha(fieldColor));
-  field.rotation.x = -Math.PI / 2; field.position.set(cx, 0.05, cz); field.receiveShadow = true; scene.add(field);
-  if (name !== 'FUTBOL') addNoGrassZone(cx, cz, 24, 20);   // básquet y tenis son piso duro
-  else addNoGrassZone(cx, cz, 20, 14);   // la cancha es césped cortado en franjas, no el pasto suelto del barrio
-  // Rayas de cortadora: franjas más claras y más oscuras, como una cancha de verdad
-  const claro = new THREE.Color(fieldColor).offsetHSL(0, 0, .06).getHex();
-  for (let i = 0; i < 5; i++) {
-    const franja = new THREE.Mesh(new THREE.PlaneGeometry(4, 14), pisoCancha(i % 2 ? claro : fieldColor));
-    franja.rotation.x = -Math.PI / 2; franja.position.set(cx - 8 + i * 4, .06, cz); franja.receiveShadow = true; scene.add(franja);
-  }
-  // Líneas pintadas: borde, mitad de cancha y círculo central
-  const linea = (w, d, dx, dz) => { const l = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: .9 })); l.rotation.x = -Math.PI / 2; l.position.set(cx + dx, .075, cz + dz); scene.add(l); };
-  linea(19, .22, 0, -6.6); linea(19, .22, 0, 6.6); linea(.22, 13.4, -9.4, 0); linea(.22, 13.4, 9.4, 0); linea(.22, 13.4, 0, 0);
-  const circulo = new THREE.Mesh(new THREE.RingGeometry(2.1, 2.32, 32), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: .9, side: THREE.DoubleSide }));
-  circulo.rotation.x = -Math.PI / 2; circulo.position.set(cx, .075, cz); scene.add(circulo);
-  // Graderías escalonadas con asientos de colores (bloquean al jugador)
-  // la de adelante (dz=+9) va partida en dos para dejar una ENTRADA en el medio
-  const asientoCols = [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e];
-  [[0, -9, 20, 2], [-6, 9, 8, 2], [6, 9, 8, 2], [-11, 0, 2, 16], [11, 0, 2, 16]].forEach(([dx, dz, w, d], idx) => {
-    const largoX = w > d;
-    const base = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, d), matObra(0x9ca3af));
-    base.position.set(cx + dx, .55, cz + dz); base.castShadow = true; base.receiveShadow = true; scene.add(base);
-    for (let g = 0; g < 3; g++) {   // tres gradas que van subiendo hacia afuera
-      const fuera = Math.sign(largoX ? dz : dx) || 1;
-      const paso = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w : .62, .55 + g * .5, largoX ? .62 : d), matObra(0xb6bcc6));
-      paso.position.set(cx + dx + (largoX ? 0 : fuera * (g * .62 - .1)), (.55 + g * .5) / 2 + .55, cz + dz + (largoX ? fuera * (g * .62 - .1) : 0));
-      paso.castShadow = true; paso.receiveShadow = true; scene.add(paso);
-      const asientos = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w - .4 : .46, .22, largoX ? .46 : d - .4), mat(asientoCols[(idx + g) % asientoCols.length]));
-      asientos.position.set(paso.position.x, paso.position.y + (.55 + g * .5) / 2 + .11, paso.position.z); scene.add(asientos);
-    }
-    const baranda = new THREE.Mesh(new THREE.BoxGeometry(largoX ? w : .1, .1, largoX ? .1 : d), mat(0xe2e8f0));
-    baranda.position.set(cx + dx - (largoX ? 0 : Math.sign(dx) * 1.1), 2.75, cz + dz - (largoX ? Math.sign(dz) * 1.1 : 0)); scene.add(baranda);
-    addObstacle(cx + dx, cz + dz, w, d, 2.9);
-  });
-  // Torres de iluminación en las cuatro esquinas
-  for (const [lx, lz] of [[-11.5, -9.5], [11.5, -9.5], [-11.5, 9.5], [11.5, 9.5]]) {
-    const torre = new THREE.Group(); torre.position.set(cx + lx, 0, cz + lz); scene.add(torre);
-    const poste = new THREE.Mesh(new THREE.CylinderGeometry(.16, .26, 9, 8), matObra(0x64748b)); poste.position.y = 4.5; poste.castShadow = true; torre.add(poste);
-    for (const h of [3, 6]) { const travesa = new THREE.Mesh(new THREE.BoxGeometry(.7, .12, .12), matObra(0x64748b)); travesa.position.set(0, h, 0); torre.add(travesa); }
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.2, .3), matObra(0x475569)); panel.position.y = 9.3; panel.castShadow = true; torre.add(panel);
-    for (let i = 0; i < 6; i++) {
-      const foco = new THREE.Mesh(new THREE.BoxGeometry(.62, .46, .16), new THREE.MeshStandardMaterial({ color: 0xfff8e1, emissive: 0xfff3c4, emissiveIntensity: 1.15, roughness: .4 }));
-      foco.position.set(-.9 + (i % 3) * .9, 9.3 + (i < 3 ? .28 : -.28), .2);
-      foco.lookAt(cx, 0, cz); torre.add(foco);
+  const med = medidasCancha(name);
+  const lote = loteEstadio(cx, cz);
+  const grupo = 'estadio-' + name;
+  const club = coloresClub(name);
+  const anchoLote = lote.maxX - lote.minX, fondoLote = lote.maxZ - lote.minZ;
+  const losa = new THREE.Mesh(new THREE.BoxGeometry(anchoLote, .1, fondoLote), hormigon(0xe7e5e4));
+  losa.position.set((lote.minX + lote.maxX) / 2, .05, (lote.minZ + lote.maxZ) / 2);
+  losa.receiveShadow = true; scene.add(losa);
+  addNoGrassZone((lote.minX + lote.maxX) / 2, (lote.minZ + lote.maxZ) / 2, anchoLote + .3, fondoLote + .3);
+  const mediaX = Math.min(cx - lote.minX, lote.maxX - cx);
+  const mediaZ = Math.min(cz - lote.minZ, lote.maxZ - cz);
+  const bordeX = mediaX - ESTADIO.grada, bordeZ = mediaZ - ESTADIO.grada;
+  const largoPiso = bordeX * 2, anchoPiso = bordeZ * 2;
+  if (name === 'TENIS') {
+    const borde = new THREE.Mesh(new THREE.PlaneGeometry(largoPiso, anchoPiso), hormigon(0x15803d));
+    borde.rotation.x = -Math.PI / 2; borde.position.set(cx, .16, cz); borde.receiveShadow = true; scene.add(borde);
+    const azul = new THREE.Mesh(new THREE.PlaneGeometry(largoPiso - 2.4, anchoPiso - 2.4), hormigon(0x1d4ed8));
+    azul.rotation.x = -Math.PI / 2; azul.position.set(cx, .18, cz); azul.receiveShadow = true; scene.add(azul);
+  } else if (name === 'BASQUET') {
+    const madera = new THREE.Mesh(new THREE.PlaneGeometry(largoPiso, anchoPiso), new THREE.MeshStandardMaterial({ map: texturaMadera(), color: 0xffffff, roughness: .62 }));
+    madera.rotation.x = -Math.PI / 2; madera.position.set(cx, .18, cz); madera.receiveShadow = true; scene.add(madera);
+  } else {
+    const field = new THREE.Mesh(new THREE.PlaneGeometry(largoPiso, anchoPiso), matCesped(fieldColor));
+    field.rotation.x = -Math.PI / 2; field.position.set(cx, .18, cz); field.receiveShadow = true; scene.add(field);
+    const claro = new THREE.Color(fieldColor).offsetHSL(0, 0, .07).getHex();
+    const nFranjas = 9, anchoFranja = largoPiso / nFranjas;
+    for (let i = 0; i < nFranjas; i++) {
+      const franja = new THREE.Mesh(new THREE.PlaneGeometry(anchoFranja, anchoPiso), matCesped(i % 2 ? claro : fieldColor));
+      franja.rotation.x = -Math.PI / 2; franja.position.set(cx - largoPiso / 2 + anchoFranja * (i + .5), .19, cz); franja.receiveShadow = true; scene.add(franja);
     }
   }
-  // Arco de entrada con el nombre
-  const arco = new THREE.Group(); arco.position.set(cx, 0, cz + 10.6); scene.add(arco);
-  for (const sx of [-3.2, 3.2]) { const col = new THREE.Mesh(new THREE.BoxGeometry(.7, 5.2, .7), matObra(0xe2e8f0)); col.position.set(sx, 2.6, 0); col.castShadow = true; arco.add(col); }
-  const dintel = new THREE.Mesh(new THREE.BoxGeometry(7.6, 1.1, .8), matObra(0xf8fafc)); dintel.position.y = 5.6; dintel.castShadow = true; arco.add(dintel);
-  const bandera = makeSign(name, 0xfacc15); bandera.scale.set(.62, .62, .62); bandera.position.set(0, 5.6, .5); arco.add(bandera);
-  const sign = makeSign(name, 0xfacc15); sign.position.set(cx, 5, cz - 9); scene.add(sign);
-  // Público SENTADO en las graderías y MIRANDO la cancha (son las víctimas a las que puedes robar)
-  const sentarHincha = (px, py, pz) => {
-    const v = makePerson([0x9333ea, 0x0891b2, 0xca8a04, 0xdc2626, 0x16a34a, 0xf97316][victims.length % 6], 0xf1c27d);
-    v.position.set(px, py - .9, pz);                       // la cadera queda a la altura del asiento
-    v.rotation.y = Math.atan2(cx - px, cz - pz);           // la cara (eje +Z) apunta al centro de la cancha
-    const l = v.userData.limbs;
-    if (l) {
-      l.legL.rotation.x = -Math.PI / 2; l.legR.rotation.x = -Math.PI / 2;   // muslos hacia adelante: sentado
-      l.armL.rotation.x = -.45; l.armR.rotation.x = -.45;                   // manos sobre las piernas
-      v.userData.seated = true;                             // que swingLimbs no lo haga "caminar"
-    }
-    v.userData.victim = true; v.userData.robbed = false;
-    scene.add(v); victims.push(v);
+  const linea = (w, d, dx, dz) => {
+    const l = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: .85 }));
+    l.rotation.x = -Math.PI / 2; l.position.set(cx + dx, .22, cz + dz); scene.add(l);
   };
-  const filaY = [1.32, 1.82];                               // altura del asiento de la 1ª y 2ª grada
-  for (let i = 0; i < 4; i++) {                             // tribuna del fondo (z = cz - 9)
-    const g = i % 2;
-    sentarHincha(cx + (i - 1.5) * 3.4, filaY[g], cz - 8.9 - g * .62);
+  const ml = med.mitadL, ma = med.mitadA;
+  linea(ml * 2, .16, 0, -ma); linea(ml * 2, .16, 0, ma); linea(.16, ma * 2, -ml, 0); linea(.16, ma * 2, ml, 0); linea(.16, ma * 2, 0, 0);
+  if (name !== 'TENIS') {
+    const circulo = new THREE.Mesh(new THREE.RingGeometry(ma * .34, ma * .34 + .16, 40), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: .85, side: THREE.DoubleSide }));
+    circulo.rotation.x = -Math.PI / 2; circulo.position.set(cx, .22, cz); scene.add(circulo);
   }
-  for (let i = 0; i < 2; i++) {                             // tribunas laterales
-    sentarHincha(cx - 10.9 - i * .62, filaY[i], cz - 2 + i * 4);
-    sentarHincha(cx + 10.9 + i * .62, filaY[i], cz + 2 - i * 4);
+  if (name === 'BASQUET') {
+    linea(ml * .9, .12, -ml * .42, 0); linea(.12, ma * .9, -ml * .72, 0);
+    linea(ml * .9, .12, ml * .42, 0); linea(.12, ma * .9, ml * .72, 0);
+    const aroL = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.32, 24), new THREE.MeshStandardMaterial({ color: 0xf8fafc, side: THREE.DoubleSide }));
+    aroL.rotation.x = -Math.PI / 2; aroL.position.set(cx - ml * .72, .23, cz); scene.add(aroL);
+    const aroR = aroL.clone(); aroR.position.x = cx + ml * .72; scene.add(aroR);
+  }
+  if (name === 'TENIS') {
+    linea(ml * 2, .12, 0, -ma * .62); linea(ml * 2, .12, 0, ma * .62);
+    linea(.12, ma * 1.24, -ml * .5, 0); linea(.12, ma * 1.24, ml * .5, 0);
+  }
+  const N = ESTADIO.filas, vano = 8.4;
+  const asientoCols = [club.a, club.b, club.c, club.a];
+  const puestos = [];
+  const graderia = (minX, maxX, minZ, maxZ, eje, fuera) => {
+    if (maxX - minX < 1.4 || maxZ - minZ < 1.4) return;
+    const prof = eje === 'x' ? maxZ - minZ : maxX - minX;
+    const tread = prof / N;
+    const largo = eje === 'x' ? maxX - minX : maxZ - minZ;
+    for (let g = 0; g < N; g++) {
+      const alto = .85 + g * 1.12;
+      const u = (g + .5) * tread;
+      let px, pz, sw, sd;
+      if (eje === 'x') {
+        const borde = fuera > 0 ? minZ : maxZ;
+        pz = borde + fuera * u; px = (minX + maxX) / 2; sw = largo; sd = tread * .92;
+      } else {
+        const borde = fuera > 0 ? minX : maxX;
+        px = borde + fuera * u; pz = (minZ + maxZ) / 2; sw = tread * .92; sd = largo;
+      }
+      const paso = new THREE.Mesh(new THREE.BoxGeometry(sw, alto, sd), hormigon(0xe7e5e4));
+      paso.position.set(px, alto / 2, pz); paso.castShadow = true; paso.receiveShadow = true; scene.add(paso);
+      const asientos = new THREE.Mesh(new THREE.BoxGeometry(sw * .98, .16, sd * .72), hormigon(asientoCols[g % asientoCols.length]));
+      asientos.position.set(px, alto + .08, pz); scene.add(asientos);
+      const pasoGente = .78;
+      if (eje === 'x') {
+        for (let x = minX + .45; x < maxX - .35; x += pasoGente) puestos.push({ x, y: alto + .16, z: pz, yaw: Math.atan2(cx - x, cz - pz) });
+      } else {
+        for (let z = minZ + .45; z < maxZ - .35; z += pasoGente) puestos.push({ x: px, y: alto + .16, z, yaw: Math.atan2(cx - px, cz - z) });
+      }
+    }
+    addObstacle((minX + maxX) / 2, (minZ + maxZ) / 2, maxX - minX, maxZ - minZ, ESTADIO.muro, grupo);
+  };
+  const campoX0 = cx - bordeX, campoX1 = cx + bordeX, campoZ0 = cz - bordeZ, campoZ1 = cz + bordeZ;
+  const margen = 1.15;
+  graderia(lote.minX + margen, cx - vano / 2, lote.minZ + margen, campoZ0, 'x', -1);
+  graderia(cx + vano / 2, lote.maxX - margen, lote.minZ + margen, campoZ0, 'x', -1);
+  graderia(lote.minX + margen, cx - vano / 2, campoZ1, lote.maxZ - margen, 'x', 1);
+  graderia(cx + vano / 2, lote.maxX - margen, campoZ1, lote.maxZ - margen, 'x', 1);
+  graderia(lote.minX + margen, campoX0, campoZ0, campoZ1, 'z', -1);
+  graderia(campoX1, lote.maxX - margen, campoZ0, campoZ1, 'z', 1);
+  const muroAlto = ESTADIO.muro, grosor = .72;
+  const fachada = (px, pz, sx, sz) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, muroAlto, sz), hormigon(club.muro));
+    m.position.set(px, muroAlto / 2, pz); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+    addObstacle(px, pz, sx, sz, muroAlto, grupo);
+    const banda = (oy, h, col) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(sx + (sx < 2 ? .22 : 0), h, sz + (sz < 2 ? .22 : 0)), hormigon(col));
+      b.position.set(px, oy, pz); scene.add(b);
+    };
+    banda(muroAlto - .9, 1.45, club.a);
+    banda(muroAlto * .5, .95, club.b);
+    banda(1.35, .8, club.c);
+  };
+  const midX = (lote.minX + lote.maxX) / 2, midZ = (lote.minZ + lote.maxZ) / 2;
+  const trozoX = (anchoLote - vano) / 2, trozoZ = (fondoLote - grosor * 2);
+  fachada(lote.minX + trozoX / 2, lote.minZ + grosor / 2, trozoX, grosor);
+  fachada(lote.maxX - trozoX / 2, lote.minZ + grosor / 2, trozoX, grosor);
+  fachada(lote.minX + grosor / 2, midZ, grosor, trozoZ);
+  fachada(lote.maxX - grosor / 2, midZ, grosor, trozoZ);
+  fachada(lote.minX + trozoX / 2, lote.maxZ - grosor / 2, trozoX, grosor);
+  fachada(lote.maxX - trozoX / 2, lote.maxZ - grosor / 2, trozoX, grosor);
+  const portico = (pz, hacia) => {
+    const g = new THREE.Group(); g.position.set(cx, 0, pz); scene.add(g);
+    const alto = muroAlto + 3.6;
+    for (const sx of [-vano / 2 - .15, vano / 2 + .15]) {
+      const col = new THREE.Mesh(new THREE.BoxGeometry(1.35, alto, 1.35), hormigon(0xf8fafc));
+      col.position.set(sx, alto / 2, 0); col.castShadow = true; g.add(col);
+      addObstacle(cx + sx, pz, 1.35, 1.35, alto, grupo);
+    }
+    const dintel = new THREE.Mesh(new THREE.BoxGeometry(vano + 3.2, 1.15, 1.7), hormigon(club.a));
+    dintel.position.y = alto - .2; dintel.castShadow = true; g.add(dintel);
+    const friso = new THREE.Mesh(new THREE.BoxGeometry(vano + 3.2, .42, 1.75), hormigon(club.b));
+    friso.position.y = alto - 1.05; g.add(friso);
+    const nombre = makeSign(name, club.a); nombre.scale.set(.48, .48, .48); nombre.position.set(0, alto - .15, hacia * .95); g.add(nombre);
+    const logo = logoClub(name); logo.position.set(0, alto - 2.5, hacia * .78); if (hacia < 0) logo.rotation.y = Math.PI; g.add(logo);
+  };
+  portico(lote.maxZ - grosor / 2, 1);
+  portico(lote.minZ + grosor / 2, -1);
+  if (puestos.length) {
+    const camisetas = [0xdc2626, 0x2563eb, 0xfacc15, 0x16a34a, 0xf97316, 0xa855f7, 0xf8fafc, 0x0ea5e9];
+    const pieles = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xf6d7b8];
+    const matInst = () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .72, vertexColors: true });
+    const cuerpo = new THREE.InstancedMesh(new THREE.BoxGeometry(.42, .48, .28), matInst(), puestos.length);
+    const cabeza = new THREE.InstancedMesh(new THREE.BoxGeometry(.22, .22, .22), matInst(), puestos.length);
+    const pierna = new THREE.InstancedMesh(new THREE.BoxGeometry(.4, .22, .26), matInst(), puestos.length);
+    const dummy = new THREE.Object3D(), col = new THREE.Color();
+    puestos.forEach((p, i) => {
+      dummy.position.set(p.x, p.y + .42, p.z); dummy.rotation.set(0, p.yaw, 0); dummy.updateMatrix();
+      cuerpo.setMatrixAt(i, dummy.matrix); col.setHex(camisetas[i % camisetas.length]); cuerpo.setColorAt(i, col);
+      dummy.position.set(p.x, p.y + .78, p.z); dummy.updateMatrix();
+      cabeza.setMatrixAt(i, dummy.matrix); col.setHex(pieles[i % pieles.length]); cabeza.setColorAt(i, col);
+      dummy.position.set(p.x, p.y + .12, p.z); dummy.updateMatrix();
+      pierna.setMatrixAt(i, dummy.matrix); col.setHex(0x1f2937); pierna.setColorAt(i, col);
+    });
+    for (const m of [cuerpo, cabeza, pierna]) { m.castShadow = false; m.receiveShadow = false; scene.add(m); }
+  }
+  for (const [lx, lz] of [[lote.minX + 1.2, lote.minZ + 1.2], [lote.maxX - 1.2, lote.minZ + 1.2], [lote.minX + 1.2, lote.maxZ - 1.2], [lote.maxX - 1.2, lote.maxZ - 1.2]]) {
+    const torre = new THREE.Group(); torre.position.set(lx, 0, lz); scene.add(torre);
+    const poste = new THREE.Mesh(new THREE.CylinderGeometry(.28, .42, ESTADIO.torre, 8), hormigon(0xe2e8f0));
+    poste.position.y = ESTADIO.torre / 2; poste.castShadow = true; torre.add(poste);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.5, .35), hormigon(0xcbd5e1));
+    panel.position.y = ESTADIO.torre - .2; torre.add(panel);
+    for (let i = 0; i < 4; i++) {
+      const foco = new THREE.Mesh(new THREE.BoxGeometry(.7, .42, .16), new THREE.MeshStandardMaterial({ color: 0xfff8e1, emissive: 0xfff3c4, emissiveIntensity: 1.1, roughness: .4 }));
+      foco.position.set(-1.15 + i * .76, ESTADIO.torre - .2, .22); foco.lookAt(cx, 1, cz); torre.add(foco);
+    }
   }
   if (name === 'FUTBOL') setupSoccer(cx, cz);
   else if (name === 'BASQUET') setupBasketball(cx, cz);
@@ -5248,37 +5386,39 @@ function makeStadium(cx, cz, fieldColor, name) {
   stadiums.push(new THREE.Vector3(cx, 0, cz));
 }
 
-// Partido de fútbol 2 vs 2: posiciones, pases, tiros, defensa y goles reales.
 function setupSoccer(cx, cz) {
-  soccer.cx = cx; soccer.cz = cz;
-  // pantalla gigante del marcador, arriba de una gradería
+  const med = CANCHA.FUTBOL;
+  soccer.cx = cx; soccer.cz = cz; soccer.med = med; soccer.showT = 0; soccer.anoto = false;
+  // pantalla gigante del marcador, arriba de la grada del fondo
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 200;
   soccer.scoreCanvas = cv; soccer.scoreCtx = cv.getContext('2d');
   soccer.scoreTex = new THREE.CanvasTexture(cv);
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(10, 4), new THREE.MeshBasicMaterial({ map: soccer.scoreTex }));
-  board.position.set(cx, 6.5, cz - 9); scene.add(board);
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(10.6, 4.6, 0.2), mat(0x111827)); frame.position.set(cx, 6.5, cz - 9.15); scene.add(frame);
+  const tableroZ = loteEstadio(cx, cz).minZ + 1.15, tableroY = ESTADIO.muro + 3.2;
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(12.4, 4.6), new THREE.MeshBasicMaterial({ map: soccer.scoreTex }));
+  board.position.set(cx, tableroY, tableroZ + .28); scene.add(board);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(13.2, 5.4, 0.35), hormigon(0x1e293b)); frame.position.set(cx, tableroY, tableroZ); scene.add(frame);
   updateScoreboard();
   const postMat = mat(0xf8fafc);
   // dos arcos (porterías) en los extremos del campo (eje x)
-  [-9, 9].forEach(gx => {
+  [-med.gol, med.gol].forEach(gx => {
     const goal = new THREE.Group();
-    [-2, 2].forEach(zp => { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.4), postMat); post.position.set(0, 1.2, zp); post.castShadow = true; goal.add(post); });
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4), postMat); bar.rotation.x = Math.PI / 2; bar.position.set(0, 2.4, 0); goal.add(bar);
-    const red = new THREE.Mesh(new THREE.PlaneGeometry(4, 2.25), materialMalla());
-    red.rotation.y = Math.PI / 2; red.position.set(Math.sign(gx) * 0.45, 1.12, 0); goal.add(red);
+    [-med.posta, med.posta].forEach(zp => { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.7), postMat); post.position.set(0, 1.35, zp); post.castShadow = true; goal.add(post); });
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, med.posta * 2), postMat); bar.rotation.x = Math.PI / 2; bar.position.set(0, 2.7, 0); goal.add(bar);
+    const red = new THREE.Mesh(new THREE.PlaneGeometry(med.posta * 2, 2.55), materialMalla());
+    red.rotation.y = Math.PI / 2; red.position.set(Math.sign(gx) * 0.55, 1.28, 0); goal.add(red);
     goal.position.set(cx + gx, 0, cz); scene.add(goal);
   });
   // pelota
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.72, 16, 14), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: .35, emissive: 0xe2e8f0, emissiveIntensity: .45 }));
+  const cinta = new THREE.Mesh(new THREE.TorusGeometry(.52, .09, 6, 16), new THREE.MeshStandardMaterial({ color: 0x111827, roughness: .45 })); cinta.rotation.x = Math.PI / 2; ball.add(cinta);
   ball.position.set(cx, 0.35, cz); ball.castShadow = true; scene.add(ball);
   soccer.ball = ball; soccer.vel.set((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4);
   // 2 vs 2: cada equipo tiene un DEFENSA (se queda cerca del arco y da pases) y un DELANTERO (mete goles)
   const roster = [
-    { team: 0xdc2626, dir:  1, role: 'def', home: new THREE.Vector3(cx - 6, 0, cz) },       // rojo defiende arco izquierdo, ataca a la derecha
-    { team: 0xdc2626, dir:  1, role: 'atk', home: new THREE.Vector3(cx - 1, 0, cz + 2) },
-    { team: 0x2563eb, dir: -1, role: 'def', home: new THREE.Vector3(cx + 6, 0, cz) },       // azul defiende arco derecho, ataca a la izquierda
-    { team: 0x2563eb, dir: -1, role: 'atk', home: new THREE.Vector3(cx + 1, 0, cz - 2) },
+    { team: 0xdc2626, dir:  1, role: 'def', home: new THREE.Vector3(cx - 8.5, 0, cz) },       // rojo defiende el arco izquierdo
+    { team: 0xdc2626, dir:  1, role: 'atk', home: new THREE.Vector3(cx - 2.5, 0, cz + 2.4) },
+    { team: 0x2563eb, dir: -1, role: 'def', home: new THREE.Vector3(cx + 8.5, 0, cz) },       // azul defiende el arco derecho
+    { team: 0x2563eb, dir: -1, role: 'atk', home: new THREE.Vector3(cx + 2.5, 0, cz - 2.4) },
   ];
   for (const r of roster) {
     const p = makePerson(r.team, 0xf1c27d); p.scale.set(0.9, 0.9, 0.9);
@@ -5287,64 +5427,141 @@ function setupSoccer(cx, cz) {
     scene.add(p); soccer.players.push(p);
   }
 }
+function irJugadorCancha(p, x, z, vel, dt, hx, hz, cx, cz) {
+  x = THREE.MathUtils.clamp(x, cx - hx, cx + hx);
+  z = THREE.MathUtils.clamp(z, cz - hz, cz + hz);
+  const meta = new THREE.Vector3(x, 0, z);
+  if (dist2D(p.position, meta) > 0.4) {
+    moveToward(p, meta, vel * dt);
+    p.rotation.y = Math.atan2(x - p.position.x, z - p.position.z);
+  }
+  p.position.x = THREE.MathUtils.clamp(p.position.x, cx - hx, cx + hx);
+  p.position.z = THREE.MathUtils.clamp(p.position.z, cz - hz, cz + hz);
+  swingLimbs(p, dt);
+}
+function pelotaEnArco(ball, ax, az, bx, bz, alto, k) {
+  const t = THREE.MathUtils.clamp(k, 0, 1);
+  ball.position.set(ax + (bx - ax) * t, 0.32 + Math.sin(t * Math.PI) * alto, az + (bz - az) * t);
+  ball.rotation.z += 0.18; ball.rotation.x += 0.12;
+}
 function updateSoccer(dt) {
   if (!soccer.ball || state.phase !== 'DAY' || state.planet !== 'tierra') return;
-  const ball = soccer.ball, b = ball.position;
-  // mover pelota y frenarla por roce
+  if (state.sportGame && state.sportGame.type === 'futbol') updateSoccerPartido(dt);
+  else exhibicionFutbol(dt);
+}
+// Gesto de la jugada, encima del paso: el que pega no se queda parado.
+function poseDeJugada(p, tipo) {
+  const l = p && p.userData.limbs; if (!l) return;
+  if (tipo === 'pase') { l.legR.rotation.x = -.85; l.legL.rotation.x = .65; l.armR.rotation.x = -1.35; l.armL.rotation.x = -.15; }
+  else if (tipo === 'tiro') { l.legR.rotation.x = -1.4; l.legL.rotation.x = .5; l.armL.rotation.x = -1.15; l.armR.rotation.x = .45; p.position.y = .25; }
+  else if (tipo === 'aro') { l.armL.rotation.x = -2.55; l.armR.rotation.x = -2.55; l.legL.rotation.x = -.4; l.legR.rotation.x = .25; p.position.y = .7; }
+  else if (tipo === 'globo') { l.armR.rotation.x = -2.35; l.armL.rotation.x = -.35; l.legL.rotation.x = -.25; p.position.y = .15; }
+  else if (tipo === 'smash') { l.armR.rotation.x = -2.7; l.armL.rotation.x = -1.6; l.legR.rotation.x = -.2; p.position.y = .35; }
+}
+// Partido de exhibición en bucle: pase, corrida y tiro. No usa el marcador del jugador.
+function exhibicionFutbol(dt) {
+  const s = soccer, cx = s.cx, cz = s.cz, med = s.med || CANCHA.FUTBOL;
+  s.showT = (s.showT + dt) % 12;
+  const t = s.showT;
+  const rojoD = s.players[0], rojoA = s.players[1], azulD = s.players[2], azulA = s.players[3];
+  if (!rojoD) return;
+  const hx = med.mitadL - 1.6, hz = med.mitadA - 1.3;
+  const ir = (p, x, z, v) => irJugadorCancha(p, x, z, v, dt, hx, hz, cx, cz);
+  for (const p of s.players) p.position.y = 0;
+  if (t < 1.7) {
+    s.anoto = false;
+    ir(rojoD, cx - 8, cz, 4.2); ir(rojoA, cx - 1.2, cz + 1.4, 5.4);
+    ir(azulD, cx + 9, cz, 3.4); ir(azulA, cx + 3.5, cz - 2.2, 3.6);
+    pelotaEnArco(s.ball, cx - 8, cz, cx - 1.2, cz + 1.4, 6.6, t / 1.7);   // pase por el aire
+    poseDeJugada(rojoD, 'pase');
+  } else if (t < 3.5) {
+    const k = (t - 1.7) / 1.8;
+    const x = (cx - 1.2) + ((cx + 6) - (cx - 1.2)) * k;
+    const z = (cz + 1.4) + ((cz + 0.3) - (cz + 1.4)) * k;
+    ir(rojoA, x + 0.7, z, 5.6); ir(rojoD, cx - 4, cz - 1.5, 4);
+    ir(azulD, cx + 10, cz, 4.2); ir(azulA, cx + 2, cz - 2.5, 4);
+    s.ball.position.set(x, 0.36, z); s.ball.rotation.z += dt * 8;   // corrida con la pelota en los pies
+  } else if (t < 5.1) {
+    const k = (t - 3.5) / 1.6;
+    ir(rojoA, cx + 5.2 + k * 1.4, cz + 0.2, 4.6); ir(azulD, cx + 10.2, cz + Math.sin(t * 4) * .8, 4.2);
+    pelotaEnArco(s.ball, cx + 6, cz + 0.3, cx + med.gol, cz, 8.4, k);   // tiro al arco
+    poseDeJugada(rojoA, 'tiro');
+    if (k > 0.9 && !s.anoto) { s.scoreRed++; updateScoreboard(); s.anoto = true; }
+  } else if (t < 6.2) {
+    s.ball.position.set(cx, 0.4, cz);
+    ir(rojoA, cx - 2, cz + 2, 4); ir(azulD, cx + 8, cz - 0.4, 4); ir(azulA, cx + 2, cz - 1.2, 4.4); ir(rojoD, cx - 8, cz, 3.5);
+  } else if (t < 7.9) {
+    s.anoto = false;
+    const k = (t - 6.2) / 1.7;
+    ir(azulD, cx + 8, cz - 0.4, 4); ir(azulA, cx + 0.8, cz - 1.6, 5.2);
+    ir(rojoD, cx - 9, cz, 3.4); ir(rojoA, cx - 3, cz + 2, 3.6);
+    pelotaEnArco(s.ball, cx + 8, cz - 0.4, cx + 0.8, cz - 1.6, 5.4, k);
+    poseDeJugada(azulD, 'pase');
+  } else if (t < 9.6) {
+    const k = (t - 7.9) / 1.7;
+    const x = (cx + 0.8) + ((cx - 6) - (cx + 0.8)) * k;
+    const z = (cz - 1.6) + ((cz - 0.2) - (cz - 1.6)) * k;
+    ir(azulA, x - 0.6, z, 5.5); ir(rojoD, cx - 10, cz, 4);
+    s.ball.position.set(x, 0.36, z);
+  } else {
+    const k = (t - 9.6) / 2.4;
+    ir(azulA, cx - 6, cz, 3.2);
+    pelotaEnArco(s.ball, cx - 6, cz - 0.2, cx - med.gol, cz, 8, k);
+    poseDeJugada(azulA, 'tiro');
+    if (k > 0.9 && !s.anoto) { s.scoreBlue++; updateScoreboard(); s.anoto = true; }
+  }
+}
+function updateSoccerPartido(dt) {
+  const ball = soccer.ball, b = ball.position, med = soccer.med || CANCHA.FUTBOL;
   b.x += soccer.vel.x * dt; b.z += soccer.vel.z * dt;
-  soccer.vel.multiplyScalar(Math.exp(-1.8 * dt));
-  // rebotar en los límites del campo (campo 20x14 -> media 9.5 x 6.5 dejando margen)
-  if (b.x < soccer.cx - 9) { b.x = soccer.cx - 9; soccer.vel.x = Math.abs(soccer.vel.x); }
-  if (b.x > soccer.cx + 9) { b.x = soccer.cx + 9; soccer.vel.x = -Math.abs(soccer.vel.x); }
-  if (b.z < soccer.cz - 6) { b.z = soccer.cz - 6; soccer.vel.z = Math.abs(soccer.vel.z); }
-  if (b.z > soccer.cz + 6) { b.z = soccer.cz + 6; soccer.vel.z = -Math.abs(soccer.vel.z); }
-  ball.rotation.x += soccer.vel.z * dt; ball.rotation.z -= soccer.vel.x * dt;   // rodar
-  // jugadores corren hacia la pelota; el más cercano la patea
+  soccer.vel.multiplyScalar(Math.exp(-1.4 * dt));
+  const hx = med.mitadL - .4, hz = med.mitadA - .5;
+  if (b.x < soccer.cx - hx) { b.x = soccer.cx - hx; soccer.vel.x = Math.abs(soccer.vel.x); }
+  if (b.x > soccer.cx + hx) { b.x = soccer.cx + hx; soccer.vel.x = -Math.abs(soccer.vel.x); }
+  if (b.z < soccer.cz - hz) { b.z = soccer.cz - hz; soccer.vel.z = Math.abs(soccer.vel.z); }
+  if (b.z > soccer.cz + hz) { b.z = soccer.cz + hz; soccer.vel.z = -Math.abs(soccer.vel.z); }
+  b.y = 0.35; ball.rotation.x += soccer.vel.z * dt; ball.rotation.z -= soccer.vel.x * dt;
   let nearest = null, nd = 1e9;
   for (const p of soccer.players) {
     const d = dist2D(p.position, b);
     if (d < nd) { nd = d; nearest = p; }
     if (p.userData.kickCd > 0) p.userData.kickCd -= dt;
-    // ¿a dónde va? El delantero siempre persigue la pelota; el defensa se queda en su arco salvo que la pelota entre a su zona
     let target;
-    if (p.userData.role === 'atk') {
-      target = b;
-    } else {
-      const ballInOwnZone = p.userData.dir > 0 ? (b.x < p.userData.home.x + 3) : (b.x > p.userData.home.x - 3);
+    if (p.userData.role === 'atk') target = b;
+    else {
+      const ballInOwnZone = p.userData.dir > 0 ? (b.x < p.userData.home.x + 4) : (b.x > p.userData.home.x - 4);
       target = ballInOwnZone ? b : p.userData.home;
     }
-    if (dist2D(p.position, target) > 0.6) { moveToward(p, target, 4.5 * sportNpcSpeed('futbol', p.userData.team === 0x2563eb) * dt); p.rotation.y = Math.atan2(target.x - p.position.x, target.z - p.position.z); }
-    swingLimbs(p, dt);
+    irJugadorCancha(p, target.x, target.z, 5.2 * sportNpcSpeed('futbol', p.userData.team === 0x2563eb), dt, med.mitadL - 1.5, med.mitadA - 1.2, soccer.cx, soccer.cz);
   }
-  // el más cercano patea la pelota
-  if (nearest && nd <= 1.3 && nearest.userData.kickCd <= 0) {
+  if (nearest && nd <= 1.5 && nearest.userData.kickCd <= 0) {
     const dir = nearest.userData.dir;
     let tx, tz, power;
     if (nearest.userData.role === 'atk') {
-      tx = soccer.cx + dir * 9; tz = soccer.cz + (Math.random() - 0.5) * 2; power = 9 + Math.random() * 3;   // tira al arco contrario
+      tx = soccer.cx + dir * med.gol; tz = soccer.cz + (Math.random() - 0.5) * 2.2; power = 13 + Math.random() * 3;
     } else {
       const mate = soccer.players.find(q => q.userData.team === nearest.userData.team && q.userData.role === 'atk');
-      tx = mate ? mate.position.x : soccer.cx + dir * 4; tz = mate ? mate.position.z : soccer.cz; power = 6 + Math.random() * 2;   // PASE al delantero
+      tx = mate ? mate.position.x : soccer.cx + dir * 6; tz = mate ? mate.position.z : soccer.cz; power = 8 + Math.random() * 2;
     }
     const ang = Math.atan2(tz - b.z, tx - b.x);
     soccer.vel.set(Math.cos(ang) * power, 0, Math.sin(ang) * power);
-    nearest.userData.kickCd = 0.6;
+    nearest.userData.kickCd = 0.55;
   }
-  // ¿gol? si la pelota entra a un arco: suma al marcador y vuelve al centro
-  if (Math.abs(b.z - soccer.cz) < 2 && (b.x <= soccer.cx - 9 + 0.3 || b.x >= soccer.cx + 9 - 0.3)) {
-    const scoringTeam = b.x >= soccer.cx + 9 - 0.3 ? 0 : 1;
-    if (scoringTeam === 0) soccer.scoreRed++; else soccer.scoreBlue++;   // arco derecho = gol rojo; izquierdo = gol azul
+  if (Math.abs(b.z - soccer.cz) < med.posta && (b.x <= soccer.cx - med.gol + 0.35 || b.x >= soccer.cx + med.gol - 0.35)) {
+    const scoringTeam = b.x >= soccer.cx + med.gol - 0.35 ? 0 : 1;
+    if (scoringTeam === 0) soccer.scoreRed++; else soccer.scoreBlue++;
     updateScoreboard();
     registerSportPoint('futbol', scoringTeam, 1, scoringTeam === 0 && state.sportGame && state.sportGame.lastTouch > 0);
-    b.set(soccer.cx, 0.35, soccer.cz); soccer.vel.set((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
+    b.set(soccer.cx, 0.35, soccer.cz); soccer.vel.set((Math.random() - 0.5) * 4, 0, (Math.random() - 0.5) * 4);
   }
 }
 
 function makeSportScoreboard(cx, cz) {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 180;
   const tex = new THREE.CanvasTexture(cv);
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(9.6, 3.7, .22), mat(0x111827)); frame.position.set(cx, 6.3, cz - 9.12); scene.add(frame);
-  const board = new THREE.Mesh(new THREE.PlaneGeometry(9.2, 3.3), new THREE.MeshBasicMaterial({ map: tex })); board.position.set(cx, 6.3, cz - 9); scene.add(board);
+  const z = loteEstadio(cx, cz).minZ + 1.15, y = ESTADIO.muro + 3.1;
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(12.6, 5.2, .35), hormigon(0x1e293b)); frame.position.set(cx, y, z); scene.add(frame);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(11.8, 4.6), new THREE.MeshBasicMaterial({ map: tex })); board.position.set(cx, y, z + .24); scene.add(board);
   return { cv, ctx: cv.getContext('2d'), tex };
 }
 function drawTeamScore(board, title, left, right, subtitle) {
@@ -5357,19 +5574,25 @@ function drawTeamScore(board, title, left, right, subtitle) {
 }
 
 function setupBasketball(cx, cz) {
-  basketball.cx = cx; basketball.cz = cz; basketball.board = makeSportScoreboard(cx, cz);
+  const med = CANCHA.BASQUET;
+  basketball.cx = cx; basketball.cz = cz; basketball.med = med; basketball.showT = 0; basketball.anoto = false;
+  basketball.board = makeSportScoreboard(cx, cz);
   const metal = mat(0xe2e8f0), rimMat = mat(0xf97316);
-  [-8.5, 8.5].forEach((gx, side) => {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.1, .14, 3.2, 8), metal); pole.position.set(cx + gx, 1.6, cz); scene.add(pole);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(.18, 2.1, 3), mat(0xf1f5f9)); back.position.set(cx + gx - (side ? .15 : -.15), 3.15, cz); scene.add(back);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(.48, .07, 7, 18), rimMat); rim.rotation.y = Math.PI / 2; rim.position.set(cx + gx + (side ? -.55 : .55), 2.75, cz); scene.add(rim);
-    const red = new THREE.Mesh(new THREE.CylinderGeometry(.42, .22, .55, 10, 1, true), materialMalla());
-    red.position.set(rim.position.x, 2.48, cz); scene.add(red);
+  [-med.aro, med.aro].forEach((gx, side) => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.12, .18, 3.6, 8), metal); pole.position.set(cx + gx, 1.8, cz); scene.add(pole);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(.2, 2.3, 3.4), mat(0xf1f5f9)); back.position.set(cx + gx - (side ? .2 : -.2), 3.35, cz); scene.add(back);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(.52, .07, 8, 20), rimMat); rim.rotation.y = Math.PI / 2; rim.position.set(cx + gx + (side ? -.62 : .62), 3.05, cz); scene.add(rim);
+    const red = new THREE.Mesh(new THREE.CylinderGeometry(.48, .26, .6, 10, 1, true), materialMalla());
+    red.position.set(rim.position.x, 2.75, cz); scene.add(red);
   });
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 12), new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: .9 })); ball.castShadow = true; scene.add(ball); basketball.ball = ball;
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(.68, 16, 12), new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: .4, emissive: 0xea580c, emissiveIntensity: .65 })); ball.castShadow = true; scene.add(ball); basketball.ball = ball;
   const roster = [
-    { team: 0, dir: 1, role: 'guard', x: -3, z: -2 }, { team: 0, dir: 1, role: 'forward', x: -1, z: 2 },
-    { team: 1, dir: -1, role: 'guard', x: 3, z: 2 }, { team: 1, dir: -1, role: 'forward', x: 1, z: -2 },
+    { team: 0, dir: 1, role: 'base', x: -8.2, z: 0 }, { team: 0, dir: 1, role: 'escolta', x: -5.4, z: -4.2 },
+    { team: 0, dir: 1, role: 'ala', x: -5.2, z: 4.2 }, { team: 0, dir: 1, role: 'alapivot', x: -2.2, z: -2.1 },
+    { team: 0, dir: 1, role: 'pivot', x: -1.4, z: 2.4 },
+    { team: 1, dir: -1, role: 'base', x: 8.2, z: 0 }, { team: 1, dir: -1, role: 'escolta', x: 5.4, z: 4.2 },
+    { team: 1, dir: -1, role: 'ala', x: 5.2, z: -4.2 }, { team: 1, dir: -1, role: 'alapivot', x: 2.2, z: 2.1 },
+    { team: 1, dir: -1, role: 'pivot', x: 1.4, z: -2.4 },
   ];
   for (const r of roster) {
     const p = makePerson(r.team ? 0x2563eb : 0xdc2626, 0xf1c27d); p.scale.set(.9, .9, .9); p.position.set(cx + r.x, 0, cz + r.z);
@@ -5378,21 +5601,22 @@ function setupBasketball(cx, cz) {
   basketball.holder = basketball.players[0]; basketball.ball.position.set(cx - 2.5, 1, cz - 2); drawTeamScore(basketball.board, 'BASQUET', 0, 0);
 }
 function resetBasketball(team) {
-  basketball.holder = basketball.players.find(p => p.userData.team === team && p.userData.role === 'guard');
+  basketball.holder = basketball.players.find(p => p.userData.team === team && p.userData.role === 'base');
   basketball.shotTeam = null; basketball.vel.set(0, 0, 0); basketball.resetIn = .7;
   basketball.ball.position.set(basketball.cx + (team ? 2.5 : -2.5), 1, basketball.cz);
 }
 function shootBasket(holder) {
-  const dir = holder.userData.dir, targetX = basketball.cx + dir * 7.95;
+  const dir = holder.userData.dir, targetX = basketball.cx + dir * ((basketball.med && basketball.med.aro) || 10.4);
   const dx = targetX - basketball.ball.position.x, dz = basketball.cz - basketball.ball.position.z, time = Math.max(.75, Math.abs(dx) / 7.2);
   basketball.vel.set(dx / time, (2.75 - basketball.ball.position.y + 4.9 * time * time) / time, dz / time);
   basketball.shotTeam = holder.userData.team; basketball.holder = null;
 }
 function updateBasketball(dt) {
   const b = basketball; if (!b.ball || state.phase !== 'DAY' || state.planet !== 'tierra') return;
+  if (!(state.sportGame && state.sportGame.type === 'basket')) { exhibicionBasquet(dt); return; }
   if (b.resetIn > 0) { b.resetIn -= dt; return; }
   if (b.holder) {
-    const h = b.holder, ud = h.userData, hoopX = b.cx + ud.dir * 8;
+    const h = b.holder, ud = h.userData, hoopX = b.cx + ud.dir * ((b.med && b.med.aro) || 10.4);
     let nearestDef = null, nd = 99;
     for (const p of b.players) if (p.userData.team !== ud.team) { const d = dist2D(p.position, h.position); if (d < nd) { nd = d; nearestDef = p; } }
     ud.decisionIn -= dt;
@@ -5402,52 +5626,135 @@ function updateBasketball(dt) {
       if (mate) { b.holder = mate; ud.decisionIn = 1.3; mate.userData.decisionIn = .5; }
     }
     if (b.holder === h) {
-      const target = new THREE.Vector3(hoopX - ud.dir * 2.2, 0, THREE.MathUtils.clamp(ud.homeZ, b.cz - 4.8, b.cz + 4.8));
-      if (dist2D(h.position, target) > .5) moveToward(h, target, 2.8 * dt);
+      const med = b.med || CANCHA.BASQUET;
+      const target = new THREE.Vector3(hoopX - ud.dir * 2.4, 0, THREE.MathUtils.clamp(ud.homeZ, b.cz - med.mitadA + 1.2, b.cz + med.mitadA - 1.2));
+      irJugadorCancha(h, target.x, target.z, 3.4, dt, med.mitadL - 1.4, med.mitadA - 1.1, b.cx, b.cz);
       b.ball.position.set(h.position.x + ud.dir * .38, .55 + Math.abs(Math.sin(performance.now() * .009)) * .75, h.position.z); b.ball.rotation.z += dt * 8;
     }
     // Robo si el defensor llega bien posicionado.
     if (nearestDef && nd < .72 && Math.random() < dt * .45 * sportNpcSpeed('basket', nearestDef.userData.team === 1)) { b.holder = nearestDef; nearestDef.userData.decisionIn = .7; }
   } else {
     b.vel.y -= 9.8 * dt; b.ball.position.addScaledVector(b.vel, dt); b.ball.rotation.z += b.vel.x * dt * 2;
-    const targetX = b.cx + (b.shotTeam === 0 ? 7.95 : -7.95);
-    if (Math.abs(b.ball.position.x - targetX) < .42 && Math.abs(b.ball.position.z - b.cz) < .62 && b.ball.position.y > 2.35 && b.ball.position.y < 3.25) {
+    const aro = (b.med && b.med.aro) || 10.4;
+    const targetX = b.cx + (b.shotTeam === 0 ? aro : -aro);
+    if (Math.abs(b.ball.position.x - targetX) < .55 && Math.abs(b.ball.position.z - b.cz) < .8 && b.ball.position.y > 2.45 && b.ball.position.y < 3.45) {
       if (b.shotTeam === 0) b.scoreRed += 2; else b.scoreBlue += 2;
       drawTeamScore(b.board, 'BASQUET', b.scoreRed, b.scoreBlue, 'CANASTA DE 2'); resetBasketball(b.shotTeam ? 0 : 1);
       registerSportPoint('basket', b.shotTeam, 2, b.shotTeam === 0 && state.sportGame && state.sportGame.lastTouch > 0);
-    } else if (b.ball.position.y < .3 || Math.abs(b.ball.position.x - b.cx) > 10 || Math.abs(b.ball.position.z - b.cz) > 7) resetBasketball(b.shotTeam ? 0 : 1);
+    } else if (b.ball.position.y < .3 || Math.abs(b.ball.position.x - b.cx) > ((b.med && b.med.mitadL) || 11) + .4 || Math.abs(b.ball.position.z - b.cz) > ((b.med && b.med.mitadA) || 6) + .4) resetBasketball(b.shotTeam ? 0 : 1);
   }
   for (const p of b.players) {
     if (p !== b.holder) {
       const mate = b.holder && p.userData.team === b.holder.userData.team;
       const targetX = mate ? b.holder.position.x - p.userData.dir * 2.4 : (b.holder ? b.holder.position.x + p.userData.dir * .8 : b.ball.position.x);
       const targetZ = mate ? p.userData.homeZ : (b.holder ? b.holder.position.z + (p.userData.role === 'guard' ? 1.1 : -1.1) : b.ball.position.z);
-      const target = new THREE.Vector3(THREE.MathUtils.clamp(targetX, b.cx - 7, b.cx + 7), 0, THREE.MathUtils.clamp(targetZ, b.cz - 5, b.cz + 5));
-      if (dist2D(p.position, target) > .65) moveToward(p, target, 3.2 * sportNpcSpeed('basket', p.userData.team === 1) * dt);
+      const med = b.med || CANCHA.BASQUET;
+      const target = new THREE.Vector3(THREE.MathUtils.clamp(targetX, b.cx - med.mitadL + 1.5, b.cx + med.mitadL - 1.5), 0, THREE.MathUtils.clamp(targetZ, b.cz - med.mitadA + 1, b.cz + med.mitadA - 1));
+      irJugadorCancha(p, target.x, target.z, 3.6 * sportNpcSpeed('basket', p.userData.team === 1), dt, med.mitadL - 1.4, med.mitadA - 1.1, b.cx, b.cz);
     }
-    const look = p === b.holder ? new THREE.Vector3(b.cx + p.userData.dir * 8, 0, b.cz) : (b.holder ? b.holder.position : b.ball.position);
-    p.rotation.y = Math.atan2(look.x - p.position.x, look.z - p.position.z); swingLimbs(p, dt);
+    const look = p === b.holder ? new THREE.Vector3(b.cx + p.userData.dir * ((b.med && b.med.aro) || 10.4), 0, b.cz) : (b.holder ? b.holder.position : b.ball.position);
+    p.rotation.y = Math.atan2(look.x - p.position.x, look.z - p.position.z);
+  }
+}
+function exhibicionBasquet(dt) {
+  const b = basketball, cx = b.cx, cz = b.cz, med = b.med || CANCHA.BASQUET;
+  b.showT = ((b.showT || 0) + dt) % 10;
+  const t = b.showT;
+  const R = b.players.filter(p => p.userData.team === 0);
+  const A = b.players.filter(p => p.userData.team === 1);
+  if (R.length < 5 || A.length < 5) return;
+  const hx = med.mitadL - 1.4, hz = med.mitadA - 1.1;
+  const ir = (p, x, z, v) => irJugadorCancha(p, x, z, v, dt, hx, hz, cx, cz);
+  const aro = med.aro;
+  for (const p of b.players) p.position.y = 0;
+  // Cinco puestos por equipo. El signo empuja el ataque hacia un aro.
+  const puestos = [[-8.4, 0], [-5.6, -4.4], [-5.4, 4.4], [-2.4, -2.2], [-1.6, 2.4]];
+  const forma = (lista, signo, empuje) => lista.forEach((p, i) => ir(p, cx + signo * (puestos[i][0] + empuje), cz + puestos[i][1], 4.4));
+  if (t < 1.8) {
+    b.anoto = false;
+    const k = t / 1.8;
+    const x = (cx - 9) + 6 * k;
+    forma(R, 1, k * 2); forma(A, -1, 0);
+    ir(R[0], x, cz - 1.1, 5.2);
+    b.ball.position.set(x + .45, .5 + Math.abs(Math.sin(t * 11)) * .85, cz - 1.1);
+    b.ball.rotation.z += dt * 10;
+  } else if (t < 3.2) {
+    const k = (t - 1.8) / 1.4;
+    forma(R, 1, 2); forma(A, -1, -.4);
+    ir(R[0], cx - 3.2, cz - 1.1, 3.4); ir(R[2], cx + 1.2, cz + 3.6, 5);
+    pelotaEnArco(b.ball, cx - 3.2, cz - 1.1, cx + 1.2, cz + 3.6, 5.4, k);
+    poseDeJugada(R[0], 'pase');
+  } else if (t < 4.6) {
+    const k = (t - 3.2) / 1.4;
+    const x = (cx + 1.2) + 6.4 * k;
+    forma(R, 1, 3); forma(A, -1, -1);
+    ir(R[2], x, cz + .5, 5.4);
+    b.ball.position.set(x + .4, .5 + Math.abs(Math.sin(t * 12)) * .75, cz + .45);
+  } else if (t < 6.2) {
+    const k = (t - 4.6) / 1.6;
+    forma(R, 1, 4); forma(A, -1, -1.2);
+    ir(R[2], cx + 7.2 + k * 1.2, cz + .4, 4.2);
+    pelotaEnArco(b.ball, cx + 7.6, cz + .4, cx + aro, cz, 8.2, k);
+    poseDeJugada(R[2], 'aro');
+    if (k > .88 && !b.anoto) { b.scoreRed += 2; drawTeamScore(b.board, 'BASQUET', b.scoreRed, b.scoreBlue, 'TIRO'); b.anoto = true; }
+  } else if (t < 8) {
+    b.anoto = false;
+    const k = (t - 6.2) / 1.8;
+    const x = (cx + 6) + ((cx - 2) - (cx + 6)) * k;
+    forma(A, -1, -k * 2); forma(R, 1, 1);
+    ir(A[0], x, cz + .7, 5);
+    b.ball.position.set(x - .4, .5 + Math.abs(Math.sin(t * 11)) * .8, cz + .7);
+  } else {
+    const k = (t - 8) / 2;
+    forma(A, -1, -3); forma(R, 1, .4);
+    ir(A[2], cx - 6.5 - k, cz - .6, 4.4);
+    pelotaEnArco(b.ball, cx - 2.2, cz - 1.2, cx - aro, cz, 7.6, k);
+    poseDeJugada(A[2], 'aro');
+    if (k > .88 && !b.anoto) { b.scoreBlue += 2; drawTeamScore(b.board, 'BASQUET', b.scoreRed, b.scoreBlue, 'TIRO'); b.anoto = true; }
   }
 }
 
 function setupTennis(cx, cz) {
-  tennis.cx = cx; tennis.cz = cz; tennis.board = makeSportScoreboard(cx, cz);
-  const net = new THREE.Mesh(new THREE.PlaneGeometry(11, 1.05), materialMalla()); net.rotation.y = Math.PI / 2; net.position.set(cx, .55, cz); scene.add(net);
-  for (const sz of [-5.6, 5.6]) { const poste = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, 1.25, 6), mat(0xe2e8f0)); poste.position.set(cx, .62, cz + sz); poste.castShadow = true; scene.add(poste); }
+  const med = CANCHA.TENIS;
+  tennis.cx = cx; tennis.cz = cz; tennis.med = med; tennis.showT = 0; tennis.board = makeSportScoreboard(cx, cz);
+  const anchoRed = med.mitadA * 2 + .8;
+  const net = new THREE.Mesh(new THREE.PlaneGeometry(anchoRed, 1.45), materialMalla()); net.rotation.y = Math.PI / 2; net.position.set(cx, .78, cz); scene.add(net);
+  const cinta = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, anchoRed), hormigon(0xf8fafc)); cinta.position.set(cx, 1.48, cz); scene.add(cinta);
+  for (const sz of [-med.mitadA - .15, med.mitadA + .15]) { const poste = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 1.7, 8), hormigon(0xf8fafc)); poste.position.set(cx, .85, cz + sz); poste.castShadow = true; scene.add(poste); }
   for (let side = 0; side < 2; side++) {
-    const p = makePerson(side ? 0x2563eb : 0xdc2626, 0xf1c27d); p.scale.set(.9, .9, .9); p.position.set(cx + (side ? 4.7 : -4.7), 0, cz); p.userData.side = side;
+    const p = makePerson(side ? 0x2563eb : 0xdc2626, 0xf1c27d); p.scale.set(.9, .9, .9); p.position.set(cx + (side ? 9.4 : -9.4), 0, cz); p.userData.side = side;
     const racket = new THREE.Mesh(new THREE.TorusGeometry(.28, .055, 6, 12), mat(0xfacc15)); racket.rotation.y = Math.PI / 2; racket.position.set(side ? -.58 : .58, 1.45, 0); p.add(racket);
     scene.add(p); tennis.players.push(p);
   }
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(.17, 10, 8), new THREE.MeshStandardMaterial({ color: 0xd9f99d, emissive: 0x365314, emissiveIntensity: .2 })); ball.castShadow = true; ball.position.set(cx - 4.5, 1.2, cz); scene.add(ball); tennis.ball = ball;
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(.58, 14, 12), new THREE.MeshStandardMaterial({ color: 0xd9f99d, emissive: 0xbef264, emissiveIntensity: .85 })); ball.castShadow = true; ball.position.set(cx - 6.2, 1.2, cz); scene.add(ball); tennis.ball = ball;
   drawTennisScore();
 }
 function tennisLabel(p) { return p === 0 ? '0' : p === 1 ? '15' : p === 2 ? '30' : p === 3 ? '40' : 'AD'; }
-function drawTennisScore() { drawTeamScore(tennis.board, 'TENIS', tennisLabel(tennis.points[0]), tennisLabel(tennis.points[1]), 'JUEGOS ' + tennis.games[0] + ' - ' + tennis.games[1]); }
+function drawTennisScore() {
+  const board = tennis.board; if (!board) return;
+  const sets = tennis.sets || [0, 0];
+  const c = board.ctx; c.fillStyle = '#0f172a'; c.fillRect(0, 0, 512, 180);
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = '#facc15'; c.font = 'bold 26px sans-serif'; c.fillText('TENIS', 256, 22);
+  c.fillStyle = '#94a3b8'; c.font = 'bold 16px sans-serif'; c.fillText('SETS', 330, 52); c.fillText('GAMES', 430, 52);
+  c.textAlign = 'left'; c.font = 'bold 22px sans-serif';
+  c.fillStyle = '#fb7185'; c.fillText('JUGADOR 1', 28, 88);
+  c.fillStyle = '#38bdf8'; c.fillText('JUGADOR 2', 28, 128);
+  c.textAlign = 'center'; c.fillStyle = '#f8fafc'; c.font = 'bold 32px sans-serif';
+  c.fillText(String(sets[0]), 330, 88); c.fillText(String(sets[1]), 330, 128);
+  c.fillText(String(tennis.games[0]), 430, 88); c.fillText(String(tennis.games[1]), 430, 128);
+  c.textAlign = 'left'; c.font = 'bold 18px sans-serif'; c.fillStyle = '#fde68a';
+  c.fillText('PUNTOS  ' + tennisLabel(tennis.points[0]) + '  -  ' + tennisLabel(tennis.points[1]), 28, 162);
+  board.tex.needsUpdate = true;
+}
 function tennisPoint(winner) {
   tennis.points[winner]++;
   const loser = 1 - winner;
-  if (tennis.points[winner] >= 4 && tennis.points[winner] - tennis.points[loser] >= 2) { tennis.games[winner]++; tennis.points = [0, 0]; }
+  if (tennis.points[winner] >= 4 && tennis.points[winner] - tennis.points[loser] >= 2) {
+    tennis.games[winner]++; tennis.points = [0, 0];
+    if (!tennis.sets) tennis.sets = [0, 0];
+    if (tennis.games[winner] >= 6 && tennis.games[winner] - tennis.games[loser] >= 2) { tennis.sets[winner]++; tennis.games = [0, 0]; }
+  }
   else if (tennis.points[0] >= 4 && tennis.points[1] >= 4) { tennis.points[0]--; tennis.points[1]--; }   // vuelve a deuce
   tennis.server = 1 - tennis.server; tennis.serveIn = 1.1; tennis.vel.set(0, 0, 0); tennis.bounces = 0; tennis.bounceSide = null;
   drawTennisScore();
@@ -5457,8 +5764,19 @@ function serveTennis() {
   const t = tennis, p = t.players[t.server], dir = t.server === 0 ? 1 : -1;
   t.ball.position.set(p.position.x + dir * .55, 1.25, p.position.z); t.vel.set(dir * 7.6, 5.4, (Math.random() - .5) * 2.2); t.lastHit = t.server; t.bounces = 0; t.bounceSide = null;
 }
+function irEnMitad(p, x, z, vel, dt, minX, maxX, minZ, maxZ) {
+  x = THREE.MathUtils.clamp(x, minX, maxX); z = THREE.MathUtils.clamp(z, minZ, maxZ);
+  if (dist2D(p.position, { x, z }) > 0.35) {
+    moveToward(p, new THREE.Vector3(x, 0, z), vel * dt);
+    p.rotation.y = Math.atan2(x - p.position.x, z - p.position.z);
+  }
+  p.position.x = THREE.MathUtils.clamp(p.position.x, minX, maxX);
+  p.position.z = THREE.MathUtils.clamp(p.position.z, minZ, maxZ);
+  swingLimbs(p, dt);
+}
 function updateTennis(dt) {
   const t = tennis; if (!t.ball || state.phase !== 'DAY' || state.planet !== 'tierra') return;
+  if (!(state.sportGame && state.sportGame.type === 'tenis')) { exhibicionTenis(dt); return; }
   if (t.serveIn > 0) { t.serveIn -= dt; if (t.serveIn <= 0) serveTennis(); return; }
   const previousX = t.ball.position.x;
   t.vel.y -= 9.8 * dt; t.ball.position.addScaledVector(t.vel, dt);
@@ -5469,18 +5787,59 @@ function updateTennis(dt) {
     if (t.bounceSide === sideNow) t.bounces++; else { t.bounceSide = sideNow; t.bounces = 1; }
     if (t.bounces > 1) { tennisPoint(1 - sideNow); return; }
   }
-  if (Math.abs(t.ball.position.x - t.cx) > 9.6 || Math.abs(t.ball.position.z - t.cz) > 6.2 || t.ball.position.y < -1) { tennisPoint(1 - t.lastHit); return; }
+  const medT = t.med || CANCHA.TENIS;
+  if (Math.abs(t.ball.position.x - t.cx) > medT.mitadL + .5 || Math.abs(t.ball.position.z - t.cz) > medT.mitadA + .6 || t.ball.position.y < -1) { tennisPoint(1 - t.lastHit); return; }
   for (const p of t.players) {
-    const side = p.userData.side, ownX = t.cx + (side ? 4.6 : -4.6);
-    const target = new THREE.Vector3(ownX, 0, THREE.MathUtils.clamp(t.ball.position.z, t.cz - 4.5, t.cz + 4.5));
-    if (dist2D(p.position, target) > .25) moveToward(p, target, 4.4 * sportNpcSpeed('tenis', side === 1) * dt);
-    p.rotation.y = Math.atan2(t.ball.position.x - p.position.x, t.ball.position.z - p.position.z); swingLimbs(p, dt);
+    const side = p.userData.side;
+    const minX = side ? t.cx + 1.3 : t.cx - medT.mitadL + .4;
+    const maxX = side ? t.cx + medT.mitadL - .4 : t.cx - 1.3;
+    const zMeta = THREE.MathUtils.clamp(t.ball.position.z, t.cz - medT.mitadA + .5, t.cz + medT.mitadA - .5);
+    const xMeta = side ? t.cx + medT.mitadL * .72 : t.cx - medT.mitadL * .72;
+    irEnMitad(p, xMeta, zMeta, 4.8 * sportNpcSpeed('tenis', side === 1), dt, minX, maxX, t.cz - medT.mitadA + .4, t.cz + medT.mitadA - .4);
+    p.rotation.y = Math.atan2(t.ball.position.x - p.position.x, t.ball.position.z - p.position.z);
     const approaching = side === 0 ? t.vel.x < 0 : t.vel.x > 0;
-    if (sideNow === side && approaching && dist2D(p.position, t.ball.position) < 1.25 && t.ball.position.y < 2.5) {
-      const dir = side === 0 ? 1 : -1, targetZ = t.cz + (Math.random() - .5) * 7;
+    if (sideNow === side && approaching && dist2D(p.position, t.ball.position) < 1.35 && t.ball.position.y < 3.2) {
+      const dir = side === 0 ? 1 : -1;
+      const trick = (t.golpe = (t.golpe || 0) + 1) % 4;
       const pace = sportNpcSpeed('tenis', side === 1);
-      t.vel.set(dir * (7.5 + Math.random() * 1.8) * pace, 5 + Math.random(), (targetZ - t.ball.position.z) * 1.15); t.lastHit = side; t.bounces = 0; t.bounceSide = null;
+      if (trick === 1) t.vel.set(dir * 6.2 * pace, 9.4, (Math.random() - .5) * 2.2);          // globo
+      else if (trick === 2) t.vel.set(dir * 3.4 * pace, 2.2, (Math.random() - .5) * .8);      // dejada
+      else if (trick === 3) t.vel.set(dir * 11 * pace, 3.1, (Math.random() - .5) * 1.4);      // smash
+      else t.vel.set(dir * 8.2 * pace, 5.1, (Math.random() - .5) * 3.2);
+      t.lastHit = side; t.bounces = 0; t.bounceSide = null;
     }
+  }
+}
+function exhibicionTenis(dt) {
+  const t = tennis, cx = t.cx, cz = t.cz, med = t.med || CANCHA.TENIS;
+  t.showT = ((t.showT || 0) + dt) % 10.8;
+  const paso = 1.35, n = Math.floor(t.showT / paso), k = (t.showT % paso) / paso;
+  const trick = n % 4;   // 0 peloteo, 1 globo, 2 dejada, 3 smash
+  const haciaMas = n % 2 === 0;
+  const fondo = med.mitadL * .78;
+  const desdeX = haciaMas ? cx - fondo : cx + fondo;
+  const hastaX = trick === 2 ? (haciaMas ? cx + 2.2 : cx - 2.2) : (haciaMas ? cx + fondo : cx - fondo);
+  const desdeZ = cz + Math.sin(n * 1.7) * 2.1;
+  const hastaZ = cz + Math.sin(n * 2.1 + .6) * (trick === 2 ? .5 : 3.1);
+  const alto = trick === 1 ? 9.4 : trick === 2 ? 1.15 : trick === 3 ? 3.4 : 2.6;
+  if (trick === 3) {
+    const u = THREE.MathUtils.clamp(k, 0, 1);
+    t.ball.position.set(desdeX + (hastaX - desdeX) * u, 6.4 * (1 - u) + .5 * u + Math.sin(u * Math.PI) * .8, desdeZ + (hastaZ - desdeZ) * u);
+  } else pelotaEnArco(t.ball, desdeX, desdeZ, hastaX, hastaZ, alto, k);
+  t.ball.rotation.x += dt * 6;
+  const rojo = t.players[0], azul = t.players[1];
+  if (!rojo) return;
+  rojo.position.y = 0; azul.position.y = 0;
+  const zMin = cz - med.mitadA + .5, zMax = cz + med.mitadA - .5;
+  const golpe = trick === 1 ? 'globo' : trick === 3 ? 'smash' : 'pase';
+  if (haciaMas) {
+    irEnMitad(rojo, desdeX + (k < .35 ? .8 : 0), desdeZ, 5.4, dt, cx - med.mitadL + .3, cx - 1.4, zMin, zMax);
+    irEnMitad(azul, hastaX, hastaZ, 5.2, dt, cx + 1.4, cx + med.mitadL - .3, zMin, zMax);
+    if (k < .45) poseDeJugada(rojo, golpe);
+  } else {
+    irEnMitad(azul, desdeX - (k < .35 ? .8 : 0), desdeZ, 5.4, dt, cx + 1.4, cx + med.mitadL - .3, zMin, zMax);
+    irEnMitad(rojo, hastaX, hastaZ, 5.2, dt, cx - med.mitadL + .3, cx - 1.4, zMin, zMax);
+    if (k < .45) poseDeJugada(azul, golpe);
   }
 }
 function buildStadiums() {
@@ -5528,7 +5887,7 @@ function recordSportTouch(game, distance) {
   game.actions++; game.lastTouch = 4; game.combo++; game.bestCombo = Math.max(game.bestCombo, game.combo); game.score += perfect ? 2 : 1;
   if (perfect) { floatText(player.position, '¡PERFECTO!', '#bef264', 16); beep(760, .06, .04); }
 }
-function nearestSport(maxD = 13) {
+function nearestSport(maxD = 28) {
   if (state.planet !== 'tierra') return null;   // los estadios son de la Tierra: en los planetas no hay partidos
   let best = null, bd = maxD;
   for (const s of SPORT_INFO) { const d = dist2D(player.position, s.center); if (d < bd) { best = s; bd = d; } }
@@ -5539,8 +5898,8 @@ function trySportInteract() {
   const sport = nearestSport(); if (!sport || state.phase !== 'DAY') return false;
   const level = Math.min(2, sportMedalRank(sport.type)), rules = SPORT_LEVELS[level];
   state.sportGame = { type: sport.type, name: sport.name, level, time: rules.time, score: 0, actions: 0, lastTouch: 0, teamScore: [0, 0], combo: 0, bestCombo: 0 };
-  const startX = sport.type === 'tenis' ? sport.center.x - 4.3 : sport.center.x - 2;
-  player.position.set(startX, PLAYER_EYE, sport.center.z + (sport.type === 'tenis' ? 2.8 : 4.2));
+  const startX = sport.type === 'tenis' ? sport.center.x - 6.2 : sport.center.x - 4;
+  player.position.set(startX, PLAYER_EYE, sport.center.z + (sport.type === 'tenis' ? 1.6 : 2.4));
   toast('🏟️ ' + sport.name + ' · nivel ' + rules.name + ' · juegas para ROJOS · E abandona');
   return true;
 }
@@ -5553,7 +5912,7 @@ function sportAction() {
   if (game.type === 'futbol') soccer.vel.set(dir.x * (11.5 + Math.min(3, game.combo * .3)), 0, dir.z * (11.5 + Math.min(3, game.combo * .3)));
   else if (game.type === 'basket') {
     basketball.holder = null; basketball.shotTeam = 0;
-    const target = new THREE.Vector3(basketball.cx + 7.95, 2.75, basketball.cz), dx = target.x - ball.position.x, dz = target.z - ball.position.z;
+    const target = new THREE.Vector3(basketball.cx + ((basketball.med && basketball.med.aro) || 10.4), 3.05, basketball.cz), dx = target.x - ball.position.x, dz = target.z - ball.position.z;
     const flight = Math.max(.72, Math.hypot(dx, dz) / 8.2); basketball.vel.set(dx / flight, (target.y - ball.position.y + 4.9 * flight * flight) / flight, dz / flight);
   } else {
     const side = ball.position.x < tennis.cx ? 0 : 1, toward = side === 0 ? 1 : -1;
@@ -5577,9 +5936,10 @@ function updateSportGame(dt) {
   game.time -= dt; game.lastTouch = Math.max(0, game.lastTouch - dt);
   const sport = SPORT_INFO.find(s => s.type === game.type);
   if (sport) {
-    const maxX = game.type === 'tenis' ? sport.center.x - .35 : sport.center.x + 9;
-    player.position.x = THREE.MathUtils.clamp(player.position.x, sport.center.x - 9, maxX);
-    player.position.z = THREE.MathUtils.clamp(player.position.z, sport.center.z - 6, sport.center.z + 6);
+    const med = game.type === 'tenis' ? CANCHA.TENIS : game.type === 'basket' ? CANCHA.BASQUET : CANCHA.FUTBOL;
+    const maxX = game.type === 'tenis' ? sport.center.x - 1.2 : sport.center.x + med.mitadL - 1.2;
+    player.position.x = THREE.MathUtils.clamp(player.position.x, sport.center.x - med.mitadL + .6, maxX);
+    player.position.z = THREE.MathUtils.clamp(player.position.z, sport.center.z - med.mitadA + .5, sport.center.z + med.mitadA - .5);
   }
   if (game.time <= 0) finishSportGame(false);
 }

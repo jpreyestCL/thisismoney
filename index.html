@@ -788,7 +788,7 @@
       <button class="bankBtn" data-bank="loan">Préstamo $2.000</button>
       <button class="bankBtn" data-bank="pay">Pagar deuda</button>
     </div>
-    <div style="font-size:11px; opacity:.65">💡 Lo ahorrado gana <b>5% de interés</b> cada noche superada. Las deudas crecen <b>10%</b> por noche… ¡cuidado!</div>
+    <div style="font-size:11px; opacity:.65">💡 Lo ahorrado gana <b>5% de interés</b> cada noche superada (con tope: <b>$2.500 por noche</b>, más alto con la Bóveda privada). Las deudas crecen <b>10%</b> por noche… ¡cuidado!</div>
     <button id="bankCloseBtn" style="pointer-events:all; cursor:pointer; background:rgba(255,255,255,.15); color:#fff; border:none; padding:8px 22px; font-size:14px; font-weight:700; border-radius:8px;">Cerrar ✕</button>
   </div>
   <!-- Botonera del ascensor del Edificio Mirador (a un costado: se sigue viendo la cabina) -->
@@ -1379,6 +1379,7 @@ import { CHAT_BUBBLE_MS, CHAT_CUSTOM_MAX, CHAT_EMOJIS, CHAT_HISTORY, CHAT_MAX_LE
 import { CAJA_MALL_RADIO, CAJA_RADIO, CASILLEROS_BOVEDA, CELDA_LADRON_SEG, DELATA_CERCA, LLAMADA_SEG, NOCHES_TITO, PLATA_CASILLERO, ROPA, VIDA_POLICIA, alcanceDelacion, arrestoLadron, atrapaPolicia, bovedaNueva, cajasNuevas, clavePartida, compraTeMarca, comprarRopa, condenaCumplida, continuarMundoLadron, cuantosNacen, deudaTito, enCerroNieve, enLaCaja, enSuperMall, enTiendaSuper, esCamuflaje, famaInicial, golpeSeEntera, impactoOficial, masBuscado, metaPoliciaLadron, mostrarCartel, mundoLadronNuevo, nacimientoPolicia, normalizarBoveda, normalizarCajas, objetivoLadron, oficialMuere, pagarTito, persecucionSiCaen, plataBoveda, policiaMarcaPorVer, puedeComprarRopa, puedeReponerPolicia, puedeVerTito, precioArmaTito, precioRegaloTito, ropaPorId, saquearCasillero, tickDelacion, tickLlamada, tickPersecucion, titoEntrega, bovedaPuedeAbrir, casilleroApuntado, cobrarTitoAuto, empezarAlarmaBanco, puestosCasilleros, tickAlarmaBanco, togglearBoveda, trasDelito, vaciarCaja, velocidadPolicia, PISTOLA_POLICIA, armaPolicia, policiaContesta, tickPistolaPolicia } from './src/modo-ladron.js?v=17';
 import { CARTEL_H, CARTEL_W, GOLPE_ADELANTE, LIENZO_H, LIENZO_W, POSE_MANO, VIBRA_ATERRIZAJE, aplicarPesosDeDibujo, aplicarSkin, avanceDeGolpe, capaSobreSkin, cartelSeBusca, esDistinta, giroDeGolpe, lienzoNuevo, pintar, posarDibujo, poseCorrer, poseSaltar, recorteBrazoBlanco, recorteManos, restaurar, serializar, vestirSobreSkin, vibrarBrazos, vibrarPiernas } from './src/skin-dibujo.js?v=11';
 import { crearIndice, moverNpc } from './src/npc-solido.js?v=1';
+import { BANCO, FAMILIAS_NUEVAS, GASTOS, JUEGOS_PARQUE, METAS, PARTIDO_GALA, PEDIDO_TIPOS, REJA_GOLPES, VECINOS_DE_LOTE, ahorroDondeTopa, avanceDeMetas, bonoJuegos, fiestaLista, generarPedidos, ingresosDeLaNoche, interesNocturno, juegoPorId, metaPorId, nivelConfianza, pagoPedido, precioLote, rentaLote, rentaNocturna, textoPedido, topeInteres } from './src/tierra-metas.js?v=1';
 import { deslizarJugador, RADIO_JUGADOR } from './src/jugador-solido.js?v=1';
 const indiceNpc = crearIndice();
 const ui = id => document.getElementById(id);
@@ -7554,6 +7555,7 @@ function wheelOptions() {
   o.push({ icon: '🧮', label: 'Desafío de mates', key: 'U', run: openMathBox });
   if (state.phase === 'DAY') o.push({ icon: '🌙', label: 'Empezar la noche', key: 'N', run: tryStartNight });
   o.push({ icon: '📋', label: 'Misiones', key: '', run: openQuestPanel });
+  if (state.planet === 'tierra' && !state.country) o.push({ icon: '🏙️', label: 'Mi imperio', key: '', run: () => abrirImperio() });
   o.push({ icon: '🎞️', label: 'Fotogramas ' + fpsModeName(), key: 'F3', run: cycleFpsMode });
   o.push({ icon: '🎨', label: 'Dibujar skin', key: '', run: abrirEditorSkin });
   o.push({ icon: '📖', label: 'Ayuda y guía', key: 'I', run: () => toggleHelp(true) });
@@ -20185,8 +20187,1001 @@ function tryInteract() {
   if (tryMall()) return;          // mall: cine, palomitas, caja, patio y la puerta
   if (tryBuyPlot()) return;       // comprar el terreno del condominio
   if (tryEstelar()) return;       // Base Estelar: panel junto al domo
+  if (tryImperio()) return;       // tablero de pedidos, piscina, bóveda y estadio propios
   if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract() && !tryBuyStandTouch() && !tryVendorHere() && !tryHelperHere()) { if (!tryCollectGolden() && !tryRob() && !sellHouse()) tryGardenHere(); }
 }
+// ====================================================================
+//  TIERRA GRANDE · metas $75.000 → $800.000, barrio que crece contigo,
+//  pedidos de los vecinos y gastos para la plata grande.
+//  Reglas y precios: src/tierra-metas.js · todo se guarda en save.tierra
+//  Se abre con la rueda (Tab / botón 🎯) → "Mi imperio", o con E en el tablero
+//  de la conserjería del condominio. Funciona con teclado y con los dedos.
+// ====================================================================
+const imperio = imperioNuevo();
+function imperioNuevo() {
+  return {
+    metas: {}, avisadas: {}, barrio: {},
+    pedidos: { noche: -1, lista: [], hechos: 0 },
+    gastos: { mall: false, estadio: false, juegos: {}, fiestaNoche: -99, fiestaPend: false, galaNoche: -1 },
+    parqueDia: 0, tab: 'metas',
+  };
+}
+const QUINTA = { x: 130, z: 27.5, w: 25.8, d: 40.8 };
+const ESTADIO_PROPIO = { x: 130, z: 82.5 };
+const PLAZA_ESTATUA = { x: -22, z: 27.5 };
+const TABLERO_POS = { x: 11, z: 24.6 };
+const imperio3d = { piezas: {}, vecinos: {}, marcador: null, tablero: null, pedidoProps: [], fx: [], t: 0, fiestaT: 0, camion: null, aviso: 0, vecinoHola: {}, chip: null };
+const imperioEnTierra = () => state.planet === 'tierra' && !state.country;
+const imperioPlata = n => '$' + Math.round(n).toLocaleString('es-CL');
+const imperioVisible = () => !earthMeshes.length || earthMeshes[0].visible;
+const imperioMetaOk = id => !!imperio.metas[id];
+
+// ---- Registro de piezas: así se pueden quitar (nueva partida / cargar otra) ----
+function imperioConstruir(clave, fn) {
+  imperioQuitar(clave);
+  const c0 = scene.children.length, o0 = obstacles.length, s0 = solidosJugador.length;
+  const l0 = landingSurfaces.length, e0 = stadiums.length, v0 = victims.length;
+  const extra = fn() || {};
+  const rec = {
+    meshes: scene.children.slice(c0), obs: obstacles.slice(o0), sol: solidosJugador.slice(s0),
+    land: landingSurfaces.slice(l0), est: stadiums.slice(e0), vic: victims.slice(v0), extra,
+  };
+  const ver = imperioVisible();
+  for (const m of rec.meshes) { m.visible = ver; earthMeshes.push(m); }
+  for (const o of rec.obs) { earthObstacles.push(o); if (!ver) { const i = obstacles.indexOf(o); if (i >= 0) obstacles.splice(i, 1); } }
+  imperio3d.piezas[clave] = rec;
+  return rec;
+}
+function imperioSacar(lista, el) { const i = lista.indexOf(el); if (i >= 0) lista.splice(i, 1); }
+function imperioQuitar(clave) {
+  const rec = imperio3d.piezas[clave]; if (!rec) return;
+  for (const m of rec.meshes) { scene.remove(m); imperioSacar(earthMeshes, m); }
+  for (const o of rec.obs) { imperioSacar(obstacles, o); imperioSacar(earthObstacles, o); }
+  for (const s of rec.sol) imperioSacar(solidosJugador, s);
+  for (const l of rec.land) imperioSacar(landingSurfaces, l);
+  for (const e of rec.est) imperioSacar(stadiums, e);
+  for (const v of rec.vic) imperioSacar(victims, v);
+  if (rec.extra.rides) for (const r of rec.extra.rides) imperioSacar(parkRides, r);
+  delete imperio3d.piezas[clave];
+}
+function imperioPieza(clave) { return imperio3d.piezas[clave] || null; }
+
+// ---- Materiales y piezas sueltas ----
+const imperioMatVentana = new THREE.MeshStandardMaterial({ color: 0xfff1b8, emissive: 0xffe08a, emissiveIntensity: .55, roughness: .35 });
+function imperioVentana(parent, x, y, z, w, h, d) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), imperioMatVentana);
+  m.position.set(x, y, z); parent.add(m); return m;
+}
+function imperioCartel(parent, x, y, z, texto, color, escala, giro) {
+  const s = mcSign(parent, x, y, z, texto, color);
+  s.scale.setScalar(escala || .6); if (giro) s.rotation.y = giro; return s;
+}
+
+// ---- La quinta: terreno vallado al este, donde viven las metas ----
+function imperioQuintaBase() {
+  if (imperioPieza('quinta')) return;
+  imperioConstruir('quinta', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const { x: cx, z: cz, w, d } = QUINTA;
+    mcFloor(g, cx, cz, w - 1.4, d - 1.4, 0x4fae45, .02);
+    mcFloor(g, cx - 5.5, cz, 14.2, 2.4, 0xd9d2bf, .06);
+    mcFence(g, cx, cz, w - 1.2, d - 1.2, 0xd4af37, 0, false, 4.8);
+    const gx = cx - (w - 1.2) / 2;
+    for (const sz of [-1, 1]) {
+      mcBox(g, gx, 1.7, cz + sz * 3.1, 1, 3.4, 1, 0xe7dcc2);
+      mcBox(g, gx, 3.6, cz + sz * 3.1, 1.3, .3, 1.3, 0xd4af37);
+      addObstacle(gx, cz + sz * 3.1, 1, 1, 3.4, 'quinta');
+    }
+    mcBox(g, gx, 3.95, cz, 1, .5, 7.2, 0xe7dcc2);
+    imperioCartel(g, gx - .1, 5.2, cz, 'LA QUINTA', 0xfde68a, .4, -Math.PI / 2);
+    for (const [lx, lz] of [[-9.5, 6], [-9.5, -6], [-1, 7], [-1, -7]]) mcLamp(g, cx + lx, cz + lz, 0xfff0b0);
+    for (const [tx, tz] of [[-10.5, -18], [11, 18], [-3, 18], [-10.5, 18]]) mcTree(g, cx + tx, cz + tz, 4.6);
+    for (const [fx, fz] of [[-9, 3.6], [-9, -3.6]]) mcFlowers(g, cx + fx, cz + fz, 1.1);
+    return {};
+  });
+}
+
+function imperioPiscina3D() {
+  imperioConstruir('piscina', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const px = QUINTA.x - 5.5, pz = QUINTA.z + 11.5;
+    mcFloor(g, px, pz, 9.6, 6.6, 0xe6dcc3, .07);
+    mcFloor(g, px, pz, 7.6, 4.8, 0xf8fafc, .09);
+    const agua = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 4.4), new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: .3, roughness: .15, transparent: true, opacity: .9 }));
+    agua.rotation.x = -Math.PI / 2; agua.position.set(px, .16, pz); g.add(agua);
+    for (const sx of [-1, 1]) {
+      mcBox(g, px + sx * 5.3, .22, pz - 1.2, 1.9, .3, .7, 0xf1f5f9);
+      mcBox(g, px + sx * 5.3, .5, pz - 1.4, 1.9, .3, .2, 0xf1f5f9);
+    }
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 2.4, 6), mat(0x78716c)); pole.position.set(px + 5.3, 1.2, pz + 1.4); g.add(pole);
+    const sombra = new THREE.Mesh(new THREE.ConeGeometry(1.5, .6, 8), mat(0xef4444)); sombra.position.set(px + 5.3, 2.6, pz + 1.4); g.add(sombra);
+    imperioCartel(g, px, 2.6, pz + 3.8, 'PISCINA', 0xbae6fd, .5);
+    return { agua, x: px, z: pz };
+  });
+}
+
+function imperioGaraje3D() {
+  imperioConstruir('garaje', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const gx = QUINTA.x - 6.2, gz = QUINTA.z - 13.5, w = 9.2, d = 6, h = 3.7, frente = gz + d / 2;
+    mcFloor(g, gx, gz, w, d, 0x9ca3af, .06);
+    mcBox(g, gx, 1.85, gz - d / 2, w, h, .4, 0xe5e7eb); addObstacle(gx, gz - d / 2, w, .4, h, 'garaje');
+    for (const sx of [-1, 1]) { mcBox(g, gx + sx * w / 2, 1.85, gz, .4, h, d, 0xe5e7eb); addObstacle(gx + sx * w / 2, gz, .4, d, h, 'garaje'); }
+    mcBox(g, gx, h + .2, gz, w + .6, .4, d + .6, 0x6b7280);
+    addLandingSurface(gx, gz, w + .6, d + .6, h + .4, g);
+    imperioCartel(g, gx, h + 1.2, frente + .2, 'GARAJE', 0xfde68a, .55);
+    const porton = new THREE.Mesh(new THREE.BoxGeometry(w - .7, 3.2, .18), mcMat(0xf59e0b));
+    porton.position.set(gx, 1.6, frente); g.add(porton);
+    for (let i = 0; i < 5; i++) mcBox(porton, 0, -1.2 + i * .62, .1, w - .9, .08, .06, 0xb45309);
+    const obs = addObstacle(gx, frente, w - .7, .5, 3.2, 'garaje');
+    return { porton, obs, abierto: false, x: gx, z: gz, frente, w, d };
+  });
+}
+
+function imperioTorre3D() {
+  imperioConstruir('torre', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const tx = QUINTA.x + 10.2, tz = QUINTA.z - 16.5;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) mcBox(g, tx + sx * 1, 3.2, tz + sz * 1, .28, 6.4, .28, 0x64748b);
+    for (const y of [2, 4.2]) { mcBox(g, tx, y, tz - 1, 2.2, .14, .12, 0x94a3b8); mcBox(g, tx, y, tz + 1, 2.2, .14, .12, 0x94a3b8); mcBox(g, tx - 1, y, tz, .12, .14, 2.2, 0x94a3b8); mcBox(g, tx + 1, y, tz, .12, .14, 2.2, 0x94a3b8); }
+    mcBox(g, tx, 6.55, tz, 3.4, .3, 3.4, 0x475569);
+    mcBox(g, tx, 7.4, tz, 2.4, 1.6, 2.4, 0xe2e8f0);
+    for (const sx of [-1, 1]) { imperioVentana(g, tx + sx * 1.22, 7.5, tz, .06, .8, 1.4); imperioVentana(g, tx, 7.5, tz + sx * 1.22, 1.4, .8, .06); }
+    const techo = new THREE.Mesh(new THREE.ConeGeometry(2, 1, 4), mat(0xb91c1c)); techo.position.set(tx, 8.7, tz); techo.rotation.y = Math.PI / 4; techo.castShadow = true; g.add(techo);
+    mcBox(g, tx, 9.4, tz, .08, .9, .08, 0x94a3b8);
+    const guardia = makePerson(0x1d4ed8, 0xf1c27d); guardia.position.set(tx + 1.3, 6.7, tz + 1.3); guardia.rotation.y = Math.PI / 4; g.add(guardia);
+    addObstacle(tx, tz, 2.4, 2.4, 9.6, 'torreQuinta');
+    imperioCartel(g, tx, 11, tz, 'GUARDIA', 0xbfdbfe, .45);
+    return { guardia, x: tx, z: tz };
+  });
+}
+
+function imperioHelipuerto3D() {
+  imperioConstruir('helipuerto', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const px = QUINTA.x + 6.5, pz = QUINTA.z + 14.5;
+    const disco = new THREE.Mesh(new THREE.CylinderGeometry(4.3, 4.3, .16, 28), mcMat(0x374151)); disco.position.set(px, .08, pz); disco.receiveShadow = true; g.add(disco);
+    const aro = new THREE.Mesh(new THREE.RingGeometry(3.5, 3.8, 32), new THREE.MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide }));
+    aro.rotation.x = -Math.PI / 2; aro.position.set(px, .18, pz); g.add(aro);
+    for (const sx of [-1.1, 1.1]) mcBox(g, px + sx, .2, pz, .5, .05, 3.2, 0xf8fafc);
+    mcBox(g, px, .2, pz, 2.4, .05, .5, 0xf8fafc);
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * Math.PI * 2;
+      const l = new THREE.Mesh(new THREE.SphereGeometry(.13, 6, 5), new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 1 }));
+      l.position.set(px + Math.cos(a) * 4, .3, pz + Math.sin(a) * 4); g.add(l);
+    }
+    imperioCartel(g, px, 3.2, pz + 5, 'HELIPUERTO', 0xfde68a, .5);
+    return { x: px, z: pz };
+  });
+}
+
+function imperioMansion3D() {
+  imperioConstruir('mansion', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const x = QUINTA.x + 6.6, z = QUINTA.z - .5, w = 9.6, d = 9, h = 9.6, oeste = x - w / 2;
+    mcBox(g, x, h / 2, z, w, h, d, 0xf3e7cf);
+    for (let k = 1; k <= 3; k++) mcBox(g, x, k * 3.2 - .1, z, w + .5, .25, d + .5, 0xc2a878);
+    mcBox(g, x, h + .35, z, w + .3, .7, d + .3, 0x7c2d12);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) mcBox(g, x + sx * (w / 2 - .1), h + .9, z + sz * (d / 2 - .1), .5, .6, .5, 0xc2a878);
+    for (let k = 0; k < 3; k++) {
+      const y = 1.7 + k * 3.2;
+      const fila = k === 0 ? [-3.4, 3.4] : [-3.4, -1.15, 1.15, 3.4];
+      for (const dz of fila) {
+        imperioVentana(g, oeste - .04, y + (k === 0 ? .2 : 0), z + dz, .08, 1.3, .9);
+        imperioVentana(g, x + w / 2 + .04, y, z + dz, .08, 1.3, .9);
+      }
+      for (const dx of [-3, 0, 3]) {
+        imperioVentana(g, x + dx, y, z - d / 2 - .04, .9, 1.3, .08);
+        imperioVentana(g, x + dx, y, z + d / 2 + .04, .9, 1.3, .08);
+      }
+    }
+    mcBox(g, oeste - .05, 1.5, z, .12, 2.9, 1.7, 0x5b3a1a);
+    mcBox(g, oeste - 1.1, 3.05, z, 2.4, .3, 4.4, 0xc2a878);
+    for (const sz of [-1.9, 1.9]) mcBox(g, oeste - 2, 1.5, z + sz, .45, 3, .45, 0xf1e7d0);
+    for (let i = 0; i < 3; i++) mcBox(g, oeste - 1.4 - i * .45, .1 + i * .1, z, .5, .2 + i * .2, 3.6, 0xd6cdb8);
+    mcBox(g, oeste - 1.1, 6.3, z, 1.6, .22, 5.2, 0xc2a878);
+    for (let i = -2; i <= 2; i++) mcBox(g, oeste - 1.85, 6.8, z + i * 1.1, .08, .9, .08, 0x78716c);
+    mcBox(g, x + 2.5, h + 1.6, z - 2, 1, 1.8, 1, 0x7c2d12);
+    const mastil = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, 3.2, 6), mat(0xd1d5db)); mastil.position.set(x - 2, h + 2.3, z + 1.5); g.add(mastil);
+    mcBox(g, x - 2, h + 3.4, z + 2.1, .06, .7, 1.1, 0xdc2626);
+    imperioCartel(g, oeste - 2.4, 8.2, z, 'MANSION', 0xfde68a, .55, -Math.PI / 2);
+    addObstacle(x, z, w, d, h + .7, 'mansionQuinta');
+    addLandingSurface(x, z, w, d, h + .7, g);
+    return { x, z, w };
+  });
+}
+
+function imperioBoveda3D() {
+  imperioConstruir('boveda', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const x = QUINTA.x + 3.8, z = QUINTA.z - 13.2, w = 5, d = 4.4, h = 3.2;
+    mcBox(g, x, h / 2, z, w, h, d, 0x9ca3af);
+    mcBox(g, x, h + .15, z, w + .4, .3, d + .4, 0x6b7280);
+    mcBox(g, x, 1.6, z + d / 2 + .02, w + .1, .35, .06, 0xd4af37);
+    const puerta = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, .22, 20), mcMat(0x4b5563));
+    puerta.rotation.x = Math.PI / 2; puerta.position.set(x, 1.5, z + d / 2 + .12); g.add(puerta);
+    const rueda = new THREE.Mesh(new THREE.TorusGeometry(.5, .07, 6, 14), mcMat(0xd4af37)); rueda.position.set(x, 1.5, z + d / 2 + .3); g.add(rueda);
+    for (let i = 0; i < 4; i++) mcBox(g, x + Math.cos(i * 1.57) * .7, 1.5 + Math.sin(i * 1.57) * .7, z + d / 2 + .28, .16, .16, .1, 0xd4af37);
+    imperioCartel(g, x, 4.4, z + d / 2 + .2, 'BOVEDA', 0xfde68a, .5);
+    addObstacle(x, z, w, d, h, 'bovedaQuinta');
+    return { x, z: z + d / 2 + 1.2 };
+  });
+}
+
+function imperioEstatua3D() {
+  imperioConstruir('estatua', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const { x, z } = PLAZA_ESTATUA;
+    mcFloor(g, x, z, 7, 7, 0xe5e7eb, .07);
+    for (let i = 0; i < 3; i++) mcBox(g, x, .2 + i * .35, z, 4.6 - i * 1.1, .4, 4.6 - i * 1.1, i % 2 ? 0xd6d3d1 : 0xe7e5e4);
+    mcBox(g, x, 2.4, z, 1.8, 2.2, 1.8, 0xd6d3d1);
+    const ouro = 0xf5c542;
+    const f = makePerson(ouro, ouro); f.scale.setScalar(2.1); f.position.set(x, 3.5, z); g.add(f);
+    const l = f.userData.limbs;
+    if (l) { l.armR.rotation.x = -2.7; l.armL.rotation.x = .15; }
+    imperioCartel(g, x, 8.4, z, 'ESTATUA DE TI', 0xfde68a, .5);
+    for (const [sx, sz] of [[-3.4, -3.4], [3.4, 3.4]]) mcLamp(g, x + sx, z + sz, 0xfde68a);
+    addObstacle(x, z, 3.4, 3.4, 3.4, 'estatua');
+    return {};
+  });
+}
+
+function imperioMall3D() {
+  imperioConstruir('mallDuenio', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const p = MALL.puerta;
+    imperioCartel(g, p.x, 9.3, p.z - 3.2, 'MALL DEL SUR · TUYO', 0xfde68a, .8);
+    for (const sx of [-1, 1]) {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 5, 6), mat(0xd1d5db)); m.position.set(p.x + sx * 12, 5.6, p.z - 3.2); g.add(m);
+      mcBox(g, p.x + sx * 12, 7.6, p.z - 3.2, .06, 1.1, 1.8, 0xd4af37);
+    }
+    return {};
+  });
+}
+
+function imperioEstadio3D() {
+  imperioConstruir('estadio', () => {
+    const g = new THREE.Group(); scene.add(g);
+    const { x: cx, z: cz } = ESTADIO_PROPIO, W = QUINTA.w - 1.4, D = QUINTA.d - 1.4;
+    mcFloor(g, cx, cz, W, D, 0xd6d3d1, .03);
+    const campo = new THREE.Mesh(new THREE.PlaneGeometry(14, 24), matCesped(0x2d6a4f));
+    campo.rotation.x = -Math.PI / 2; campo.position.set(cx, .12, cz); campo.receiveShadow = true; g.add(campo);
+    for (let i = 0; i < 6; i++) mcFloor(g, cx, cz - 10 + i * 4, 14, 2, 0x3a7d5d, .14);
+    mcFloor(g, cx, cz, 14, .14, 0xf8fafc, .16); mcFloor(g, cx, cz, 3.2, 3.2, 0xf8fafc, .15); mcFloor(g, cx, cz, 2.9, 2.9, 0x2d6a4f, .17);
+    for (const sx of [-1, 1]) mcFloor(g, cx + sx * 7, cz, .14, 24, 0xf8fafc, .16);
+    for (const sz of [-1, 1]) {
+      mcFloor(g, cx, cz + sz * 12, 14, .14, 0xf8fafc, .16);
+      mcBox(g, cx - 1.6, 1.1, cz + sz * 12.2, .12, 2.2, .12, 0xf8fafc); mcBox(g, cx + 1.6, 1.1, cz + sz * 12.2, .12, 2.2, .12, 0xf8fafc); mcBox(g, cx, 2.2, cz + sz * 12.2, 3.3, .12, .12, 0xf8fafc);
+    }
+    const colores = [0xef4444, 0xfacc15, 0x38bdf8, 0xf472b6, 0xf8fafc, 0x4ade80];
+    const grada = (gx, gz, w, d, haciaX, haciaZ) => {
+      for (let k = 0; k < 4; k++) {
+        const fx = haciaX ? gx - haciaX * k * .9 : gx, fz = haciaZ ? gz - haciaZ * k * .9 : gz;
+        const ww = haciaX ? 1 : w, dd = haciaZ ? 1 : d;
+        mcBox(g, fx, .6 + k * .7, fz, ww, 1.2 + k * 1.4, dd, k % 2 ? 0xa8a29e : 0xb9b4ae);
+        const n = Math.floor((haciaX ? d : w) / 1.5);
+        for (let i = 0; i < n; i++) {
+          const o = -((haciaX ? d : w) / 2) + .75 + i * 1.5;
+          const c = colores[Math.floor(Math.random() * colores.length)];
+          mcBox(g, haciaX ? fx : gx + o, 1.5 + k * 1.4, haciaX ? gz + o : fz, .5, .7, .5, c);
+        }
+      }
+      addObstacle(gx - (haciaX || 0) * 1.4, gz - (haciaZ || 0) * 1.4, w, d, 4.4, 'estadioPropio');
+    };
+    grada(cx - 8, cz, 4, 22, -1, 0); grada(cx + 8, cz, 4, 22, 1, 0);
+    grada(cx, cz - 14, 14, 4, 0, -1);
+    grada(cx - 6.5, cz + 14, 6, 4, 0, 1); grada(cx + 6.5, cz + 14, 6, 4, 0, 1);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const tx = cx + sx * 11.3, tz = cz + sz * 17.4;
+      mcBox(g, tx, 5, tz, .4, 10, .4, 0x64748b);
+      const luz = new THREE.Mesh(new THREE.BoxGeometry(1.8, .9, .3), new THREE.MeshStandardMaterial({ color: 0xfff7c2, emissive: 0xfff7c2, emissiveIntensity: 1 }));
+      luz.position.set(tx, 10.3, tz); luz.rotation.y = Math.atan2(-sx, -sz); g.add(luz);
+      addObstacle(tx, tz, .6, .6, 10, 'estadioPropio');
+    }
+    mcFence(g, cx, cz, W + .2, D + .2, 0xd4af37, 6, true);
+    imperioCartel(g, cx, 4.2, cz + 13, 'ESTADIO TUYO', 0xfde68a, .5);
+    stadiums.push(new THREE.Vector3(cx, 0, cz));
+    return { x: cx, z: cz + 15.5 };
+  });
+}
+
+// ---- Juegos nuevos del parque de diversiones ----
+function imperioJuego3D(id) {
+  const cx = FUN_PARK.x, cz = FUN_PARK.z;
+  imperioConstruir('juego:' + id, () => {
+    const g = new THREE.Group(); scene.add(g);
+    const rides = [];
+    if (id === 'barco') {
+      const bx = cx + 32, bz = cz - 28;
+      for (const sx of [-1, 1]) { mcBox(g, bx + sx * 4.6, 4.2, bz, .5, 8.4, .5, 0x7c3f1d); mcBox(g, bx + sx * 4.6, 4.2, bz - 1.6, .4, 8, .4, 0x7c3f1d); mcBox(g, bx + sx * 4.6, 4.2, bz + 1.6, .4, 8, .4, 0x7c3f1d); }
+      mcBox(g, bx, 8.5, bz, 10.2, .4, .5, 0x4b2a12);
+      const pivote = new THREE.Group(); pivote.position.set(bx, 8.4, bz); g.add(pivote);
+      mcBox(pivote, 0, -6.4, 0, 2.8, 1, 8.6, 0xb91c1c);
+      mcBox(pivote, 0, -5.7, 0, 3.2, .35, 9.2, 0x7c3f1d);
+      mcBox(pivote, 0, -7.1, 0, 1.8, .5, 7.2, 0x4b2a12);
+      mcBox(pivote, 0, -4.2, 0, .2, 3.6, .2, 0x4b2a12);
+      mcBox(pivote, 0, -2.6, .5, .05, .9, 1.4, 0x111827);
+      for (const sz of [-3.4, 3.4]) mcBox(pivote, 0, -3.2, sz, .1, 6.4, .1, 0x94a3b8);
+      rides.push({ kind: 'swing', obj: pivote, t: 0, speed: 1.3 }); parkRides.push(rides[0]);
+      addObstacle(bx, bz, 10.4, 2.4, 8.4, 'juegoBarco');
+      imperioCartel(g, bx, 11.2, bz, 'BARCO PIRATA', 0xfca5a5, .5);
+    } else if (id === 'pulpo') {
+      const px = cx - 32, pz = cz - 28;
+      mcFloor(g, px, pz, 12, 12, 0xd6cdbb, .06);
+      mcBox(g, px, 2.2, pz, 1.2, 4.4, 1.2, 0x7e22ce);
+      const giro = new THREE.Group(); giro.position.set(px, 4.4, pz); g.add(giro);
+      const colores = [0xef4444, 0xfacc15, 0x22c55e, 0x38bdf8, 0xf472b6, 0xf97316, 0xa855f7, 0x14b8a6];
+      for (let i = 0; i < 8; i++) {
+        const a = i / 8 * Math.PI * 2;
+        const brazo = new THREE.Group(); brazo.rotation.y = a; giro.add(brazo);
+        mcBox(brazo, 2.4, 0, 0, 4.8, .22, .3, 0x6b21a8);
+        mcBox(brazo, 5, -.7, 0, 1.4, 1, 1.4, colores[i]);
+        mcBox(brazo, 5, -.1, 0, .2, .7, .2, 0x6b21a8);
+      }
+      rides.push({ kind: 'carousel', obj: giro, speed: .9 }); parkRides.push(rides[0]);
+      addObstacle(px, pz, 1.6, 1.6, 4.6, 'juegoPulpo');
+      imperioCartel(g, px, 8.2, pz, 'PULPO GIRATORIO', 0xe9d5ff, .5);
+    } else {
+      const tx = cx + 32, tz = cz + 12;
+      mcFloor(g, tx, tz, 12, 12, 0xd6cdbb, .06);
+      const disco = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, .3, 20), mcMat(0xfde68a)); disco.position.set(tx, .3, tz); g.add(disco);
+      const giro = new THREE.Group(); giro.position.set(tx, .45, tz); g.add(giro);
+      const colores = [0xef4444, 0x22c55e, 0x38bdf8, 0xf472b6, 0xf97316];
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * Math.PI * 2;
+        const taza = new THREE.Mesh(new THREE.CylinderGeometry(1.1, .85, .9, 12), mcMat(colores[i]));
+        taza.position.set(Math.cos(a) * 3.1, .5, Math.sin(a) * 3.1); taza.castShadow = true; giro.add(taza);
+        mcBox(giro, Math.cos(a) * 4.1, .75, Math.sin(a) * 3.1 + 0, .35, .35, .35, 0xf8fafc);
+      }
+      mcBox(giro, 0, 1.2, 0, 1, 2.4, 1, 0x0d9488);
+      rides.push({ kind: 'carousel', obj: giro, speed: .6 }); parkRides.push(rides[0]);
+      addObstacle(tx, tz, 1.4, 1.4, 2.4, 'juegoTazas');
+      imperioCartel(g, tx, 5.6, tz, 'TAZAS LOCAS', 0xfde68a, .5);
+    }
+    return { rides };
+  });
+}
+
+// ---- Barrio: casas nuevas, familias y camión de mudanza ----
+function imperioNombreVecino(l) {
+  const b = imperio.barrio[l.id];
+  if (b && b.familia) return 'Familia ' + b.familia;
+  return VECINOS_DE_LOTE[l.id] || ('Vecino del ' + l.nombre);
+}
+function imperioEntradaLote(l) {
+  const c = condoLotes[l.id], norte = l.z > CONDOMINIO.pasaje.z;
+  return { frente: c.frente, norte, dentro: norte ? 1 : -1 };
+}
+function imperioCrearVecino(l) {
+  if (imperioPieza('vecino:' + l.id)) return;
+  const e = imperioEntradaLote(l);
+  imperioConstruir('vecino:' + l.id, () => {
+    const p = makePerson(null, null, { variar: true });
+    p.position.set(l.x, 0, e.frente + e.dentro * 1.0); scene.add(p);
+    return { persona: p, base: { x: l.x, z: e.frente + e.dentro * 1.0 }, dir: 1, alcance: Math.min(1.2, (l.w - .4) / 2 - .9) };
+  });
+  imperio3d.vecinos[l.id] = imperioPieza('vecino:' + l.id).extra;
+}
+function imperioCasaNueva(l, animar) {
+  const c = condoLotes[l.id]; if (!c) return;
+  const e = imperioEntradaLote(l), hueco = CONDOMINIO.patio;
+  imperioConstruir('casa:' + l.id, () => {
+    const plan = planDeCasa(l.w - 1.2, l.d - hueco.frente - hueco.fondo);
+    const casaZ = e.frente + (e.norte ? 1 : -1) * (plan.d / 2 + 1.6);
+    const casa = makeCityHouse(l.x, casaZ, false, e.norte ? Math.PI : 0, plan.w, plan.d, plan);
+    mcLamp(scene, l.x + l.w / 2 - .8, e.frente + (e.norte ? -1 : 1) * 1.2, 0xfff0b0);
+    if (casa && animar) { casa.scale.y = .05; }
+    return { casa, subir: animar ? 0 : 1 };
+  });
+}
+function imperioCartelLote(l) {
+  const e = imperioEntradaLote(l);
+  imperioConstruir('cartel:' + l.id, () => {
+    const g = new THREE.Group(); scene.add(g);
+    const s = makeSign('ARRENDADO · ' + imperioPlata(rentaLote(l)) + '/noche', 0x86efac);
+    s.scale.setScalar(.4); s.position.set(l.x, 2.5, e.frente + (e.norte ? -1.4 : 1.4)); g.add(s);
+    return {};
+  });
+  const c = condoLotes[l.id];
+  if (c && c.carteles) { c.carteles.venta.visible = false; c.carteles.vendido.visible = false; }
+}
+function imperioCamion(l) {
+  if (imperio3d.camion) { scene.remove(imperio3d.camion.g); imperio3d.camion = null; }
+  const pas = CONDOMINIO.pasaje, g = new THREE.Group();
+  mcBox(g, 0, 1.5, -.6, 2.4, 2.4, 4.4, 0xf8fafc);
+  mcBox(g, 0, 1.1, 2.3, 2.3, 1.7, 1.6, 0xdc2626);
+  mcBox(g, 0, 1.6, 3.12, 1.9, .7, .06, 0x9fd8ff);
+  for (const sx of [-1.2, 1.2]) for (const sz of [-1.6, 2.3]) mcBox(g, sx, .5, sz, .3, 1, 1, 0x111827);
+  g.position.set(l.x, 0, pas.z - 1.1); g.rotation.y = Math.PI / 2; scene.add(g);
+  g.traverse(o => { o.castShadow = true; });
+  imperio3d.camion = { g, t: 0 };
+}
+function imperioLotePersonaYCasa(l, animar) {
+  if (l.venta) imperioCasaNueva(l, animar);
+  imperioCrearVecino(l);
+  imperioCartelLote(l);
+}
+function imperioLotesPropios() {
+  return CONDOMINIO.lotes.filter(l => imperio.barrio[l.id] && l.id !== state.plot);
+}
+function imperioComprarLote(id) {
+  if (!imperioPuede(true)) return;
+  const l = lotePorId(id); if (!l || id === state.plot || imperio.barrio[id]) return;
+  if (!state.plot) { toast('🏡 Primero compra tu propio terreno en el condominio (sigue la flecha)'); return; }
+  const precio = precioLote(l);
+  if (!state.creative && state.money < precio) { toast('💸 El ' + l.nombre + ' cuesta ' + imperioPlata(precio) + ' y tienes ' + imperioPlata(state.money)); return; }
+  if (!state.creative) addMoney(-precio);
+  const usados = Object.values(imperio.barrio).map(b => b.familia);
+  const libres = FAMILIAS_NUEVAS.filter(f => !usados.includes(f));
+  imperio.barrio[id] = { desde: state.night, familia: l.venta ? (libres[0] || FAMILIAS_NUEVAS[0]) : '' };
+  imperioLotePersonaYCasa(l, true);
+  if (l.venta) imperioCamion(l);
+  imperio3d.vecinoHola[id] = 0;
+  const renta = rentaLote(l);
+  toast('🏘️ ¡' + l.nombre + ' es tuyo! ' + imperioNombreVecino(l) + ' te arrienda y paga ' + imperioPlata(renta) + ' cada noche (cada lote extra sube el pago de todos)');
+  phaseText('BARRIO CRECIDO');
+  beep(740, .14, .05); setTimeout(() => beep(990, .16, .05), 140);
+  imperioPedidosAlDia(false);
+  imperioRender(); saveGame();
+}
+
+// ---- Fuegos artificiales ----
+const imperioFxGeo = new THREE.SphereGeometry(.16, 5, 4);
+const imperioFxMat = {};
+function imperioEstallido(x, y, z, color, n) {
+  const mt = imperioFxMat[color] || (imperioFxMat[color] = new THREE.MeshBasicMaterial({ color }));
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(imperioFxGeo, mt); m.position.set(x, y, z);
+    const a = Math.random() * Math.PI * 2, b = Math.acos(2 * Math.random() - 1), v = 4 + Math.random() * 5;
+    scene.add(m);
+    imperio3d.fx.push({ m, vx: Math.sin(b) * Math.cos(a) * v, vy: Math.cos(b) * v, vz: Math.sin(b) * Math.sin(a) * v, t: 0, vida: 1.4 + Math.random() * .6 });
+  }
+}
+function imperioActualizarFx(dt) {
+  const f = imperio3d.fx;
+  for (let i = f.length - 1; i >= 0; i--) {
+    const p = f[i]; p.t += dt;
+    p.m.position.x += p.vx * dt; p.m.position.y += p.vy * dt; p.m.position.z += p.vz * dt; p.vy -= 7 * dt;
+    p.m.scale.setScalar(Math.max(.05, 1 - p.t / p.vida));
+    if (p.t >= p.vida) { scene.remove(p.m); f.splice(i, 1); }
+  }
+}
+
+// ---- Metas ----
+function imperio_total_ganado() { return state.creative ? Infinity : (state.totalEarned || 0); }
+function imperioMeta3D(id) {
+  imperioQuintaBase();
+  if (id === 'piscina') imperioPiscina3D();
+  else if (id === 'garaje') imperioGaraje3D();
+  else if (id === 'torre') imperioTorre3D();
+  else if (id === 'helipuerto') imperioHelipuerto3D();
+  else if (id === 'mansion') imperioMansion3D();
+  else if (id === 'estatua') imperioEstatua3D();
+  else if (id === 'boveda') imperioBoveda3D();
+}
+function imperioComprarMeta(id) {
+  if (!imperioPuede(true)) return;
+  const m = metaPorId(id); if (!m || imperio.metas[id]) return;
+  if (imperio_total_ganado() < m.at) { toast('🔒 Se desbloquea al ganar ' + imperioPlata(m.at) + ' en total'); return; }
+  if (!state.creative && state.money < m.precio) { toast('💸 Cuesta ' + imperioPlata(m.precio) + ' y tienes ' + imperioPlata(state.money)); return; }
+  if (!state.creative) addMoney(-m.precio);
+  imperio.metas[id] = true;
+  imperioMeta3D(id);
+  let extra = '';
+  if (id === 'torre') { state.inv.laser = (state.inv.laser || 0) + 3; extra = ' · +3 torretas láser en tu inventario'; }
+  if (id === 'helipuerto') { const p = imperioPieza('helipuerto'); spawnCar({ helicopter: true, x: p.extra.x, z: p.extra.z, y: 0.2, heading: Math.PI / 2, restoring: true }); extra = ' · tu helicóptero te espera en la quinta'; }
+  if (id === 'estatua') { state.reputation = (state.reputation || 0) + 3; extra = ' · +3 de confianza del barrio'; }
+  toast(m.icono + ' ¡' + m.nombre + '! Listo en la quinta' + extra);
+  phaseText('META CUMPLIDA');
+  const q = QUINTA; imperioEstallido(q.x, 12, q.z, 0xfacc15, 26);
+  beep(660, .12, .05); setTimeout(() => beep(880, .12, .05), 120); setTimeout(() => beep(1180, .2, .05), 240);
+  imperioRender(); saveGame();
+}
+
+// ---- Gastos grandes ----
+function imperioComprarGasto(id) {
+  if (!imperioPuede(true)) return;
+  const g = GASTOS[id]; if (!g) return;
+  if (id === 'fiesta') {
+    if (!fiestaLista(state.night, imperio.gastos.fiestaNoche)) { toast('🎉 Los vecinos aún están agotados de la última fiesta (una cada ' + g.cada + ' noches)'); return; }
+  } else if (imperio.gastos[id]) return;
+  if (!state.creative && state.money < g.precio) { toast('💸 Cuesta ' + imperioPlata(g.precio) + ' y tienes ' + imperioPlata(state.money)); return; }
+  if (!state.creative) addMoney(-g.precio);
+  if (id === 'mall') { imperio.gastos.mall = true; imperioMall3D(); toast('🏬 ¡Ahora el Mall del Sur es TUYO! Cobras ' + imperioPlata(g.renta) + ' de arriendo cada noche'); }
+  else if (id === 'estadio') { imperio.gastos.estadio = true; imperioEstadio3D(); toast('🏟️ ¡Tu estadio está listo al este! Cobras ' + imperioPlata(g.renta) + ' por noche y puedes dar partidos de gala (E en la entrada)'); }
+  else {
+    imperio.gastos.fiestaNoche = state.night; imperio.gastos.fiestaPend = true;
+    state.reputation = (state.reputation || 0) + 2; imperio3d.fiestaT = 26;
+    toast('🎉 ¡FIESTA DEL BARRIO! +2 de confianza y esta noche los invitados dejan propinas');
+  }
+  phaseText(id === 'fiesta' ? 'FIESTA' : 'NEGOCIO NUEVO');
+  beep(700, .12, .05); setTimeout(() => beep(1000, .18, .05), 130);
+  imperioRender(); saveGame();
+}
+function imperioComprarJuego(id) {
+  if (!imperioPuede(true)) return;
+  const j = juegoPorId(id); if (!j || imperio.gastos.juegos[id]) return;
+  if (!state.parkBusiness) { toast('🎡 Primero compra el Parque Mágico (negocio del parque de diversiones) para sumarle juegos'); return; }
+  if (!state.creative && state.money < j.precio) { toast('💸 Cuesta ' + imperioPlata(j.precio) + ' y tienes ' + imperioPlata(state.money)); return; }
+  if (!state.creative) addMoney(-j.precio);
+  imperio.gastos.juegos[id] = true;
+  imperio.parqueDia = state.parkBusiness.history ? state.parkBusiness.history.length : 0;
+  imperioJuego3D(id);
+  toast(j.icono + ' ¡' + j.nombre + ' instalado en el parque! ' + j.desc);
+  beep(760, .15, .05);
+  imperioRender(); saveGame();
+}
+function imperioParqueTick() {
+  const p = state.parkBusiness; if (!p || !Array.isArray(p.history)) return;
+  if (imperio.parqueDia > p.history.length) imperio.parqueDia = p.history.length;
+  let total = 0;
+  for (let i = imperio.parqueDia; i < p.history.length; i++) {
+    const row = p.history[i];
+    total += bonoJuegos(row && (row.visitors != null ? row.visitors : row.visitantes), imperio.gastos.juegos);
+  }
+  imperio.parqueDia = p.history.length;
+  if (total > 0) { p.cash = (p.cash || 0) + total; toast('🎡 Tus juegos nuevos dejaron +' + imperioPlata(total) + ' en la caja del parque'); }
+}
+
+// ---- Pedidos de los vecinos ----
+function imperioVecinosConPersona() {
+  return CONDOMINIO.lotes.filter(l => imperio3d.vecinos[l.id]).map(l => ({ lote: l.id, nombre: imperioNombreVecino(l) }));
+}
+function imperioPedidosAlDia(forzar) {
+  const ped = imperio.pedidos;
+  if (!forzar && ped.noche === state.night && ped.lista.length) return;
+  ped.noche = state.night;
+  ped.lista = generarPedidos(state.night, state.stage || 1, imperioVecinosConPersona());
+  imperioPedidoProps();
+}
+function imperioPedidoActivo() { return imperio.pedidos.lista.find(p => p.estado === 'activo') || null; }
+function imperioVecinoPos(loteId) {
+  const v = imperio3d.vecinos[loteId];
+  return v ? v.persona.position : null;
+}
+function imperioObjetivo() {
+  const p = imperioPedidoActivo(); if (!p) return null;
+  const l = lotePorId(p.lote);
+  if (p.tipo === 'tomates') {
+    if (p.paso === 'entregar') { const v = imperioVecinoPos(p.lote); return v ? { x: v.x, z: v.z, radio: 3.6, accion: 'tomates' } : null; }
+    return null;
+  }
+  if (p.tipo === 'caja') {
+    if (p.paso === 'recoger') { const q = imperioCajaPos(l); return { x: q.x, z: q.z, radio: 2.6, accion: 'recoger' }; }
+    return { x: BANK_POS.x, z: BANK_POS.z + 7, radio: 8, accion: 'banco' };
+  }
+  const q = imperioRejaPos(l);
+  return { x: q.x, z: q.z, radio: 2.8, accion: 'reja' };
+}
+function imperioCajaPos(l) { const e = imperioEntradaLote(l); return { x: l.x - 1, z: e.frente + e.dentro * .7 }; }
+function imperioRejaPos(l) { const e = imperioEntradaLote(l); return { x: l.x + (1.5 + (l.w - .4) / 2) / 2, z: e.frente + (e.norte ? -1 : 1) * .55 }; }
+function imperioPedidoProps() {
+  for (const m of imperio3d.pedidoProps) scene.remove(m);
+  imperio3d.pedidoProps = [];
+  const p = imperioPedidoActivo(); if (!p) return;
+  const l = lotePorId(p.lote); if (!l) return;
+  const ver = imperioVisible(), g = new THREE.Group();
+  if (p.tipo === 'caja' && p.paso === 'recoger') {
+    const q = imperioCajaPos(l);
+    mcBox(g, q.x, .35, q.z, .8, .7, .8, 0xc9953c); mcBox(g, q.x, .72, q.z, .86, .08, .86, 0xa87a2c); mcBox(g, q.x, .4, q.z, .12, .72, .82, 0xf1d79b);
+  } else if (p.tipo === 'reja') {
+    const q = imperioRejaPos(l);
+    const t = mcBox(g, q.x, .62, q.z, 1.1, 1.1, .12, 0x8b6b3a); t.rotation.z = .5 * (1 - (p.prog || 0) / REJA_GOLPES);
+    if (p.prog >= REJA_GOLPES) t.rotation.z = 0;
+    mcBox(g, q.x + .9, .1, q.z + .25, 1, .1, .2, 0x6b4f2a);
+  }
+  g.visible = ver; scene.add(g); imperio3d.pedidoProps.push(g);
+}
+function imperioAceptarPedido(id) {
+  const p = imperio.pedidos.lista.find(x => x.id === id); if (!p || p.estado !== 'nuevo') return;
+  if (imperioPedidoActivo()) { toast('📋 Termina primero el pedido que ya aceptaste'); return; }
+  p.estado = 'activo'; p.prog = 0;
+  p.paso = p.tipo === 'tomates' ? 'cosechar' : p.tipo === 'caja' ? 'recoger' : 'golpear';
+  imperioPedidoProps();
+  toast('📋 ' + p.vecino + ': "' + textoPedido(p) + '" · paga ' + imperioPlata(pagoPedido(p, state.reputation)) + '. Sigue la luz dorada');
+  cerrarImperio(); saveGame();
+}
+function imperioAbandonarPedido(id) {
+  const p = imperio.pedidos.lista.find(x => x.id === id); if (!p || p.estado !== 'activo') return;
+  p.estado = 'nuevo'; p.paso = ''; p.prog = 0; imperioPedidoProps(); imperioRender(); saveGame();
+}
+function imperioPagarPedido(p) {
+  const pago = pagoPedido(p, state.reputation);
+  p.estado = 'hecho'; p.paso = ''; imperio.pedidos.hechos++;
+  addMoney(pago);
+  state.reputation = (state.reputation || 0) + 1;
+  const l = lotePorId(p.lote), pos = imperioVecinoPos(p.lote) || player.position;
+  floatText({ x: pos.x, y: pos.y || 0, z: pos.z }, '+' + imperioPlata(pago), '#fde68a', 22);
+  coinBurst(pos, 8);
+  toast('🤝 ' + p.vecino + ' te pagó ' + imperioPlata(pago) + ' · +1 de confianza del barrio (nivel ' + nivelConfianza(state.reputation) + ')');
+  beep(820, .1, .05); setTimeout(() => beep(1100, .14, .05), 110);
+  imperioPedidoProps(); saveGame();
+}
+function imperioCosecha(cultivo, cantidad) {
+  const p = imperioPedidoActivo();
+  if (!p || p.tipo !== 'tomates' || p.paso !== 'cosechar' || cultivo !== 'tomato') return;
+  p.prog = Math.min(p.n, (p.prog || 0) + cantidad);
+  if (p.prog >= p.n) { p.paso = 'entregar'; toast('🍅 ¡Tienes los ' + p.n + ' tomates! Llévaselos a ' + p.vecino); }
+  else toast('🍅 Pedido de ' + p.vecino + ': ' + p.prog + '/' + p.n + ' tomates');
+}
+
+// ---- Acciones con E ----
+function imperioCerca(x, z, r) { return dist2D(player.position, { x, z }) <= r; }
+function imperioAccion() {
+  if (!imperioEnTierra() || state.driving || state.inFlight || state.cellArrest) return null;
+  const p = imperioPedidoActivo();
+  const o = imperioObjetivo();
+  if (p && o && imperioCerca(o.x, o.z, o.radio)) {
+    if (o.accion === 'tomates') return { key: 'E', touch: '🍅', text: 'Entregar los tomates a ' + p.vecino, run: () => imperioPagarPedido(p) };
+    if (o.accion === 'recoger') return { key: 'E', touch: '📦', text: 'Recoger la caja de ' + p.vecino, run: () => { p.paso = 'llevar'; imperioPedidoProps(); toast('📦 Tienes la caja: llévala al BANCO (sigue la luz dorada)'); beep(520, .1, .05); } };
+    if (o.accion === 'banco') return { key: 'E', touch: '🏦', text: 'Dejar la caja de ' + p.vecino + ' en el banco', run: () => imperioPagarPedido(p) };
+    if (o.accion === 'reja') return { key: 'E', touch: '🔨', text: 'Arreglar la reja de ' + p.vecino + ' (' + (p.prog || 0) + '/' + REJA_GOLPES + ')', run: () => {
+      p.prog = (p.prog || 0) + 1; beep(200, .09, .07); imperioPedidoProps();
+      if (p.prog >= REJA_GOLPES) { toast('🔨 ¡Reja arreglada!'); imperioPagarPedido(p); } else toast('🔨 Golpe ' + p.prog + '/' + REJA_GOLPES);
+    } };
+  }
+  if (imperioCerca(TABLERO_POS.x, TABLERO_POS.z, 3.4)) return { key: 'E', touch: '📋', text: 'Ver los pedidos del barrio', run: () => abrirImperio('pedidos') };
+  const pis = imperioPieza('piscina');
+  if (pis && imperioCerca(pis.extra.x, pis.extra.z, 5)) return { key: 'E', touch: '🏊', text: 'Darte un chapuzón en tu piscina', run: () => {
+    state.hp = 100; state.hunger = Math.max(state.hunger || 0, 70);
+    imperioEstallido(pis.extra.x, 2.2, pis.extra.z, 0x7dd3fc, 22); beep(430, .2, .05);
+    toast('🏊 ¡Chapuzón! Vida al máximo');
+  } };
+  const bov = imperioPieza('boveda');
+  if (bov && imperioCerca(bov.extra.x, bov.extra.z, 3.6)) return { key: 'E', touch: '🏦', text: 'Abrir tu bóveda (ahorros con tope más alto)', run: openBank };
+  const est = imperioPieza('estadio');
+  if (est && imperioCerca(est.extra.x, est.extra.z, 6) && imperio.gastos.galaNoche !== state.night) return { key: 'E', touch: '🏟️', text: 'Dar un partido de gala · +' + imperioPlata(PARTIDO_GALA), run: () => {
+    imperio.gastos.galaNoche = state.night; addMoney(PARTIDO_GALA);
+    for (let i = 0; i < 3; i++) setTimeout(() => imperioEstallido(est.extra.x + (i - 1) * 8, 12 + i, est.extra.z - 8, [0xf87171, 0xfacc15, 0x4ade80][i], 20), i * 350);
+    toast('🏟️ ¡Partido de gala! Las entradas dejaron ' + imperioPlata(PARTIDO_GALA)); phaseText('PARTIDO DE GALA'); saveGame();
+  } };
+  return null;
+}
+function tryImperio() {
+  if (state.phase !== 'DAY' && state.phase !== 'NIGHT') return false;
+  const a = imperioAccion(); if (!a) return false;
+  a.run(); return true;
+}
+
+// ---- Noche, guardado y reinicio ----
+function imperioNoche() {
+  if (!imperioEnTierra()) return;
+  const r = ingresosDeLaNoche({ metas: imperio.metas, gastos: imperio.gastos, lotes: imperioLotesPropios(), reputacion: state.reputation, fiestaPendiente: imperio.gastos.fiestaPend });
+  imperio.gastos.fiestaPend = false;
+  if (r.total > 0) {
+    state.money += r.total;
+    setTimeout(() => toast('🏙️ Tus negocios dejaron +' + imperioPlata(r.total) + ' esta noche (' + r.partes.map(x => x.icono + ' ' + imperioPlata(x.monto)).join(' · ') + ')'), 5200);
+  }
+}
+function imperioGuardar() {
+  return {
+    v: 1, metas: imperio.metas, avisadas: imperio.avisadas, barrio: imperio.barrio,
+    pedidos: imperio.pedidos, gastos: imperio.gastos, parqueDia: imperio.parqueDia,
+  };
+}
+function imperioLimpiar3D() {
+  for (const k of Object.keys(imperio3d.piezas)) {
+    if (k === 'tablero') continue;
+    if (k.startsWith('vecino:') && !lotePorId(k.slice(7)).venta) continue;
+    imperioQuitar(k);
+  }
+  for (const k of Object.keys(imperio3d.vecinos)) if (!imperioPieza('vecino:' + k)) delete imperio3d.vecinos[k];
+  for (const m of imperio3d.pedidoProps) scene.remove(m);
+  imperio3d.pedidoProps = [];
+  for (const p of imperio3d.fx) scene.remove(p.m);
+  imperio3d.fx = [];
+  if (imperio3d.camion) { scene.remove(imperio3d.camion.g); imperio3d.camion = null; }
+  imperio3d.fiestaT = 0;
+  mostrarCarteles(state.plot);
+}
+function imperioReset() {
+  imperioLimpiar3D();
+  Object.assign(imperio, imperioNuevo());
+}
+function imperioCargar(d) {
+  imperioReset();
+  if (!d || typeof d !== 'object') return;
+  const base = imperioNuevo();
+  imperio.metas = Object.assign({}, d.metas); imperio.avisadas = Object.assign({}, d.avisadas);
+  imperio.barrio = Object.assign({}, d.barrio);
+  imperio.gastos = Object.assign(base.gastos, d.gastos, { juegos: Object.assign({}, d.gastos && d.gastos.juegos) });
+  imperio.parqueDia = Math.max(0, d.parqueDia | 0);
+  if (d.pedidos && Array.isArray(d.pedidos.lista)) imperio.pedidos = { noche: d.pedidos.noche, lista: d.pedidos.lista, hechos: d.pedidos.hechos | 0 };
+  for (const id of Object.keys(imperio.metas)) if (metaPorId(id)) imperioMeta3D(id); else delete imperio.metas[id];
+  for (const id of Object.keys(imperio.barrio)) { const l = lotePorId(id); if (l && id !== state.plot) imperioLotePersonaYCasa(l, false); else delete imperio.barrio[id]; }
+  if (imperio.gastos.mall) imperioMall3D();
+  if (imperio.gastos.estadio) imperioEstadio3D();
+  for (const id of Object.keys(imperio.gastos.juegos)) if (juegoPorId(id)) imperioJuego3D(id);
+  imperioPedidoProps();
+}
+
+// ---- Vecinos de siempre: viven en su lote desde el comienzo ----
+function imperioVecinosIniciales() {
+  for (const l of CONDOMINIO.lotes) if (!l.venta && condoLotes[l.id]) imperioCrearVecino(l);
+}
+imperioVecinosIniciales();
+
+// ---- Marcador dorado y fichita del pedido ----
+const imperioMarcador = new THREE.Group();
+{
+  const anillo = new THREE.Mesh(new THREE.TorusGeometry(1.1, .12, 6, 24), new THREE.MeshBasicMaterial({ color: 0xfacc15 }));
+  anillo.rotation.x = Math.PI / 2; anillo.position.y = .2; imperioMarcador.add(anillo);
+  const haz = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, 14, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: .28, side: THREE.DoubleSide, depthWrite: false }));
+  haz.position.y = 7; imperioMarcador.add(haz);
+  imperioMarcador.visible = false; scene.add(imperioMarcador);
+}
+const imperioChip = document.createElement('div');
+imperioChip.id = 'imperioChip';
+document.body.appendChild(imperioChip);
+
+function imperioTextoChip(p) {
+  const t = PEDIDO_TIPOS[p.tipo];
+  let txt = t.icono + ' ' + p.vecino + ': ' + textoPedido(p);
+  if (p.tipo === 'tomates') txt = p.paso === 'cosechar' ? t.icono + ' Cosecha ' + p.n + ' tomates para ' + p.vecino + ' (' + (p.prog || 0) + '/' + p.n + ')' : t.icono + ' Llévale los tomates a ' + p.vecino;
+  else if (p.tipo === 'caja') txt = p.paso === 'recoger' ? t.icono + ' Recoge la caja de ' + p.vecino : t.icono + ' Lleva la caja al banco';
+  else txt = t.icono + ' Arregla la reja de ' + p.vecino + ' (' + (p.prog || 0) + '/' + REJA_GOLPES + ')';
+  return txt;
+}
+
+// ---- Vida del barrio: vecinos que pasean, portón, piscina, garaje, fiesta ----
+const imperioFrases = ['¡Buenas!', '¡Qué lindo día!', '¡Cómo va el negocio!', '¡Vecino/a, qué bueno verte!', '¡Ese barrio está creciendo!', '¡Pasa por el tablero, hay encargos!'];
+function updateImperio(dt) {
+  if (!state.running) return;
+  imperioActualizarFx(dt);
+  const tierra = imperioEnTierra() && imperioVisible();
+  imperioMarcador.visible = false;
+  if (!tierra) { imperioChip.style.display = 'none'; return; }
+  imperio3d.t += dt;
+  const pp = player.position;
+
+  for (const id in imperio3d.vecinos) {
+    const v = imperio3d.vecinos[id], per = v.persona;
+    if (!per.visible) continue;
+    const fiesta = imperio3d.fiestaT > 0;
+    per.position.x += v.dir * (fiesta ? .3 : .55) * dt;
+    if (Math.abs(per.position.x - v.base.x) > v.alcance) { v.dir *= -1; per.position.x = v.base.x + Math.sign(per.position.x - v.base.x) * v.alcance; }
+    per.rotation.y = v.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    per.position.y = fiesta ? Math.abs(Math.sin(imperio3d.t * 6 + v.base.x)) * .5 : 0;
+    swingLimbs(per, dt);
+    if (state.phase === 'DAY' && dist2D(pp, per.position) < 5.5 && (imperio3d.vecinoHola[id] || 0) < imperio3d.t - 60) {
+      imperio3d.vecinoHola[id] = imperio3d.t;
+      floatText({ x: per.position.x, y: 1.4, z: per.position.z }, imperioFrases[Math.floor(Math.random() * imperioFrases.length)], '#fff', 15);
+    }
+  }
+  for (const k in imperio3d.piezas) {
+    const rec = imperio3d.piezas[k];
+    if (rec.extra.subir != null && rec.extra.subir < 1 && rec.extra.casa) {
+      rec.extra.subir = Math.min(1, rec.extra.subir + dt / 2.4);
+      rec.extra.casa.scale.y = Math.max(.05, rec.extra.subir);
+    }
+  }
+  const cam = imperio3d.camion;
+  if (cam) { cam.t += dt; if (cam.t > 22) { cam.g.position.x += 6 * dt; if (cam.t > 30) { scene.remove(cam.g); imperio3d.camion = null; } } }
+
+  const gar = imperioPieza('garaje');
+  if (gar) {
+    const e = gar.extra;
+    const cerca = vehicles.some(v => v.group && dist2D(v.group.position, { x: e.x, z: e.frente + 1.5 }) < 7) || dist2D(pp, { x: e.x, z: e.frente + 1 }) < 6;
+    if (cerca !== e.abierto) {
+      e.abierto = cerca;
+      if (cerca) imperioSacar(obstacles, e.obs); else if (!obstacles.includes(e.obs)) obstacles.push(e.obs);
+    }
+    const meta = cerca ? 4.9 : 1.6;
+    e.porton.position.y += (meta - e.porton.position.y) * Math.min(1, dt * 4);
+    for (const v of vehicles) {
+      if (!v.group || Math.abs(v.group.position.x - e.x) > e.w / 2 || Math.abs(v.group.position.z - e.z) > e.d / 2) continue;
+      v.hp = Math.min(v.maxHp || 100, v.hp + 12 * dt); v.fuel = Math.min(v.maxFuel || 100, v.fuel + 10 * dt);
+    }
+  }
+  const pis = imperioPieza('piscina');
+  if (pis) {
+    const e = pis.extra;
+    e.agua.material.emissiveIntensity = .3 + Math.sin(imperio3d.t * 2) * .08;
+    if (Math.abs(pp.x - e.x) < 5 && Math.abs(pp.z - e.z) < 3.6 && state.hp > 0 && state.hp < 100 && !state.driving) state.hp = Math.min(100, state.hp + 3 * dt);
+  }
+  if (imperio3d.fiestaT > 0) {
+    imperio3d.fiestaT -= dt;
+    imperio3d.fx.length < 120 && Math.random() < dt * 1.6 && imperioEstallido(CONDOMINIO.comun.x + (Math.random() - .5) * 28, 16 + Math.random() * 8, CONDOMINIO.comun.z + 8 + (Math.random() - .5) * 26, [0xf87171, 0xfacc15, 0x4ade80, 0x60a5fa, 0xf472b6][Math.floor(Math.random() * 5)], 24);
+  }
+
+  const o = imperioObjetivo();
+  if (o) {
+    imperioMarcador.visible = true;
+    imperioMarcador.position.set(o.x, 0, o.z); imperioMarcador.children[0].position.y = .3 + Math.sin(imperio3d.t * 4) * .12;
+    imperioMarcador.children[0].scale.setScalar(o.radio > 5 ? 3 : 1);
+  }
+  imperio3d.aviso -= dt;
+  if (imperio3d.aviso <= 0) {
+    imperio3d.aviso = 1;
+    const tot = imperio_total_ganado();
+    for (const m of METAS) if (tot >= m.at && !imperio.avisadas[m.id]) {
+      imperio.avisadas[m.id] = true;
+      toast(m.icono + ' ¡Meta alcanzada! Ya puedes comprar: ' + m.nombre + ' (Tab → Mi imperio)');
+      phaseText('NUEVA META');
+      break;
+    }
+    imperioParqueTick();
+    for (const id in imperio.barrio) { const c = condoLotes[id]; if (c && c.carteles) { c.carteles.venta.visible = false; c.carteles.vendido.visible = false; } }
+    if (state.phase === 'DAY') imperioPedidosAlDia(false);
+    const act = imperioPedidoActivo();
+    if (act && state.phase === 'DAY') {
+      imperioChip.textContent = imperioTextoChip(act) + (o ? ' · ' + Math.round(dist2D(pp, o)) + ' m' : '');
+      imperioChip.style.display = 'block';
+    } else imperioChip.style.display = 'none';
+  }
+}
+
+// ---- Panel "Mi imperio" ----
+const imperioCss = document.createElement('style');
+imperioCss.textContent = `
+#imperioChip{position:fixed;left:50%;top:max(92px,env(safe-area-inset-top));transform:translateX(-50%);z-index:30;display:none;pointer-events:none;
+  background:rgba(15,23,42,.78);color:#fde68a;font:700 13px/1.2 system-ui,sans-serif;padding:6px 14px;border-radius:999px;border:1px solid rgba(250,204,21,.55);text-shadow:0 1px 2px #000;max-width:min(92vw,520px);text-align:center}
+#imperiobox{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,.62);pointer-events:all;font-family:system-ui,sans-serif;color:#f8fafc}
+#imperiobox .imp-card{width:min(680px,95vw);max-height:min(580px,92vh);display:flex;flex-direction:column;background:linear-gradient(#1e293b,#0f172a);border:2px solid #d4af37;border-radius:14px;box-shadow:0 14px 50px rgba(0,0,0,.6);overflow:hidden}
+#imperiobox .imp-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(212,175,55,.14);font-size:16px}
+#imperiobox .imp-head b{flex:1}
+#imperiobox .imp-plata{color:#86efac;font-weight:800}
+#imperiobox .imp-tabs{display:flex;gap:6px;padding:8px 10px 0;flex-wrap:wrap}
+#imperiobox button{pointer-events:all;cursor:pointer;font:700 13px system-ui,sans-serif;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:8px 12px;min-height:40px;touch-action:manipulation}
+#imperiobox button:hover{background:rgba(255,255,255,.2)}
+#imperiobox button.imp-on{background:#d4af37;color:#1e1b0b;border-color:#fde68a}
+#imperiobox button.imp-go{background:#16a34a;border-color:#4ade80}
+#imperiobox button.imp-off{opacity:.45;cursor:not-allowed}
+#imperiobox .imp-body{padding:10px 12px 14px;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:8px}
+#imperiobox .imp-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:11px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1)}
+#imperiobox .imp-item.imp-hecho{border-color:#4ade80;background:rgba(34,197,94,.12)}
+#imperiobox .imp-item.imp-bloq{opacity:.55}
+#imperiobox .imp-ico{font-size:26px;width:34px;text-align:center}
+#imperiobox .imp-txt{flex:1;min-width:0;font-size:12.5px;line-height:1.3}
+#imperiobox .imp-txt b{font-size:14px;display:block}
+#imperiobox .imp-sub{opacity:.78}
+#imperiobox .imp-barra{height:9px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden}
+#imperiobox .imp-barra i{display:block;height:100%;background:linear-gradient(90deg,#d4af37,#fde047)}
+#imperiobox .imp-nota{font-size:12px;opacity:.85;padding:2px 2px 4px}
+@media (max-height:460px),(pointer:coarse){
+  #imperiobox .imp-card{max-height:96vh;width:min(720px,97vw)}
+  #imperiobox button{min-height:44px;font-size:14px}
+  #imperiobox .imp-head{padding:6px 12px}
+  #imperiobox .imp-item{padding:7px 9px}
+  #imperiobox .imp-txt{font-size:12px}
+}`;
+document.head.appendChild(imperioCss);
+const imperioPanel = document.createElement('div');
+imperioPanel.id = 'imperiobox';
+imperioPanel.innerHTML = '<div class="imp-card"><div class="imp-head"><b>🏙️ Mi imperio</b><span class="imp-plata" id="impPlata"></span><button type="button" data-imp="cerrar">✕ Cerrar</button></div><div class="imp-tabs" id="impTabs"></div><div class="imp-body" id="impBody"></div></div>';
+ui('aptbox').parentNode.appendChild(imperioPanel);
+TYPING_BOXES.push('imperiobox');
+
+function imperioPuede(avisar) {
+  const no = t => { if (avisar) toast(t); return false; };
+  if (!state.running) return false;
+  if (state.planet !== 'tierra' || state.country) return no('🏙️ Tu imperio está en la Tierra (vuelve a la ciudad)');
+  if (state.driving || state.inFlight) return no('🏙️ Bájate del vehículo primero');
+  return true;
+}
+function abrirImperio(tab) {
+  if (!imperioPuede(true)) return;
+  if (state.phase !== 'DAY') { toast('🌙 Los negocios solo se manejan de día'); return; }
+  closeShopInput(); closeMathBox(); releaseLock();
+  typing = true; for (const k in keys) keys[k] = false;
+  if (tab) imperio.tab = tab;
+  imperioPedidosAlDia(false);
+  imperioPanel.style.display = 'flex';
+  imperioRender(); beep(600, .1, .04);
+}
+function cerrarImperio() { imperioPanel.style.display = 'none'; typing = algunRecuadroAbierto(); }
+const imperioAbierto = () => imperioPanel.style.display === 'flex';
+addEventListener('keydown', e => {
+  if (e.code === 'Escape' && imperioAbierto()) { cerrarImperio(); e.stopImmediatePropagation(); e.preventDefault(); }
+}, true);
+
+function imperioTeleport(x, z) {
+  if (!imperioPuede(true)) return;
+  player.position.set(x, PLAYER_EYE, z); vy = 0; grounded = true;
+  cerrarImperio(); toast('📍 Llegaste');
+}
+function imperioFila(cls, ico, titulo, sub, boton) {
+  return '<div class="imp-item ' + cls + '"><div class="imp-ico">' + ico + '</div><div class="imp-txt"><b>' + titulo + '</b><span class="imp-sub">' + sub + '</span></div>' + (boton || '') + '</div>';
+}
+const imperioBtn = (acc, txt, cls) => '<button type="button" class="' + (cls || '') + '" data-imp="' + acc + '">' + txt + '</button>';
+function imperioRender() {
+  if (!imperioAbierto()) return;
+  ui('impPlata').textContent = imperioPlata(state.money || 0);
+  const tabs = [['metas', '🎯 Metas'], ['barrio', '🏘️ Barrio'], ['pedidos', '📋 Pedidos'], ['gastos', '💎 Gastos']];
+  ui('impTabs').innerHTML = tabs.map(t => '<button type="button" class="' + (imperio.tab === t[0] ? 'imp-on' : '') + '" data-imp="tab:' + t[0] + '">' + t[1] + '</button>').join('');
+  const tot = imperio_total_ganado(), h = [];
+  if (imperio.tab === 'metas') {
+    const av = avanceDeMetas(tot);
+    if (state.creative) h.push('<div class="imp-nota">🎨 Modo creativo: todas las metas están abiertas y no gastan plata.</div>');
+    else if (av.sig) h.push('<div class="imp-nota">Has ganado <b>' + imperioPlata(tot) + '</b> en total. Siguiente meta: <b>' + av.sig.icono + ' ' + av.sig.nombre + '</b> a los ' + imperioPlata(av.sig.at) + ' (faltan ' + imperioPlata(av.falta) + ')<div class="imp-barra"><i style="width:' + av.pct + '%"></i></div></div>');
+    else h.push('<div class="imp-nota">🏆 ¡Cumpliste todas las metas hasta el millón!</div>');
+    for (const m of METAS) {
+      const comp = imperio.metas[m.id], abierta = tot >= m.at;
+      const sub = m.desc + (comp ? '' : ' · Precio ' + imperioPlata(m.precio));
+      let btn = '';
+      if (comp) btn = '<span style="color:#4ade80;font-weight:800">✅ Tuyo</span>';
+      else if (abierta) btn = imperioBtn('meta:' + m.id, 'Comprar ' + imperioPlata(m.precio), state.money >= m.precio || state.creative ? 'imp-go' : 'imp-off');
+      else btn = '<span style="opacity:.8">🔒 ' + imperioPlata(m.at) + '</span>';
+      h.push(imperioFila(comp ? 'imp-hecho' : abierta ? '' : 'imp-bloq', m.icono, m.nombre, sub, btn));
+    }
+    const q = imperioPieza('quinta');
+    h.push('<div style="display:flex;gap:6px;flex-wrap:wrap">' + (q ? imperioBtn('ir:quinta', '📍 Ir a la quinta', '') : '') + imperioBtn('ir:condo', '📍 Ir al condominio', '') + '</div>');
+  } else if (imperio.tab === 'barrio') {
+    const lotes = imperioLotesPropios();
+    h.push('<div class="imp-nota">Compra lotes del condominio: cada familia te paga arriendo <b>cada noche</b> y por cada lote extra <b>todos pagan un 10% más</b>. La confianza del barrio (nivel ' + nivelConfianza(state.reputation) + '/5) suma otro +5% por nivel. Renta actual: <b>' + imperioPlata(rentaNocturna(lotes, state.reputation)) + '</b> por noche.</div>');
+    for (const l of CONDOMINIO.lotes) {
+      const mio = l.id === state.plot, comp = !!imperio.barrio[l.id], precio = precioLote(l);
+      let ico = l.venta ? '🪧' : '🏠', cls = '', sub = '', btn = '';
+      if (mio) { ico = '🏡'; cls = 'imp-hecho'; sub = 'Tu casa y tu terreno.'; btn = '<span style="color:#4ade80;font-weight:800">Tu casa</span>'; }
+      else if (comp) { cls = 'imp-hecho'; sub = imperioNombreVecino(l) + ' · paga ' + imperioPlata(rentaLote(l)) + ' por noche.'; btn = '<span style="color:#4ade80;font-weight:800">✅ Tuyo</span>'; }
+      else { sub = (l.venta ? 'Terreno vacío: se construye una casa y llega una familia nueva.' : 'Casa de ' + imperioNombreVecino(l) + ': pasa a ser tu inquilino.') + ' Renta: ' + imperioPlata(rentaLote(l)) + '/noche.'; btn = imperioBtn('lote:' + l.id, 'Comprar ' + imperioPlata(precio), state.money >= precio || state.creative ? 'imp-go' : 'imp-off'); }
+      h.push(imperioFila(cls, ico, l.nombre, sub, btn));
+    }
+    h.push('<div>' + imperioBtn('ir:condo', '📍 Ir al condominio', '') + '</div>');
+  } else if (imperio.tab === 'pedidos') {
+    h.push('<div class="imp-nota">Los vecinos dejan encargos en el tablero (junto a la conserjería). Cada noche salen nuevos. Aceptas uno, sigues la luz dorada y cobras al entregarlo, más <b>+1 de confianza</b>. Pedidos hechos: <b>' + imperio.pedidos.hechos + '</b></div>');
+    if (!imperio.pedidos.lista.length) h.push('<div class="imp-nota">Hoy no hay pedidos.</div>');
+    for (const p of imperio.pedidos.lista) {
+      const t = PEDIDO_TIPOS[p.tipo], pago = imperioPlata(pagoPedido(p, state.reputation));
+      let btn = '', cls = '';
+      if (p.estado === 'hecho') { cls = 'imp-hecho'; btn = '<span style="color:#4ade80;font-weight:800">✅ Hecho</span>'; }
+      else if (p.estado === 'activo') btn = imperioBtn('abandonar:' + p.id, 'Dejar', '');
+      else btn = imperioBtn('aceptar:' + p.id, 'Aceptar', 'imp-go');
+      h.push(imperioFila(cls, t.icono, p.vecino + ': ' + textoPedido(p), 'Paga ' + pago + (p.estado === 'activo' ? ' · EN CURSO' : ''), btn));
+    }
+  } else {
+    const gg = imperio.gastos;
+    h.push('<div class="imp-nota">🏦 <b>Banco:</b> tu ahorro rinde 5% por noche, pero con tope de <b>' + imperioPlata(topeInteres(imperioMetaOk('boveda'))) + '</b> (se topa desde ' + imperioPlata(ahorroDondeTopa(imperioMetaOk('boveda'))) + ' ahorrados). ' + (imperioMetaOk('boveda') ? 'Tu bóveda privada ya subió el tope.' : 'La Bóveda privada (meta de ' + imperioPlata(METAS.find(m => m.id === 'boveda').at) + ') lo sube a ' + imperioPlata(BANCO.topeBoveda) + '. Mejor gasta tu plata grande en negocios:') + '</div>');
+    for (const id of ['mall', 'estadio']) {
+      const g = GASTOS[id], comp = gg[id];
+      h.push(imperioFila(comp ? 'imp-hecho' : '', g.icono, g.nombre, g.desc + (comp ? '' : ' · Precio ' + imperioPlata(g.precio)), comp ? '<span style="color:#4ade80;font-weight:800">✅ Tuyo</span>' : imperioBtn('gasto:' + id, 'Comprar ' + imperioPlata(g.precio), state.money >= g.precio || state.creative ? 'imp-go' : 'imp-off')));
+    }
+    const f = GASTOS.fiesta, lista = fiestaLista(state.night, gg.fiestaNoche);
+    h.push(imperioFila('', f.icono, f.nombre, f.desc + ' · Precio ' + imperioPlata(f.precio), imperioBtn('gasto:fiesta', lista ? 'Dar fiesta' : 'En ' + Math.max(1, f.cada - (state.night - gg.fiestaNoche)) + ' noches', lista && (state.money >= f.precio || state.creative) ? 'imp-go' : 'imp-off')));
+    h.push('<div class="imp-nota">🎡 <b>Juegos nuevos para el Parque Mágico</b> ' + (state.parkBusiness ? '(cada visitante deja más plata en la caja del parque)' : '(primero compra el negocio del parque)') + '</div>');
+    for (const j of JUEGOS_PARQUE) {
+      const comp = gg.juegos[j.id];
+      h.push(imperioFila(comp ? 'imp-hecho' : '', j.icono, j.nombre, j.desc + (comp ? '' : ' · Precio ' + imperioPlata(j.precio)), comp ? '<span style="color:#4ade80;font-weight:800">✅ Instalado</span>' : imperioBtn('juego:' + j.id, 'Comprar ' + imperioPlata(j.precio), state.parkBusiness && (state.money >= j.precio || state.creative) ? 'imp-go' : 'imp-off')));
+    }
+    if (gg.estadio) h.push('<div>' + imperioBtn('ir:estadio', '📍 Ir a tu estadio', '') + '</div>');
+  }
+  ui('impBody').innerHTML = h.join('');
+}
+imperioPanel.addEventListener('click', e => {
+  const b = e.target.closest('[data-imp]'); if (!b) return;
+  const [acc, arg] = b.getAttribute('data-imp').split(':');
+  if (acc === 'cerrar') cerrarImperio();
+  else if (acc === 'tab') { imperio.tab = arg; imperioRender(); }
+  else if (acc === 'meta') imperioComprarMeta(arg);
+  else if (acc === 'lote') imperioComprarLote(arg);
+  else if (acc === 'gasto') imperioComprarGasto(arg);
+  else if (acc === 'juego') imperioComprarJuego(arg);
+  else if (acc === 'aceptar') imperioAceptarPedido(arg);
+  else if (acc === 'abandonar') imperioAbandonarPedido(arg);
+  else if (acc === 'ir') {
+    if (arg === 'quinta') imperioTeleport(QUINTA.x - 14.5, QUINTA.z);
+    else if (arg === 'estadio') imperioTeleport(ESTADIO_PROPIO.x, ESTADIO_PROPIO.z + 18);
+    else imperioTeleport(CONDOMINIO.porton.x - 4, CONDOMINIO.porton.z);
+  }
+});
+imperioPanel.addEventListener('pointerdown', e => e.stopPropagation());
+
+// Tablero de pedidos junto a la conserjería del condominio.
+imperioConstruir('tablero', () => {
+  const g = new THREE.Group(); scene.add(g);
+  const { x, z } = TABLERO_POS;
+  for (const sx of [-.9, .9]) mcBox(g, x + sx, 1.2, z, .14, 2.4, .14, 0x6b4423);
+  mcBox(g, x, 1.7, z, 2.2, 1.3, .1, 0xc9953c);
+  for (const [dx, dy, c] of [[-.6, .2, 0xfef3c7], [.1, .35, 0xbfdbfe], [.6, -.15, 0xfecaca], [-.2, -.25, 0xd9f99d]]) mcBox(g, x + dx, 1.7 + dy, z + .08, .45, .35, .03, c);
+  imperioCartel(g, x, 3.1, z, 'PEDIDOS DEL BARRIO', 0xfde68a, .38);
+  agregarSolidoJugador(x, z, 2.2, .3, 2.4, { tierra: true });
+  return {};
+});
+
+if (/[?&]debug=1/.test(location.search)) {
+  window.__tierra = { imperio, imperio3d, QUINTA, ESTADIO_PROPIO, PLAZA_ESTATUA, TABLERO_POS, abrirImperio, cerrarImperio, imperioComprarMeta, imperioComprarLote, imperioComprarGasto, imperioComprarJuego, imperioAceptarPedido, imperioAccion, imperioNoche, imperioGuardar, imperioCargar, imperioReset, imperioPedidosAlDia, imperioObjetivo, imperioTeleport, updateImperio, imperioCosecha, state, player, vehicles, obstacles, solidosJugador, earthMeshes, saveGame, loadGame, mudarseAlLote, lotePorId, surviveNight, setEarthWorld, wheelOptions, tryInteract, condoLotes, mirar: (x, y, z, giro, cabeceo) => { player.position.set(x, y, z); yaw = giro; pitch = cabeceo; vy = 0; } };
+}
+
 addEventListener('keydown', e => {
   if (e.code === 'KeyI' && ui('help').style.display === 'flex') { toggleHelp(false); return; }
   if (e.code === 'Escape' && ui('questbox') && ui('questbox').style.display === 'flex') { closeQuestPanel(); return; }
@@ -21275,7 +22270,7 @@ function startGame() {
   state.cinematic = false; document.body.classList.remove('cine');
   abortFlight();
   state.money = START_MONEY; state.totalEarned = 0; state.stage = 1;
-  state.plotLegacy = false; resetPlots();   // el condominio vuelve a tener sus lotes en venta
+  state.plotLegacy = false; resetPlots(); imperioReset();   // el condominio vuelve a tener sus lotes en venta
   state.depto = null; state.servicios = null; torreReset();         // y el edificio, sus deptos
   state.dayTime = 0; state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.hp = 100; state.dadHp = 100; lastHp = 100;
   state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.dadArmor = 1; state.hasShovel = false; state.hasBow = false; resetMeleeWeapon(); applyDadArmor(false); applyPlayerArmor(); setWeaponColor(0x94a3b8);
@@ -22328,6 +23323,7 @@ function saveGame() {
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
       butlerState: { hired: !!butler.userData.hired, workDays: butler.userData.workDays || 0, wageDebt: butler.userData.wageDebt || 0, lastWageNight: butler.userData.lastWageNight, task: butler.userData.task, x: butler.position.x, z: butler.position.z, order: butler.userData.order ? { key: butler.userData.order.item.key, price: butler.userData.order.item.price, planet: butler.userData.order.planet, country: butler.userData.order.country, qty: butler.userData.order.qty, reserved: butler.userData.order.reserved || 0, bought: butler.userData.order.bought || 0 } : null },
       parkBusiness: state.parkBusiness || null,
+      tierra: imperioGuardar(),
       business: state.business || null, businessOrders: state.businessOrders || 0,
       foundSecrets: state.foundSecrets || {}, secretsFound: state.secretsFound || 0,
       cellArrestLeft: state.cellArrest ? Math.max(0, state.cellArrest.left) : 0,
@@ -23420,6 +24416,7 @@ function loadGame() {
     savedVehicles.forEach(v => spawnCar({ x: v.x, y: v.y, z: v.z, heading: v.heading, hp: v.hp, fuel: v.fuel, moto: v.moto, helicopter: v.helicopter, restoring: true }));
   }
   migrarTerrenoAntiguo(d);
+  imperioCargar(d.tierra);
   state.unlocked = d.unlocked || {};
   state.tutorial = d.tutorial || { step: d.night > 0 ? TUTORIAL_STEPS.length - 1 : 0, complete: d.night > 0 };
   state.chapter = d.chapter || 0; state.chapterFlags = d.chapterFlags || {};
@@ -23573,7 +24570,7 @@ function continueGame() {
 function resetAll() {
   state.arcadeTickets = 0;
   state.arcadePrizes = {};
-  state.parkBusiness = null; closeParkBusiness();
+  state.parkBusiness = null; closeParkBusiness(); imperioReset();
   state.money = 0; state.totalEarned = 0; state.stage = 1; state.hp = 100; state.dadHp = 100;
   state.hunger = 100; state.air = 100; state.inWater = state.underwater = false; state.night = 0; state.weaponDmg = 2; state.weaponName = 'Puños'; state.armorFactor = 1; state.hasShovel = false; state.hasBow = false; resetMeleeWeapon(); applyPlayerArmor();
   state.helperWeapon = false; state.helperArmor = false;
@@ -25229,6 +26226,7 @@ function tryHarvest() {
   if (pl.crop !== 'apple') state.inv[def.seedKey] = (state.inv[def.seedKey] || 0) + 1;
   pl.grow = pl.crop === 'apple' ? 1 : .72; pl.mesh.scale.setScalar(.25 + pl.grow * .75);
   missionProgress('harvest', count);
+  imperioCosecha(pl.crop, count);
   coinBurst(pl.mesh.position, Math.min(8, count + 2));
   toast(def.icon + ' Cosechaste ' + count + ' ' + def.name.toLowerCase() + (count === 1 ? '' : 's') + ' · +' + foodGain + ' comida' + (moneyGain ? ' · +$' + moneyGain : '') + (pl.crop !== 'apple' ? ' · +1 semilla' : ''));
   return true;
@@ -26542,7 +27540,11 @@ function surviveNight() {
   if (state.stage >= 10) reward += (state.stage - 9) * 120;   // etapas altas pagan mucho más
   if (state.planet === 'platus') reward = Math.round(reward * 1.5);   // Platus paga más (es más difícil)
   if (state.bossNight) reward *= 3;                                    // noche jefe superada: paga x3
-  if ((state.bank || 0) > 0) { const int_ = Math.round(state.bank * 0.05); state.bank += int_; setTimeout(() => toast('🏦 +$' + int_ + ' de INTERÉS (5%): ¡tu plata ahorrada trabaja sola!'), 4000); }
+  if ((state.bank || 0) > 0) {
+    const ri = interesNocturno(state.bank, imperioMetaOk('boveda')), int_ = ri.monto; state.bank += int_;
+    setTimeout(() => toast('🏦 +$' + int_ + ' de INTERÉS (5%)' + (ri.topado ? ' · tope de $' + ri.tope + ' por noche: ¡mejor invierte tu plata grande!' : ': ¡tu plata ahorrada trabaja sola!')), 4000);
+  }
+  imperioNoche();
   if ((state.debt || 0) > 0) { state.debt = Math.round(state.debt * 1.10); setTimeout(() => toast('📉 Tu deuda creció 10%: debes $' + state.debt + ' (ve al BANCO a pagarla)'), 6000); }
   if (!state.nightDamage) {                                            // NOCHE PERFECTA: la casa no recibió daño
     state.streak = (state.streak || 0) + 1;
@@ -26781,6 +27783,7 @@ function loop() {
     updateHunger(dt);
     if (state.phase === 'DAY') { updateBuying(dt); updateDirt(dt); updateDirtZombies(dt); }
     updateJobs(dt);                        // recados: se pausan solos de noche (el marcador se esconde)
+    updateImperio(dt);
     updateGrassField(dt);                  // pasto 3D alrededor tuyo, meciéndose
     updateBullets(dt);                     // balas que vuelan, casquillos, gatillo y recarga
     updateAim(dt);                         // mira telescópica (mantener clic) + punto rojo
@@ -26985,6 +27988,7 @@ function drawMinimap() {
   if (state.planet === 'tierra' && state.blueprints.treasureMap) for (const s of worldSecrets) if (s.visible) icon(s.position.x, s.position.z, '❓', 11);
   icon(houseAnchor.x, houseAnchor.z, '🏠', 15);
   if (!state.plot && state.planet === 'tierra' && !state.country) for (const l of lotesEnVenta()) icon(l.x, l.z, '🪧', 13);   // terrenos en venta
+  if (state.planet === 'tierra' && !state.country) { icon(TABLERO_POS.x, TABLERO_POS.z, '📋', 11); if (imperioPieza('quinta')) icon(QUINTA.x, QUINTA.z, '🏰', 14); const ob = imperioObjetivo(); if (ob) icon(ob.x, ob.z, '⭐', 14); }
   if (car) icon(car.group.position.x, car.group.position.z, '🚗', 14);   // tu auto
   if (dad.visible) icon(dad.position.x, dad.position.z, '👴', 12);
   if (butler.visible) icon(butler.position.x, butler.position.z, '🤵', 12);
@@ -28678,6 +29682,7 @@ function updateContextPrompt() {
     else if (torreAccion()) action = torreAccion();
     else if (entradaAccion()) action = entradaAccion();
     else if (mallAccion()) action = mallAccion();
+    else if (imperioAccion()) action = imperioAccion();
     else if (job && jobDog && job.id === 'dog' && !job.calm && dist2D(player.position, jobDog.position) < 3) action = { key: 'E', touch: '🐕', text: 'Calmar al perro perdido' };
     else if (job && jobCrate && job.id === 'crates' && dist2D(player.position, jobCrate.position) < 3) action = { key: 'E', touch: '📦', text: 'Abrir el cajón de Tito' };
     else {

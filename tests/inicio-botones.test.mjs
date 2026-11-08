@@ -28,7 +28,7 @@ test('el inicio queda encima de la capa que se comía los clics', () => {
   assert.match(html, /body:has\(#start:not\(\.hidden\)\) #lookLayer/);
   assert.match(html, /id="netbox"[^>]*z-index:\s*32/);
   assert.match(html, /body:has\(#start:not\(\.hidden\)\) #help\s*\{[^}]*z-index:\s*28/);
-  assert.match(sw, /const VERSION = 'tim-v132'/);
+  assert.match(sw, /const VERSION = 'tim-v133'/);
   for (const id of BOTONES) assert.match(html, new RegExp('id="' + id + '"'));
 });
 

@@ -7190,6 +7190,7 @@ function wheelOptions() {
     o.push({ icon: '🔫', label: state.dadGun ? 'Desarmar papá' : 'Armar papá', key: 'G', run: toggleDadArm });
   }
   if (state.momUnlocked) o.push({ icon: '🧒', label: 'Llamar ayudante', key: 'H', run: spawnHelper });
+  if (state.planet === 'platus') o.push({ icon: '🌌', label: 'Base Estelar', key: '', run: () => abrirEstelar() });
   o.push({ icon: '🧮', label: 'Desafío de mates', key: 'U', run: openMathBox });
   if (state.phase === 'DAY') o.push({ icon: '🌙', label: 'Empezar la noche', key: 'N', run: tryStartNight });
   o.push({ icon: '📋', label: 'Misiones', key: '', run: openQuestPanel });
@@ -15748,6 +15749,652 @@ function updateCold(dt) {   // peligro nocturno del planeta: frío (cold) o aire
   } else if (fx) fx.style.opacity = '0';
   if (dad.visible && !warmD && !dad.userData.resting) { if (hz === 'toxic') state.dadPoison = Math.max(state.dadPoison, 1); else state.dadHp -= 1.2 * dt; }
 }
+// ===================================================================
+//  BASE ESTELAR · PASAPORTE · ZOOLÓGICO · EXPEDICIONES · AURORA
+//  Ideas 7 a 11 de los planetas. Todo vive en este bloque y se guarda en el
+//  save bajo la clave `estelar` (estelarGuardar / estelarCargar / estelarReiniciar).
+//  El panel (#estelarbox) se abre con E junto al domo, con la rueda de acciones
+//  (Tab en PC, 🎯 en celular) y se cierra con Esc o ✖.
+// ===================================================================
+const ESTELAR_PIEZAS = [
+  { id: 'domo', nombre: 'Domo', icono: '🏕️', planeta: 'PLATUS', efecto: 'Tu casa del espacio: cúpula con luz. Súmale torretas y generador con el vendedor alien.' },
+  { id: 'invernadero', nombre: 'Invernadero', icono: '🌱', planeta: 'ZORVAX', efecto: 'Cada amanecer cosecha 3 comidas y 1 semilla.' },
+  { id: 'laboratorio', nombre: 'Laboratorio', icono: '🧪', planeta: 'KRYON', efecto: 'Cada amanecer destila 3 de carbón.' },
+  { id: 'hangar', nombre: 'Hangar', icono: '🚀', planeta: 'NEBULA', efecto: 'El despegue del cohete gasta 6 de carbón en vez de 10.' },
+  { id: 'observatorio', nombre: 'Observatorio', icono: '🔭', planeta: 'OASIS-9', efecto: 'Avisa de las auroras y las hace el doble de frecuentes.' },
+  { id: 'reactor', nombre: 'Reactor', icono: '⚛️', planeta: 'HELIOS', efecto: 'Tu generador de base paga 50% más cada noche.' },
+];
+const ESTELAR_SELLOS = [
+  { id: 'cristales', icono: '💎', nombre: 'Cristales', texto: 'Pica todos los cristales del planeta' },
+  { id: 'ruinas', icono: '🏛️', nombre: 'Ruinas', texto: 'Saquea todo el botín de las ruinas alien' },
+  { id: 'castillo', icono: '🏰', nombre: 'Castillo', texto: 'Saca la bóveda del castillo y sal del laberinto' },
+  { id: 'coliseo', icono: '🏟️', nombre: 'Coliseo', texto: 'Supera 4 oleadas del coliseo' },
+  { id: 'montura', icono: '🐾', nombre: 'Criatura', texto: 'Doma y monta la criatura del planeta' },
+];
+const ESTELAR_CRIATURAS = [
+  { tipo: 'yeti', nombre: 'Yeti', icono: '🦣', planeta: 'PLATUS' },
+  { tipo: 'sporeling', nombre: 'Hongo tóxico', icono: '🍄', planeta: 'ZORVAX' },
+  { tipo: 'floater', nombre: 'Medusa flotante', icono: '🪼', planeta: 'KRYON' },
+  { tipo: 'fogGhost', nombre: 'Fantasma de niebla', icono: '👻', planeta: 'NEBULA' },
+  { tipo: 'sandCrawler', nombre: 'Escorpión', icono: '🦂', planeta: 'OASIS-9' },
+  { tipo: 'lavaWorm', nombre: 'Gusano de lava', icono: '🐛', planeta: 'HELIOS' },
+];
+const ESTELAR_COLOR_PLANETA = { 'PLATUS': 0xd98c5f, 'ZORVAX': 0x84cc16, 'KRYON': 0xa855f7, 'NEBULA': 0xf472b6, 'OASIS-9': 0xfacc15, 'HELIOS': 0xf97316 };
+const ESTELAR_DESTINOS = { 1: 'Cueva del Eco', 4: 'Dunas de Cristal', 8: 'Cráter Lejano' };
+const ESTELAR_COMBUSTIBLE_HANGAR = 6;
+const ESTELAR_PUESTOS = {   // dónde va cada pieza (el domo ya está en BASE_POS = 22,22)
+  invernadero: [38, 20], laboratorio: [35, 34], hangar: [22, 43], observatorio: [8, 37], reactor: [40, 6], vitrina: [30, 11], corral: [56, 27],
+};
+const estelar = {
+  piezas: [], pasaporte: {}, medallas: [], zoo: [], expedicion: null, ultimoBotin: '',
+  clave: '', ultimaNoche: null, tiradaNoche: -1, auroraNoche: 0, auroraCristales: 0, exploraciones: 0,
+};
+const estelarVista = { grupo: null, obs: [], visible: false, sucio: true, criaturas: [], vitrinaDiscos: [], t: 0, tickT: 0, panelT: 0, tab: 'base', cartel: null, anim: [] };
+
+function estelarClave() {
+  const t = Math.max(1, state.trips || 1);
+  return String(state.planetName || 'PLATUS').toUpperCase() + (t > 6 ? '#' + Math.floor((t - 1) / 6) : '');
+}
+function estelarTienePieza(id) { return estelar.piezas.includes(id); }
+function estelarCombustible() { return estelarTienePieza('hangar') ? ESTELAR_COMBUSTIBLE_HANGAR : 10; }
+function estelarReiniciar() {
+  estelar.piezas = []; estelar.pasaporte = {}; estelar.medallas = []; estelar.zoo = []; estelar.expedicion = null; estelar.ultimoBotin = '';
+  estelar.clave = ''; estelar.ultimaNoche = null; estelar.tiradaNoche = -1; estelar.auroraNoche = 0; estelar.auroraCristales = 0; estelar.exploraciones = 0;
+  estelarAuroraFin(true); estelarQuitarVista(); estelarVista.sucio = true; cerrarEstelar();
+}
+function estelarGuardar() {
+  return JSON.parse(JSON.stringify({
+    piezas: estelar.piezas, pasaporte: estelar.pasaporte, medallas: estelar.medallas, zoo: estelar.zoo, expedicion: estelar.expedicion,
+    ultimoBotin: estelar.ultimoBotin, clave: estelar.clave, ultimaNoche: estelar.ultimaNoche, tiradaNoche: estelar.tiradaNoche,
+    auroraNoche: estelar.auroraNoche, auroraCristales: estelar.auroraCristales, exploraciones: estelar.exploraciones,
+  }));
+}
+function estelarCargar(d) {
+  estelarReiniciar();
+  if (!d || typeof d !== 'object') return;
+  const ids = ESTELAR_PIEZAS.map(p => p.id), tipos = ESTELAR_CRIATURAS.map(c => c.tipo);
+  estelar.piezas = (Array.isArray(d.piezas) ? d.piezas : []).filter(id => ids.includes(id));
+  estelar.zoo = (Array.isArray(d.zoo) ? d.zoo : []).filter((t, i, a) => tipos.includes(t) && a.indexOf(t) === i);
+  estelar.medallas = Array.isArray(d.medallas) ? d.medallas.filter(m => m && m.planeta).slice(0, 60) : [];
+  if (d.pasaporte && typeof d.pasaporte === 'object') {
+    for (const k of Object.keys(d.pasaporte)) {
+      const h = d.pasaporte[k]; if (!h || typeof h !== 'object') continue;
+      const sellos = {}; for (const s of ESTELAR_SELLOS) if (h.sellos && h.sellos[s.id]) sellos[s.id] = true;
+      estelar.pasaporte[k] = { planeta: String(h.planeta || k), sellos, medalla: !!h.medalla };
+    }
+  }
+  const ex = d.expedicion;
+  if (ex && typeof ex === 'object' && +ex.fin > 0 && ESTELAR_DESTINOS[+ex.horas]) {
+    estelar.expedicion = {
+      inicio: +ex.inicio || Date.now(), fin: +ex.fin, horas: +ex.horas, n: Math.max(1, Math.min(12, +ex.n || 1)), semilla: (+ex.semilla || 1) >>> 0, clave: String(ex.clave || ''),
+      mineros: (Array.isArray(ex.mineros) ? ex.mineros : []).slice(0, 12).map(m => ({ x: +m.x || 0, z: +m.z || 0, coal: +m.coal || 0, money: +m.money || 0 })),
+    };
+  }
+  estelar.ultimoBotin = String(d.ultimoBotin || '').slice(0, 300);
+  estelar.clave = String(d.clave || ''); estelar.ultimaNoche = d.ultimaNoche == null ? null : +d.ultimaNoche || 0;
+  estelar.tiradaNoche = d.tiradaNoche == null ? -1 : +d.tiradaNoche; estelar.auroraNoche = +d.auroraNoche || 0;
+  estelar.auroraCristales = +d.auroraCristales || 0; estelar.exploraciones = +d.exploraciones || 0;
+  estelarVista.sucio = true;
+}
+
+// ---------- 7 · BASE ESTELAR: las piezas llegan con cada planeta ----------
+function estelarSincronizarPiezas() {
+  const n = Math.min(ESTELAR_PIEZAS.length, Math.max(1, state.trips || 1)), nuevas = [];
+  for (let i = 0; i < n; i++) { const p = ESTELAR_PIEZAS[i]; if (!estelarTienePieza(p.id)) { estelar.piezas.push(p.id); nuevas.push(p); } }
+  if (!state.baseLevel) { state.baseLevel = 1; spawnBase(); }   // el domo llega gratis con el primer planeta
+  if (nuevas.length) {
+    estelarVista.sucio = true;
+    const txt = nuevas.map(p => p.icono + ' ' + p.nombre).join(' + ');
+    setTimeout(() => { toast('🏗️ ¡Tu BASE ESTELAR crece! Pieza nueva: ' + txt + ' · ' + nuevas[nuevas.length - 1].efecto + ' (E junto al domo)'); beep(660, 0.1, 0.05); setTimeout(() => beep(880, 0.14, 0.05), 120); }, 5200);
+  }
+}
+function estelarAmanecer() {
+  const partes = [];
+  if (estelarTienePieza('invernadero')) { state.inv.food = (state.inv.food || 0) + 3; state.inv.semillas = (state.inv.semillas || 0) + 1; partes.push('🌱 +3 comida y +1 semilla'); }
+  if (estelarTienePieza('laboratorio')) { state.inv.carbon = (state.inv.carbon || 0) + 3; partes.push('🧪 +3 carbón'); }
+  if (estelarTienePieza('reactor') && state.baseGenerator) { const extra = Math.round((300 + 100 * state.stage) * 0.5); addMoney(extra); partes.push('⚛️ +$' + extra); }
+  if (partes.length) setTimeout(() => toast('🏗️ Tu Base Estelar trabajó mientras dormías: ' + partes.join(' · ')), 7500);
+}
+
+// ---------- 8 · PASAPORTE DE PLANETAS ----------
+function estelarHoja() {
+  const clave = estelarClave();
+  if (!estelar.pasaporte[clave]) estelar.pasaporte[clave] = { planeta: clave.split('#')[0], sellos: {}, medalla: false };
+  return estelar.pasaporte[clave];
+}
+function estelarSelloCumplido(id) {
+  switch (id) {
+    case 'cristales': return crystals.length > 0 && crystals.every(c => c.gems <= 0);
+    case 'ruinas': return !!state.ruinsCleared;
+    case 'castillo': return !!estelarVista.boveda && !state.inCastle && castleLoot.some(l => l.vault && !l.ready);
+    case 'coliseo': return !!state.inArena && arenaWave >= 4 && arenaFoes.length === 0;
+    case 'montura': return !!mount && !!state.riding;
+  }
+  return false;
+}
+function estelarRevisarSellos() {
+  const h = estelarHoja();
+  for (const s of ESTELAR_SELLOS) {
+    if (h.sellos[s.id] || !estelarSelloCumplido(s.id)) continue;
+    h.sellos[s.id] = true;
+    const total = Object.keys(h.sellos).length;
+    toast('🛂 ¡SELLO de ' + s.nombre + ' ' + s.icono + ' en tu pasaporte de ' + h.planeta + '! (' + total + '/' + ESTELAR_SELLOS.length + ')');
+    floatText(player.position, s.icono + ' SELLO', '#fde047', 20); beep(780, 0.1, 0.05); setTimeout(() => beep(1040, 0.14, 0.05), 110);
+  }
+  if (!h.medalla && ESTELAR_SELLOS.every(s => h.sellos[s.id])) {
+    h.medalla = true; estelar.medallas.push({ planeta: h.planeta, clave: estelarClave() }); estelarVista.sucio = true;
+    const premio = 1500 + 250 * state.stage; addMoney(premio); coinBurst(player.position, 24);
+    setTimeout(() => { toast('🏅 ¡MEDALLA DE ' + h.planeta + '! Completaste el pasaporte del planeta. +$' + premio + ' y queda en la vitrina de tu base.'); vibr([40, 30, 90]); }, 1500);
+  }
+}
+
+// ---------- 9 · ZOOLÓGICO DE CRIATURAS DOMADAS ----------
+function estelarDomada(tipo) {
+  if (!ESTELAR_CRIATURAS.some(c => c.tipo === tipo) || estelar.zoo.includes(tipo)) return;
+  estelar.zoo.push(tipo); estelarVista.sucio = true;
+  const c = ESTELAR_CRIATURAS.find(x => x.tipo === tipo);
+  setTimeout(() => toast('🦣 ' + c.icono + ' ' + c.nombre + ' se quedó en el ZOOLÓGICO de tu base (' + estelar.zoo.length + '/' + ESTELAR_CRIATURAS.length + '). Elígela cuando quieras montar: E junto al domo → Zoológico.'), 2600);
+}
+function estelarMontar(tipo) {
+  if (!estelar.zoo.includes(tipo)) return false;
+  if (state.planet !== 'platus') { toast('🐾 Las criaturas del zoológico solo salen en los planetas alien'); return false; }
+  if (state.driving || state.inFlight || state.inCastle || state.inRuins || state.inArena || state.underground) { toast('🐾 Sal de donde estás para llamar a tu criatura'); return false; }
+  const def = ENEMY_DEFS[tipo]; if (!def || !def.make) return false;
+  if (mount || state.riding) removeMount();
+  const m = def.make();
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  m.position.set(player.position.x + fwd.x * 3.2, 0, player.position.z + fwd.z * 3.2);
+  m.userData = { heading: yaw, isMount: true, type: tipo };
+  scene.add(m); mount = m; state.riding = true; state.buildMode = false;
+  const c = ESTELAR_CRIATURAS.find(x => x.tipo === tipo);
+  toast('🐾 ¡Llamaste a tu ' + c.nombre + ' ' + c.icono + '! W/S avanza, A/D gira. E para bajar');
+  beep(520, 0.12, 0.05); vibr([30, 20, 60]);
+  return true;
+}
+
+// ---------- 10 · EXPEDICIONES DE LOS MINEROS ----------
+function estelarRand(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function estelarBotinExpedicion(ex) {
+  const r = estelarRand(ex.semilla), h = ex.horas, n = ex.n;
+  const carbon = Math.round(n * h * (2 + 2 * r()));
+  const cristales = Math.floor(h * (0.4 + 0.8 * r()) * Math.sqrt(n));
+  const plata = cristales * (150 + 50 * state.stage);
+  let sorpresa = null;
+  if (r() < (h === 1 ? 0.4 : h === 4 ? 0.75 : 1)) {
+    const q = r();
+    sorpresa = q < 0.3 ? 'huevo' : q < 0.55 ? 'comida' : q < 0.7 ? 'semillas' : q < 0.9 ? 'plata' : 'reliquia';
+  }
+  return { carbon, cristales, plata, sorpresa };
+}
+function estelarEnviarExpedicion(horas) {
+  if (estelar.expedicion) { toast('⛏️ Tus mineros ya andan de expedición'); return false; }
+  if (state.planet !== 'platus') { toast('⛏️ Las expediciones salen desde los planetas alien'); return false; }
+  if (!miners.length) { toast('⛏️ Necesitas al menos 1 minero: cómpralo al vendedor alien (Y)'); return false; }
+  if (!ESTELAR_DESTINOS[horas]) return false;
+  const mineros = miners.map(m => ({ x: m.position.x, z: m.position.z, coal: m.userData.coal, money: m.userData.money }));
+  const ahora = Date.now();
+  estelar.expedicion = { inicio: ahora, fin: ahora + horas * 3600000, horas, n: mineros.length, semilla: (Math.random() * 4294967295) >>> 0, clave: estelarClave(), mineros };
+  clearMiners();
+  toast('🧭 ¡Expedición a ' + ESTELAR_DESTINOS[horas] + '! ' + mineros.length + ' minero(s) vuelven en ' + horas + ' hora(s). Puedes cerrar el juego: el botín te espera.');
+  beep(420, 0.12, 0.05); setTimeout(() => beep(560, 0.12, 0.05), 120);
+  try { saveGame(); } catch (e) {}
+  return true;
+}
+function estelarEntregarExpedicion() {
+  const ex = estelar.expedicion; if (!ex) return;
+  estelar.expedicion = null;
+  const b = estelarBotinExpedicion(ex), partes = [];
+  if (b.carbon > 0) { state.inv.carbon = (state.inv.carbon || 0) + b.carbon; partes.push('⚫ ' + b.carbon + ' carbón'); }
+  if (b.cristales > 0) { addMoney(b.plata); partes.push('💜 ' + b.cristales + ' cristal(es) raro(s) = $' + b.plata); }
+  if (b.sorpresa === 'huevo') { if (state.incubTime > 0) state.eggQueue = (state.eggQueue || 0) + 1; else state.incubTime = 16; partes.push('🥚 un HUEVO alien'); }
+  else if (b.sorpresa === 'comida') { state.inv.food = (state.inv.food || 0) + 6; partes.push('🍖 6 raciones'); }
+  else if (b.sorpresa === 'semillas') { state.inv.semillas = (state.inv.semillas || 0) + 5; partes.push('🌱 5 semillas'); }
+  else if (b.sorpresa === 'plata') { const m = 800 + 300 * state.stage; addMoney(m); partes.push('💰 una bolsa con $' + m); }
+  else if (b.sorpresa === 'reliquia') { state.relics = (state.relics || 0) + 1; partes.push('🏆 una RELIQUIA antigua'); }
+  estelar.exploraciones++;
+  const enPlaneta = state.planet === 'platus';
+  ex.mineros.forEach((m, i) => {
+    const a = i / Math.max(1, ex.mineros.length) * Math.PI * 2;
+    const mismo = enPlaneta && ex.clave === estelarClave();
+    const x = mismo ? m.x : BASE_POS.x + Math.cos(a) * 7, z = mismo ? m.z : BASE_POS.z + Math.sin(a) * 7;
+    if (enPlaneta) spawnMiner(x, z, m.coal, m.money);
+  });
+  estelar.ultimoBotin = (partes.length ? partes.join(' · ') : 'volvieron con las manos vacías') + ' (' + ESTELAR_DESTINOS[ex.horas] + ')';
+  toast('🧭 ¡Tus mineros volvieron de ' + ESTELAR_DESTINOS[ex.horas] + '! Traen: ' + (partes.length ? partes.join(' · ') : 'solo polvo… la próxima será mejor'));
+  if (enPlaneta) { coinBurst(player.position, 14); floatText(player.position, '🧭 ¡Llegó el botín!', '#fde047', 20); }
+  beep(700, 0.12, 0.05); setTimeout(() => beep(930, 0.16, 0.05), 130); vibr([30, 20, 60]);
+  try { saveGame(); } catch (e) {}
+}
+function estelarFormatoTiempo(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  return (h ? h + ' h ' : '') + (h || m ? String(m).padStart(h ? 2 : 1, '0') + ' min ' : '') + (h ? '' : String(ss).padStart(m ? 2 : 1, '0') + ' s');
+}
+function estelarDibujarMapa(cv) {
+  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height, ex = estelar.expedicion;
+  const fondo = ctx.createLinearGradient(0, 0, W, H); fondo.addColorStop(0, '#1e1b4b'); fondo.addColorStop(1, '#3b1d4f');
+  ctx.fillStyle = fondo; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,.55)'; for (let i = 0; i < 26; i++) ctx.fillRect((i * 83) % W, (i * 37) % (H - 20), 2, 2);
+  ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1; for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); } for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  const A = { x: 38, y: H - 34 }, horas = ex ? ex.horas : 1, B = { x: W - 44, y: horas === 1 ? 48 : horas === 4 ? 36 : 28 }, C = { x: (A.x + B.x) / 2, y: Math.min(A.y, B.y) - 22 };
+  const pt = t => ({ x: (1 - t) * (1 - t) * A.x + 2 * (1 - t) * t * C.x + t * t * B.x, y: (1 - t) * (1 - t) * A.y + 2 * (1 - t) * t * C.y + t * t * B.y });
+  ctx.setLineDash([6, 6]); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.beginPath(); for (let i = 0; i <= 30; i++) { const p = pt(i / 30); if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); } ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🏕️', A.x, A.y + 8); ctx.fillText(horas === 8 ? '🌋' : horas === 4 ? '💎' : '🕳️', B.x, B.y + 8);
+  ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#e9d5ff'; ctx.fillText('Base', A.x, A.y + 24); ctx.fillText(ESTELAR_DESTINOS[horas], B.x - 6, B.y + 24);
+  if (ex) {
+    const p = Math.min(1, Math.max(0, (Date.now() - ex.inicio) / (ex.fin - ex.inicio))), t = p < 0.5 ? p * 2 : 2 - p * 2, q = pt(t);
+    ctx.font = '22px sans-serif'; ctx.fillText('⛏️', q.x, q.y + 8);
+    ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#fef08a'; ctx.fillText(p < 0.5 ? 'yendo…' : 'volviendo…', q.x, q.y - 12);
+  }
+}
+
+// ---------- 11 · NOCHE DE LA AURORA ----------
+const estelarAurora = { on: false, fade: 0, t: 0, grupo: null, cortinas: [], amigos: [], cristales: [], spawnT: 0, recogidos: 0, geo: null, matCristal: null };
+function estelarTexturaAurora() {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256; const g = cv.getContext('2d');
+  const base = g.createLinearGradient(0, 0, 0, 256); base.addColorStop(0, 'rgba(255,255,255,0)'); base.addColorStop(0.35, 'rgba(255,255,255,.55)'); base.addColorStop(0.8, 'rgba(255,255,255,.95)'); base.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = base;
+  for (let x = 0; x < 128; x += 2) { g.globalAlpha = 0.25 + 0.75 * Math.abs(Math.sin(x * 0.37) * Math.cos(x * 0.11)); g.fillRect(x, 0, 2, 256); }
+  const tx = new THREE.CanvasTexture(cv); tx.wrapS = THREE.RepeatWrapping; return tx;
+}
+function estelarAuroraConstruir() {
+  estelarAurora.grupo = new THREE.Group(); estelarAurora.cortinas = [];
+  const colores = [0x22c55e, 0x06b6d4, 0xc026d3, 0x6366f1, 0x10b981, 0xec4899], n = preferLowPerf ? 4 : 6, base = estelarTexturaAurora();
+  for (let i = 0; i < n; i++) {
+    const tx = base.clone(); tx.needsUpdate = true; tx.wrapS = THREE.RepeatWrapping;
+    const m = new THREE.MeshBasicMaterial({ map: tx, color: colores[i % colores.length], transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, fog: false });
+    const geo = new THREE.PlaneGeometry(120, 70, 20, 1), mesh = new THREE.Mesh(geo, m);
+    const a = (i / n) * Math.PI * 2 + 0.4, r = 92 + (i % 2) * 20;
+    mesh.position.set(Math.cos(a) * r, 44 + (i % 3) * 9, Math.sin(a) * r); mesh.rotation.y = -a - Math.PI / 2;
+    mesh.userData = { fase: i * 1.7, tx, orig: Float32Array.from(geo.attributes.position.array) }; mesh.frustumCulled = false;
+    estelarAurora.grupo.add(mesh); estelarAurora.cortinas.push(mesh);
+  }
+  estelarAurora.geo = new THREE.OctahedronGeometry(0.42);
+  estelarAurora.matCristal = [0x22d3ee, 0xe879f9].map(c => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.9, roughness: 0.2, metalness: 0.2 }));
+}
+function estelarAuroraInicio() {
+  if (estelarAurora.on) return;
+  if (!estelarAurora.grupo) estelarAuroraConstruir();
+  estelarAurora.on = true; estelarAurora.fade = 0; estelarAurora.t = 0; estelarAurora.spawnT = 1; estelarAurora.recogidos = 0;
+  scene.add(estelarAurora.grupo);
+  for (let i = 0; i < 3; i++) {
+    const g = makeCastleFriend(); g.userData.amigoAurora = { i, cd: 1 + i * 0.4 };
+    g.position.set(player.position.x + Math.cos(i * 2.1) * 5, 0.5, player.position.z + Math.sin(i * 2.1) * 5); scene.add(g); estelarAurora.amigos.push(g);
+  }
+  toast('🌌 ¡NOCHE DE LA AURORA! El cielo se llena de colores: los aliens buenos salen a ayudarte y caen CRISTALES del cielo 💎 · recógelos');
+  phaseText('🌌 AURORA'); [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.35, 0.04, 'sine'), i * 160));
+}
+function estelarAuroraFin(silencio) {
+  if (!estelarAurora.on) return;
+  estelarAurora.on = false;
+  if (estelarAurora.grupo) scene.remove(estelarAurora.grupo);
+  estelarAurora.amigos.forEach(a => scene.remove(a)); estelarAurora.amigos.length = 0;
+  estelarAurora.cristales.forEach(c => scene.remove(c.mesh)); estelarAurora.cristales.length = 0;
+  if (!silencio && estelarAurora.recogidos > 0) toast('🌌 La estelarAurora se despide… juntaste ' + estelarAurora.recogidos + ' cristal(es) del cielo.');
+}
+function estelarAuroraCaerCristal() {
+  if (estelarAurora.cristales.length >= 14) return;
+  const raro = Math.random() < 0.2, a = Math.random() * Math.PI * 2, r = 4 + Math.random() * 22;
+  const mesh = new THREE.Mesh(estelarAurora.geo, estelarAurora.matCristal[raro ? 1 : 0]); mesh.scale.set(raro ? 1.3 : 1, raro ? 2.4 : 1.9, raro ? 1.3 : 1);
+  mesh.position.set(player.position.x + Math.cos(a) * r, 40, player.position.z + Math.sin(a) * r); scene.add(mesh);
+  estelarAurora.cristales.push({ mesh, raro, vy: 0, suelo: false, vida: 34 });
+}
+function updateEstelarAurora(dt) {
+  if (!estelarAurora.on) return;
+  estelarAurora.t += dt; estelarAurora.fade = Math.min(1, estelarAurora.fade + dt * 0.35);
+  estelarAurora.grupo.position.set(player.position.x, 0, player.position.z);
+  for (const c of estelarAurora.cortinas) {
+    const u = c.userData, pos = c.geometry.attributes.position, o = u.orig;
+    for (let k = 0; k < pos.count; k++) pos.array[k * 3 + 2] = Math.sin(o[k * 3] * 0.06 + estelarAurora.t * 0.8 + u.fase) * 7 + Math.sin(o[k * 3] * 0.15 - estelarAurora.t * 0.5) * 2.5;
+    pos.needsUpdate = true; u.tx.offset.x += dt * 0.012;
+    c.material.opacity = estelarAurora.fade * (0.5 + 0.2 * Math.sin(estelarAurora.t * 0.7 + u.fase));
+  }
+  const wp = new THREE.Vector3();
+  for (const g of estelarAurora.amigos) {
+    const u = g.userData.amigoAurora, ang = estelarAurora.t * 0.6 + u.i * 2.1;
+    const tx = player.position.x + Math.cos(ang) * 4.5, tz = player.position.z + Math.sin(ang) * 4.5, k = Math.min(1, dt * 2.5);
+    g.position.x += (tx - g.position.x) * k; g.position.z += (tz - g.position.z) * k; g.position.y = 0.6 + Math.sin(estelarAurora.t * 2 + u.i) * 0.2;
+    u.cd -= dt; swingLimbs(g, dt);
+    let cerca = null, nd = 18;
+    for (const e of enemies) { const d = dist2D(e.position, g.position); if (d < nd) { nd = d; cerca = e; } }
+    if (cerca) {
+      g.rotation.y = Math.atan2(cerca.position.x - g.position.x, cerca.position.z - g.position.z);
+      if (u.cd <= 0) {
+        u.cd = 1.1; g.getWorldPosition(wp); hitEnemy(cerca, 20 + 2 * state.stage, wp);
+        const from = wp.clone().setY(1.5), to = cerca.position.clone().setY(1), dir = new THREE.Vector3().subVectors(to, from);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, dir.length() || 1, 6), new THREE.MeshBasicMaterial({ color: 0xa5f3fc }));
+        beam.position.copy(from).addScaledVector(dir, 0.5); beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+        scene.add(beam); setTimeout(() => killMesh(beam), 90); beep(880, 0.04, 0.025);
+      }
+    } else g.rotation.y = Math.atan2(player.position.x - g.position.x, player.position.z - g.position.z);
+  }
+  estelarAurora.spawnT -= dt;
+  if (estelarAurora.spawnT <= 0) { estelarAurora.spawnT = 1.1 + Math.random() * 0.9; estelarAuroraCaerCristal(); }
+  for (let i = estelarAurora.cristales.length - 1; i >= 0; i--) {
+    const c = estelarAurora.cristales[i], m = c.mesh;
+    m.rotation.y += dt * 2.2;
+    if (!c.suelo) { c.vy += 9 * dt; m.position.y -= Math.min(c.vy, 16) * dt; if (m.position.y <= 0.9) { m.position.y = 0.9; c.suelo = true; } }
+    else { c.vida -= dt; m.position.y = 0.9 + Math.sin(estelarAurora.t * 3 + i) * 0.12; if (c.vida <= 0) { scene.remove(m); estelarAurora.cristales.splice(i, 1); continue; } }
+    if (c.suelo && dist2D(player.position, m.position) < (state.riding ? 3.2 : 2.4)) {
+      const v = (c.raro ? 3 : 1) * (90 + 30 * state.stage + Math.floor(Math.random() * 60)); addMoney(v);
+      if (c.raro) state.inv.carbon = (state.inv.carbon || 0) + 2;
+      estelarAurora.recogidos++; estelar.auroraCristales++; coinBurst(m.position, c.raro ? 10 : 5);
+      floatText(m.position, (c.raro ? '💜 +$' : '💎 +$') + v + (c.raro ? ' +2⚫' : ''), c.raro ? '#e879f9' : '#67e8f9', 16);
+      beep(c.raro ? 1100 : 900, 0.09, 0.05); scene.remove(m); estelarAurora.cristales.splice(i, 1);
+    }
+  }
+}
+
+// ---------- Mundo 3D de la base: piezas, vitrina de medallas y corral ----------
+function estelarQuitarVista() {
+  if (estelarVista.grupo) scene.remove(estelarVista.grupo);
+  for (const o of estelarVista.obs) { const i = obstacles.indexOf(o); if (i >= 0) obstacles.splice(i, 1); }
+  estelarVista.grupo = null; estelarVista.obs = []; estelarVista.criaturas = []; estelarVista.anim = []; estelarVista.vitrinaDiscos = []; estelarVista.cartel = null; estelarVista.visible = false;
+}
+function estelarCaja(g, w, h, d, x, y, z, color, extra) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), extra || mat(color)); m.position.set(x, y, z); m.castShadow = !preferLowPerf; g.add(m); return m;
+}
+function estelarEmisivo(color, k) { return new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: k == null ? 0.8 : k, roughness: 0.4 }); }
+function estelarVidrio(color, op) { return new THREE.MeshStandardMaterial({ color, transparent: true, opacity: op == null ? 0.3 : op, roughness: 0.1, metalness: 0.2, depthWrite: false }); }
+function estelarObstaculo(cx, cz, w, d, top) { const o = addObstacle(cx, cz, w, d, top, 'estelar'); estelarVista.obs.push(o); return o; }
+function estelarArmarInvernadero(raiz, [x, z]) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); raiz.add(g);
+  estelarCaja(g, 8.4, 0.4, 5.4, 0, 0.2, 0, 0x64748b);
+  estelarCaja(g, 8, 2.6, 5, 0, 1.7, 0, 0, estelarVidrio(0x86efac, 0.28));
+  for (const [px, pz] of [[-4, -2.5], [4, -2.5], [-4, 2.5], [4, 2.5], [0, -2.5], [0, 2.5]]) estelarCaja(g, 0.2, 3, 0.2, px, 1.7, pz, 0xe2e8f0);
+  for (const s of [-1, 1]) { const t = estelarCaja(g, 8.4, 0.18, 3, 0, 3.55, s * 1.2, 0, estelarVidrio(0xbbf7d0, 0.35)); t.rotation.x = -s * 0.5; }
+  for (let i = 0; i < 9; i++) {
+    const px = -3.2 + (i % 3) * 3.2, pz = -1.4 + Math.floor(i / 3) * 1.4;
+    const cono = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.2, 6), estelarEmisivo(0x22c55e, 0.5)); cono.position.set(px, 1.0, pz); g.add(cono);
+    const fruto = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 8), estelarEmisivo(i % 2 ? 0xef4444 : 0xfacc15, 0.6)); fruto.position.set(px + 0.25, 1.3, pz + 0.2); g.add(fruto);
+  }
+  const letrero = makeSign('🌱 INVERNADERO', 0x86efac); letrero.scale.set(0.42, 0.42, 0.42); letrero.position.set(x, 5.2, z); raiz.add(letrero);
+  estelarObstaculo(x, z, 8.4, 5.4, 3.3);
+}
+function estelarArmarLaboratorio(raiz, [x, z]) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); raiz.add(g);
+  estelarCaja(g, 6.4, 3.2, 5.4, 0, 1.6, 0, 0xe5e7eb); estelarCaja(g, 6.7, 0.3, 5.7, 0, 3.3, 0, 0x94a3b8);
+  estelarCaja(g, 4.6, 0.7, 0.1, 0, 2.1, 2.72, 0, estelarEmisivo(0x22d3ee, 1)); estelarCaja(g, 1.3, 2.1, 0.1, 2.2, 1.05, 2.72, 0x475569);
+  const plato = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xcbd5e1)); plato.position.set(-1.6, 3.6, 0); plato.rotation.z = 0.5; g.add(plato);
+  const frasco = new THREE.Mesh(new THREE.SphereGeometry(0.7, 12, 12), estelarEmisivo(0x4ade80, 0.9)); frasco.position.set(1.6, 4.2, 0); g.add(frasco);
+  const cuello = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 0.7, 8), estelarVidrio(0xbbf7d0, 0.6)); cuello.position.set(1.6, 4.95, 0); g.add(cuello);
+  estelarVista.anim.push(o => { frasco.scale.setScalar(1 + Math.sin(o.t * 3) * 0.08); });
+  const letrero = makeSign('🧪 LABORATORIO', 0x67e8f9); letrero.scale.set(0.42, 0.42, 0.42); letrero.position.set(x, 6.3, z); raiz.add(letrero);
+  estelarObstaculo(x, z, 6.4, 5.4, 3.5);
+}
+function estelarArmarHangar(raiz, [x, z]) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = Math.PI; raiz.add(g);   // la boca mira hacia el domo
+  estelarCaja(g, 9.6, 0.3, 9.6, 0, 0.15, 0, 0x475569);
+  const geo = new THREE.CylinderGeometry(4.6, 4.6, 9.4, 18, 1, true, 0, Math.PI); geo.rotateZ(Math.PI / 2); geo.rotateY(Math.PI / 2);
+  const arco = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5, metalness: 0.5, side: THREE.DoubleSide })); arco.position.y = 0.3; g.add(arco);
+  const fondo = new THREE.Mesh(new THREE.CircleGeometry(4.6, 18, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0x64748b, side: THREE.DoubleSide })); fondo.position.set(0, 0.3, -4.7); g.add(fondo);
+  const cohete = new THREE.Group();
+  const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 3.4, 12), mat(0xf1f5f9)); cuerpo.position.y = 1.9; cohete.add(cuerpo);
+  const punta = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.3, 12), mat(0xef4444)); punta.position.y = 4.25; cohete.add(punta);
+  for (let i = 0; i < 3; i++) { const aleta = estelarCaja(cohete, 0.12, 1.1, 0.9, 0, 0.9, 0, 0xef4444); aleta.position.x = Math.cos(i * 2.094) * 0.95; aleta.position.z = Math.sin(i * 2.094) * 0.95; aleta.rotation.y = -i * 2.094; }
+  cohete.position.set(0, 0.2, -1); g.add(cohete);
+  const letrero = makeSign('🚀 HANGAR · gastas 6 de carbón', 0xfbbf24); letrero.scale.set(0.42, 0.42, 0.42); letrero.position.set(x, 7.3, z); raiz.add(letrero);
+  estelarObstaculo(x - 4.6, z, 0.7, 9.4, 3.8); estelarObstaculo(x + 4.6, z, 0.7, 9.4, 3.8); estelarObstaculo(x, z + 4.7, 9.4, 0.7, 4.5);
+}
+function estelarArmarObservatorio(raiz, [x, z]) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); raiz.add(g);
+  const torre = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.5, 5.2, 14), mat(0xcbd5e1)); torre.position.y = 2.6; g.add(torre);
+  const cupula = new THREE.Mesh(new THREE.SphereGeometry(2.4, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.4 })); cupula.position.y = 5.2; g.add(cupula);
+  const rendija = estelarCaja(g, 0.7, 2.6, 0.4, 0, 6.2, 1.9, 0x0f172a); rendija.rotation.x = -0.9;
+  const tele = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 2.6, 10), mat(0x1e293b)); tele.position.set(0, 6.6, 2.0); tele.rotation.x = Math.PI / 2 - 0.9; g.add(tele);
+  const ojo = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), estelarEmisivo(0xfde047, 1)); ojo.position.set(0, 7.5, 3.1); g.add(ojo);
+  estelarVista.anim.push(o => { cupula.rotation.y = Math.sin(o.t * 0.25) * 0.8; });
+  const letrero = makeSign('🔭 OBSERVATORIO', 0xfde047); letrero.scale.set(0.42, 0.42, 0.42); letrero.position.set(x, 9.3, z); raiz.add(letrero);
+  estelarObstaculo(x, z, 4.6, 4.6, 5.2);
+}
+function estelarArmarReactor(raiz, [x, z]) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); raiz.add(g);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 1, 14), mat(0x334155)); base.position.y = 0.5; g.add(base);
+  const nucleo = new THREE.Mesh(new THREE.SphereGeometry(1.1, 16, 16), estelarEmisivo(0xfb923c, 1.4)); nucleo.position.y = 2.4; g.add(nucleo);
+  const anillos = [0, 1].map(i => { const a = new THREE.Mesh(new THREE.TorusGeometry(1.8 + i * 0.4, 0.08, 8, 28), estelarEmisivo(0xfde047, 0.9)); a.position.y = 2.4; a.rotation.x = Math.PI / 2 + i * 0.7; g.add(a); return a; });
+  estelarVista.anim.push(o => { nucleo.scale.setScalar(1 + Math.sin(o.t * 4) * 0.07); anillos.forEach((a, i) => { a.rotation.z += o.dt * (1.1 + i * 0.5); }); });
+  const letrero = makeSign('⚛️ REACTOR', 0xfb923c); letrero.scale.set(0.42, 0.42, 0.42); letrero.position.set(x, 5.6, z); raiz.add(letrero);
+  estelarObstaculo(x, z, 4.6, 4.6, 3.4);
+}
+function estelarArmarVitrina(raiz, [x, z]) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); raiz.add(g);
+  estelarCaja(g, 5.4, 1.1, 1.3, 0, 0.55, 0, 0x475569); estelarCaja(g, 5.6, 0.12, 1.5, 0, 1.16, 0, 0xfde047);
+  estelar.medallas.slice(0, 12).forEach((m, i) => {
+    const col = ESTELAR_COLOR_PLANETA[String(m.planeta).toUpperCase()] || 0xfde047;
+    const disco = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 16), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.7, metalness: 0.7, roughness: 0.3 }));
+    disco.rotation.x = Math.PI / 2 - 0.35; disco.position.set(-2.3 + (i % 6) * 0.92, 1.6 + Math.floor(i / 6) * 0.78, 0.1); g.add(disco);
+  });
+  const letrero = makeSign('🏅 MEDALLAS: ' + estelar.medallas.length, 0xfde047); letrero.scale.set(0.38, 0.38, 0.38); letrero.position.set(x, 3.8, z); raiz.add(letrero);
+}
+function estelarArmarCorral(raiz, [x, z]) {
+  const W = 16, D = 12, g = new THREE.Group(); g.position.set(x, 0, z); raiz.add(g);
+  const suelo = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ color: 0x5b3a29, roughness: 1 })); suelo.rotation.x = -Math.PI / 2; suelo.position.y = 0.04; g.add(suelo);
+  const madera = mat(0x8b5a2b);
+  for (let i = 0; i <= 8; i++) for (const sz of [-1, 1]) estelarCaja(g, 0.25, 1.5, 0.25, -W / 2 + i * (W / 8), 0.75, sz * D / 2, 0, madera);
+  for (let i = 1; i < 6; i++) for (const sx of [-1, 1]) estelarCaja(g, 0.25, 1.5, 0.25, sx * W / 2, 0.75, -D / 2 + i * (D / 6), 0, madera);
+  for (const sz of [-1, 1]) for (const y of [0.55, 1.1]) estelarCaja(g, W, 0.12, 0.1, 0, y, sz * D / 2, 0, madera);
+  for (const y of [0.55, 1.1]) { estelarCaja(g, 0.1, 0.12, D, W / 2, y, 0, 0, madera); estelarCaja(g, 0.1, 0.12, D / 2 - 2, -W / 2, y, -D / 4 - 1, 0, madera); estelarCaja(g, 0.1, 0.12, D / 2 - 2, -W / 2, y, D / 4 + 1, 0, madera); }
+  const letrero = makeSign('🦣 ZOOLÓGICO · ' + estelar.zoo.length + '/' + ESTELAR_CRIATURAS.length, 0xfbbf24); letrero.scale.set(0.45, 0.45, 0.45); letrero.position.set(x - W / 2, 3.6, z); raiz.add(letrero);
+  estelarObstaculo(x, z - D / 2, W, 0.4, 1.5); estelarObstaculo(x, z + D / 2, W, 0.4, 1.5); estelarObstaculo(x + W / 2, z, 0.4, D, 1.5);
+  estelarObstaculo(x - W / 2, z - D / 2 + (D / 2 - 2) / 2, 0.4, D / 2 - 2, 1.5); estelarObstaculo(x - W / 2, z + D / 2 - (D / 2 - 2) / 2, 0.4, D / 2 - 2, 1.5);
+  estelar.zoo.forEach((tipo, i) => {
+    const def = ENEMY_DEFS[tipo]; if (!def || !def.make) return;
+    const m = def.make(); m.scale.multiplyScalar(0.55);
+    const a = (i / Math.max(1, estelar.zoo.length)) * Math.PI * 2;
+    m.position.set(x + Math.cos(a) * 3.5, 0, z + Math.sin(a) * 2.5); raiz.add(m);
+    estelarVista.criaturas.push({ mesh: m, tipo, vuela: !!def.fly, tx: m.position.x, tz: m.position.z, espera: Math.random() * 2, cx: x, cz: z, hw: W / 2 - 1.8, hd: D / 2 - 1.5 });
+  });
+}
+function estelarConstruirVista() {
+  estelarQuitarVista();
+  const raiz = new THREE.Group(); estelarVista.grupo = raiz; scene.add(raiz);
+  const armar = { invernadero: estelarArmarInvernadero, laboratorio: estelarArmarLaboratorio, hangar: estelarArmarHangar, observatorio: estelarArmarObservatorio, reactor: estelarArmarReactor };
+  for (const id of Object.keys(armar)) if (estelarTienePieza(id)) armar[id](raiz, ESTELAR_PUESTOS[id]);
+  if (estelar.medallas.length) estelarArmarVitrina(raiz, ESTELAR_PUESTOS.vitrina);
+  if (estelar.zoo.length) estelarArmarCorral(raiz, ESTELAR_PUESTOS.corral);
+  const cartel = makeSign('🌌 BASE ESTELAR (E)', 0x7dd3fc); cartel.scale.set(0.5, 0.5, 0.5); cartel.position.set(BASE_POS.x, 8.4, BASE_POS.z); raiz.add(cartel); estelarVista.cartel = cartel;
+  estelarVista.sucio = false; estelarVista.visible = true;
+}
+function estelarMostrar(v) {
+  if (!estelarVista.grupo) return;
+  estelarVista.grupo.visible = v; estelarVista.visible = v;
+  for (const o of estelarVista.obs) { const i = obstacles.indexOf(o); if (v && i < 0) obstacles.push(o); else if (!v && i >= 0) obstacles.splice(i, 1); }
+}
+function estelarAnimarMundo(dt) {
+  estelarVista.t += dt;
+  const o = { t: estelarVista.t, dt };
+  for (const f of estelarVista.anim) f(o);
+  for (const c of estelarVista.criaturas) {
+    const m = c.mesh; c.espera -= dt;
+    if (c.espera <= 0) { c.tx = c.cx + (Math.random() * 2 - 1) * c.hw; c.tz = c.cz + (Math.random() * 2 - 1) * c.hd; c.espera = 3 + Math.random() * 4; }
+    const dx = c.tx - m.position.x, dz = c.tz - m.position.z, d = Math.hypot(dx, dz);
+    if (d > 0.3) { const v = Math.min(d, 1.3 * dt); m.position.x += dx / d * v; m.position.z += dz / d * v; m.rotation.y = Math.atan2(dx, dz); }
+    m.position.y = c.vuela ? 1.6 + Math.sin(estelarVista.t * 1.5 + c.cx) * 0.3 : 0;
+    swingLimbs(m, dt);
+  }
+}
+
+// ---------- Panel: Base · Pasaporte · Zoológico · Expediciones ----------
+function estelarPanel() {
+  let el = ui('estelarbox'); if (el) return el;
+  const st = document.createElement('style');
+  st.textContent = '#estelarbox{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;pointer-events:all;z-index:9;background:rgba(8,10,28,.97);border:2px solid #7dd3fc;border-radius:14px;padding:12px 14px;width:min(95vw,480px);max-height:88vh;overflow:auto;flex-direction:column;color:#e2e8f0;font-family:inherit;-webkit-overflow-scrolling:touch}'
+    + '#estelarbox .eHead{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:800;color:#7dd3fc;font-size:15px}'
+    + '#estelarbox .eTabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}'
+    + '#estelarbox button{font:inherit;cursor:pointer;touch-action:manipulation}'
+    + '#estelarbox .eTab{flex:1 1 90px;min-height:42px;border-radius:9px;border:1px solid #334155;background:#172036;color:#cbd5e1;font-size:12px;font-weight:700;padding:6px 4px}'
+    + '#estelarbox .eTab.on{background:#0e7490;border-color:#67e8f9;color:#fff}'
+    + '#estelarbox .eX{min-width:44px;min-height:44px;border-radius:9px;border:1px solid #7f1d1d;background:#b91c1c;color:#fff;font-size:16px}'
+    + '#estelarbox .eFila{display:flex;gap:8px;align-items:center;padding:7px 8px;border-radius:9px;background:#111a30;margin-bottom:6px;font-size:12px;line-height:1.35}'
+    + '#estelarbox .eFila.no{opacity:.5}#estelarbox .eFila .ico{font-size:22px;min-width:30px;text-align:center}'
+    + '#estelarbox .eBtn{min-height:44px;border-radius:9px;border:1px solid #0e7490;background:#0891b2;color:#fff;font-weight:800;font-size:13px;padding:6px 12px}'
+    + '#estelarbox .eBtn[disabled]{opacity:.4;cursor:default}'
+    + '#estelarbox .eSellos{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:6px 0 10px}'
+    + '#estelarbox .eSello{border-radius:9px;border:2px dashed #475569;text-align:center;padding:6px 2px;font-size:10px;color:#94a3b8;min-height:62px}'
+    + '#estelarbox .eSello b{display:block;font-size:22px;filter:grayscale(1);opacity:.5}'
+    + '#estelarbox .eSello.ok{border:2px solid #fde047;color:#fef08a;background:rgba(250,204,21,.12)}#estelarbox .eSello.ok b{filter:none;opacity:1}'
+    + '#estelarbox canvas{width:100%;height:auto;border-radius:9px;border:1px solid #334155;display:block;margin-bottom:8px}'
+    + '#estelarbox h4{margin:10px 0 5px;font-size:13px;color:#fde68a}';
+  document.head.appendChild(st);
+  el = document.createElement('div'); el.id = 'estelarbox'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Base Estelar');
+  const padre = (ui('mathbox') && ui('mathbox').parentNode) || document.body; padre.appendChild(el);
+  el.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-e]'); if (!b || b.disabled) return;
+    const [acc, arg] = b.getAttribute('data-e').split(':');
+    if (acc === 'tab') { estelarVista.tab = arg; renderEstelar(); }
+    else if (acc === 'cerrar') cerrarEstelar();
+    else if (acc === 'montar') { if (estelarMontar(arg)) cerrarEstelar(); }
+    else if (acc === 'exp') { if (estelarEnviarExpedicion(+arg)) renderEstelar(); }
+  });
+  return el;
+}
+function estelarTabBase() {
+  const n = estelar.piezas.length;
+  let h = '<div class="eFila"><span class="ico">🌌</span><div><b>Tu Base Estelar viaja contigo.</b> Cada planeta nuevo le suma una pieza (' + n + '/' + ESTELAR_PIEZAS.length + '). Queda armada junto al punto de llegada en todos los planetas.</div></div>';
+  for (const p of ESTELAR_PIEZAS) {
+    const ok = estelarTienePieza(p.id);
+    h += '<div class="eFila' + (ok ? '' : ' no') + '"><span class="ico">' + (ok ? p.icono : '🔒') + '</span><div><b>' + p.nombre + '</b> · llega en ' + p.planeta + '<br>' + p.efecto + '</div></div>';
+  }
+  h += '<div class="eFila"><span class="ico">🔫</span><div>Torretas: <b>' + (((state.baseTurrets || 0) + '/4')) + '</b> · Generador: <b>' + (state.baseGenerator ? 'sí' : 'no') + '</b><br>Despegue: <b>' + estelarCombustible() + ' de carbón</b> · Auroras vistas: <b>' + estelar.auroraCristales + ' 💎 recogidos</b></div></div>';
+  return h;
+}
+function estelarTabPasaporte() {
+  const claves = Object.keys(estelar.pasaporte), actual = estelarClave();
+  let h = '<div class="eFila"><span class="ico">🛂</span><div>Completa los <b>5 sellos</b> de cada planeta para ganar su <b>medalla</b> (vitrina en tu base). Medallas: <b>' + estelar.medallas.length + '</b></div></div>';
+  if (!claves.length) return h + '<div class="eFila no"><span class="ico">🪐</span><div>Todavía no pisas ningún planeta. Tu primera hoja se abre al llegar.</div></div>';
+  for (const k of claves.slice().reverse()) {
+    const hoja = estelar.pasaporte[k], total = ESTELAR_SELLOS.filter(s => hoja.sellos[s.id]).length;
+    h += '<h4>' + (k === actual && state.planet === 'platus' ? '📍 ' : '') + hoja.planeta + (k.includes('#') ? ' (vuelta ' + (+k.split('#')[1] + 1) + ')' : '') + ' · ' + total + '/' + ESTELAR_SELLOS.length + (hoja.medalla ? ' · 🏅 MEDALLA' : '') + '</h4><div class="eSellos">';
+    for (const s of ESTELAR_SELLOS) h += '<div class="eSello' + (hoja.sellos[s.id] ? ' ok' : '') + '" title="' + s.texto + '"><b>' + s.icono + '</b>' + s.nombre + '</div>';
+    h += '</div>';
+    if (k === actual && state.planet === 'platus') for (const s of ESTELAR_SELLOS) if (!hoja.sellos[s.id]) h += '<div class="eFila no"><span class="ico">' + s.icono + '</span><div>' + s.texto + '</div></div>';
+  }
+  return h;
+}
+function estelarTabZoo() {
+  let h = '<div class="eFila"><span class="ico">🦣</span><div>Las criaturas que domas se quedan en el <b>corral de tu base</b> y ya no se pierden al viajar. Elige con cuál montar (' + estelar.zoo.length + '/' + ESTELAR_CRIATURAS.length + ').</div></div>';
+  for (const c of ESTELAR_CRIATURAS) {
+    const ok = estelar.zoo.includes(c.tipo), activa = !!mount && state.riding && mount.userData && mount.userData.type === c.tipo;
+    h += '<div class="eFila' + (ok ? '' : ' no') + '"><span class="ico">' + (ok ? c.icono : '❔') + '</span><div style="flex:1"><b>' + (ok ? c.nombre : '???') + '</b><br>' + (ok ? 'Se mueve distinto a las demás · vive en tu corral' : 'Dómala en ' + c.planeta + ': déjala débil (sin matarla) y pulsa E') + '</div>'
+      + (ok ? '<button type="button" class="eBtn" data-e="montar:' + c.tipo + '"' + (state.planet === 'platus' ? '' : ' disabled') + '>' + (activa ? '✅ Montando' : '🐾 Montar') + '</button>' : '') + '</div>';
+  }
+  return h;
+}
+function estelarTabExpediciones() {
+  const ex = estelar.expedicion;
+  let h = '<canvas id="estelarMapa" width="440" height="150" aria-label="Mapa de la expedición"></canvas>';
+  if (ex) {
+    h += '<div class="eFila"><span class="ico">🧭</span><div><b>' + ex.n + ' minero(s) en expedición a ' + ESTELAR_DESTINOS[ex.horas] + '</b><br>Vuelven en <b id="estelarCuenta">' + estelarFormatoTiempo(ex.fin - Date.now()) + '</b>. Puedes cerrar el juego: el reloj sigue corriendo.</div></div>';
+  } else {
+    h += '<div class="eFila"><span class="ico">⛏️</span><div>Manda a tus mineros lejos del campamento. Vuelven con <b>carbón</b>, <b>cristales raros</b> y a veces un <b>objeto sorpresa</b>. Mientras más tiempo, mejor el botín. Mineros listos: <b>' + miners.length + '</b></div></div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+    for (const hr of [1, 4, 8]) h += '<button type="button" class="eBtn" data-e="exp:' + hr + '"' + (miners.length && state.planet === 'platus' ? '' : ' disabled') + '>' + hr + ' h<br><small>' + ESTELAR_DESTINOS[hr] + '</small></button>';
+    h += '</div>';
+    if (!miners.length) h += '<div class="eFila no" style="margin-top:8px"><span class="ico">🛒</span><div>Compra un minero automático al vendedor alien (Y) y colócalo para poder mandarlo.</div></div>';
+  }
+  if (estelar.ultimoBotin) h += '<h4>Último botín</h4><div class="eFila"><span class="ico">🎁</span><div>' + estelar.ultimoBotin + '</div></div>';
+  return h;
+}
+function renderEstelar() {
+  const el = ui('estelarbox'); if (!el || el.style.display !== 'flex') return;
+  const tabs = [['base', '🏗️ Base'], ['pasaporte', '🛂 Pasaporte'], ['zoo', '🦣 Zoológico'], ['exp', '⛏️ Expediciones']];
+  const cuerpo = estelarVista.tab === 'pasaporte' ? estelarTabPasaporte() : estelarVista.tab === 'zoo' ? estelarTabZoo() : estelarVista.tab === 'exp' ? estelarTabExpediciones() : estelarTabBase();
+  el.innerHTML = '<div class="eHead"><span>🌌 BASE ESTELAR</span><button type="button" class="eX" data-e="cerrar" aria-label="Cerrar">✖</button></div><div class="eTabs">'
+    + tabs.map(t => '<button type="button" class="eTab' + (estelarVista.tab === t[0] ? ' on' : '') + '" data-e="tab:' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' + cuerpo;
+  const cv = ui('estelarMapa'); if (cv) estelarDibujarMapa(cv);
+}
+function abrirEstelar(tab) {
+  if (!state.running || state.paused) return false;
+  if (tab) estelarVista.tab = tab;
+  try { closeShopInput(); closeMathBox(); closeRocket(); } catch (e) {}
+  const el = estelarPanel(); releaseLock(); typing = true;
+  for (const k in keys) keys[k] = false;
+  el.style.display = 'flex'; renderEstelar();
+  beep(560, 0.05, 0.03);
+  return true;
+}
+function cerrarEstelar() {
+  const el = ui('estelarbox'); if (!el || el.style.display === 'none') return;
+  el.style.display = 'none'; typing = algunRecuadroAbierto();
+}
+function estelarAbierto() { const el = ui('estelarbox'); return !!el && el.style.display === 'flex'; }
+function tryEstelar() {   // E junto al domo de la base
+  if (state.planet !== 'platus' || !state.baseLevel || state.riding || state.driving || state.inCastle || state.inRuins || state.inArena || state.underground) return false;
+  if (dist2D(player.position, BASE_POS) > 7) return false;
+  return abrirEstelar();
+}
+addEventListener('keydown', e => {
+  if (e.code === 'Escape' && estelarAbierto()) { e.preventDefault(); e.stopImmediatePropagation(); cerrarEstelar(); }
+}, true);
+
+// ---------- Bucle: se llama una vez por cuadro desde el loop principal ----------
+function estelarTick() {
+  if (estelar.expedicion && Date.now() >= estelar.expedicion.fin) estelarEntregarExpedicion();
+  if (state.planet !== 'platus') { if (estelarAurora.on) estelarAuroraFin(true); estelarMostrar(false); return; }
+  const clave = estelarClave();
+  if (estelar.clave !== clave) {
+    estelar.clave = clave; estelar.ultimaNoche = state.night || 0; estelar.tiradaNoche = -1; estelar.auroraNoche = 0; estelarAuroraFin(true); estelarVista.boveda = false;
+    const hoja = estelarHoja();
+    setTimeout(() => toast('🛂 Se abrió tu hoja del pasaporte de ' + hoja.planeta + ': consigue los 5 sellos 💎🏛️🏰🏟️🐾 y gana su medalla (E junto al domo)'), 9000);
+  }
+  estelarSincronizarPiezas();
+  if (estelarVista.sucio || !estelarVista.grupo) estelarConstruirVista();
+  if (!estelarVista.visible) estelarMostrar(true);
+  if (castleLoot.some(l => l.vault && l.ready)) estelarVista.boveda = true;
+  estelarRevisarSellos();
+  if (estelar.ultimaNoche == null) estelar.ultimaNoche = state.night || 0;
+  if (state.phase === 'DAY' && (state.night || 0) > estelar.ultimaNoche) { estelar.ultimaNoche = state.night; estelarAmanecer(); }
+  if (state.phase === 'DAY' && estelar.tiradaNoche !== (state.night || 0) + 1) {
+    estelar.tiradaNoche = (state.night || 0) + 1;
+    const obs = estelarTienePieza('observatorio');
+    estelar.auroraNoche = Math.random() < (obs ? 0.5 : 0.25) ? estelar.tiradaNoche : 0;
+    if (estelar.auroraNoche && obs) setTimeout(() => toast('🔭 El observatorio detectó una AURORA para esta noche: ¡prepárate para ver cristales caer!'), 6500);
+  }
+  const quiere = state.phase === 'NIGHT' && estelar.auroraNoche && state.night === estelar.auroraNoche && !state.cinematic;
+  if (quiere && !estelarAurora.on) estelarAuroraInicio(); else if (!quiere && estelarAurora.on) estelarAuroraFin(false);
+}
+function updateEstelar(dt) {
+  if (!state.running) return;
+  estelarVista.tickT -= dt;
+  if (estelarVista.tickT <= 0) { estelarVista.tickT = 0.5; try { estelarTick(); } catch (e) { console.error(e); } }
+  if (state.planet !== 'platus') return;
+  if (estelarVista.visible && estelarVista.grupo) estelarAnimarMundo(dt);
+  updateEstelarAurora(dt);
+  if (estelarAbierto()) {
+    estelarVista.panelT -= dt;
+    if (estelarVista.panelT <= 0) {
+      estelarVista.panelT = 1;
+      if (estelarVista.tab === 'exp') {
+        const ex = estelar.expedicion, cu = ui('estelarCuenta'), cv = ui('estelarMapa');
+        if (cu && ex) cu.textContent = estelarFormatoTiempo(ex.fin - Date.now());
+        if (cv) estelarDibujarMapa(cv); if (!ex && cu) renderEstelar();
+      }
+    }
+  }
+}
+try {
+  if (new URLSearchParams(location.search).has('debug')) window.__estelar = {
+    estelar, estelarAurora, vista: estelarVista, abrir: abrirEstelar, cerrar: cerrarEstelar, tick: estelarTick, update: updateEstelar,
+    forzarAurora: () => { estelar.auroraNoche = state.phase === 'NIGHT' ? state.night : state.night + 1; estelar.tiradaNoche = state.night + 1; if (state.phase === 'DAY') startNight(); estelarTick(); return estelarAurora.on; },
+    adelantar: ms => { if (estelar.expedicion) { estelar.expedicion.inicio -= ms; estelar.expedicion.fin -= ms; } },
+    enviar: estelarEnviarExpedicion, entregar: estelarEntregarExpedicion, domar: estelarDomada, montar: estelarMontar, combustible: estelarCombustible,
+    sellos: estelarRevisarSellos, hoja: estelarHoja, guardar: estelarGuardar, cargar: estelarCargar, minero: () => makeMiner(), mineros: () => miners.length, saveGame: () => saveGame(), loadGame: () => loadGame(), reiniciar: estelarReiniciar, tryEstelar,
+    viajar: n => { state.trips = n; goToPlanet(); },
+    forzarSello: id => {
+      if (id === 'cristales') crystals.forEach(c => { c.gems = 0; });
+      else if (id === 'ruinas') state.ruinsCleared = true;
+      else if (id === 'castillo') { estelarVista.boveda = true; castleLoot.forEach(l => { if (l.vault) l.ready = false; }); }
+      else if (id === 'coliseo') { state.inArena = true; arenaWave = 4; arenaFoes.length = 0; }
+      else if (id === 'montura') { estelarDomada('yeti'); estelarMontar('yeti'); }
+      estelarRevisarSellos(); if (id === 'coliseo') state.inArena = false; return estelarHoja();
+    },
+    camara: camera, escena: scene,
+    mundo: () => ({ obs: estelarVista.obs.length, criaturas: estelarVista.criaturas.length, hijos: estelarVista.grupo ? estelarVista.grupo.children.length : 0 }),
+  };
+} catch (e) {}
+
 function applySpaceSuit(v) {   // traje espacial del papá (casco + mochila); el tuyo se ve en el HUD 🧑‍🚀
   if (v && !dad.userData.helmet) {
     const h = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 12), new THREE.MeshStandardMaterial({ color: 0xbfe3ff, transparent: true, opacity: 0.35, roughness: .1 }));
@@ -19141,7 +19788,7 @@ const keys = {};
 let lastCreativeZTap = 0, creativeFlying = false;
 let typing = false;   // true mientras hay un recuadro de escribir abierto (bloquea controles del juego)
 // Recuadros que escriben texto: mientras quede UNO abierto, el juego no recibe teclas.
-const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'liftbox', 'aptbox', 'mallbox', 'rocketbox', 'chatbox', 'chatReply', 'stickerMake', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox', 'questbox', 'keypadbox', 'blackbox', 'skinbox'];
+const TYPING_BOXES = ['shopbox', 'mathbox', 'bankbox', 'liftbox', 'aptbox', 'mallbox', 'rocketbox', 'chatbox', 'chatReply', 'stickerMake', 'accountbox', 'saveKeyBox', 'cloudLoginBox', 'davidLockBox', 'questbox', 'keypadbox', 'blackbox', 'skinbox', 'estelarbox'];
 function algunRecuadroAbierto() {
   if (typeof wheelOpen === 'function' && wheelOpen()) return true;   // el menú de la rueda también cuenta
   return TYPING_BOXES.some(id => { const el = ui(id); return el && el.style.display === 'flex'; });
@@ -19177,6 +19824,7 @@ function tryInteract() {
   if (tryEntrada()) return;       // entrar / salir de los edificios por la puerta
   if (tryMall()) return;          // mall: cine, palomitas, caja, patio y la puerta
   if (tryBuyPlot()) return;       // comprar el terreno del condominio
+  if (tryEstelar()) return;       // Base Estelar: panel junto al domo
   if (!tryRefuelCar() && !trySkiResort() && !tryArcadeRewards() && !tryArcadeZone() && !tryHarvestMiner() && !toggleBoat() && !tryIslandTempleChest() && !tryFocusedFurniture() && !tryLeaderboard() && !tryAirport() && !countryHello() && !tryParkFood() && !tryParkRide() && !tryRepairBuilding() && !tryHarvest() && !tryDiscoverSecret() && !tryWorldEvent() && !tryMount() && !toggleCar() && !tryShelter() && !tryRuins() && !tryCastle() && !tryColiseum() && !tryRocket() && !tryBank() && !trySportInteract() && !tryBusiness() && !tryFamilyOrCitizenInteract() && !tryBuyStandTouch() && !tryVendorHere() && !tryHelperHere()) { if (!tryCollectGolden() && !tryRob() && !sellHouse()) tryGardenHere(); }
 }
 addEventListener('keydown', e => {
@@ -20290,6 +20938,7 @@ function startGame() {
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.guns = {}; state.gun = null; state.ammo = 0; state.clip = 0; state.reloadT = 0; state.gadgetCharges = {}; state.handGadget = null;   // tecnología alien: se compra de nuevo
   state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;   // base espacial: se compra de nuevo
+  estelarReiniciar();
   houseTier = 0;
   newMissions();
   state.story = {}; state.storyRewarded = {}; state.gadgets = {}; state.alleyUnlockedToast = false;
@@ -21314,6 +21963,7 @@ function saveGame() {
       bestiary: state.bestiary || {},     // colección de monstruos
       album: state.album || {}, albumDone: !!state.albumDone,   // álbum de criaturas alien
       baseLevel: state.baseLevel || 0, baseTurrets: state.baseTurrets || 0, baseGenerator: !!state.baseGenerator,   // base espacial propia
+      estelar: estelarGuardar(),   // Base Estelar, pasaporte, zoológico, expediciones y aurora
       tutorial: state.tutorial || { step: 0, complete: false }, chapter: state.chapter || 0, chapterFlags: state.chapterFlags || {}, reputation: state.reputation || 0,
       medals: state.medals || {}, blueprints: state.blueprints || {}, citizenFavors: state.citizenFavors || {},
       butlerState: { hired: !!butler.userData.hired, workDays: butler.userData.workDays || 0, wageDebt: butler.userData.wageDebt || 0, lastWageNight: butler.userData.lastWageNight, task: butler.userData.task, x: butler.position.x, z: butler.position.z, order: butler.userData.order ? { key: butler.userData.order.item.key, price: butler.userData.order.item.price, planet: butler.userData.order.planet, country: butler.userData.order.country, qty: butler.userData.order.qty, reserved: butler.userData.order.reserved || 0, bought: butler.userData.order.bought || 0 } : null },
@@ -22474,6 +23124,7 @@ function loadGame() {
   state.floors2 = d.floors2 || (d.hasFloor2 ? [{ ax: HOUSE.x, az: HOUSE.z, rot: d.floor2Rot || 0 }] : []);
   rebuildFloors2();
   state.baseLevel = d.baseLevel || 0; state.baseTurrets = d.baseTurrets || 0; state.baseGenerator = !!d.baseGenerator;   // base espacial
+  estelarCargar(d.estelar);   // Base Estelar, pasaporte, zoológico y expediciones
   if (state.planet === 'platus') { groundMat.color.set(state.planetGround || 0x9c4a2a); decor.forEach(t => t.visible = false); setEarthWorld(false); setPlatusVisible(true); refillCrystals(); refillGeodes(); refillBuriedTreasures(); refillEggs(); refillRuins(); state.inCastle = false; setCastleVisible(false); refillCastle(); state.inArena = false; setColiVisible(false); clearArenaFoes(); refillColiseum(); refillFloatingWorld(); spawnBase(); applyPlanetLook({ trees: 0x4a3728, moons: [0xd946ef, 0x38bdf8], fog: 160, ...PLANETS.find(p => p.name === state.planetName) }); applySpaceSuit(true); }
   else if(state.country){const c=currentCountry();groundMat.color.set(c.ground);decor.forEach(t=>t.visible=false);buildCountry(c);setCountryVisible(true);setEarthWorld(false);setCityVisible(false);setPlatusVisible(false);applySpaceSuit(false);removeBase();scene.background.set(c.sky);scene.fog.far=320;syncPlacedCountryVisibility();}
   else { groundMat.color.set(0x4a7c3a); decor.forEach(t => t.visible = true); setEarthWorld(true); setCityVisible(true); setPlatusVisible(false); applySpaceSuit(false); removeBase(); scene.fog.far = 900; syncPlacedCountryVisibility(); }
@@ -22580,7 +23231,7 @@ function resetAll() {
   clearWaves(); clearDirt(); clearJobs(); clearSmoke(); clearConfetti(); clearPolice(); clearPlants(); removePet(); removeAlienPet(); removeAllFloors2(); state.floor2Rot = 0; removeBase(); leaveParkRide(true); standUp(true); state.unlocked = {}; state.wanted = 0; state.wantedLevel = 0; state.policeDelay = 0;
   state.hasJetpack = false; state.laserGun = false; state.hasShield = false; state.shieldHp = 0; state.shieldCd = 0;
   state.guns = {}; state.gun = null; state.ammo = 0; state.clip = 0; state.reloadT = 0; state.gadgetCharges = {}; state.handGadget = null;
-  state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false;
+  state.baseLevel = 0; state.baseTurrets = 0; state.baseGenerator = false; estelarReiniciar();
   state.inRuins = false; if (ruinsRoom) ruinsRoom.visible = false;
   clearEggPets(); state.incubTime = 0; state.eggQueue = 0; clearPetPoint(); endEclipse(); removeMount(); state.inCastle = false; setCastleVisible(false); clearTitan(); state.inArena = false; setColiVisible(false); clearArenaFoes();
   state.cinematic = false; state.cine = null; if (state.meteor) { scene.remove(state.meteor); state.meteor = null; }
@@ -23829,6 +24480,7 @@ function removeCar() {   // al reiniciar
 let mount = null;
 function tameCreature(e) {
   const ud = e.userData;
+  try { estelarDomada(ud.type); } catch (err) {}   // la criatura queda en el zoológico de la Base Estelar
   if (ud.bar) scene.remove(ud.bar.g);
   const idx = enemies.indexOf(e); if (idx >= 0) enemies.splice(idx, 1);   // deja de ser enemigo
   mount = e; mount.userData = { heading: yaw, isMount: true, type: ud.type };
@@ -24313,10 +24965,11 @@ function tryLaunchRocket() {
   if (dist2D(player.position, state.rocket.position) > 6) { toast('Acércate al cohete'); return; }
   if (dist2D(dad.position, state.rocket.position) > 8) { toast('¡Tienes que ir con tu PAPÁ al cohete!'); return; }
   if (!state.hasSuits) { toast('🧑‍🚀 Necesitas TRAJES ESPACIALES para ti y tu papá (cómpralos en el súper)'); return; }
-  if (state.usedRocket) {   // reutilizar el cohete necesita COMBUSTIBLE: 10 de carbón
-    if ((state.inv.carbon || 0) < 10) { toast('⛽ El cohete necesita combustible: 10 de CARBÓN (tienes ' + (state.inv.carbon || 0) + '). Pica las rocas negras 👊'); return; }
-    state.inv.carbon -= 10;
-    toast('⛽ Cargaste 10 de carbón como combustible. ¡Despegando!');
+  if (state.usedRocket) {   // reutilizar el cohete necesita COMBUSTIBLE: 10 de carbón (6 con el hangar de la Base Estelar)
+    const comb = estelarCombustible();
+    if ((state.inv.carbon || 0) < comb) { toast('⛽ El cohete necesita combustible: ' + comb + ' de CARBÓN (tienes ' + (state.inv.carbon || 0) + '). Pica las rocas negras 👊'); return; }
+    state.inv.carbon -= comb;
+    toast('⛽ Cargaste ' + comb + ' de carbón como combustible. ¡Despegando!');
   }
   closeRocket();   // cerrar los cajones si se despegó desde el panel
   state.usedRocket = true;
@@ -25810,6 +26463,7 @@ function loop() {
     updateMiners(dt);                      // mineros automáticos: acumulan carbón y plata
     updateDetector(dt);                    // detector de tesoros enterrados (pita caliente/frío)
     updateBaseDefense(dt);                 // torretas de la base espacial disparan de noche
+    updateEstelar(dt);                     // Base Estelar, pasaporte, zoológico, expediciones y aurora
     updateDialogues(dt);                   // la familia comenta lo que pasa
     updateAlley(dt);                     // Tito, callejón y luces que parpadean
     if (state.modoLadron) cobrarDeudaTito();   // los $500 de Tito salen solos al cumplir los 3 días

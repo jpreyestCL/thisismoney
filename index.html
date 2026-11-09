@@ -6023,6 +6023,304 @@ function finishSportGame(abandoned) {
 }
 
 // ===================================================================
+//  TORNEO DE LOS ESTADIOS
+//  Copa de 3 partidos seguidos (fútbol, básquet, tenis), cada uno
+//  contra un equipo más difícil. Si la ganas, tu nombre queda en un
+//  cartel de cada estadio y un trofeo aparece en tu casa. Se guarda
+//  con la partida. La mesa está a un lado de la puerta norte del
+//  estadio de fútbol: E en PC y el botón usar en el celular.
+//  Este bloque es solo de la copa: no cambia la versión del juego.
+// ===================================================================
+const TORNEO_ORDEN = [
+  { type: 'futbol', name: 'Fútbol', nivel: 0, rival: 'el barrio' },
+  { type: 'basket', name: 'Básquet', nivel: 1, rival: 'la liga' },
+  { type: 'tenis', name: 'Tenis', nivel: 2, rival: 'los campeones' },
+];
+const TORNEO_TITULO = { futbol: 'FÚTBOL', basket: 'BÁSQUET', tenis: 'TENIS' };
+const torneoOro = new THREE.MeshStandardMaterial({ color: 0xf6c445, metalness: .72, roughness: .28 });
+const torneoCarteles = [];
+let trofeoCasa = null;
+
+function torneoEstado() {
+  if (!state.torneo || typeof state.torneo !== 'object') state.torneo = { copas: 0, nombre: '', enCurso: null };
+  return state.torneo;
+}
+function nombreDelJugador() {
+  let n = 'Jugador';
+  try { n = desiredAccountName(activeProfile()) || activeProfile() || n; } catch (e) {}
+  n = String(n).replace(/\s+/g, ' ').trim().slice(0, 16);
+  return n || 'Jugador';
+}
+function puestoCopa() {
+  const p = LUGARES.estadioFutbol;
+  const lote = loteEstadio(p.x, p.z);
+  return { x: p.x + 6.4, z: lote.maxZ + 1.7, lote };
+}
+function cercaDeLaCopa() {
+  if (!state || state.planet !== 'tierra' || state.country || state.phase !== 'DAY') return false;
+  const puesto = puestoCopa();
+  return dist2D(player.position, puesto) < 3.6;
+}
+function sitioTrofeo() {
+  const l = state.plot && lotePorId(state.plot);
+  if (l) {
+    const haciaPasaje = l.z > CONDOMINIO.pasaje.z ? -1 : 1;
+    return { x: l.x, z: l.z + haciaPasaje * (l.d / 2 - 1.15) };
+  }
+  return { x: 16.6, z: 19.2 };
+}
+function copaDeOro(escala) {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(.36, .42, .14, 14), hormigon(0x1f2937));
+  base.position.y = .07; g.add(base);
+  const fuste = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, .52, 10), torneoOro);
+  fuste.position.y = .38; g.add(fuste);
+  const taza = new THREE.Mesh(new THREE.CylinderGeometry(.2, .14, .3, 14), torneoOro);
+  taza.position.y = .74; g.add(taza);
+  const boca = new THREE.Mesh(new THREE.CylinderGeometry(.26, .2, .08, 14), torneoOro);
+  boca.position.y = .92; g.add(boca);
+  for (const lado of [-1, 1]) {
+    const asa = new THREE.Mesh(new THREE.TorusGeometry(.16, .035, 8, 14), torneoOro);
+    asa.position.set(lado * .28, .78, 0); asa.rotation.y = Math.PI / 2; g.add(asa);
+  }
+  g.scale.setScalar(escala || 1);
+  return g;
+}
+function lienzoTorneo(w, h) {
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return { cv, tex };
+}
+function pintarCartelesTorneo() {
+  const t = state.torneo || { copas: 0, nombre: '' };
+  const hay = t.copas > 0 && t.nombre;
+  for (const cartel of torneoCarteles) {
+    const ctx = cartel.cv.getContext('2d');
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 512, 256);
+    ctx.fillStyle = '#facc15'; ctx.fillRect(0, 0, 512, 10); ctx.fillRect(0, 246, 512, 10);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#facc15'; ctx.font = 'bold 34px sans-serif';
+    ctx.fillText('COPA DE LOS ESTADIOS', 256, 58);
+    ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 24px sans-serif';
+    ctx.fillText(cartel.titulo, 256, 108);
+    ctx.fillStyle = '#f8fafc'; ctx.font = 'bold 58px sans-serif';
+    ctx.fillText(hay ? t.nombre : '—', 256, 176);
+    ctx.fillStyle = '#facc15'; ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(hay ? (t.copas > 1 ? 'CAMPEÓN ×' + t.copas : 'CAMPEÓN') : 'TODAVÍA SIN CAMPEÓN', 256, 222);
+    cartel.tex.needsUpdate = true;
+  }
+  if (trofeoCasa && trofeoCasa.userData.placa) {
+    const pl = trofeoCasa.userData.placa;
+    const ctx = pl.cv.getContext('2d');
+    ctx.fillStyle = '#111827'; ctx.fillRect(0, 0, 512, 128);
+    ctx.fillStyle = '#facc15'; ctx.textAlign = 'center';
+    ctx.font = 'bold 42px sans-serif';
+    ctx.fillText(hay ? t.nombre : 'COPA', 256, 52);
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText(hay ? 'Copa de los estadios' : '', 256, 98);
+    pl.tex.needsUpdate = true;
+  }
+}
+function ponerTrofeoCasa() {
+  if (!trofeoCasa) return;
+  const t = (state && state.torneo) || { copas: 0 };
+  const sitio = sitioTrofeo();
+  trofeoCasa.position.set(sitio.x, 0, sitio.z);
+  trofeoCasa.visible = t.copas > 0;
+}
+function empezarPartidoCopa(paso) {
+  const orden = TORNEO_ORDEN[paso];
+  const sport = SPORT_INFO.find(s => s.type === orden.type);
+  const rules = SPORT_LEVELS[orden.nivel];
+  torneoEstado().enCurso = paso;
+  state.sportGame = {
+    type: orden.type, name: 'COPA ' + (paso + 1) + '/3 · ' + orden.name,
+    level: orden.nivel, time: rules.time, score: 0, actions: 0, lastTouch: 0,
+    teamScore: [0, 0], combo: 0, bestCombo: 0, torneo: { paso },
+  };
+  const startX = orden.type === 'tenis' ? sport.center.x - 6.2 : sport.center.x - 4;
+  player.position.set(startX, PLAYER_EYE, sport.center.z + (orden.type === 'tenis' ? 1.6 : 2.4));
+  vy = 0; grounded = true;
+  toast('🏆 Partido ' + (paso + 1) + ' de 3 · ' + orden.name + ' contra ' + orden.rival + ' · ' + rules.name);
+}
+function empezarCopa() {
+  if (state.sportGame || state.phase !== 'DAY' || state.planet !== 'tierra' || state.country) return false;
+  const t = torneoEstado();
+  const paso = t.enCurso == null ? 0 : Math.max(0, Math.min(2, t.enCurso | 0));
+  empezarPartidoCopa(paso);
+  return true;
+}
+function armarTorneo() {
+  for (const sport of SPORT_INFO) {
+    const lote = loteEstadio(sport.center.x, sport.center.z);
+    const lienzo = lienzoTorneo(512, 256);
+    const malla = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 3.1), new THREE.MeshBasicMaterial({ map: lienzo.tex }));
+    malla.position.set(sport.center.x, 4.8, lote.maxZ + .12);
+    scene.add(malla);
+    torneoCarteles.push({ cv: lienzo.cv, tex: lienzo.tex, titulo: TORNEO_TITULO[sport.type] || sport.name, malla });
+  }
+  const puesto = puestoCopa();
+  const mesa = new THREE.Group();
+  mesa.position.set(puesto.x, 0, puesto.z);
+  const tabla = new THREE.Mesh(new THREE.BoxGeometry(1.5, .12, .8), hormigon(0xf8fafc));
+  tabla.position.y = .92; mesa.add(tabla);
+  for (const sx of [-.6, .6]) for (const sz of [-.28, .28]) {
+    const pata = new THREE.Mesh(new THREE.BoxGeometry(.1, .92, .1), hormigon(0x334155));
+    pata.position.set(sx, .46, sz); mesa.add(pata);
+  }
+  const mini = copaDeOro(.55); mini.position.y = .98; mesa.add(mini);
+  const aviso = lienzoTorneo(512, 128);
+  const ctx = aviso.cv.getContext('2d');
+  ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 512, 128);
+  ctx.fillStyle = '#facc15'; ctx.textAlign = 'center'; ctx.font = 'bold 54px sans-serif';
+  ctx.fillText('COPA  ·  E', 256, 78);
+  aviso.tex.needsUpdate = true;
+  const letrero = new THREE.Mesh(new THREE.PlaneGeometry(2.3, .58), new THREE.MeshBasicMaterial({ map: aviso.tex }));
+  letrero.position.set(0, 1.45, .42); mesa.add(letrero);
+  scene.add(mesa);
+  trofeoCasa = new THREE.Group();
+  trofeoCasa.add(copaDeOro(1.35));
+  const placa = lienzoTorneo(512, 128);
+  const tablero = new THREE.Mesh(new THREE.PlaneGeometry(1.7, .46), new THREE.MeshBasicMaterial({ map: placa.tex }));
+  tablero.position.set(0, .34, .72);
+  trofeoCasa.add(tablero);
+  trofeoCasa.userData.placa = placa;
+  trofeoCasa.visible = false;
+  scene.add(trofeoCasa);
+  for (const cartel of torneoCarteles) {
+    const ctx = cartel.cv.getContext('2d');
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 512, 256);
+    ctx.fillStyle = '#facc15'; ctx.font = 'bold 34px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('COPA DE LOS ESTADIOS', 256, 120);
+    cartel.tex.needsUpdate = true;
+  }
+}
+armarTorneo();
+
+const torneoProbarPartido = trySportInteract;
+trySportInteract = function () {
+  if (!state.sportGame && cercaDeLaCopa()) return empezarCopa();
+  return torneoProbarPartido();
+};
+const torneoCerrarPartido = finishSportGame;
+finishSportGame = function (abandoned) {
+  const game = state.sportGame;
+  const copa = game && game.torneo;
+  const paso = copa ? copa.paso : -1;
+  const gano = !!(game && game.teamScore[0] > game.teamScore[1]);
+  if (copa && !abandoned) torneoEstado().enCurso = gano && paso < 2 ? paso + 1 : null;
+  torneoCerrarPartido(abandoned);
+  if (!copa) return;
+  if (abandoned || !gano) {
+    torneoEstado().enCurso = null;
+    toast(abandoned ? 'Dejaste la copa. La mesa del estadio de fútbol sigue ahí.' : 'La copa se corta en este partido. Puedes empezar otra en la mesa.');
+    saveGame();
+    return;
+  }
+  if (paso < 2) {
+    empezarPartidoCopa(paso + 1);
+    saveGame();
+    return;
+  }
+  const t = torneoEstado();
+  t.copas = (t.copas || 0) + 1;
+  t.nombre = nombreDelJugador();
+  t.enCurso = null;
+  pintarCartelesTorneo();
+  ponerTrofeoCasa();
+  addMoney(2500);
+  phaseText('🏆 COPA');
+  toast('🏆 ¡Copa de los estadios! «' + t.nombre + '» queda en los carteles y el trofeo está en tu casa. +$2500');
+  tone(523, .12, .05, 'triangle');
+  setTimeout(() => tone(784, .2, .05, 'triangle'), 160);
+  saveGame();
+};
+const torneoGuardar = saveGame;
+saveGame = function () {
+  const r = torneoGuardar.apply(this, arguments);
+  try {
+    const clave = saveKey();
+    const data = JSON.parse(localStorage.getItem(clave) || 'null');
+    if (data && typeof data === 'object') {
+      const t = state.torneo || { copas: 0, nombre: '', enCurso: null };
+      const paso = t.enCurso == null ? null : (t.enCurso | 0);
+      data.torneo = { copas: Math.max(0, t.copas | 0), nombre: String(t.nombre || '').slice(0, 16), enCurso: paso != null && paso >= 0 && paso <= 2 ? paso : null };
+      localStorage.setItem(clave, JSON.stringify(data));
+    }
+  } catch (e) {}
+  return r;
+};
+const torneoCargar = loadGame;
+loadGame = function () {
+  const r = torneoCargar.apply(this, arguments);
+  if (r === false) return r;
+  try {
+    const data = JSON.parse(localStorage.getItem(saveKey()) || 'null');
+    const t = data && data.torneo;
+    if (t && typeof t === 'object') {
+      const paso = t.enCurso == null || t.enCurso === '' ? null : (t.enCurso | 0);
+      state.torneo = {
+        copas: Math.max(0, t.copas | 0),
+        nombre: String(t.nombre || '').slice(0, 16),
+        enCurso: paso != null && paso >= 0 && paso <= 2 ? paso : null,
+      };
+    } else state.torneo = { copas: 0, nombre: '', enCurso: null };
+  } catch (e) { state.torneo = { copas: 0, nombre: '', enCurso: null }; }
+  pintarCartelesTorneo();
+  ponerTrofeoCasa();
+  return r;
+};
+const torneoReset = resetAll;
+resetAll = function () {
+  const r = torneoReset.apply(this, arguments);
+  state.torneo = { copas: 0, nombre: '', enCurso: null };
+  pintarCartelesTorneo();
+  ponerTrofeoCasa();
+  return r;
+};
+const torneoNueva = startGame;
+startGame = function () {
+  const bloqueado = typeof isDavidAccount === 'function' && isDavidAccount(activeProfile()) && !davidGateOpen;
+  if (!bloqueado) state.torneo = { copas: 0, nombre: '', enCurso: null };
+  const r = torneoNueva.apply(this, arguments);
+  if (!bloqueado && state.running) { pintarCartelesTorneo(); ponerTrofeoCasa(); }
+  return r;
+};
+let torneoYaAviso = false;
+const torneoAviso = updateContextPrompt;
+updateContextPrompt = function () {
+  torneoAviso();
+  const enMesa = cercaDeLaCopa() && !state.sportGame && !state.driving && !state.sailing && !state.buildMode;
+  if (!enMesa) { torneoYaAviso = false; return; }
+  const box = ui('contextPrompt'), key = ui('contextKey'), txt = ui('contextText');
+  if (!box) return;
+  const t = torneoEstado();
+  const texto = t.enCurso != null
+    ? 'Seguir la copa · partido ' + (t.enCurso + 1) + ' de 3'
+    : (t.copas > 0 ? 'Otra copa · ya ganaste ' + t.copas : 'Copa de los estadios · 3 partidos');
+  box.classList.add('visible');
+  key.textContent = document.body.classList.contains('touch') ? '🏆' : 'E';
+  txt.textContent = texto;
+  if (!torneoYaAviso) {
+    torneoYaAviso = true;
+    toast(document.body.classList.contains('touch') ? '🏆 Copa: toca usar. Fútbol, básquet y tenis.' : '🏆 Copa de los estadios: E empieza los 3 partidos.');
+  }
+};
+setTimeout(function () { pintarCartelesTorneo(); ponerTrofeoCasa(); }, 0);
+try {
+  if (new URLSearchParams(location.search).has('debug')) {
+    window.__torneo = {
+      puesto: puestoCopa, sitio: sitioTrofeo, empezar: empezarCopa, pintar: pintarCartelesTorneo, trofeo: ponerTrofeoCasa,
+      cerrar: (abandona) => finishSportGame(!!abandona),
+      perfil: (n) => setProfile(n),
+      mirar: (c) => { encuadrePolicia = c; },
+      soltar: () => { encuadrePolicia = null; },
+    };
+  }
+} catch (e) {}
+
+// ===================================================================
 //  PIEZAS COMPARTIDAS del banco y la cárcel (los dos son edificios en
 //  los que se ENTRA: paredes huecas, techo y gente adentro).
 // ===================================================================

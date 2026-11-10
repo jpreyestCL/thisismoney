@@ -1,7 +1,7 @@
 // Service worker de This is Money: el juego funciona OFFLINE una vez visitado.
 // - index.html: red primero (para recibir las actualizaciones del deploy), caché de respaldo
 // - assets y CDN de three.js: caché primero (no cambian casi nunca)
-const VERSION = 'tim-v137';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
+const VERSION = 'tim-v138';   // bump al cambiar CORE (fuerza recachear e ignora cachés viejas)
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon.svg',
   './src/game-config.js', './src/chat.js?v=5', './src/park-business.js?v=1', './src/city-map.js?v=9', './src/clima-techo.js?v=1', './src/mall.js?v=6', './src/modo-ladron.js?v=17', './src/skin-dibujo.js?v=11', './src/npc-solido.js?v=1', './src/jugador-solido.js?v=1', './src/tierra-metas.js?v=1', './assets/img_58.png', './assets/edificio.glb', './assets/tienda.glb', './assets/papa_anim.glb'];
 
@@ -18,7 +18,7 @@ self.addEventListener('fetch', e => {
   const allowedOrigin = url.origin === self.location.origin || url.origin === 'https://unpkg.com';
   if (!['http:', 'https:'].includes(url.protocol) || !allowedOrigin) return;
   if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;   // rankings y otras API: siempre van a la red
-  if (url.origin === self.location.origin && url.pathname.endsWith('/facu.html')) return;   // otro juego: no debe pisar el index.html cacheado
+  if (url.origin === self.location.origin && (url.pathname === '/facu' || url.pathname.startsWith('/facu/') || url.pathname === '/facu.html')) return;   // otro juego: no debe pisar el index.html cacheado
   const needsFreshCode = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname === '/' || url.pathname.endsWith('.js');
   if (needsFreshCode) {   // red primero: HTML y módulos siempre coordinados
     const cacheKey = e.request.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname === '/' ? './index.html' : e.request;

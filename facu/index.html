@@ -6,6 +6,15 @@
 <title>CIUDAD ABANDONADA - CALETA ULTRA</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>window.THREE||document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/FXAAShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Sky.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/objects/Reflector.js"></script>
 <style>
   html,body{position:fixed;top:0;left:0;right:0;bottom:0;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none}
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -228,6 +237,7 @@ let camera=new THREE.PerspectiveCamera(75, window.innerWidth/460, 0.1, 160);
 let renderer=new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
 renderer.setSize(window.innerWidth,460); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.outputEncoding=THREE.sRGBEncoding; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12; renderer.setPixelRatio(calidadAlta ? Math.min(window.devicePixelRatio,2) : 1); renderer.physicallyCorrectLights=false;
 document.getElementById('gameWrap').appendChild(renderer.domElement);
+const usarReal = calidadAlta && renderer.capabilities.isWebGL2 && !!(THREE.EffectComposer && THREE.RenderPass && THREE.ShaderPass && THREE.UnrealBloomPass && THREE.FXAAShader && THREE.Sky && THREE.Reflector);
 // LUCES CALETA
 let sol=new THREE.DirectionalLight(0xfff0d0,1.6); sol.position.set(28,38,18); sol.castShadow=true; let tamSombra=calidadAlta?2048:1024; sol.shadow.mapSize.width=tamSombra; sol.shadow.mapSize.height=tamSombra; sol.shadow.camera.left=-34; sol.shadow.camera.right=34; sol.shadow.camera.top=34; sol.shadow.camera.bottom=-34; sol.shadow.camera.near=1; sol.shadow.camera.far=120; sol.shadow.bias=-0.0004; sol.shadow.normalBias=0.03; sol.shadow.radius=4; scene.add(sol); scene.add(sol.target);
 let solOff=new THREE.Vector3(28,38,18);
@@ -248,7 +258,7 @@ let grupoExterior=new THREE.Group(); scene.add(grupoExterior);
 let suelo=new THREE.Mesh(new THREE.PlaneGeometry(260,260), new THREE.MeshStandardMaterial({map:texSuelo, bumpMap:calidadAlta?texSuelo:null, bumpScale:0.06, roughness:0.95, color:0xd8e8c8})); suelo.rotation.x=-Math.PI/2; suelo.receiveShadow=true; grupoExterior.add(suelo);
 
 // Charcos que brillan caleta
-for(let [cx,cz,s] of [[-5,-3,1.5],[8,3,1.2],[18,-6,1.6],[-20,8,1.1],[2,-7,1.3]]){
+for(let [cx,cz,s] of (usarReal?[]:[[-5,-3,1.5],[8,3,1.2],[18,-6,1.6],[-20,8,1.1],[2,-7,1.3]])){
   let ch=new THREE.Mesh(new THREE.CircleGeometry(s,24), new THREE.MeshStandardMaterial({color:0x88ccff, transparent:true, opacity:0.6, roughness:0.05, metalness:0.85})); ch.rotation.x=-Math.PI/2; ch.position.set(cx,0.1,cz); grupoExterior.add(ch);
   let borde=new THREE.Mesh(new THREE.TorusGeometry(s,0.08,8,24), mat(0x3a3a3a)); borde.rotation.x=Math.PI/2; borde.position.set(cx,0.1,cz); grupoExterior.add(borde);
 }
@@ -1226,6 +1236,160 @@ function fusionarEstaticos(raiz, celda=48){
   return [quitados, nuevos];
 }
 window.__fusion=fusionarEstaticos(grupoExterior);
+
+// ============ GRÁFICOS REALISTAS (solo ALTOS: post-procesado, cielo físico, reflejos) ============
+const REAL=(function(){
+  const R={on:false};
+  if(!usarReal) return R;
+  THREE.Material.prototype.onBeforeCompile=function(sh){ if(this.isShaderMaterial) return; sh.fragmentShader=sh.fragmentShader.replace('#include <fog_fragment>','#include <fog_fragment>\n\tgl_FragColor.a=pow(max(gl_FragColor.a,0.0),2.2);'); };
+  R.on=true;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+  renderer.toneMapping=THREE.NoToneMapping;
+  const ESC_CIELO=0.3;
+  // ---- Cielo físico ----
+  function hacerCielo(){ let s=new THREE.Sky(); s.scale.setScalar(100); s.frustumCulled=false; s.material.depthWrite=false;
+    s.material.fragmentShader=s.material.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );','gl_FragColor = vec4( retColor*'+ESC_CIELO.toFixed(3)+', 1.0 );');
+    let u=s.material.uniforms; u.turbidity.value=3.5; u.rayleigh.value=2.2; u.mieCoefficient.value=0.004; u.mieDirectionalG.value=0.82; return s; }
+  const cielo=hacerCielo(); cielo.renderOrder=-10; scene.add(cielo);
+  function dirSol(p){ let e=THREE.MathUtils.degToRad(4+58*Math.sin(Math.PI*Math.min(1,0.1+p*0.95))), az=-1.1+p*2.4; return new THREE.Vector3(Math.cos(e)*Math.sin(az), Math.sin(e), Math.cos(e)*Math.cos(az)); }
+  // ---- Mapas de entorno (reflejos PBR) ----
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  function envCielo(p, turb){ let sc=new THREE.Scene(); let s=hacerCielo(); s.material.uniforms.sunPosition.value.copy(dirSol(p)); s.material.uniforms.turbidity.value=turb; sc.add(s); let t=pmrem.fromScene(sc,0,0.1,500).texture; s.geometry.dispose(); s.material.dispose(); return t; }
+  function envDegradado(arriba, horizonte, abajo, fuerza){ let sc=new THREE.Scene(); let g=new THREE.SphereGeometry(50,32,16); let c=[], P=g.attributes.position, A=new THREE.Color(arriba), H=new THREE.Color(horizonte), B=new THREE.Color(abajo), t=new THREE.Color();
+    for(let i=0;i<P.count;i++){ let y=P.getY(i)/50; if(y>0) t.copy(H).lerp(A,Math.pow(y,0.6)); else t.copy(H).lerp(B,Math.pow(-y,0.5)); t.multiplyScalar(fuerza); c.push(t.r,t.g,t.b); }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(c,3)); sc.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.BackSide})));
+    let tx=pmrem.fromScene(sc,0,0.1,200).texture; g.dispose(); return tx; }
+  const ENV={ dia:envCielo(0.5,5), tarde:envCielo(0.95,9), noche:envDegradado(0x10204a,0x0a1430,0x05080a,0.6), interior:envDegradado(0x161412,0x0c0b0a,0x060505,0.5), casaLuz:envDegradado(0x6a5a48,0x3a3026,0x1a1410,0.6) };
+  pmrem.dispose();
+  scene.environment=ENV.dia;
+  // ---- Niebla atmosférica (exponencial) ----
+  scene.fog=new THREE.FogExp2(scene.fog.color.getHex(), 0.011);
+  // ---- Materiales PBR: reflejos según el material ----
+  let vistos=new Set();
+  scene.traverse(o=>{ let ms=o.material? (Array.isArray(o.material)?o.material:[o.material]) : []; ms.forEach(m=>{ if(!m || vistos.has(m) || !m.isMeshStandardMaterial) return; vistos.add(m);
+    if(m.transparent && m.opacity<0.8){ if(m.roughness<0.3){ m.roughness=Math.min(m.roughness,0.06); m.envMapIntensity=1.8; } else m.envMapIntensity=0.25; }
+    else if(m.metalness>=0.4){ m.envMapIntensity=1.25; m.roughness=Math.max(0.12,m.roughness); }
+    else if(m.map===texCalle){ m.roughness=0.72; m.envMapIntensity=0.55; }
+    else { m.envMapIntensity=m.roughness>0.85?0.45:0.7; } }); });
+  // ---- Sombras nítidas que siguen al jugador (sin parpadeo) ----
+  const SOMBRA_R=40, SOMBRA_N=4096;
+  sol.shadow.mapSize.set(SOMBRA_N,SOMBRA_N); Object.assign(sol.shadow.camera,{left:-SOMBRA_R,right:SOMBRA_R,top:SOMBRA_R,bottom:-SOMBRA_R,near:1,far:150}); sol.shadow.camera.updateProjectionMatrix(); sol.shadow.bias=-0.0003; sol.shadow.normalBias=0.025;
+  const mRot=new THREE.Matrix4(), mInv=new THREE.Matrix4(), vC=new THREE.Vector3(), vD=new THREE.Vector3(), ORIGEN=new THREE.Vector3(), ARRIBA=new THREE.Vector3(0,1,0);
+  function colocarSol(dir){ vD.copy(dir).normalize(); mRot.lookAt(vD,ORIGEN,ARRIBA); mInv.copy(mRot).invert(); let texel=2*SOMBRA_R/SOMBRA_N;
+    vC.set(px,0,pz).applyMatrix4(mInv); vC.x=Math.round(vC.x/texel)*texel; vC.y=Math.round(vC.y/texel)*texel; vC.applyMatrix4(mRot);
+    sol.target.position.copy(vC); sol.position.copy(vC).addScaledVector(vD,70); sol.target.updateMatrixWorld(); }
+  // ---- Charcos con reflejo real (un solo espejo compartido, a baja resolución) ----
+  const ALTO_CHARCO=0.072;
+  let espejo=new THREE.Reflector(new THREE.PlaneGeometry(400,400), {textureWidth:512, textureHeight:256, clipBias:0.002, color:0xffffff});
+  espejo.rotation.x=-Math.PI/2; espejo.position.y=ALTO_CHARCO; espejo.material.colorWrite=false; espejo.material.depthWrite=false; espejo.renderOrder=-5; espejo.frustumCulled=false; scene.add(espejo);
+  const grupoCharcos=new THREE.Group(); scene.add(grupoCharcos);
+  const reflBefore=espejo.onBeforeRender;
+  espejo.onBeforeRender=function(r,s,cam){ let lejos=cam.far; cam.far=70; cam.updateProjectionMatrix(); grupoCharcos.visible=false; reflBefore.call(this,r,s,cam); grupoCharcos.visible=true; cam.far=lejos; cam.updateProjectionMatrix(); };
+  function texCharco(){ let [c,x]=lienzo(256); x.fillStyle='#000'; x.fillRect(0,0,256,256); x.globalCompositeOperation='lighter';
+    for(let k=0;k<8;k++){ let rx=34+Math.random()*44, ry=0.55+Math.random()*0.4; x.save(); x.translate(128+(Math.random()-0.5)*80, 128+(Math.random()-0.5)*56); x.rotate(Math.random()*3); x.scale(1,ry); let g=x.createRadialGradient(0,0,0,0,0,rx); g.addColorStop(0,'rgba(255,255,255,0.9)'); g.addColorStop(0.55,'rgba(255,255,255,0.55)'); g.addColorStop(1,'rgba(255,255,255,0)'); x.fillStyle=g; x.beginPath(); x.arc(0,0,rx,0,7); x.fill(); x.restore(); } x.globalCompositeOperation='source-over';
+    let t=new THREE.CanvasTexture(c); return t; }
+  const MASCARAS=[texCharco(), texCharco(), texCharco()];
+  const uComun={ tRefl:{value:espejo.getRenderTarget().texture}, mRefl:{value:espejo.material.uniforms.textureMatrix.value}, uT:{value:0} };
+  function matCharco(mask){ return new THREE.ShaderMaterial({ transparent:true, depthWrite:false, fog:true,
+    uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{tMask:{value:null}}]),
+    vertexShader:`uniform mat4 mRefl; varying vec4 vR; varying vec2 vUv; varying vec3 vW;
+      #include <fog_pars_vertex>
+      void main(){ vUv=uv; vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; vR=mRefl*w; vec4 mvPosition=viewMatrix*w; gl_Position=projectionMatrix*mvPosition;
+      #include <fog_vertex>
+      }`,
+    fragmentShader:`uniform sampler2D tRefl, tMask; uniform float uT; varying vec4 vR; varying vec2 vUv; varying vec3 vW;
+      #include <fog_pars_fragment>
+      void main(){ float m=texture2D(tMask,vUv).r; if(m<0.03) discard;
+        vec2 rip=vec2(sin(vW.x*9.+uT*2.3)+sin(vW.z*7.-uT*1.7), cos(vW.z*8.+uT*2.)+sin(vW.x*6.+uT*1.3))*0.0012;
+        vec3 refl=texture2D(tRefl, vR.xy/vR.w+rip).rgb;
+        vec3 V=normalize(cameraPosition-vW); float fr=0.04+0.96*pow(1.-clamp(V.y,0.,1.),5.);
+        float agua=smoothstep(0.25,0.6,m);
+        vec3 col=mix(vec3(0.006,0.007,0.008), refl*0.95, clamp(0.55+fr,0.,1.)*agua);
+        gl_FragColor=vec4(col, mix(0.55, 0.97, agua)*smoothstep(0.03,0.22,m));
+        #include <fog_fragment>
+      }` }); }
+  const MATS_CHARCO=MASCARAS.map(t=>{ let m=matCharco(); m.uniforms.tMask.value=t; Object.assign(m.uniforms,uComun); return m; });
+  let r2=rng(777), gCh=new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2);
+  for(let k=0;k<46;k++){ let horiz=r2()<0.5, x, z; if(horiz){ z=CALLES_Z[Math.floor(r2()*5)]+(r2()<0.5?-1:1)*(1.2+r2()*2.2); x=(r2()-0.5)*150; } else { x=CALLES_X[Math.floor(r2()*5)]+(r2()<0.5?-1:1)*(1.2+r2()*2.2); z=(r2()-0.5)*136; }
+    let ch=new THREE.Mesh(gCh, MATS_CHARCO[k%3]); ch.position.set(x,ALTO_CHARCO+0.003,z); ch.rotation.y=r2()*6; let s=2+r2()*3.2; ch.scale.set(s,1,s*(0.6+r2()*0.5)); ch.renderOrder=2; grupoCharcos.add(ch); }
+  [[-5,-3,1.5],[8,3,1.2],[18,-6,1.6],[-20,8,1.1],[2,-7,1.3]].forEach(([x,z,s])=>{ let ch=new THREE.Mesh(gCh, MATS_CHARCO[0]); ch.position.set(x,0.11,z); ch.scale.set(s*2.4,1,s*2.1); grupoCharcos.add(ch); });
+  // ---- Post-procesado: AO + bloom + color/viñeta + FXAA ----
+  let tam=new THREE.Vector2(); renderer.getDrawingBufferSize(tam);
+  let rt=new THREE.WebGLRenderTarget(tam.x, tam.y, {type:THREE.HalfFloatType, format:THREE.RGBAFormat, minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter});
+  rt.depthTexture=new THREE.DepthTexture(tam.x, tam.y); rt.depthTexture.type=THREE.UnsignedIntType;
+  const composer=new THREE.EffectComposer(renderer, rt); composer.renderTarget2.depthTexture=null;
+  composer.addPass(new THREE.RenderPass(scene, camera));
+  const AO=new THREE.ShaderPass({ uniforms:{ tDiffuse:{value:null}, tDepth:{value:null}, uNear:{value:0.1}, uFar:{value:160}, uP:{value:new THREE.Vector2(1,1)}, uRes:{value:new THREE.Vector2(1,1)}, uFuerza:{value:1}, uRadio:{value:0.7} },
+    vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+    fragmentShader:`uniform sampler2D tDiffuse, tDepth; uniform float uNear, uFar, uFuerza, uRadio; uniform vec2 uP, uRes; varying vec2 vUv;
+      float vz(vec2 uv){ float d=texture2D(tDepth,uv).x; return (uNear*uFar)/((uFar-uNear)*d-uFar); }
+      vec3 vp(vec2 uv){ float z=vz(uv); return vec3((uv*2.-1.)*(-z)/uP, z); }
+      void main(){ vec4 c=texture2D(tDiffuse,vUv); float d=texture2D(tDepth,vUv).x; if(d>=0.9999){ gl_FragColor=c; return; }
+        vec3 P=vp(vUv); vec3 N=normalize(cross(dFdx(P),dFdy(P))); float dist=-P.z; if(dist>45.){ gl_FragColor=c; return; }
+        float rs=uRadio*uP.y/dist*0.5; rs=min(rs,0.08); float ao=0.; vec2 bq=mod(floor(gl_FragCoord.xy),4.); float h=(mod(bq.x*4.+bq.y*9.,16.)/16.)*6.2831;
+        for(int i=0;i<12;i++){ float fi=float(i); float a=h+fi*2.39996; float r=rs*(fi+0.5)/12.; vec2 o=vec2(cos(a),sin(a))*r*vec2(uRes.y/uRes.x,1.);
+          vec3 S=vp(vUv+o)-P; float l=length(S); ao+=max(0.,dot(N,S/l)-0.12)*(1.-smoothstep(uRadio*0.6,uRadio*2.2,l)); }
+        ao=1.-clamp(ao/12.*2.,0.,0.7)*uFuerza*(1.-smoothstep(25.,45.,dist));
+        gl_FragColor=vec4(c.rgb*ao,c.a); }` });
+  AO.material.extensions={derivatives:true}; AO.material.depthTest=false; AO.material.depthWrite=false; composer.addPass(AO);
+  const bloom=new THREE.UnrealBloomPass(new THREE.Vector2(tam.x/2,tam.y/2), 0.35, 0.55, 1.0); composer.addPass(bloom);
+  const GRADO=new THREE.ShaderPass({ uniforms:{ tDiffuse:{value:null}, uExpo:{value:1}, uVin:{value:0.32}, uSat:{value:1.14}, uTinte:{value:new THREE.Vector3(1,1,1)}, uT:{value:0} },
+    vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+    fragmentShader:`uniform sampler2D tDiffuse; uniform float uExpo, uVin, uSat, uT; uniform vec3 uTinte; varying vec2 vUv;
+      vec3 RRTAndODTFit(vec3 v){ vec3 a=v*(v+0.0245786)-0.000090537; vec3 b=v*(0.983729*v+0.4329510)+0.238081; return a/b; }
+      vec3 aces(vec3 c){ const mat3 I=mat3(vec3(0.59719,0.07600,0.02840),vec3(0.35458,0.90834,0.13383),vec3(0.04823,0.01566,0.83777)); const mat3 O=mat3(vec3(1.60475,-0.10208,-0.00327),vec3(-0.53108,1.10813,-0.07276),vec3(-0.07367,-0.00605,1.07602)); c*=uExpo/0.6; c=I*c; c=RRTAndODTFit(c); c=O*c; return clamp(c,0.,1.); }
+      vec3 srgb(vec3 c){ return mix(pow(c,vec3(0.41666))*1.055-vec3(0.055), c*12.92, vec3(lessThanEqual(c,vec3(0.0031308)))); }
+      void main(){ vec3 c=texture2D(tDiffuse,vUv).rgb*uTinte; c=aces(c); float l=dot(c,vec3(0.2126,0.7152,0.0722)); c=mix(vec3(l),c,uSat);
+        c=mix(c, c*vec3(0.94,1.0,1.08), (1.-smoothstep(0.,0.45,l))*0.35); c=mix(c, c*vec3(1.05,1.01,0.95), smoothstep(0.55,1.,l)*0.3);
+        c=srgb(c); c=mix(c, c*c*(3.-2.*c), 0.22); vec2 q=vUv-0.5; c*=1.-uVin*smoothstep(0.25,0.85,dot(q,q)*2.2);
+        c+=(fract(sin(dot(vUv*1000.+uT,vec2(12.9898,78.233)))*43758.5453)-0.5)*0.012;
+        gl_FragColor=vec4(c,1.); }` });
+  GRADO.material.depthTest=false; GRADO.material.depthWrite=false; composer.addPass(GRADO);
+  const FXAA=new THREE.ShaderPass(THREE.FXAAShader); FXAA.material.depthTest=false; FXAA.material.depthWrite=false; composer.addPass(FXAA);
+  function medir(){ renderer.getDrawingBufferSize(tam); if(tam.x===R.w && tam.y===R.h) return; R.w=tam.x; R.h=tam.y; composer.setSize(tam.x,tam.y); FXAA.material.uniforms.resolution.value.set(1/tam.x,1/tam.y); AO.uniforms.uRes.value.set(tam.x,tam.y); espejo.getRenderTarget().setSize(Math.max(256,Math.round(tam.x*0.4)), Math.max(128,Math.round(tam.y*0.4))); }
+  // ---- Hora del día: sol, cielo, niebla y entorno ----
+  const cDia=new THREE.Color(0xbcd4ea), cTarde=new THREE.Color(0xe6a77a), cMan=new THREE.Color(0xd8dce6), cNoche=new THREE.Color(0x0b1426), cTmp=new THREE.Color(), cSol=new THREE.Color();
+  let ultimaP=-1, dir=dirSol(0.5), cuadro=0;
+  R.cieloVisible=false;
+  nieblas.forEach(n=>{ n.material.envMapIntensity=0; });
+  const arreglados=new WeakSet(); let dondeAnt=null, refresco=0;
+  function refrescarMateriales(){ scene.traverse(o=>{ let ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[]; ms.forEach(m=>{ if(m && !m.isShaderMaterial && !arreglados.has(m) && (m.transparent || m.blending!==THREE.NormalBlending)){ arreglados.add(m); m.needsUpdate=true; } }); }); }
+  R.ambiente=function(){
+    let afuera=donde==='afuera';
+    if(donde!==dondeAnt){ dondeAnt=donde; refresco=2; } if(refresco>0 && --refresco===0) refrescarMateriales();
+    if(afuera && !esNoche){
+      let p=Math.round((1-tiempoRestante/DURACION)*300)/300; if(p!==ultimaP){ ultimaP=p; dir=dirSol(p); cielo.material.uniforms.sunPosition.value.copy(dir); }
+      let bajo=1-THREE.MathUtils.smoothstep(dir.y,0.08,0.5);
+      cielo.material.uniforms.turbidity.value=3.5+bajo*5; cielo.material.uniforms.rayleigh.value=2.2+bajo*1.2;
+      R.cieloVisible=true; scene.background=null;
+      cSol.setHex(0xfff2dc).lerp(cTmp.setHex(0xff9a50),bajo); sol.color.copy(cSol); sol.intensity=2.0-bajo*0.9;
+      amb.intensity*=0.5; scene.environment=bajo>0.6?ENV.tarde:ENV.dia;
+      let man=1-THREE.MathUtils.smoothstep(ultimaP,0.0,0.18);
+      cTmp.copy(cDia).lerp(cTarde,bajo).lerp(cMan,man*0.6); scene.fog.color.copy(cTmp); scene.fog.density=0.0055+man*0.011+bajo*0.005; R.expo=0.8;
+solVisual.visible=false; brilloSol.visible=false;
+      bloom.threshold=1.05; bloom.strength=0.3+bajo*0.25; GRADO.uniforms.uTinte.value.set(1,1,1); GRADO.uniforms.uVin.value=0.28;
+      colocarSol(dir);
+    } else {
+      R.cieloVisible=false;
+      if(afuera){ scene.environment=ENV.noche; scene.fog.color.copy(cNoche); scene.fog.density=0.02; bloom.threshold=0.95; bloom.strength=0.6; R.expo=1; GRADO.uniforms.uTinte.value.set(0.92,0.97,1.12); GRADO.uniforms.uVin.value=0.42; colocarSol(solOff); }
+      else { let luz=(donde==='casa' && panelInstalado); scene.environment=luz?ENV.casaLuz:ENV.interior; scene.fog.density=0.012; R.expo=1; bloom.threshold=1.4; bloom.strength=luz?0.3:0.18; GRADO.uniforms.uTinte.value.set(luz?1.06:0.95,1,luz?0.92:1.05); GRADO.uniforms.uVin.value=0.45; }
+    }
+    cielo.visible=R.cieloVisible; cielo.position.copy(camera.position);
+    grupoCharcos.visible=afuera; espejo.visible=afuera && (cuadro%2===0);
+  };
+  R.render=function(){
+    cuadro++; medir(); uComun.uT.value=performance.now()/1000; GRADO.uniforms.uT.value=cuadro%97;
+    cielo.position.copy(camera.position);
+    AO.uniforms.tDepth.value=rt.depthTexture; AO.uniforms.uNear.value=camera.near; AO.uniforms.uFar.value=camera.far; AO.uniforms.uP.value.set(camera.projectionMatrix.elements[0], camera.projectionMatrix.elements[5]);
+    GRADO.uniforms.uExpo.value=renderer.toneMappingExposure*(R.expo||1);
+    composer.readBuffer=composer.renderTarget1; composer.writeBuffer=composer.renderTarget2; composer.render();
+  };
+  R.apagar=function(){ R.on=false; cielo.visible=false; espejo.visible=false; grupoCharcos.visible=false; scene.environment=null; renderer.toneMapping=THREE.ACESFilmicToneMapping; vistos.forEach(m=>m.needsUpdate=true); scene.traverse(o=>{ if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); } }); cieloActual=''; };
+  R.charcos=grupoCharcos; R.dbg={AO,bloom,GRADO,FXAA,composer,ENV}; R.info=()=>({env:Object.keys(ENV), charcos:grupoCharcos.children.length, rt:[R.w,R.h]});
+  return R;
+})();
+function renderizar(){ if(REAL.on && !calidadAlta) REAL.apagar(); if(REAL.on){ REAL.ambiente(); REAL.render(); } else renderer.render(scene,camera); }
+
 function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"; } } hambre=Math.max(0,hambre-0.003*f); sed=Math.max(0,sed-0.0044*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(keys['ArrowLeft']) yaw+=0.04*f; if(keys['ArrowRight']) yaw-=0.04*f; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.3||nx>100+5.3||nz<-4.3||nz>4.3) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.5||nx>INTERIOR_X+b.iw/2-0.5||nz<-b.idp/2+0.5||nz>b.idp/2-0.5) puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
   if(donde==='afuera' && (Math.abs(px)>LIM_X || Math.abs(pz)>LIM_Z)){ shockCollar(); px=Math.max(-LIM_X+1,Math.min(LIM_X-1,px)); pz=Math.max(-LIM_Z+1,Math.min(LIM_Z-1,pz)); }
   checkPuertas(); checkMueblesCerca(); actualizarManos(); jugador.position.set(px,1.4,pz);
@@ -1240,7 +1404,7 @@ function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahora
   itemsInterior.forEach(o=>{ if(o.it.tomado) return; o.m.rotation.y+=0.03; if(donde==='interior' && Math.abs(px-(INTERIOR_X+o.it.x))<1.3 && Math.abs(pz-o.it.z)<1.3){ o.it.tomado=true; o.m.visible=false; if(o.it.tipo==='comida') invComida++; else invAgua++; sonidoRecoger(); document.getElementById('msg').innerHTML=(o.it.tipo==='comida'?'🍗 ¡Comida! Tienes '+invComida:'💧 ¡Agua! Tienes '+invAgua); } });
   mueblesRobables.forEach((m,i)=>{ if(m.userData.anillo && m.userData.anillo.visible){ m.userData.anillo.material.emissiveIntensity = 0.6+Math.sin(reloj*3+i)*0.5; m.userData.anillo.rotation.z+=0.012; } });
   aplicarAmbiente();
-  if(camaraFrontal){ camera.position.set(px, 2.85, pz); camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.rotation.z=0; } else { camera.position.set(px + Math.sin(yaw)*6, 4, pz + Math.cos(yaw)*6); camera.lookAt(px,1.5,pz); } update(); renderer.render(scene,camera); }
+  if(camaraFrontal){ camera.position.set(px, 2.85, pz); camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.rotation.z=0; } else { camera.position.set(px + Math.sin(yaw)*6, 4, pz + Math.cos(yaw)*6); camera.lookAt(px,1.5,pz); } update(); renderizar(); }
 </script>
 </body>
 </html>

@@ -2238,13 +2238,13 @@ function createVoxelTool(kind, color, scale) {
 // Brazo y herramienta en primera persona.
 function makeViewmodel() {
   const g = new THREE.Group();
-  g.position.set(0.45, -0.55, -0.9);
-  const skin = new THREE.MeshStandardMaterial({ color: 0xe0ac69, roughness: 0.9 });
-  const sleeve = new THREE.MeshStandardMaterial({ color: 0x3f6212, roughness: 0.9 });
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.7), sleeve);  // manga
-  arm.position.set(0, 0, 0.15); arm.userData.humano = true; g.add(arm);
-  const fist = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.34), skin);   // puño al frente
-  fist.position.set(0, 0.01, -0.35); fist.userData.humano = true; g.add(fist);
+  g.position.set(0.42, -0.48, -0.85);
+  const skin = new THREE.MeshStandardMaterial({ color: 0xc48a62, roughness: 0.72 });
+  const sleeve = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.84 });
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.58), sleeve);  // antebrazo, no un bloque
+  arm.position.set(0, 0, 0.12); arm.userData.humano = true; g.add(arm);
+  const fist = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.2), skin);   // mano, más chica que un cubo
+  fist.position.set(0, -0.01, -0.28); fist.userData.humano = true; g.add(fist);
   const mount = new THREE.Group(); mount.position.set(-.04, .04, -.44); mount.rotation.set(-.2, 0, -.22); g.add(mount); g.userData.toolMount = mount;
   return g;
 }
@@ -2291,6 +2291,7 @@ function makePerson(colorBody, colorHead, opciones) {
   const colorPoleron = poleron ? tonoRopa(ROPA_POLERONES) : polera;
   const pelo = variar ? tonoRopa(ROPA_PELOS) : 0x3b2b1f;
   const torso = poleron ? colorPoleron : polera;
+  if (opt.realista) return personaRealista(g, piel, polera);
   const addBox = (w, h, d, col, x, y, z, datos, tipo) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matGente(col, tipo || (datos && datos.parte === 'cabeza' ? 'piel' : 'tela')));
     m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
@@ -2397,9 +2398,66 @@ function makePerson(colorBody, colorHead, opciones) {
   g.userData.ropa = { poleron, polera: torso, pantalon: pants, zapatos: zapatoCol, cortePolera, cortePantalon, corteZapato };
   return g;
 }
+// El jugador: proporciones de una persona (cabeza chica, hombros angostos, cara sin bloques).
+// Los ojos siguen a ~2,11 para que AVATAR_K lo deje en ~1,7 m, igual que la cámara.
+function personaRealista(g, piel, polera) {
+  const pantalon = 0x2c3544, zapato = 0x2a241c, pelo = 0x2a2118;
+  const add = (w, h, d, col, x, y, z, tipo) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matGente(col, tipo || 'tela'));
+    m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+    m.userData.colorBase = col; m.userData.superficie = true; g.add(m); return m;
+  };
+  const bola = (r, col, x, y, z, tipo) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), matGente(col, tipo || 'piel'));
+    m.position.set(x, y, z); m.castShadow = true; g.add(m); return m;
+  };
+  // El pecho y la cara salen hacia +Z, que es hacia donde se camina.
+  // La espalda y la nuca quedan en -Z: de atrás se ve pelo, no la cara.
+  add(0.42, 0.56, 0.2, polera, 0, 1.26, -0.03, 'tela');        // torso, plano por la espalda
+  const pecho = add(0.34, 0.32, 0.12, 0xc5d0dc, 0, 1.36, 0.12, 'tela'); // pecho claro, adelantado
+  pecho.userData.esPecho = true;
+  add(0.04, 0.04, 0.02, 0x1e293b, 0, 1.42, 0.19, 'tela');
+  add(0.04, 0.04, 0.02, 0x1e293b, 0, 1.3, 0.19, 'tela');
+  add(0.54, 0.11, 0.24, polera, 0, 1.54, 0, 'tela');           // hombros
+  add(0.4, 0.14, 0.24, pantalon, 0, 0.92, -0.01, 'tela');      // cadera
+  add(0.12, 0.1, 0.12, piel, 0, 1.66, 0.02, 'piel');           // cuello
+  add(0.28, 0.32, 0.24, piel, 0, 2.0, 0.02, 'piel');           // cráneo
+  add(0.3, 0.08, 0.2, pelo, 0, 2.18, -0.04, 'pelo');           // pelo arriba, sin chasquilla
+  add(0.3, 0.26, 0.1, pelo, 0, 2.02, -0.18, 'pelo');           // nuca, solo atrás
+  for (const sx of [-0.07, 0.07]) {
+    bola(0.032, 0xf7f3ee, sx, 2.06, 0.16, 'piel');             // ojo, por delante del cráneo
+    bola(0.014, 0x1c1917, sx, 2.06, 0.188, 'pelo');            // pupila
+    add(0.08, 0.018, 0.02, 0x3a2a22, sx, 2.13, 0.155, 'pelo'); // ceja
+  }
+  const nariz = add(0.05, 0.08, 0.07, piel, 0, 1.96, 0.2, 'piel');
+  nariz.userData.esNariz = true;
+  add(0.08, 0.02, 0.025, 0x8d4f4a, 0, 1.86, 0.175, 'piel');     // boca
+  for (const sx of [-0.155, 0.155]) add(0.04, 0.08, 0.05, piel, sx, 1.98, 0, 'piel');
+  const limb = (col, w, h, d, x, pivotY) => {
+    const pivot = new THREE.Group(); pivot.position.set(x, pivotY, 0);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matGente(col, 'tela'));
+    m.position.y = -h / 2; m.castShadow = true; m.receiveShadow = true; pivot.add(m); g.add(pivot); return pivot;
+  };
+  const armL = limb(polera, 0.11, 0.56, 0.11, -0.3, 1.52);
+  const armR = limb(polera, 0.11, 0.56, 0.11, 0.3, 1.52);
+  const legL = limb(pantalon, 0.14, 0.76, 0.15, -0.1, 0.84);
+  const legR = limb(pantalon, 0.14, 0.76, 0.15, 0.1, 0.84);
+  for (const brazo of [armL, armR]) {
+    const mano = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), matGente(piel, 'piel'));
+    mano.position.y = -0.62; brazo.add(mano);
+  }
+  for (const pierna of [legL, legR]) {
+    const z = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 0.24), matGente(zapato, 'zapato'));
+    z.position.set(0, -0.8, 0.04); pierna.add(z);
+  }
+  g.userData.limbs = { armL, armR, legL, legR };
+  g.userData.realista = true;
+  g.userData.ropa = { poleron: false, polera, pantalon, zapatos: zapato, cortePolera: 'lisa', cortePantalon: 'recto', corteZapato: 'tenis' };
+  return g;
+}
 
 // Cuerpo visible del jugador para las dos cámaras externas.
-const playerAvatar = makePerson(0x3f6212, 0xe0ac69);
+const playerAvatar = makePerson(0x4a5568, 0xc48a62, { realista: true });
 // El muñeco tiene los ojos a 2,11 y la cámara va a PLAYER_EYE: se achica para que
 // el cuerpo que ves en tercera persona mida lo mismo que tú (~1,9) y quepa en las puertas.
 const AVATAR_K = PLAYER_EYE / 2.11;
@@ -2407,6 +2465,13 @@ playerAvatar.scale.setScalar(AVATAR_K);
 playerAvatar.rotation.order = 'YXZ';   // primero hacia dónde mira, después se inclina (acostado en la cama)
 playerAvatar.visible = false;
 scene.add(playerAvatar);
+// Manta: se prende al acostarse. El cuerpo se gira -90° en X, y ahí el eje local Z
+// queda hacia arriba: la tela es fina en Z y larga a lo largo del cuerpo (eje Y).
+const mantaTela = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.62, 0.07), new THREE.MeshStandardMaterial({ color: 0x9f1239, roughness: 0.9 }));
+mantaTela.position.set(0, 0.86, 0.22); mantaTela.visible = false; mantaTela.castShadow = true; playerAvatar.add(mantaTela);
+const mantaDoblez = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.18, 0.1), new THREE.MeshStandardMaterial({ color: 0xbe123c, roughness: 0.86 }));
+mantaDoblez.position.set(0, 1.6, 0.26); mantaDoblez.visible = false; playerAvatar.add(mantaDoblez);
+playerAvatar.userData.manta = [mantaTela, mantaDoblez];
 
 // ===================================================================
 //  ARMADURA ESTILO MINECRAFT (casco, peto, hombreras, grebas y botas)
@@ -2462,7 +2527,7 @@ function applyPlayerArmor() {
   }
   applyMinecraftArmor(playerAvatar, tier);
   const arm = viewmodel.children[0];   // manga del brazo en 1ª persona
-  if (arm && arm.material) arm.material.color.setHex(tier ? ARMOR_TIERS[tier].color : 0x3f6212);
+  if (arm && arm.material) arm.material.color.setHex(tier ? ARMOR_TIERS[tier].color : 0x4a5568);
   if (!viewmodel.userData.bracer) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(.34, .34, .3), mat(0xd7dde5));
     b.position.set(0, 0, -.16); viewmodel.add(b); viewmodel.userData.bracer = b;
@@ -2923,6 +2988,7 @@ function poseGolpeCuerpo() {
   l.armR.rotation.z = golpe.z;
 }
 let encuadrePolicia = null;
+let fotoCam = null;   // cámara fija para una foto: no la pisa el seguimiento
 function updatePlayerCamera(dt) {
   if (encuadrePolicia) {
     playerAvatar.visible = false; viewmodel.visible = false;
@@ -2948,6 +3014,13 @@ function updatePlayerCamera(dt) {
   poseCuerpoJugador(dt || 0.016);
   poseGolpeCuerpo();
   posarDibujo(playerAvatar);
+  if (fotoCam) {
+    playerAvatar.visible = !state.driving && !state.riding;
+    viewmodel.visible = false;
+    camera.position.set(fotoCam.x, fotoCam.y, fotoCam.z);
+    camera.lookAt(fotoCam.tx, fotoCam.ty, fotoCam.tz);
+    return;
+  }
   if (cuerpoCorre) {
     const malla = playerAvatar.userData.dibujo && playerAvatar.userData.dibujo[0];
     if (malla && malla.userData.reposo && malla.userData.reposo.brazoBlanco) {
@@ -3999,7 +4072,7 @@ const leaderboardBoard = new THREE.Group();
 leaderboardBoard.position.copy(LEADERBOARD_POS); scene.add(leaderboardBoard);
 
 // ===================================================================
-//  LA CIUDAD (casas que no se entran + gente que no te ataca)
+//  LA CIUDAD (casas con interior a escala humana + gente que no te ataca)
 // ===================================================================
 const npcs = [];
 const CITIZEN_NAMES = ['Sofía', 'Mateo', 'Valentina', 'Benjamín', 'Emma', 'Lucas', 'Isidora', 'Tomás', 'Mía', 'Vicente'];
@@ -4036,7 +4109,7 @@ function planDeCasa(maxW = 99, maxD = 99) {
   return {
     tipo: tipo.id, techo: tipo.techo, ala: !!tipo.ala, garaje: !!tipo.garaje, portico: !!tipo.portico,
     w: medida(tipo.w[0], tipo.w[1], maxW), d: medida(tipo.d[0], tipo.d[1], maxD),
-    h1: 4.4 + Math.random() * 1.2,   // la persona mide ~2,4: el piso le queda holgado
+    h1: 2.58 + Math.random() * 0.12,   // piso real: persona de ~1,7 m y puerta de ~2 m
     piso2: Math.random() < tipo.piso2,
     muro: HOUSE_WALLS[Math.floor(Math.random() * HOUSE_WALLS.length)],
     tejas: HOUSE_ROOFS[Math.floor(Math.random() * HOUSE_ROOFS.length)],
@@ -4128,56 +4201,37 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
     g.position.set(x, 0, z); scene.add(g);
     return g;   // sin obstáculo: entras caminando por la puerta y cobras el oro con E
   }
-  const detalle = !preferLowPerf;   // en celular/equipos lentos la casa va simple (si no, son miles de piezas)
-  const cuerpos = [];               // los volúmenes que ocupan sitio (de ahí salen las colisiones)
+  const detalle = !preferLowPerf;   // en celular el interior va simple: cocina, cama y baño
+  const cuerpos = [];
   const caja = (px, py, pz, pw, ph, pd, c, sombra = true) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd), matObra(c));
     m.position.set(px, py, pz); m.castShadow = sombra; m.receiveShadow = true; g.add(m); return m;
   };
-  // El cuerpo principal no siempre ocupa toda la parcela: la casa en L y la del
-  // garaje le dejan sitio al ala de al lado, y la casona deja el frente al pórtico.
   let bw = w, bd = d, bx = 0, bz = 0;
   if (plan.ala) { bw = w * .58; bx = -(w - bw) / 2; }
   if (plan.garaje) { bw = w - 3.6; bx = -(w - bw) / 2; }
   if (plan.portico) { bd = d - 1.7; bz = -(d - bd) / 2; }
   const frente = bz + bd / 2;
-  caja(bx, h1 / 2, bz, bw, h1, bd, col);
-  caja(bx, .21, bz, bw + .18, .42, bd + .18, 0xd4d4d8);   // cimiento gris
-  // Puerta y ventanas (la ventana se arma mirando a +z y se gira para los costados)
-  const ventana = (px, py, pz, ry = 0) => {
-    const v = new THREE.Group(); v.position.set(px, py, pz); v.rotation.y = ry; v.scale.setScalar(1.35); g.add(v);
-    const pon = (pw, ph, pd2, oy, oz, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, pd2), m); o.position.set(0, oy, oz); v.add(o); };
-    if (detalle) pon(1.02, 1.02, .08, 0, .03, mat(0xf4efe6));      // marco blanco
-    pon(.8, .8, .1, 0, .06, new THREE.MeshStandardMaterial({ color: 0x93c5fd, roughness: .12, metalness: .2, emissive: 0x1e3a5f, emissiveIntensity: .22 }));
-    if (detalle) { pon(1.12, .1, .26, -.56, .12, mat(0xf4efe6)); pon(.07, .84, .04, 0, .12, mat(0xf4efe6)); }   // alféizar y cruz
-  };
-  // Puerta de 1,5 × 2,9: más alta que cualquier persona del juego.
-  if (detalle) caja(bx, 1.55, frente + .03, 1.84, 3.1, .08, 0xf4efe6, false);   // marco de la puerta
-  caja(bx, 1.45, frente + .05, 1.5, 2.9, .1, 0x4b5563, false);
-  if (detalle) {
-    const pomo = new THREE.Mesh(new THREE.SphereGeometry(.08, 8, 6), new THREE.MeshStandardMaterial({ color: 0xd4a017, metalness: .8, roughness: .3 }));
-    pomo.position.set(bx + .55, 1.3, frente + .12); g.add(pomo);
-    caja(bx, .08, frente + .4, 2.2, .16, .8, 0xa8a29e, false);   // escalón
-  }
-  const huecos = [];   // cuántas ventanas caben al frente sin pisar la puerta
-  for (let k = 1; k <= Math.floor((bw / 2 - 1.2) / 1.9); k++) huecos.push(-(1.05 + k * 1.9), 1.05 + k * 1.9);
-  for (const hx of huecos) ventana(bx + hx, h1 * .6, frente);
-  for (const sx of [-1, 1]) ventana(bx + sx * (bw / 2), h1 * .6, bz + (bd > 7 ? sx * 1.6 : 0), sx * Math.PI / 2);
-  for (const hx of (huecos.length ? huecos : [0])) ventana(bx + hx, h1 * .6, bz - bd / 2, Math.PI);   // el patio de atrás también se ve
-  // Segundo piso: en las modernas y en las angostas ocupa toda la planta; en el
-  // resto se recoge y deja balcón sobre la puerta.
+  const casco = cascaronDeCasa(g, { bx, bz, bw, bd, h1, col, detalle, frente });
   let topY = h1, topW = bw, topD = bd;
   if (plan.piso2) {
+    // Dos pisos encima del de la calle: desde afuera se ven las hileras de ventanas.
     const lleno = plan.techo === 'plana' || plan.tipo === 'angosta' || plan.tipo === 'casona';
-    const h2 = 3.4 + Math.random() * .8;
+    const h2 = 5.05 + Math.random() * 0.15;
     topW = lleno ? bw : bw * .82; topD = lleno ? bd : bd * .82;
     caja(bx, h1 + h2 / 2, bz, topW, h2, topD, col);
-    if (detalle) caja(bx, h1 + .09, bz, topW + .3, .18, topD + .3, 0xd4d4d8, false);   // cornisa entre pisos
-    for (const hx of (huecos.length ? huecos : [0])) {
-      ventana(bx + hx * .78, h1 + h2 * .55, bz + topD / 2);
-      ventana(bx + hx * .78, h1 + h2 * .55, bz - topD / 2, Math.PI);
+    if (detalle) {
+      caja(bx, h1 + .08, bz, topW + .28, .14, topD + .28, 0xd4d4d8, false);
+      caja(bx, h1 + 2.55, bz, topW + .16, .1, topD + .16, 0xe7e5e4, false);
     }
-    if (detalle && !lleno) {   // balcón corrido sobre la puerta
+    const ox = Math.min(topW * .28, 1.15);
+    ventanaReal(g, bx - ox, h1 + 1.35, bz + topD / 2 + .02, 0, detalle);
+    ventanaReal(g, bx + ox, h1 + 1.35, bz - topD / 2 - .02, Math.PI, detalle);
+    if (detalle) {
+      ventanaReal(g, bx - ox, h1 + 3.85, bz + topD / 2 + .02, 0, true);
+      ventanaReal(g, bx + ox, h1 + 3.85, bz - topD / 2 - .02, Math.PI, true);
+    }
+    if (detalle && !lleno) {
       const balZ = bz + (topD + bd) / 4, balD = (bd - topD) / 2;
       caja(bx, h1 + .2, balZ, topW, .16, balD, 0xe5e7eb, false);
       caja(bx, h1 + .62, balZ + balD / 2, topW, .6, .1, 0xf4f4f5, false);
@@ -4186,30 +4240,29 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
     topY = h1 + h2;
   }
   const cumbrera = techoCasa(g, plan.techo, bx, bz, topW, topD, topY, plan.tejas);
-  if (detalle && plan.chimenea) {   // chimenea con su remate
+  if (detalle && plan.chimenea) {
     const chx = bx + topW * .3, chz = bz - topD * .3;
-    caja(chx, cumbrera - .4, chz, .6, 1.8, .6, 0x9ca3af);
-    caja(chx, cumbrera + .55, chz, .78, .14, .78, 0x6b7280, false);
+    caja(chx, cumbrera - .4, chz, .6, 1.6, .6, 0x9ca3af);
+    caja(chx, cumbrera + .45, chz, .78, .14, .78, 0x6b7280, false);
   }
-  cuerpos.push({ x: bx, z: bz, w: bw, d: bd, top: topY });
-  if (plan.ala) {   // ala lateral más baja: la casa deja de ser un cubo y se ve en L
-    const aw = w - bw, ad = d * .62, ax = bx + bw / 2 + aw / 2, az = (d - ad) / 2, ah = h1 * .85;
+  cuerpos.push({ x: bx, z: bz, w: bw, d: bd, top: topY, soloTecho: true });
+  if (plan.ala) {
+    const aw = w - bw, ad = d * .62, ax = bx + bw / 2 + aw / 2, az = (d - ad) / 2, ah = Math.max(2.45, h1 * .92);
     caja(ax, ah / 2, az, aw, ah, ad, col);
-    caja(ax, .21, az, aw + .18, .42, ad + .18, 0xd4d4d8);
-    ventana(ax, ah * .58, az + ad / 2);
+    caja(ax, .12, az, aw + .12, .24, ad + .12, 0xd4d4d8, false);
+    ventanaReal(g, ax, 1.52, az + ad / 2 + .02, 0, detalle);
     techoCasa(g, 'dosAguas', ax, az, aw, ad, ah, plan.tejas);
     cuerpos.push({ x: ax, z: az, w: aw, d: ad, top: ah });
   }
-  if (plan.garaje) {   // garaje pegado al costado, con portón y entrada de autos
-    const gw2 = 3.4, gd2 = d * .76, gx = bx + bw / 2 + 1.8, gz = (d - gd2) / 2, gh2 = 3.7;
+  if (plan.garaje) {
+    const gw2 = 3.4, gd2 = d * .76, gx = bx + bw / 2 + 1.8, gz = (d - gd2) / 2, gh2 = 2.55;
     caja(gx, gh2 / 2, gz, gw2, gh2, gd2, col);
-    caja(gx, gh2 + .15, gz, gw2 + .5, .3, gd2 + .5, plan.tejas);
-    caja(gx, 1.5, gz + gd2 / 2 + .07, gw2 - .7, 3, .14, 0x9ca3af, false);
-    if (detalle) for (let i = 0; i < 5; i++) caja(gx, .4 + i * .58, gz + gd2 / 2 + .16, gw2 - .8, .09, .04, 0x94a3b8, false);
+    caja(gx, gh2 + .12, gz, gw2 + .4, .24, gd2 + .4, plan.tejas);
+    caja(gx, 1.1, gz + gd2 / 2 + .07, gw2 - .7, 2.1, .12, 0x9ca3af, false);
+    if (detalle) for (let i = 0; i < 4; i++) caja(gx, .32 + i * .46, gz + gd2 / 2 + .15, gw2 - .85, .07, .04, 0x94a3b8, false);
     caja(gx, .05, gz + gd2 / 2 + 1.2, gw2 + .3, .1, 2.2, 0xb8b2a6, false);
     cuerpos.push({ x: gx, z: gz, w: gw2, d: gd2, top: gh2 });
   }
-  // Patio de atrás, del lado opuesto a la puerta: deck gris y piscina.
   {
     const fondo = Math.min(...cuerpos.map(c => c.z - c.d / 2));
     const largo = 2.15, ancho = Math.min(3.05, Math.max(2.1, bw * .58));
@@ -4219,31 +4272,545 @@ function makeCityHouse(x, z, golden, rot = 0, maxW = 7.5, maxD = 7.5, plan = nul
     agua.position.set(bx, .16, pz); g.add(agua);
     if (detalle) caja(bx, .22, pz + largo / 2 - .15, .7, .08, .35, 0xf8fafc, false);
   }
-  if (plan.portico) {   // pórtico con columnas: la casona se ve señorial
+  if (plan.portico) {
     const pz = frente + .85;
     caja(bx, .12, pz, bw * .94, .24, 1.7, 0xd6cdbb, false);
     for (const sx of [-1, 1]) for (const f of [.42, .16]) {
       const cxp = bx + sx * bw * f;
-      const colu = new THREE.Mesh(new THREE.CylinderGeometry(.22, .26, h1 - .1, 10), matObra(0xf2ece0));
-      colu.position.set(cxp, (h1 - .1) / 2 + .24, pz + .55); colu.castShadow = true; g.add(colu);
+      const colu = new THREE.Mesh(new THREE.CylinderGeometry(.16, .2, h1 - .15, 10), matObra(0xf2ece0));
+      colu.position.set(cxp, (h1 - .15) / 2 + .2, pz + .55); colu.castShadow = true; g.add(colu);
     }
-    caja(bx, h1 + .1, pz, bw * .98, .34, 2.1, plan.tejas);
+    caja(bx, h1 + .08, pz, bw * .98, .28, 2.1, plan.tejas);
   }
   g.position.set(x, 0, z); scene.add(g);
-  // pista secreta: la del tesoro es la ÚNICA en la que puedes entrar (las demás te bloquean)
   if (!golden) {
     const grupo = 'casa' + (++houseSerial);   // las piezas de UNA misma casa sí pueden tocarse
     const cs = Math.cos(rot), sn = Math.sin(rot), girada = Math.abs(cs) < .5;
-    for (const c of cuerpos) {
-      const wx = x + c.x * cs + c.z * sn, wz = z - c.x * sn + c.z * cs;   // el grupo va rotado en Y
+    const poner = (c, techo) => {
+      const wx = x + c.x * cs + c.z * sn, wz = z - c.x * sn + c.z * cs;
       const cw = girada ? c.d : c.w, cd = girada ? c.w : c.d;
-      addObstacle(wx, wz, cw, cd, c.top, grupo);
-      addLandingSurface(wx, wz, cw * 1.08, cd * 1.08, c.top + .2, g);   // te puedes parar en el techo
-    }
+      if (!c.soloTecho) addObstacle(wx, wz, cw, cd, c.top, grupo);
+      if (techo) addLandingSurface(wx, wz, cw * 1.08, cd * 1.08, c.top + .2, g);
+    };
+    for (const c of casco.piezas) poner(c, false);
+    for (const c of cuerpos) poner(c, true);
+    registrarCasaCiudad(g, x, z, rot, grupo, casco, { bx, bz, bw, bd, h1 });
   }
   g.userData.plan = plan;
   return g;
 }
+
+// ---- INTERIOR DE LAS CASAS (ciudad y la tuya) -----------------------
+// Cascarón hueco a escala humana. Los muebles se arman al acercarte.
+// En celular (preferLowPerf) queda cocina + cama + baño, sin el detalle fino.
+const CASA_MURO = 0.18;
+const CASA_VANO = 1.18;
+const casasCiudad = [];
+const entradasCasaPend = [];
+let entradasCasaListas = false;
+let casaAmueblada = null;
+const casaMats = new Map();
+function casaMat(color, opts) {
+  const key = color + (opts ? JSON.stringify(opts) : '');
+  let m = casaMats.get(key);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.84, metalness: 0.04 }, opts || {}));
+    casaMats.set(key, m);
+  }
+  return m;
+}
+let casaVidrioMat = null;
+function vidrioCasa() {
+  if (!casaVidrioMat) casaVidrioMat = new THREE.MeshStandardMaterial({
+    color: 0xb9d7ee, roughness: 0.08, metalness: 0.12, transparent: true, opacity: 0.42,
+    emissive: 0x1e3a5f, emissiveIntensity: 0.1,
+  });
+  return casaVidrioMat;
+}
+function disenoCasa(bw, bd, margen) {
+  const t = margen == null ? 0.22 : margen;
+  const x0 = -bw / 2 + t, x1 = bw / 2 - t, z0 = -bd / 2 + t, z1 = bd / 2 - t;
+  const iw = x1 - x0, id = z1 - z0, muros = [];
+  const muroX = (z, xa, xb, puertaEn) => {
+    if (xb - xa < 0.25) return;
+    muros.push({ x: (xa + xb) / 2, z, w: +(xb - xa).toFixed(4), d: 0.1, puerta: puertaEn == null ? null : puertaEn - (xa + xb) / 2 });
+  };
+  const muroZ = (x, za, zb, puertaEn) => {
+    if (zb - za < 0.25) return;
+    muros.push({ x, z: (za + zb) / 2, w: 0.1, d: +(zb - za).toFixed(4), puerta: puertaEn == null ? null : puertaEn - (za + zb) / 2 });
+  };
+  let banio, pieza, cocina, living;
+  if (iw >= 5.3 && id >= 5.2) {
+    // Cuatro cuartos: atrás baño | dormitorio, adelante cocina | living.
+    // El dormitorio queda hondo para que la cama de 2 m apoye en el muro y se pueda pasar.
+    const fondo = Math.min(id - 2.85, Math.max(3.05, id * 0.45)), zDiv = z0 + fondo;
+    const bW = Math.min(2.35, Math.max(1.85, iw * 0.32));
+    banio = { x0, x1: x0 + bW, z0, z1: zDiv };
+    pieza = { x0: x0 + bW, x1, z0, z1: zDiv };
+    // El vano al fondo cae en el dormitorio: detrás de la cocina el muro queda cerrado
+    // y la heladera puede ir pegada a la esquina.
+    muroX(zDiv, x0, x1, (pieza.x0 + pieza.x1) / 2);
+    muroZ(x0 + bW, z0, zDiv, (z0 + zDiv) / 2);
+    const cW = Math.min(2.7, Math.max(2.05, iw * 0.38)), xDiv = x0 + cW;
+    cocina = { x0, x1: xDiv, z0: zDiv + 0.08, z1: z1 - 0.08 };
+    living = { x0: xDiv + 0.08, x1, z0: zDiv + 0.08, z1: z1 - 0.08 };
+    muroZ(xDiv + 0.04, zDiv, z1, (zDiv + z1) / 2);
+  } else if (id >= 6.1 && iw < 5.3) {
+    const fondo = Math.min(2.5, Math.max(2.2, id * 0.34));
+    const medio = Math.min(2.15, Math.max(1.75, (id - fondo) * 0.48));
+    const zA = z0 + fondo, zB = Math.min(z1 - 1.35, zA + medio);
+    muroX(zA, x0, x1, 0); muroX(zB, x0, x1, 0);
+    pieza = { x0, x1, z0, z1: zA };
+    const bW = Math.min(2.05, Math.max(1.55, iw * 0.46));
+    banio = { x0, x1: x0 + bW, z0: zA, z1: zB };
+    cocina = { x0: x0 + bW + 0.08, x1, z0: zA, z1: zB };
+    muroZ(x0 + bW, zA, zB, (zA + zB) / 2);
+    living = { x0, x1, z0: zB + 0.1, z1: z1 - 0.1 };
+  } else {
+    const bW = Math.min(1.65, Math.max(1.35, iw * 0.4));
+    const bD = Math.min(1.5, Math.max(1.3, Math.min(id * 0.38, id - 2.15)));
+    banio = { x0, x1: x0 + bW, z0, z1: z0 + bD };
+    muroZ(x0 + bW, z0, banio.z1, (z0 + banio.z1) / 2);
+    muroX(banio.z1, x0, banio.x1, null);
+    pieza = { x0: banio.x1 + 0.08, x1, z0, z1: z0 + Math.max(bD, Math.min(2.15, id * 0.55)) };
+    cocina = { x0, x1: x0 + Math.max(bW, Math.min(2.3, iw * 0.55)), z0: banio.z1 + 0.08, z1: z1 - 1.05 };
+    if (cocina.z1 - cocina.z0 < 0.85) cocina.z1 = Math.min(z1 - 0.85, cocina.z0 + 1.15);
+    living = { x0: cocina.x1 + 0.05, x1, z0: pieza.z1 + 0.05, z1: z1 - 0.15 };
+  }
+  return {
+    iw, id, interior: { x0, x1, z0, z1 }, muros, banio, pieza, cocina, living,
+    claro: { minX: -0.7, maxX: 0.7, minZ: z1 - 1.15, maxZ: z1 + 0.02 },
+    spawn: { x: 0, z: Math.min(z1 - 0.85, z1 - 0.7) },
+  };
+}
+function agregarMueble(out, claro, zona, tipo, x, z, w, d) {
+  const a = { minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 };
+  if (a.minX < zona.x0 - 1e-6 || a.maxX > zona.x1 + 1e-6 || a.minZ < zona.z0 - 1e-6 || a.maxZ > zona.z1 + 1e-6) return false;
+  const pisa = a.maxX > claro.minX + 0.04 && a.minX < claro.maxX - 0.04 && a.maxZ > claro.minZ + 0.04 && a.minZ < claro.maxZ - 0.04;
+  if (pisa) return false;
+  if (out.some(o => a.maxX > o.x - o.w / 2 + 0.04 && a.minX < o.x + o.w / 2 - 0.04 && a.maxZ > o.z - o.d / 2 + 0.04 && a.minZ < o.z + o.d / 2 - 0.04)) return false;
+  out.push({ tipo, x, z, w, d });
+  return true;
+}
+function mueblesDe(d) {
+  const out = [], c = d.cocina;
+  if (c && c.x1 - c.x0 >= 0.85 && c.z1 - c.z0 >= 0.7) {
+    const aw = c.x1 - c.x0, ad = c.z1 - c.z0;
+    const prof = Math.min(0.62, Math.min(aw, ad) - 0.06), fw = 0.68, fd = 0.66;
+    if (ad >= aw) {
+      const L = Math.min(2.3, Math.max(0.9, ad - fw - 0.12));
+      const x = c.x0 + prof / 2, z = c.z1 - L / 2 - 0.03;
+      agregarMueble(out, d.claro, c, 'refri', c.x0 + fw / 2 + 0.02, c.z0 + fd / 2 + 0.02, fw, fd);
+      if (!agregarMueble(out, d.claro, c, 'meson', x, z, prof, L)) agregarMueble(out, d.claro, c, 'meson', c.x1 - prof / 2, z, prof, Math.min(L, ad - 0.08));
+    } else {
+      const L = Math.min(2.4, Math.max(0.9, aw - fw - 0.12));
+      const z = c.z0 + prof / 2, x = c.x1 - L / 2 - 0.03;
+      agregarMueble(out, d.claro, c, 'refri', c.x0 + fw / 2 + 0.02, c.z0 + fd / 2 + 0.02, fw, fd);
+      if (!agregarMueble(out, d.claro, c, 'meson', x, z, L, prof)) agregarMueble(out, d.claro, c, 'meson', x, c.z1 - prof / 2, Math.min(L, aw - fw - 0.1), prof);
+    }
+    if (!out.some(o => o.tipo === 'refri')) agregarMueble(out, d.claro, c, 'refri', c.x1 - 0.32, c.z1 - 0.32, 0.58, 0.56);
+  }
+  const p = d.pieza;
+  if (p && p.x1 - p.x0 >= 0.85 && p.z1 - p.z0 >= 0.7) {
+    const pw = p.x1 - p.x0, pd = p.z1 - p.z0;
+    if (pw >= 2 && pd >= 1.4) agregarMueble(out, d.claro, p, 'cama', (p.x0 + p.x1) / 2, p.z0 + 0.75, 2, 1.4);
+    else if (pd >= 2 && pw >= 1.4) agregarMueble(out, d.claro, p, 'cama', p.x1 - 0.74, (p.z0 + p.z1) / 2, 1.4, 2);
+    else agregarMueble(out, d.claro, p, 'cama', (p.x0 + p.x1) / 2, p.z0 + Math.min(1.4, pd - 0.08) / 2, Math.min(2, pw - 0.08), Math.min(1.4, pd - 0.08));
+  }
+  const b = d.banio;
+  if (b && b.x1 - b.x0 >= 0.85 && b.z1 - b.z0 >= 0.7) {
+    agregarMueble(out, d.claro, b, 'inodoro', b.x0 + 0.28, (b.z0 + b.z1) / 2, 0.4, 0.52);
+    agregarMueble(out, d.claro, b, 'lavamanos', b.x1 - 0.28, b.z0 + 0.28, 0.46, 0.38);
+    if (b.x1 - b.x0 >= 1.7 && b.z1 - b.z0 >= 1.7) agregarMueble(out, d.claro, b, 'ducha', b.x1 - 0.48, b.z1 - 0.48, 0.8, 0.8);
+  }
+  const L = d.living;
+  if (L && L.x1 - L.x0 >= 0.85 && L.z1 - L.z0 >= 0.7) {
+    // Contra el muro que separa el living del dormitorio, no en el medio del cuarto.
+    agregarMueble(out, d.claro, L, 'silla', (L.x0 + L.x1) / 2, L.z0 + 0.3, 0.46, 0.46);
+  }
+  return out;
+}
+function muroConVano(g, cx, cz, w, d, h, material, vanoOff, vanoAncho, piezas) {
+  const largoX = w >= d, largo = largoX ? w : d, grosor = largoX ? d : w;
+  const poner = (centro, ancho) => {
+    if (ancho < 0.08) return;
+    const ox = largoX ? centro : 0, oz = largoX ? 0 : centro;
+    const ww = largoX ? ancho : grosor, dd = largoX ? grosor : ancho;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(ww, h, dd), material);
+    m.position.set(cx + ox, h / 2, cz + oz); m.castShadow = true; m.receiveShadow = true; g.add(m);
+    piezas.push({ x: cx + ox, z: cz + oz, w: ww, d: dd, top: h });
+  };
+  if (!(vanoAncho > 0)) { poner(0, largo); return; }
+  const c = vanoOff || 0, mitad = vanoAncho / 2;
+  const izq = c - mitad + largo / 2, der = largo / 2 - (c + mitad);
+  if (izq > 0.08) poner((-largo / 2 + (c - mitad)) / 2, izq);
+  if (der > 0.08) poner(((c + mitad) + largo / 2) / 2, der);
+  const altoHueco = Math.min(2.05, h - 0.08), resto = h - altoHueco;
+  if (resto > 0.06) {
+    const ww = largoX ? vanoAncho : grosor, dd = largoX ? grosor : vanoAncho;
+    const lin = new THREE.Mesh(new THREE.BoxGeometry(ww, resto, dd), material);
+    lin.position.set(cx + (largoX ? c : 0), altoHueco + resto / 2, cz + (largoX ? 0 : c));
+    lin.castShadow = true; lin.receiveShadow = true; g.add(lin);
+  }
+}
+function ventanaReal(g, x, y, z, ry, detalle) {
+  const v = new THREE.Group(); v.position.set(x, y, z); v.rotation.y = ry || 0; g.add(v);
+  const vidrio = new THREE.Mesh(new THREE.BoxGeometry(0.86, 1.1, 0.04), vidrioCasa());
+  vidrio.position.z = 0.02; v.add(vidrio);
+  if (!detalle) return v;
+  const marco = casaMat(0xf4efe6);
+  const pon = (w, h, d, oy, oz) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), marco);
+    m.position.set(0, oy, oz); v.add(m);
+  };
+  pon(0.98, 0.06, 0.08, 0.58, 0.03); pon(0.98, 0.06, 0.08, -0.58, 0.03);
+  pon(0.06, 1.16, 0.08, 0, 0.03); pon(0.04, 1.1, 0.03, 0, 0.05);
+  pon(1.05, 0.06, 0.14, -0.64, 0.05);
+  return v;
+}
+function ponerPuertaCasa(g, bx, frente, detalle) {
+  const bisagra = new THREE.Group();
+  bisagra.position.set(bx - CASA_VANO / 2 + 0.04, 0, frente - CASA_MURO - 0.02);
+  const ancho = 0.86, alto = 2.05, grosor = 0.045;
+  const hoja = new THREE.Mesh(new THREE.BoxGeometry(ancho, alto, grosor), casaMat(0x6b3f2a));
+  hoja.position.set(ancho / 2, alto / 2, 0); hoja.castShadow = true; bisagra.add(hoja);
+  if (detalle) {
+    for (const py of [0.55, 1.45]) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(ancho * 0.7, 0.62, 0.02), casaMat(0x8a5a3b));
+      p.position.set(ancho / 2, py, grosor / 2 + 0.01); bisagra.add(p);
+    }
+    const pomo = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), casaMat(0xd4a017, { metalness: 0.75, roughness: 0.3 }));
+    pomo.position.set(ancho - 0.1, 1.0, grosor / 2 + 0.04); bisagra.add(pomo);
+  }
+  bisagra.rotation.y = 1.2;
+  g.add(bisagra);
+  const marco = casaMat(0xf4efe6);
+  for (const ox of [-1, 1]) {
+    const j = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.12, 0.08), marco);
+    j.position.set(bx + ox * (CASA_VANO / 2 + 0.02), 1.06, frente - 0.02); g.add(j);
+  }
+  const dintel = new THREE.Mesh(new THREE.BoxGeometry(CASA_VANO + 0.16, 0.08, 0.08), marco);
+  dintel.position.set(bx, 2.14, frente - 0.02); g.add(dintel);
+}
+function cascaronDeCasa(g, o) {
+  const { bx, bz, bw, bd, h1, col, detalle, frente } = o;
+  const piezas = [], ext = matObra(col), pintura = casaMat(0xf7f4ee);
+  const t = CASA_MURO;
+  muroConVano(g, bx, frente - t / 2, bw, t, h1, ext, 0, CASA_VANO, piezas);
+  muroConVano(g, bx, bz - bd / 2 + t / 2, bw, t, h1, ext, 0, 0, piezas);
+  muroConVano(g, bx - bw / 2 + t / 2, bz, t, bd, h1, ext, 0, 0, piezas);
+  muroConVano(g, bx + bw / 2 - t / 2, bz, t, bd, h1, ext, 0, 0, piezas);
+  ponerPuertaCasa(g, bx, frente, detalle);
+  const yv = 1.52, ox = Math.min(bw / 2 - 0.62, CASA_VANO / 2 + 0.9);
+  if (ox >= CASA_VANO / 2 + 0.5) {
+    ventanaReal(g, bx - ox, yv, frente + 0.03, 0, detalle);
+    ventanaReal(g, bx + ox, yv, frente + 0.03, 0, detalle);
+    if (bd > 5.2) {
+      ventanaReal(g, bx - ox * 0.8, yv, bz - bd / 2 - 0.03, Math.PI, detalle);
+      ventanaReal(g, bx + ox * 0.8, yv, bz - bd / 2 - 0.03, Math.PI, detalle);
+    } else ventanaReal(g, bx, yv, bz - bd / 2 - 0.03, Math.PI, detalle);
+  }
+  if (detalle && bd > 5) {
+    ventanaReal(g, bx - bw / 2 - 0.03, yv, bz, -Math.PI / 2, true);
+    ventanaReal(g, bx + bw / 2 + 0.03, yv, bz, Math.PI / 2, true);
+  }
+  const diseno = disenoCasa(bw, bd);
+  const inn = diseno.interior;
+  const piso = (zona, y, color) => {
+    if (!zona) return;
+    const w = zona.x1 - zona.x0, d = zona.z1 - zona.z0;
+    if (w < 0.3 || d < 0.3) return;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), casaMat(color));
+    m.position.set(bx + (zona.x0 + zona.x1) / 2, y, bz + (zona.z0 + zona.z1) / 2);
+    m.receiveShadow = true; m.castShadow = false; g.add(m);
+  };
+  piso(inn, 0.03, 0xb08968);
+  piso(diseno.cocina, 0.055, 0xe7e5e4);
+  piso(diseno.banio, 0.055, 0xe7e5e4);
+  for (const muro of diseno.muros) {
+    const conPuerta = muro.puerta != null;
+    muroConVano(g, bx + muro.x, bz + muro.z, muro.w, muro.d, h1 - 0.06, pintura, conPuerta ? muro.puerta : 0, conPuerta ? CASA_VANO : 0, piezas);
+  }
+  const te = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.4, bw - 0.2), 0.05, Math.max(0.4, bd - 0.2)), casaMat(0xf8fafc));
+  te.position.set(bx, h1 - 0.04, bz); te.castShadow = false; te.receiveShadow = true; g.add(te);
+  const zocalo = casaMat(0xd4d4d8), banda = (px, pz, pw, pd) => {
+    if (pw < 0.08 || pd < 0.08) return;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(pw, 0.22, pd), zocalo);
+    m.position.set(px, 0.11, pz); m.receiveShadow = true; g.add(m);
+  };
+  banda(bx, bz - bd / 2 - 0.04, bw + 0.16, 0.14);
+  banda(bx - bw / 2 - 0.04, bz, 0.14, bd);
+  banda(bx + bw / 2 + 0.04, bz, 0.14, bd);
+  const hueco = CASA_VANO + 0.15, resto = (bw + 0.16 - hueco) / 2;
+  if (resto > 0.1) {
+    banda(bx - hueco / 2 - resto / 2, frente + 0.04, resto, 0.14);
+    banda(bx + hueco / 2 + resto / 2, frente + 0.04, resto, 0.14);
+  }
+  return { piezas, diseno, alto: h1 };
+}
+function anotarEntrada(en) {
+  if (entradasCasaListas) ENTRADAS.push(en);
+  else entradasCasaPend.push(en);
+}
+function soltarEntradasCasa() {
+  entradasCasaListas = true;
+  for (const en of entradasCasaPend) ENTRADAS.push(en);
+  entradasCasaPend.length = 0;
+}
+function registrarCasaCiudad(g, x, z, rot, grupo, casco, cuerpo) {
+  const mundo = (lx, lz) => {
+    const c = Math.cos(rot), s = Math.sin(rot);
+    return { x: x + lx * c + lz * s, z: z - lx * s + lz * c };
+  };
+  const fuera = mundo(cuerpo.bx, cuerpo.bz + cuerpo.bd / 2 + 1.55);
+  const spawn = casco.diseno.spawn;
+  const dentro = mundo(cuerpo.bx + spawn.x, cuerpo.bz + spawn.z);
+  const puerta = mundo(cuerpo.bx, cuerpo.bz + cuerpo.bd / 2);
+  const casa = {
+    grupo: g, rot, wx: x, wz: z, grupoChoque: grupo,
+    bx: cuerpo.bx, bz: cuerpo.bz, bw: cuerpo.bw, bd: cuerpo.bd, alto: casco.alto,
+    diseno: casco.diseno, amoblado: false, obs: [], muebles: null, luz: null, persona: null, puerta,
+  };
+  const en = {
+    nombre: 'casa', casa,
+    textoEntrar: 'Entrar a la casa', textoSalir: 'Salir a la calle',
+    avisoEntrar: '🚪 Entraste a la casa · E en la puerta para salir',
+    avisoSalir: '🚪 Saliste a la calle',
+    a: { x: fuera.x, y: 0, z: fuera.z, yaw: rot + Math.PI },
+    b: { x: dentro.x, y: 0, z: dentro.z, yaw: rot },
+  };
+  casa.entrada = en;
+  anotarEntrada(en);
+  casasCiudad.push(casa);
+  g.userData.casa = casa;
+  const c = mundo(cuerpo.bx, cuerpo.bz);
+  const girada = Math.abs(Math.cos(rot)) < 0.5;
+  addNoGrassZone(c.x, c.z, girada ? cuerpo.bd : cuerpo.bw, girada ? cuerpo.bw : cuerpo.bd);
+}
+function dibujarMueble(g, it, x, z, simple) {
+  const gr = new THREE.Group(); gr.position.set(x, 0, z); gr.userData.tipoMueble = it.tipo;
+  const box = (px, py, pz, w, h, d, col, opts) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), casaMat(col, opts));
+    m.position.set(px, py, pz); m.castShadow = !simple; m.receiveShadow = true; gr.add(m); return m;
+  };
+  if (it.tipo === 'meson') {
+    box(0, 0.42, 0, it.w, 0.84, it.d, 0xf4f1ea);
+    const tapa = box(0, 0.9, 0, it.w + 0.02, 0.06, it.d + 0.02, 0x4b5563);
+    tapa.userData.esCocina = true;
+    const largoX = it.w >= it.d, L = Math.max(it.w, it.d), prof = Math.min(it.w, it.d);
+    if (L >= 0.95) {
+      const stove = Math.min(0.52, L * 0.4);
+      const sx = largoX ? -L / 2 + stove / 2 + 0.05 : 0;
+      const sz = largoX ? 0 : -L / 2 + stove / 2 + 0.05;
+      box(sx, 0.945, sz, largoX ? stove : prof * 0.72, 0.02, largoX ? prof * 0.72 : stove, 0x111827);
+      if (!simple) {
+        for (const [ox, oz] of [[-0.1, -0.08], [0.1, -0.08], [-0.1, 0.08], [0.1, 0.08]]) {
+          const q = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.02, 8), casaMat(0x1f2937, { metalness: 0.4 }));
+          q.position.set(sx + (largoX ? ox : oz), 0.96, sz + (largoX ? oz : ox)); gr.add(q);
+        }
+      }
+      const frenteCara = largoX ? it.d / 2 : it.w / 2;
+      if (largoX) box(sx, 0.38, Math.sign(it.d) * (it.d / 2), stove * 0.8, 0.4, 0.02, 0x374151);
+      else box(Math.sign(it.w) * (it.w / 2), 0.38, sz, 0.02, 0.4, stove * 0.8, 0x374151);
+      if (L >= 1.05) {
+        const sink = Math.min(0.4, L * 0.3);
+        const kx = largoX ? L / 2 - sink / 2 - 0.06 : 0;
+        const kz = largoX ? 0 : L / 2 - sink / 2 - 0.06;
+        box(kx, 0.94, kz, largoX ? sink : prof * 0.5, 0.025, largoX ? prof * 0.5 : sink, 0x9ca3af, { metalness: 0.55, roughness: 0.28 });
+        if (!simple) box(kx, 1.05, kz, 0.03, 0.14, 0.03, 0xd1d5db, { metalness: 0.7, roughness: 0.25 });
+      }
+      void frenteCara;
+    }
+  } else if (it.tipo === 'refri') {
+    const cuerpo = box(0, 0.88, 0, it.w, 1.76, it.d, 0xf8fafc);
+    cuerpo.userData.esCocina = true;
+    if (!simple) {
+      box(it.w * 0.28, 1.25, it.d / 2 + 0.02, 0.035, 0.32, 0.03, 0x9ca3af, { metalness: 0.55 });
+      box(it.w * 0.28, 0.5, it.d / 2 + 0.02, 0.035, 0.32, 0.03, 0x9ca3af, { metalness: 0.55 });
+    }
+  } else if (it.tipo === 'cama') {
+    gr.userData.esCama = true;
+    box(0, 0.16, 0, it.w, 0.28, it.d, 0x8b5a2b);
+    box(0, 0.36, 0, it.w - 0.08, 0.14, it.d - 0.06, 0xf8fafc);
+    const aLoLargo = it.d >= it.w;
+    box(aLoLargo ? -it.w / 2 + 0.22 : 0, 0.48, aLoLargo ? 0 : -it.d / 2 + 0.22, aLoLargo ? 0.36 : it.w * 0.62, 0.08, aLoLargo ? it.d * 0.5 : 0.36, 0xe5e7eb);
+    if (!simple) box(0, 0.42, aLoLargo ? 0.12 : 0.15, it.w * 0.9, 0.06, it.d * 0.45, 0x1d4ed8);
+  } else if (it.tipo === 'inodoro') {
+    box(0, 0.2, 0, 0.36, 0.36, 0.48, 0xf8fafc);
+    box(0, 0.4, -0.02, 0.34, 0.05, 0.4, 0xf1f5f9);
+    box(0, 0.55, -0.16, 0.3, 0.28, 0.16, 0xf8fafc);
+  } else if (it.tipo === 'lavamanos') {
+    box(0, 0.4, 0, 0.14, 0.8, 0.14, 0xf8fafc);
+    box(0, 0.84, 0, 0.42, 0.08, 0.32, 0xf8fafc);
+    if (!simple) box(0, 1.02, -0.06, 0.03, 0.16, 0.03, 0xd1d5db, { metalness: 0.65, roughness: 0.3 });
+  } else if (it.tipo === 'silla' && !simple) {
+    box(0, 0.425, 0, 0.4, 0.05, 0.4, 0x92400e);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(sx * 0.16, 0.2, sz * 0.16, 0.04, 0.4, 0.04, 0x78350f);
+    box(0, 0.7, -0.18, 0.4, 0.4, 0.04, 0x92400e);
+  } else if (it.tipo === 'ducha' && !simple) {
+    box(0, 0.04, 0, 0.78, 0.06, 0.78, 0xe5e7eb);
+    box(0, 1.0, -0.38, 0.78, 1.9, 0.03, 0xdbeafe, { transparent: true, opacity: 0.35 });
+  }
+  g.add(gr);
+  return gr;
+}
+function obstaculoEnCasa(casa, lx, lz, w, d, top) {
+  const rot = casa.rot, cs = Math.cos(rot), sn = Math.sin(rot);
+  const wx = casa.wx + lx * cs + lz * sn, wz = casa.wz - lx * sn + lz * cs;
+  const girada = Math.abs(cs) < 0.5;
+  return addObstacle(wx, wz, girada ? d : w, girada ? w : d, top, casa.grupoChoque);
+}
+function amoblarCasa(casa) {
+  if (!casa || casa.amoblado) return;
+  casa.amoblado = true;
+  const g = new THREE.Group(); casa.grupo.add(g); casa.muebles = g;
+  const simple = !!preferLowPerf;
+  const lista = mueblesDe(casa.diseno);
+  for (const it of lista) {
+    if (simple && (it.tipo === 'silla' || it.tipo === 'ducha')) continue;
+    const px = casa.bx + it.x, pz = casa.bz + it.z;
+    dibujarMueble(g, it, px, pz, simple);
+    const alto = it.tipo === 'meson' ? 0.9 : it.tipo === 'refri' ? 1.75 : it.tipo === 'cama' ? 0.5 : it.tipo === 'inodoro' ? 0.7 : 0;
+    if (alto) casa.obs.push(obstaculoEnCasa(casa, px, pz, it.w, it.d, alto));
+  }
+  const luz = new THREE.PointLight(0xfff1d6, simple ? 0.65 : 0.95, 8, 1.6);
+  luz.position.set(casa.bx, casa.alto - 0.45, casa.bz);
+  casa.grupo.add(luz); casa.luz = luz;
+  if (!simple) {
+    const L = casa.diseno.living;
+    if (L && L.x1 - L.x0 > 1.2 && L.z1 - L.z0 > 1) {
+      const p = makePerson(null, null, { variar: true });
+      p.scale.setScalar(AVATAR_K);
+      p.position.set(casa.bx + (L.x0 + L.x1) / 2, 0, casa.bz + L.z0 + 0.55);
+      casa.grupo.add(p); casa.persona = p;
+    }
+  }
+}
+function desamoblarCasa(casa) {
+  if (!casa || !casa.amoblado) return;
+  if (casa.muebles) {
+    casa.grupo.remove(casa.muebles);
+    casa.muebles.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    casa.muebles = null;
+  }
+  if (casa.luz) { casa.grupo.remove(casa.luz); casa.luz = null; }
+  if (casa.persona) { casa.grupo.remove(casa.persona); casa.persona = null; }
+  for (const o of casa.obs) { const i = obstacles.indexOf(o); if (i >= 0) obstacles.splice(i, 1); }
+  casa.obs = []; casa.amoblado = false;
+}
+function updateCasasInterior() {
+  if (!casasCiudad.length) return;
+  const enTierra = state.planet === 'tierra' && state.running && !state.country;
+  if (!enTierra) {
+    if (casaAmueblada) { desamoblarCasa(casaAmueblada); casaAmueblada = null; }
+    return;
+  }
+  const px = player.position.x, pz = player.position.z;
+  let best = null, md = 14;
+  for (const c of casasCiudad) {
+    const d = Math.hypot(c.puerta.x - px, c.puerta.z - pz);
+    if (d < md) { md = d; best = c; }
+  }
+  if (casaAmueblada && casaAmueblada !== best) { desamoblarCasa(casaAmueblada); casaAmueblada = null; }
+  if (best) { amoblarCasa(best); casaAmueblada = best; }
+}
+// La casa que TÚ construyes (paredes + techo colocados): mismo interior, adentro del volumen.
+let casaJugadorGrupo = null, casaJugadorFirma = '', casaJugadorSolidos = [], casaJugadorCesped = null;
+function firmaCasaJugador() {
+  const piezas = [];
+  for (const o of placed) {
+    if (o.key === 'roof' || (o.key && o.key.indexOf('wall') === 0) || o.key === 'door') piezas.push(o.key + '@' + o.mesh.position.x.toFixed(1) + ',' + o.mesh.position.z.toFixed(1));
+  }
+  piezas.sort();
+  return piezas.join('|');
+}
+function soltarCasaJugador() {
+  if (casaJugadorGrupo) {
+    scene.remove(casaJugadorGrupo);
+    casaJugadorGrupo.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+    casaJugadorGrupo = null;
+  }
+  for (const s of casaJugadorSolidos) { const i = solidosJugador.indexOf(s); if (i >= 0) solidosJugador.splice(i, 1); }
+  casaJugadorSolidos = [];
+  if (casaJugadorCesped) {
+    const i = noGrassZones.indexOf(casaJugadorCesped);
+    if (i >= 0) noGrassZones.splice(i, 1);
+    casaJugadorCesped = null;
+  }
+}
+function updateCasaJugador() {
+  if (typeof placed === 'undefined') return;
+  const firma = firmaCasaJugador();
+  if (firma === casaJugadorFirma) return;
+  casaJugadorFirma = firma;
+  soltarCasaJugador();
+  const muros = placed.filter(o => o.key && o.key.indexOf('wall') === 0);
+  const techos = placed.filter(o => o.key === 'roof');
+  if (muros.length < 2 || !techos.length) return;
+  let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+  for (const o of muros) {
+    minX = Math.min(minX, o.mesh.position.x); maxX = Math.max(maxX, o.mesh.position.x);
+    minZ = Math.min(minZ, o.mesh.position.z); maxZ = Math.max(maxZ, o.mesh.position.z);
+  }
+  const bw = maxX - minX, bd = maxZ - minZ;
+  if (bw < 2.6 || bd < 2.6) return;
+  const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+  const puerta = placed.find(o => o.key === 'door');
+  let ang = 0;
+  if (puerta) ang = Math.atan2(puerta.mesh.position.x - cx, puerta.mesh.position.z - cz);
+  // El cascarón de madera mide 0,4 de grosor: el interior llega hasta la cara interna del muro.
+  const diseno = disenoCasa(Math.max(3.2, bw - 0.44), Math.max(3.2, bd - 0.44), 0.06);
+  let lista = mueblesDe(diseno);
+  if (!lista.some(o => o.tipo === 'meson') && diseno.cocina) {
+    const c = diseno.cocina;
+    lista = lista.concat([{ tipo: 'meson', x: (c.x0 + c.x1) / 2, z: c.z0 + 0.32, w: Math.min(1.3, c.x1 - c.x0 - 0.15), d: 0.58 }]);
+  }
+  casaJugadorGrupo = new THREE.Group();
+  casaJugadorGrupo.position.set(cx, 0, cz);
+  casaJugadorGrupo.rotation.y = ang;
+  casaJugadorGrupo.userData.diseno = diseno;
+  scene.add(casaJugadorGrupo);
+  const suelo = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.4, bw - 0.44), 0.04, Math.max(0.4, bd - 0.44)), casaMat(0xb08968));
+  suelo.position.set(0, 0.03, 0); suelo.receiveShadow = true;
+  casaJugadorGrupo.add(suelo);
+  casaJugadorCesped = { x: cx, z: cz, hw: bw / 2 + 0.3, hd: bd / 2 + 0.3 };
+  noGrassZones.push(casaJugadorCesped);
+  const baldosa = (zona) => {
+    if (!zona) return;
+    const w = zona.x1 - zona.x0, d = zona.z1 - zona.z0;
+    if (w < 0.3 || d < 0.3) return;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, d), casaMat(0xe7e5e4));
+    m.position.set((zona.x0 + zona.x1) / 2, 0.055, (zona.z0 + zona.z1) / 2);
+    m.receiveShadow = true; casaJugadorGrupo.add(m);
+  };
+  baldosa(diseno.cocina);
+  baldosa(diseno.banio);
+  const pintura = casaMat(0xf7f4ee), segs = [];
+  for (const muro of diseno.muros) {
+    const conPuerta = muro.puerta != null;
+    muroConVano(casaJugadorGrupo, muro.x, muro.z, muro.w, muro.d, 2.42, pintura,
+      conPuerta ? muro.puerta : 0, conPuerta ? 1.02 : 0, segs);
+  }
+  const simple = !!preferLowPerf;
+  const cs = Math.cos(ang), sn = Math.sin(ang), girada = Math.abs(cs) < 0.5;
+  const solidoLocal = (lx, lz, w, d, alto) => {
+    const wx = cx + lx * cs + lz * sn, wz = cz - lx * sn + lz * cs;
+    casaJugadorSolidos.push(agregarSolidoJugador(wx, wz, girada ? d : w, girada ? w : d, alto, { tierra: true }));
+  };
+  for (const s of segs) solidoLocal(s.x, s.z, s.w, s.d, s.top);
+  for (const it of lista) {
+    if (simple && (it.tipo === 'silla' || it.tipo === 'ducha')) continue;
+    dibujarMueble(casaJugadorGrupo, it, it.x, it.z, simple);
+    const alto = it.tipo === 'meson' ? 0.9 : it.tipo === 'refri' ? 1.75 : it.tipo === 'cama' ? 0.5 : it.tipo === 'inodoro' ? 0.7 : 0;
+    if (alto) solidoLocal(it.x, it.z, it.w, it.d, alto);
+  }
+  if (!simple) {
+    const luz = new THREE.PointLight(0xfff1d6, 0.8, 8, 1.6);
+    luz.position.set(0, 2.15, 0); casaJugadorGrupo.add(luz);
+  }
+  casaJugadorGrupo.userData.esCasaJugador = true;
+}
+
 // Cada barrio llena SU manzana: dos hileras de casas mirando a la calle
 // (como en una ciudad de verdad) y el patio común en el medio.
 function poblarBarrio(id, opciones = {}) {
@@ -4283,6 +4850,7 @@ function poblarBarrio(id, opciones = {}) {
     const ox = ((i % 3) - 1) * .7, oz = (i % 2) * .6;
     let sx = spawn.x + ox, sz = spawn.z + oz;
     if (!dentro(sx, sz) || ocupado(sx, sz)) { sx = spawn.x; sz = spawn.z; }
+    vecino.scale.setScalar(AVATAR_K);   // el vecino mide ~1,7 m, como el jugador
     vecino.position.set(sx, 0, sz);
     initCitizenBrain(vecino, centro, Math.min(16, distrito.w / 2 - 2), { modo: 'manzana', puntos: metas, rect: limite, home: casa });
     scene.add(vecino); npcs.push(vecino);
@@ -8725,6 +9293,7 @@ function makeWindowTexture(color, luz) {
 const TORRE_COLORES = [[0x64748b, 0xfde68a], [0x475569, 0xbae6fd], [0x7c6f64, 0xfef3c7], [0x334155, 0xa5f3fc]];
 // Puertas de los edificios a las que se entra / sale con E: { nombre, a: afuera, b: adentro, azotea }
 const ENTRADAS = [];
+soltarEntradasCasa();
 function buildSkyline(distritoId, alturas) {
   const distrito = DISTRITOS.find(d => d.id === distritoId); if (!distrito) return;
   const r = rectDistrito(distrito, -3);
@@ -8787,10 +9356,19 @@ function buildSkyline(distritoId, alturas) {
     addObstacle(x, z, w, d, alto);
     addLandingSurface(x, z, w + .8, d + .8, alto + .7, torre);   // se puede aterrizar en la azotea
     addNoGrassZone(x, z, w + 2, d + 2);
+    if (!preferLowPerf) {   // una cornisa por piso: desde la calle se cuentan los niveles
+      const pisos = Math.max(1, Math.round((alto - 4.2) / 3.4));
+      for (let k = 1; k <= pisos; k++) {
+        const y = 4.2 + k * 3.4;
+        if (y > alto - 0.3) break;
+        const banda = new THREE.Mesh(new THREE.BoxGeometry(w + 0.22, 0.1, d + 0.22), matObra(muro));
+        banda.position.set(x, y, z); banda.castShadow = false; scene.add(banda);
+      }
+    }
   }
 }
-buildSkyline('centro', [34, 0, 27, 21, 42, 0, 30, 24, 38]);
-buildSkyline('oficinas', [22, 18, 0, 26, 0, 20, 17, 24, 19]);
+buildSkyline('centro', [52, 0, 44, 36, 68, 0, 48, 40, 58]);
+buildSkyline('oficinas', [38, 32, 0, 46, 0, 34, 30, 42, 36]);
 
 // ===================================================================
 //  PARQUES ESTILO MINECRAFT: condominio · diversiones · acuático
@@ -9755,7 +10333,8 @@ function standUp(silent) {
     if (!silent) { toast('🚶 De vuelta al pasillo · camina o siéntate otra vez con E'); beep(520, .08, .04); }
     return true;
   }
-  player.position.set(p.x, p.y + PLAYER_EYE, p.z + 1.3);
+  const suelo = era === 'cama' ? 0 : p.y;   // la cama tiene el centro alto: te paras en el piso
+  player.position.set(p.x, suelo + PLAYER_EYE, p.z + 1.1);
   if (!silent) {
     state.hp = Math.min(100, state.hp + 8);
     toast((era === 'bano' ? '🚽' : '🪑') + ' Te levantaste · descansaste un poco (+8 de vida)');
@@ -9766,6 +10345,18 @@ function standUp(silent) {
 function trySit(targetSeat) {
   if (sitOn) return standUp(false);
   const seat = targetSeat || nearestSeat(); if (!seat) return false;
+  if (seat.key === 'cama' && seat.mesh && !seat.acostado) {
+    const rot = seat.mesh.rotation.y || 0;
+    const px = seat.mesh.position.x, pz = seat.mesh.position.z;
+    const hx = Math.sin(rot), hz = Math.cos(rot);   // la almohada queda hacia el +Z de la cama
+    const colchon = seat.mesh.position.y - objY('cama') + 0.48;
+    const yCuerpo = colchon + 0.12 * AVATAR_K;
+    seat.acostado = {
+      raiz: { x: px - hx * 0.98, y: yCuerpo, z: pz - hz * 0.98 },
+      ojo: { x: px + hx * 0.55, y: yCuerpo + 0.16 * AVATAR_K, z: pz + hz * 0.55 },
+      rotY: rot + Math.PI,   // de espaldas: la cara queda hacia el techo y la cabeza en la almohada
+    };
+  }
   sitOn = seat;
   toast(seat.key === 'bano' ? '🚽 Sentado en el baño · E para levantarte'
     : seat.key === 'cama' ? '🛏️ Acostado · E para levantarte' : '🪑 Te sentaste · E para levantarte');
@@ -13325,6 +13916,7 @@ function rodillasDe(av) {
 function poseJugador() {
   const av = playerAvatar, l = av.userData.limbs; if (!l) return;
   const modo = ducha ? 'ducha' : sitOn ? (sitOn.acostado ? 'acostado' : 'sentado') : null;
+  if (av.userData.manta) for (const pieza of av.userData.manta) pieza.visible = modo === 'acostado';
   if (!modo && !av.userData.pose) return;
   const rod = rodillasDe(av), sentado = modo === 'sentado';
   for (const r of rod) {
@@ -14198,20 +14790,26 @@ function entradaCerca() {
   if (state.cellArrest) return null;
   if (state.planet !== 'tierra' || state.country || state.driving || state.underground || state.inCastle || state.inRuins || state.inArena || state.inFlight || state.mission === 'alley' || torreLift.rider || sitOn) return null;
   const pies = player.position.y - PLAYER_EYE;
+  let mejor = null, md = ENTRADA_RADIO;
   for (const en of ENTRADAS) for (const lado of ['a', 'b']) {
     const p = en[lado];
-    if (Math.abs(pies - p.y) < 1.5 && Math.hypot(player.position.x - p.x, player.position.z - p.z) < ENTRADA_RADIO) return { en, adentro: lado === 'b' };
+    const d = Math.hypot(player.position.x - p.x, player.position.z - p.z);
+    if (Math.abs(pies - p.y) < 1.5 && d < md) { md = d; mejor = { en, adentro: lado === 'b' }; }
   }
-  return null;
+  return mejor;
 }
 function entradaAccion() {
   const c = entradaCerca(); if (!c) return null;
   if (c.en.azotea) return c.adentro ? { key: 'E', touch: '🛗', text: 'Bajar a la calle en ascensor' } : { key: 'E', touch: '🛗', text: 'Entrar al rascacielos · ascensor a la azotea' };
+  if (c.en.textoEntrar) return c.adentro
+    ? { key: 'E', touch: '🚪', text: c.en.textoSalir || 'Salir a la calle' }
+    : { key: 'E', touch: '🚪', text: c.en.textoEntrar };
   return c.adentro ? { key: 'E', touch: '🚪', text: 'Salir a la calle' } : { key: 'E', touch: '🚪', text: 'Entrar al ' + c.en.nombre };
 }
 function tryEntrada() {
   const c = entradaCerca(); if (!c || entrandoAhora) return !!c;
   const { en, adentro } = c, dest = adentro ? en.a : en.b;
+  if (!adentro && en.casa) amoblarCasa(en.casa);
   entrandoAhora = true;
   const f = ui('fade'); f.style.transition = 'opacity .25s'; f.style.background = '#000'; f.style.opacity = '1';
   beep(adentro ? 520 : 660, .08, .04);
@@ -14223,6 +14821,7 @@ function tryEntrada() {
     f.style.transition = 'opacity .45s'; f.style.opacity = '0';
     entrandoAhora = false;
     if (en.azotea) { tone(880, .18, .05, 'sine'); toast(adentro ? '🏙️ En la calle · E en la puerta te sube de nuevo' : '🏙️ ¡Azotea! · E en la puerta de la sala de máquinas para bajar'); }
+    else if (en.avisoEntrar) toast(adentro ? en.avisoSalir : en.avisoEntrar);
     else toast(adentro ? '🚪 Saliste del ' + en.nombre : '🚪 Entraste al ' + en.nombre + ' · E en la puerta para salir');
   }, en.azotea ? 900 : 300);
   return true;
@@ -14259,15 +14858,7 @@ function buildCondominio() {
   mcBox(g, porton.x, 4.1, porton.z, 1.2, .8, pas.ancho + 3, 0xb9a88a);   // dintel del portón
   mcSign(g, porton.x, 5.6, porton.z, CONDOMINIO.nombre.toUpperCase(), 0xfde68a).scale.set(.8, .8, .8);
 
-  // Conserjería: caseta con ventanal, junto al portón.
-  const con = { x: porton.x + 4.6, z: pas.z - pas.ancho / 2 - 2.6 };
-  mcBox(g, con.x, 1.4, con.z, 3.4, 2.8, 3, 0xf4f4f5);
-  mcBox(g, con.x, 2.95, con.z, 4, .4, 3.6, 0x9ca3af);
-  mcBox(g, con.x, 1.7, con.z + 1.55, 2.2, 1.2, .12, 0x9fd0ff);
-  mcSign(g, con.x, 4.1, con.z, 'CONSERJERIA', 0xbae6fd).scale.set(.45, .45, .45);
-  addObstacle(con.x, con.z, 3.4, 3, 2.8, 'conserjeria');
-  addNoGrassZone(con.x, con.z, 4, 3.6);
-
+  // La caseta del conserje se sacó: nadie vigila la entrada del condominio.
   // Explanada común: pasto cortado, un par de árboles y bancas (aquí queda el cohete).
   const comun = CONDOMINIO.comun;
   mcFloor(g, comun.x, comun.z, comun.w, comun.d, 0x4f9c3a, .02);
@@ -17472,7 +18063,7 @@ ghostLine.rotation.x = -Math.PI / 2; ghostLine.position.y = 0.05; ghost.add(ghos
 function objGeometry(key, variantId) {
   const variant = variantFor(key, variantId);
   if (key === 'wallWood' || key === 'wallRock') return new THREE.BoxGeometry(4, 3, 0.4);
-  if (key === 'door') return new THREE.BoxGeometry(1.5, 2.6, 0.18);   // tamaño de puerta normal
+  if (key === 'door') return new THREE.BoxGeometry(0.9, 2.05, 0.06);   // puerta de persona: ~2 m de alto
   if (key === 'roof') return variant && variant.id === 'piramide' ? new THREE.ConeGeometry(3.7, 2, 4) : new THREE.BoxGeometry(5, 0.4, 5);
   if (key === 'lamp') return new THREE.CylinderGeometry(0.12, 0.12, 2.4);
   if (key === 'oven') return new THREE.BoxGeometry(1.2, 1.4, 1);
@@ -17525,7 +18116,7 @@ function addDoorFrameParts(target, color, ghost) {
   mk(4.2, 0.2, 0.5, 0, 0.3, 0);                                       // cornisa arriba
 }
 function objColor(key, variantId) { const variant = variantFor(key, variantId); return variant ? variant.color : SHOP.find(s => s.key === key).color; }
-const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.3, oven: 0.7, ballesta: 0.6, torreta: 0.6, laser: 0.6,
+const OBJ_Y = { roof: 3.2, lamp: 1.2, door: 1.025, oven: 0.7, ballesta: 0.6, torreta: 0.6, laser: 0.6,
   window: 1.7, cuadro: 1.7, mesa: 0.75, silla: 0.45, cama: 0.4, sofa: 0.5, tele: 1.2, mesa_tele: 0.72, play_gamer: 0.12, piscina: 0.1, planta: 0.4, heladera: 0.95,
   espejo: 1.5, alfombra: 0.05, wallMetal: 1.5, wallDoor: 2.7, pilar: 1.6, bano: 0.35, piso2: 3,
   computador_gamer: 0.66, pc_gamer: 0.6, silla_gamer: 0.5, luces_gamer: 1.8, teclado_gamer: 0.08, parlante_gamer: 0.65, alexa: 0.38, mesa_gamer: 0.8,
@@ -30021,6 +30612,8 @@ function loop() {
     updateEarthBulls(dt);                  // cinco toros del pasto, separados
     updateJailFolk(dt);                    // presos y guardias del penal
     updateTorre(dt);                       // edificio de deptos: pisos visibles, ascensor y luz
+    updateCasasInterior();                 // amuebla la casa de la ciudad más cercana
+    updateCasaJugador();                   // interior de la casa que construiste
     updateMall(dt);                        // mall: guardias, cine de 10 min y cierre de noche
     updateWeather(dt);                     // lluvia (Tierra) / tormentas de polvo (Platus)
     if (onEarth) updateOceanExpedition(dt);
@@ -31221,6 +31814,151 @@ try { if (new URLSearchParams(location.search).has('debug')) {
   timDump.puedeUsarAgua = puedeUsarAgua;
   timDump.puedeUsarLuz = puedeUsarLuz;
   timDump.posarDibujo = posarDibujo;
+  timDump.casasCiudad = () => casasCiudad.map((c, i) => ({
+    i, x: +c.puerta.x.toFixed(2), z: +c.puerta.z.toFixed(2), amoblado: !!c.amoblado,
+    ax: +c.entrada.a.x.toFixed(2), az: +c.entrada.a.z.toFixed(2),
+    bx: +c.entrada.b.x.toFixed(2), bz: +c.entrada.b.z.toFixed(2),
+  }));
+  timDump.casaCerca = (x, z) => {
+    let mejor = 0, md = 1e9;
+    casasCiudad.forEach((c, i) => { const d = Math.hypot(c.puerta.x - x, c.puerta.z - z); if (d < md) { md = d; mejor = i; } });
+    return mejor;
+  };
+  timDump.entrarCasa = (i) => {
+    const c = casasCiudad[i == null ? 0 : i];
+    if (!c) return null;
+    amoblarCasa(c);
+    const b = c.entrada.b;
+    player.position.set(b.x, b.y + PLAYER_EYE, b.z);
+    yaw = b.yaw; pitch = -0.28; vy = 0; grounded = true; cameraMode = 0;
+    let cocinas = 0;
+    c.grupo.traverse(o => { if (o.userData && o.userData.esCocina) cocinas++; });
+    return { i, x: +b.x.toFixed(2), z: +b.z.toFixed(2), cocinas };
+  };
+  timDump.armarCasaJugador = (cx = 78, cz = 42) => {
+    const muro = (x, z, rot) => spawnPlaced('wallWood', x, z, rot || 0);
+    muro(cx - 2, cz - 4, 0); muro(cx + 2, cz - 4, 0);
+    muro(cx - 2, cz + 4, 0); muro(cx + 2, cz + 4, 0);
+    muro(cx - 4, cz - 2, Math.PI / 2); muro(cx - 4, cz + 2, Math.PI / 2);
+    muro(cx + 4, cz - 2, Math.PI / 2); muro(cx + 4, cz + 2, Math.PI / 2);
+    spawnPlaced('door', cx, cz - 4.3, 0);
+    spawnPlaced('roof', cx, cz, 0);
+    spawnPlaced('roof', cx - 3, cz - 2, 0);
+    spawnPlaced('roof', cx + 3, cz + 2, 0);
+    return { x: cx, z: cz };
+  };
+  timDump.ponerCama = (x, z) => { spawnPlaced('cama', x, z, 0); return { x, z }; };
+  timDump.camara = (modo, y, p) => { if (modo != null) cameraMode = modo; if (y != null) yaw = y; if (p != null) pitch = p; return cameraMode; };
+  timDump.enmarcar = (x, y, z, tx, ty, tz) => { fotoCam = { x, y, z, tx, ty, tz }; };
+  timDump.rayo = () => {
+    if (!fotoCam) return null;
+    updatePlayerCamera(0.016);
+    const origen = new THREE.Vector3(fotoCam.x, fotoCam.y, fotoCam.z);
+    const dir = new THREE.Vector3(fotoCam.tx - fotoCam.x, fotoCam.ty - fotoCam.y, fotoCam.tz - fotoCam.z).normalize();
+    const ray = new THREE.Raycaster(origen, dir, 0.05, 12);
+    const hits = ray.intersectObjects(scene.children, true).filter(h => h.object && h.object.visible).slice(0, 4);
+    return hits.map(h => {
+      const o = h.object, p = new THREE.Vector3();
+      o.getWorldPosition(p);
+      const ud = o.userData || {};
+      const col = o.material && o.material.color ? o.material.color.getHexString() : '';
+      let nodo = o, cadena = '';
+      for (let i = 0; i < 3 && nodo; i++) { cadena += (nodo.userData && (nodo.userData.tipoMueble || nodo.userData.esCasaJugador || nodo.userData.key || nodo.name) || nodo.type) + '>'; nodo = nodo.parent; }
+      return {
+        d: +h.distance.toFixed(2),
+        tipo: ud.tipoMueble || (ud.esCama ? 'cama' : '') || (o.geometry && o.geometry.type),
+        col, cadena,
+        x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2),
+      };
+    });
+  };
+  timDump.soltarCamara = () => { fotoCam = null; };
+  timDump.posar = () => {
+    updateMovement(0.05);
+    updatePlayerCamera(0.05);
+    const av = playerAvatar;
+    return {
+      y: +player.position.y.toFixed(2),
+      ax: +av.position.x.toFixed(2), ay: +av.position.y.toFixed(2), az: +av.position.z.toFixed(2),
+      rx: +av.rotation.x.toFixed(2),
+      manta: !!(av.userData.manta && av.userData.manta.every(m => m.visible)),
+      modo: av.userData.pose || null,
+      cam: cameraMode,
+    };
+  };
+  timDump.sueloLibre = (x, z) => !obstacles.some(o => x > o.minX - .4 && x < o.maxX + .4 && z > o.minZ - .4 && z < o.maxZ + .4 && !(o.bottom > 1.2));
+  timDump.sentarse = () => trySit();
+  timDump.mirarCocina = () => {
+    let mejor = null, md = 1e9;
+    scene.traverse(o => {
+      if (!o.userData || !o.userData.esCocina) return;
+      const p = new THREE.Vector3(); o.getWorldPosition(p);
+      const d = Math.hypot(p.x - player.position.x, p.z - player.position.z);
+      if (d < md) { md = d; mejor = p; }
+    });
+    if (!mejor) return null;
+    yaw = Math.atan2(-(mejor.x - player.position.x), -(mejor.z - player.position.z));
+    pitch = -0.28;
+    return { x: +mejor.x.toFixed(2), y: +mejor.y.toFixed(2), z: +mejor.z.toFixed(2) };
+  };
+  // La cámara queda delante de la nariz (el lado de la cara), no de la nuca.
+  timDump.frenteJugador = () => {
+    updatePlayerCamera(0.016);
+    let nariz = null;
+    playerAvatar.traverse(o => { if (o.userData && o.userData.esNariz) nariz = o; });
+    if (!nariz) return null;
+    const n = new THREE.Vector3(), c = new THREE.Vector3();
+    nariz.getWorldPosition(n); playerAvatar.getWorldPosition(c);
+    let dx = n.x - c.x, dz = n.z - c.z;
+    const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
+    const walkX = -Math.sin(yaw), walkZ = -Math.cos(yaw);
+    fotoCam = { x: n.x + dx * 0.95, y: n.y + 0.12, z: n.z + dz * 0.95, tx: n.x, ty: n.y - 0.04, tz: n.z };
+    playerAvatar.visible = true; viewmodel.visible = false;
+    return {
+      dot: +((dx * walkX + dz * walkZ).toFixed(3)),
+      nx: +n.x.toFixed(2), ny: +n.y.toFixed(2), nz: +n.z.toFixed(2),
+      dx: +dx.toFixed(2), dz: +dz.toFixed(2), yaw: +yaw.toFixed(2),
+      ry: +playerAvatar.rotation.y.toFixed(2),
+    };
+  };
+  timDump.cuartosJugador = () => {
+    const g = casaJugadorGrupo;
+    if (!g || !g.userData.diseno) return null;
+    const d = g.userData.diseno;
+    const mundo = (lx, y, lz) => {
+      const v = new THREE.Vector3(lx, y, lz); g.localToWorld(v);
+      return { x: +v.x.toFixed(2), y: +v.y.toFixed(2), z: +v.z.toFixed(2) };
+    };
+    const centro = (z) => z ? mundo((z.x0 + z.x1) / 2, 1.45, (z.z0 + z.z1) / 2) : null;
+    const muebles = [];
+    g.traverse(o => {
+      if (!o.userData || !o.userData.tipoMueble) return;
+      const p = new THREE.Vector3(); o.getWorldPosition(p);
+      muebles.push({ t: o.userData.tipoMueble, x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) });
+    });
+    return {
+      muros: d.muros.length,
+      cocina: d.cocina, living: d.living, pieza: d.pieza, banio: d.banio,
+      centro: { cocina: centro(d.cocina), living: centro(d.living), pieza: centro(d.pieza), banio: centro(d.banio) },
+      muebles,
+    };
+  };
+  timDump.enmarcarCuarto = (nombre) => {
+    const g = casaJugadorGrupo, d = g && g.userData.diseno;
+    const zona = d && d[nombre];
+    if (!zona) return null;
+    const cxr = (zona.x0 + zona.x1) / 2;
+    const a = nombre === 'cocina'
+      ? new THREE.Vector3(zona.x1 - 0.4, 1.42, (zona.z0 + zona.z1) * 0.5)
+      : new THREE.Vector3(cxr, 1.32, zona.z1 - 0.55);
+    const b = nombre === 'cocina'
+      ? new THREE.Vector3(zona.x0 + 0.55, 0.95, zona.z0 + 0.55)
+      : new THREE.Vector3(cxr, 0.48, zona.z0 + 0.85);
+    g.localToWorld(a); g.localToWorld(b);
+    fotoCam = { x: a.x, y: a.y, z: a.z, tx: b.x, ty: b.y, tz: b.z };
+    playerAvatar.visible = false;
+    return { cam: { x: +a.x.toFixed(2), y: +a.y.toFixed(2), z: +a.z.toFixed(2) }, mira: { x: +b.x.toFixed(2), y: +b.y.toFixed(2), z: +b.z.toFixed(2) } };
+  };
   window.__tim = timDump;
 } } catch (e) {}
 function netAddConn(c) {

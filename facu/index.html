@@ -75,8 +75,8 @@
   <p><b>El juego de Facundo.</b> Gráficos caleta mejorados: cielo real, sombras suaves, selva gigante, interiores con muebles 3D, charcos que brillan y luciérnagas.</p>
   <div><span class="pill">🏙️ Ciudad gigante</span><span class="pill">🔦 Linterna</span><span class="pill">☀️ Panel solar</span><span class="pill">✨ CALETA ULTRA</span><span class="pill">💪 Fuerza</span><span class="pill">🤲 Robar y decorar</span><span class="pill">🏠 Interiores 3D</span><span class="pill">🌿 Selva Real</span></div>
   <p style="font-size:14px;background:rgba(40,90,160,.35);border:1px solid #4aaaff;border-radius:12px;padding:8px 12px"><b>☀️ LA LUZ:</b> Adentro está oscuro y solo ves con la 🔦 linterna. El <b>PANEL SOLAR</b> está escondido en la ciudad: tráelo e instálalo en tu casa (G) para tener luz. Encontrarlo <b>no termina la partida</b>. El collar sigue, y el juego continúa.</p>
-  <p style="font-size:13px"><b>CÓMO JUGAR:</b><br>La ciudad es enorme: calles, manzanas, casas con cocina, living, dormitorio y baño, edificios de varios pisos, supers, tiendas, restoranes y un centro comercial. Tu casa empieza destruida por dentro. El limpiador está en la ferretería: sin eso no se limpia. Entra (E) → agarra los muebles con anillo dorado (F) → llévalos a tu casa y suéltalos (G). Fuerza 10=1 cosa, 30=2, 60=3, 90=4.<br><b>🎯 SE SIGUE:</b> sobrevive, duerme en tu cama cuando caiga la noche y lee las notas de las casas. Junta 🍗 y 💧. De noche sale el VIGILANTE. Si cruzas el cerco, el collar te electrocuta.</p>
-  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar (Esc suelta) · Shift correr · E puerta · F agarrar · G soltar / instalar panel · L linterna · C comer · X beber · R dormir<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
+  <p style="font-size:13px"><b>CÓMO JUGAR:</b><br>La ciudad es enorme y sigue más allá: calles nuevas, casas, condominios con juegos rotos y autos volcados. Hay un solo edificio partido a la mitad. Tu casa empieza destruida por dentro. El limpiador está en la ferretería: sin eso no se limpia. En la bodega hay una caja de herramientas: sin eso el auto no arranca. Entra (E) → agarra los muebles con anillo dorado (F) → llévalos a tu casa y suéltalos (G). Fuerza 10=1 cosa, 30=2, 60=3, 90=4.<br><b>🎯 SE SIGUE:</b> sobrevive, duerme en tu cama cuando caiga la noche y lee las notas de las casas. Junta 🍗 y 💧. De noche sale el VIGILANTE. Si cruzas el cerco, el collar te electrocuta.</p>
+  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar (Esc suelta) · Shift correr · E puerta o auto · F agarrar · G soltar / instalar panel · L linterna · C comer · X beber · R dormir<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
   <button id="jugar" onclick="empezar()">▶️ JUGAR CALETA ULTRA</button>
 </div>
 <div id="cine"><div class="barra top"></div><div class="barra bot"></div><div id="cineSub"></div><button id="cineSaltar" onclick="saltarCine()">SALTAR »</button><div id="cineFade"></div></div>
@@ -110,7 +110,7 @@ if(!window.THREE){ document.getElementById('portada').innerHTML='<h1>CIUDAD<br>A
 let px=-12,pz=6.2,speed=0.13,keys={},jugando=false,hambre=100,sed=100,energia=100,salud=100,fuerza=10,invComida=0,invAgua=0,dia=1,esNoche=false,sonidoOn=true,musicaOn=true,ultimoPaso=0,pasoIzq=true,musicaIdx=0,ultimoShock=0;
 let joyX=0,joyY=0,DURACION=10800,tiempoRestante=DURACION;
 let yaw=Math.PI,pitch=0,camaraFrontal=true;
-let panelInstalado=false, panelVisto=false, casaLimpia=false, linternaOn=false, correrMovil=false;
+let panelInstalado=false, panelVisto=false, casaLimpia=false, linternaOn=false, correrMovil=false, tieneHerramientas=false, conduciendo=null, vioCorte=false, vioVolcado=false, vioJuegos=false, condujo=false;
 let enCine=false, durmiendo=false, suenoT=0, pisoEd=0, escaleraCd=0, visitoCasa=false, notasLeidas=0, nochesDormidas=0, camaraAntesSueno=true;
 let velX=0, velZ=0, murosAhora=null, origenMuros=0;
 let donde='afuera', puertaCerca=null, salidaCerca=false, ultimoT=0, arrastrando=false;
@@ -266,7 +266,7 @@ function cono(r,h,color,x,y,z, parent=scene){ let m=new THREE.Mesh(new THREE.Con
 
 // EXTERIOR CALETA
 let grupoExterior=new THREE.Group(); scene.add(grupoExterior);
-let suelo=new THREE.Mesh(new THREE.PlaneGeometry(420,420), new THREE.MeshStandardMaterial({map:texSuelo, bumpMap:calidadAlta?texSuelo:null, bumpScale:0.06, roughness:0.95, color:0xd8e8c8})); suelo.rotation.x=-Math.PI/2; suelo.receiveShadow=true; grupoExterior.add(suelo);
+let suelo=new THREE.Mesh(new THREE.PlaneGeometry(560,560), new THREE.MeshStandardMaterial({map:texSuelo, bumpMap:calidadAlta?texSuelo:null, bumpScale:0.06, roughness:0.95, color:0xd8e8c8})); suelo.rotation.x=-Math.PI/2; suelo.receiveShadow=true; grupoExterior.add(suelo);
 
 // Charcos que brillan caleta
 for(let [cx,cz,s] of (usarReal?[]:[[-5,-3,1.5],[8,3,1.2],[18,-6,1.6],[-20,8,1.1],[2,-7,1.3]])){
@@ -388,6 +388,7 @@ const VIDRIO_AUTO=new THREE.MeshStandardMaterial({color:0x102830, roughness:0.04
 const GOMA_AUTO=new THREE.MeshStandardMaterial({color:0x141414, roughness:0.92, metalness:0.04});
 const LLANTA_AUTO=new THREE.MeshStandardMaterial({color:0xc5c8cc, roughness:0.28, metalness:0.82});
 const CROMO_AUTO=new THREE.MeshStandardMaterial({color:0x8e9296, roughness:0.32, metalness:0.7});
+let autosCiudad=[];
 function autoCaleta(x,z,rot,color){
   let g=new THREE.Group(); g.name='autoCiudad'; g.position.set(x,0,z); g.rotation.y=rot; grupoExterior.add(g);
   if(!PINTURA_AUTO[color]) PINTURA_AUTO[color]=new THREE.MeshStandardMaterial({color, roughness:0.36, metalness:0.48});
@@ -414,6 +415,156 @@ function autoCaleta(x,z,rot,color){
   let defensaD=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,1.66), CROMO_AUTO); defensaD.position.set(1.96,0.4,0); g.add(defensaD);
   let defensaT=defensaD.clone(); defensaT.position.x=-1.96; g.add(defensaT);
   let oxido=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.16,0.02), new THREE.MeshStandardMaterial({color:0x6a3814, roughness:1})); oxido.position.set(0.35,0.5,0.85); g.add(oxido);
+  g.userData={volcado:false, giro:0};
+  autosCiudad.push(g);
+  return g;
+}
+function autoVolcado(x,z,rot,color){
+  let g=autoCaleta(x,z,rot,color);
+  g.userData.volcado=true;
+  g.rotation.order='YXZ';
+  g.rotation.y=rot;
+  g.rotation.x=Math.PI-0.2;
+  g.rotation.z=0.38;
+  g.position.y=1.68;
+  OBSTACULOS.push([x,z,3.4,2.4]);
+  return g;
+}
+function segmentosCalle(lineas, desde, hasta){
+  let cortes=[desde];
+  lineas.forEach(v=>{ if(v>desde+BORDE && v<hasta-BORDE){ cortes.push(v-BORDE); cortes.push(v+BORDE); } });
+  cortes.push(hasta);
+  let res=[];
+  for(let i=0;i<cortes.length;i+=2){ if(cortes[i+1]-cortes[i]>0.5) res.push([cortes[i],cortes[i+1]]); }
+  return res;
+}
+function asfaltoH(x0,x1,z){
+  if(x1-x0<0.4) return;
+  let L=x1-x0, cx=(x0+x1)/2, g=escalarUV(new THREE.PlaneGeometry(L,8), L/8, 1);
+  let m=new THREE.Mesh(g, mCalle); m.rotation.x=-Math.PI/2; m.position.set(cx,0.06,z); m.receiveShadow=true; grupoExterior.add(m);
+}
+function asfaltoV(z0,z1,x){
+  if(z1-z0<0.4) return;
+  let L=z1-z0, cz=(z0+z1)/2, g=escalarUV(new THREE.PlaneGeometry(8,L), 1, L/8);
+  let m=new THREE.Mesh(g, mCalle); m.rotation.x=-Math.PI/2; m.position.set(x,0.065,cz); m.receiveShadow=true; grupoExterior.add(m);
+}
+function veredasH(x0,x1,z, cortes){
+  segmentosCalle(cortes,x0,x1).forEach(([a,b])=>{ let L=b-a, cx=(a+b)/2; for(let s of [-1,1]){ let v=new THREE.Mesh(escalarUV(new THREE.BoxGeometry(L,0.22,2), L/3, 0.66), mVereda); v.position.set(cx,0.11,z+s*5); v.receiveShadow=true; grupoExterior.add(v); bx(L,0.26,0.18,0x9a9a96,cx,0.13,z+s*4.05,grupoExterior,false); } });
+}
+function veredasV(z0,z1,x, cortes){
+  segmentosCalle(cortes,z0,z1).forEach(([a,b])=>{ let L=b-a, cz=(a+b)/2; for(let s of [-1,1]){ let v=new THREE.Mesh(escalarUV(new THREE.BoxGeometry(2,0.22,L), 0.66, L/3), mVereda); v.position.set(x+s*5,0.11,cz); v.receiveShadow=true; grupoExterior.add(v); bx(0.18,0.26,L,0x9a9a96,x+s*4.05,0.13,cz,grupoExterior,false); } });
+}
+function plazaJuegos(x,z){
+  let tierra=new THREE.Mesh(new THREE.CircleGeometry(4.4,22), new THREE.MeshStandardMaterial({color:0x6b5840, roughness:1}));
+  tierra.rotation.x=-Math.PI/2; tierra.position.set(x,0.045,z); tierra.receiveShadow=true; grupoExterior.add(tierra);
+  let ox=x-1.5, oz=z-0.2;
+  for(let s of [-1.35,1.35]){ cilindro(0.05,0.05,2.25,0x6a3c24, ox+s, 1.12, oz-0.7, grupoExterior, 6); cilindro(0.05,0.05,2.25,0x6a3c24, ox+s, 1.12, oz+0.7, grupoExterior, 6); }
+  bx(2.9,0.08,0.08,0x5a3420, ox, 2.2, oz-0.7, grupoExterior); bx(2.9,0.08,0.08,0x5a3420, ox, 2.2, oz+0.7, grupoExterior);
+  bx(0.08,0.08,1.55,0x5a3420, ox-1.35, 2.2, oz, grupoExterior); bx(0.08,0.08,1.55,0x5a3420, ox+1.35, 2.2, oz, grupoExterior);
+  bx(0.035,1.05,0.035,0x2a2a2a, ox-0.42, 1.62, oz, grupoExterior); bx(0.035,1.05,0.035,0x2a2a2a, ox-0.02, 1.62, oz, grupoExterior);
+  let asiento=bx(0.52,0.06,0.2,0x8a7430, ox-0.22, 1.05, oz, grupoExterior); asiento.rotation.z=0.18; asiento.rotation.x=0.22;
+  bx(0.035,0.62,0.035,0x2a2a2a, ox+0.32, 1.88, oz, grupoExterior); bx(0.035,0.38,0.035,0x2a2a2a, ox+0.72, 2.0, oz, grupoExterior);
+  let caido=bx(0.52,0.06,0.2,0x5c5340, ox+0.85, 0.08, oz+0.95, grupoExterior); caido.rotation.y=0.7; caido.rotation.z=0.45;
+  let sx=x+1.7, sz=z+0.15;
+  cilindro(0.055,0.055,1.65,0x7a4524, sx-0.65, 0.82, sz-0.5, grupoExterior, 6); cilindro(0.055,0.055,1.65,0x7a4524, sx-0.65, 0.82, sz+0.5, grupoExterior, 6);
+  bx(0.75,0.08,1.15,0x6a3e22, sx-0.65, 1.6, sz, grupoExterior);
+  let rampa=bx(0.5,0.07,2.15,0x8a5428, sx+0.28, 0.82, sz, grupoExterior); rampa.rotation.z=-0.52;
+  let rail=bx(0.06,0.06,1.9,0x6e6a62, sx+0.08, 1.02, sz-0.3, grupoExterior); rail.rotation.z=-0.48; rail.rotation.y=0.2;
+  esfera(0.26,0x1c2418, x+0.35, 0.18, z+1.45, 0, 8, grupoExterior); esfera(0.2,0x242018, x-2.1, 0.14, z+1.15, 0, 7, grupoExterior);
+  bx(0.7,0.07,0.4,0x4a4036, x+2.3, 0.08, z-1.5, grupoExterior);
+  bx(1.35,0.1,1.05,0x8a6c44, x+0.15, 0.08, z+2.15, grupoExterior);
+  bx(1.45,0.14,0.08,0x6a5644, x+0.15, 0.14, z+1.62, grupoExterior);
+  let tabla=bx(0.08,0.16,1.05,0x6a5644, x-0.5, 0.1, z+2.15, grupoExterior); tabla.rotation.z=0.5;
+  if(!window.__condo) window.__condo={x,z};
+  (window.__condos=window.__condos||[]).push({x,z});
+}
+function hacerCondominio(x0,x1,z0,z1){
+  let cx=(x0+x1)/2, cz=(z0+z1)/2;
+  crearEdificio('casa','Condominio abandonado', cx, z0+3.15, 8.2, 5.2, 4, -1);
+  crearEdificio('casa','Condominio abandonado', cx, z1-3.15, 8.2, 5.2, 4, 1);
+  plazaJuegos(cx, cz);
+}
+function ampliarCiudad(){
+  CALLES_XN=[-144,144]; CALLES_ZN=[-128,128];
+  CALLE_XN0=-152; CALLE_XN1=152; CALLE_ZN0=-136; CALLE_ZN1=136;
+  let todasX=CALLES_XN.concat(CALLES_X), todasZ=CALLES_ZN.concat(CALLES_Z);
+  CALLES_Z.forEach(cz=>{ asfaltoH(-152,-116,cz); asfaltoH(116,152,cz); veredasH(-152,-116,cz,CALLES_XN); veredasH(116,152,cz,CALLES_XN); });
+  CALLES_X.forEach(cx=>{ asfaltoV(-136,-104,cx); asfaltoV(104,136,cx); veredasV(-136,-104,cx,CALLES_ZN); veredasV(104,136,cx,CALLES_ZN); });
+  CALLES_ZN.forEach(cz=>{ asfaltoH(-152,152,cz); veredasH(-152,152,cz,todasX); });
+  CALLES_XN.forEach(cx=>{ asfaltoV(-136,136,cx); veredasV(-136,136,cx,todasZ); });
+  let Xs=[-144,-108,-72,-36,0,36,72,108,144], Zs=[-128,-96,-64,-32,0,32,64,96,128];
+  let Rn=rng(20261118);
+  let condos=[{i:7,j:4},{i:3,j:7}];
+  for(let i=0;i<Xs.length-1;i++) for(let j=0;j<Zs.length-1;j++){
+    if(!(i===0||i===Xs.length-2||j===0||j===Zs.length-2)) continue;
+    let x0=Xs[i]+BORDE, x1=Xs[i+1]-BORDE, z0=Zs[j]+BORDE, z1=Zs[j+1]-BORDE;
+    if(condos.some(c=>c.i===i&&c.j===j)){ hacerCondominio(x0,x1,z0,z1); continue; }
+    let cx=(x0+x1)/2, mira=Rn()<0.5?-1:1;
+    let z=mira<0?z0+4.15:z1-4.15;
+    crearEdificio('casa','Casa abandonada', cx+(Rn()<0.5?-1.4:1.4), z, 7.8, 6.8, 4, mira);
+  }
+  [[-144,-128],[144,-128],[-144,128],[144,128],[-144,0],[144,32],[0,128],[36,-128]].forEach(([x,z])=>farol(x+6.2,z+6.2,-1,false));
+}
+function cortarUnEdificio(){
+  let lista=edificios.filter(e=>e.tipo==='edificio');
+  if(!lista.length) return;
+  lista.sort((a,b)=>b.h-a.h);
+  let b=lista[0], ox=b.x, oz=b.z, ow=b.w, od=b.d, oh=b.h, dir=b.dir||1;
+  grupoExterior.children.slice().forEach(o=>{
+    if(o.isInstancedMesh || o.name==='autoCiudad') return;
+    let p=o.position;
+    if(Math.abs(p.x-ox)>ow/2+1.15 || Math.abs(p.z-oz)>od/2+1.35) return;
+    if(p.y>oh+3.2) return;
+    if(o.isMesh && o.geometry && o.geometry.parameters){
+      let ancho=o.geometry.parameters.width||0, fondo=o.geometry.parameters.depth||0;
+      if(p.y<0.45 && (ancho>16 || fondo>16)) return;
+    }
+    grupoExterior.remove(o);
+  });
+  let sd=od*0.5, sz=oz+dir*(od*0.25), fz=oz+dir*(od/2-0.16), zCorte=oz;
+  let mf=new THREE.MeshStandardMaterial({map:texLadrilloTex, roughness:0.9, metalness:0.02});
+  let interior=new THREE.MeshStandardMaterial({color:0xb5a58c, roughness:0.96});
+  let pisoMat=new THREE.MeshStandardMaterial({map:texMadera, color:0xd2c0a4, roughness:0.84});
+  let g=new THREE.Group(); grupoExterior.add(g);
+  let frente=new THREE.Mesh(new THREE.BoxGeometry(ow, oh, 0.28), mf); frente.position.set(ox, oh/2, fz); frente.castShadow=true; frente.receiveShadow=true; g.add(frente);
+  for(let s of [-1,1]){ let lado=new THREE.Mesh(new THREE.BoxGeometry(0.26, oh, sd), mf); lado.position.set(ox+s*(ow/2-0.13), oh/2, sz); lado.castShadow=true; lado.receiveShadow=true; g.add(lado); }
+  let pisos=Math.max(2, Math.round(oh/3.15)), sep=oh/pisos;
+  for(let p=0;p<=pisos;p++){
+    let y=p*sep;
+    let sl=new THREE.Mesh(new THREE.BoxGeometry(ow-0.55, 0.12, sd-0.4), p===0?pisoMat:interior);
+    sl.position.set(ox, Math.max(0.08, y), sz); sl.receiveShadow=true; sl.castShadow=true; g.add(sl);
+    if(p>0 && p<pisos){
+      let muro=new THREE.Mesh(new THREE.BoxGeometry(0.12, sep*0.7, sd*0.42), interior);
+      muro.position.set(ox+(p%2?1.15:-0.9), y+sep*0.38, sz+dir*0.25); g.add(muro);
+      let mesa=new THREE.Mesh(new THREE.BoxGeometry(1.05,0.08,0.58), pisoMat);
+      mesa.position.set(ox-1.05, y+0.72, sz); mesa.rotation.z=p%2?0.42:0.12; mesa.rotation.y=0.25; g.add(mesa);
+      let silla=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.62,0.38), pisoMat);
+      silla.position.set(ox+1.25, y+0.32, sz-dir*0.35); silla.rotation.z=0.95; g.add(silla);
+      let cama=new THREE.Mesh(new THREE.BoxGeometry(1.15,0.18,0.62), new THREE.MeshStandardMaterial({color:p%2?0x6a4038:0x3a4a58, roughness:0.9}));
+      cama.position.set(ox+0.2, y+0.22, sz+dir*0.45); cama.rotation.y=0.15; g.add(cama);
+    }
+  }
+  for(let k=0;k<9;k++){
+    let reb=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.65,5), new THREE.MeshStandardMaterial({color:0xa07848, roughness:0.55, metalness:0.5}));
+    reb.rotation.x=Math.PI/2; reb.position.set(ox-ow/2+0.5+(k%5)*((ow-1)/4), 0.35+(k%4)*(oh/4.2), zCorte-dir*0.12); g.add(reb);
+  }
+  for(let k=0;k<6;k++){
+    let lip=new THREE.Mesh(new THREE.BoxGeometry(ow/6, 0.28+(k%3)*0.22, 0.32), mf);
+    lip.position.set(ox-ow/2+ow/12+k*(ow/6), oh*(0.28+(k%4)*0.16), zCorte); g.add(lip);
+  }
+  let techo=new THREE.Mesh(new THREE.BoxGeometry(ow+0.25, 0.26, sd*0.82), new THREE.MeshStandardMaterial({color:0x5a5650, roughness:0.9}));
+  techo.position.set(ox, oh+0.14, sz+dir*0.15); techo.castShadow=true; g.add(techo);
+  let zHueco=oz-dir*(od*0.2);
+  for(let k=0;k<8;k++){
+    let rh=0.28+(k%4)*0.22;
+    let rb=new THREE.Mesh(new THREE.BoxGeometry(0.55+(k%3)*0.4, rh, 0.6+(k%2)*0.45), k%2?mf:interior);
+    rb.position.set(ox-1.6+(k%5)*0.75, rh/2, zHueco+(k%3)*0.55*-dir); rb.rotation.y=k*0.45; rb.rotation.z=k%2?0.18:-0.12; rb.castShadow=true; g.add(rb);
+  }
+  b.z=sz; b.d=sd; b.cortado=true;
+  for(let i=0;i<OBSTACULOS.length;i++){ let o=OBSTACULOS[i]; if(Math.abs(o[0]-ox)<0.25 && Math.abs(o[1]-oz)<0.25 && Math.abs(o[2]-ow)<0.3) OBSTACULOS[i]=[ox, sz, ow*0.96, sd]; }
+  b.doorX=ox; b.doorZ=fz+dir*1.1; b.salidaX=ox; b.salidaZ=fz+dir*1.7;
+  b.puerta=puertaExterior(ox, fz, dir, 1.6, 2.6);
+  window.__corte={x:ox, z:zCorte, dir, h:oh, w:ow, mirar:oz-dir*(od*0.62)};
 }
 
 function texBrillo(){ let c=document.createElement('canvas'); c.width=c.height=128; let x=c.getContext('2d'); let g=x.createRadialGradient(64,64,0,64,64,64); g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.25,'rgba(255,255,255,0.55)'); g.addColorStop(1,'rgba(255,255,255,0)'); x.fillStyle=g; x.fillRect(0,0,128,128); return new THREE.CanvasTexture(c); }
@@ -447,10 +598,18 @@ let pastos=[];
 
 // ============ CIUDAD GRANDE ABANDONADA ============
 function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
-const CALLES_X=[-108,-72,-36,0,36,72,108], CALLES_Z=[-96,-64,-32,0,32,64,96], LIM_X=124, LIM_Z=112, MEDIA_CALLE=4, BORDE=6;
+const CALLES_X=[-108,-72,-36,0,36,72,108], CALLES_Z=[-96,-64,-32,0,32,64,96], MEDIA_CALLE=4, BORDE=6;
+let LIM_X=124, LIM_Z=112;
 const CALLE_X0=-116, CALLE_X1=116, CALLE_Z0=-104, CALLE_Z1=104;
+let CALLES_XN=[], CALLES_ZN=[], CALLE_XN0=CALLE_X0, CALLE_XN1=CALLE_X1, CALLE_ZN0=CALLE_Z0, CALLE_ZN1=CALLE_Z1;
 const INTERIOR_X=400;
-function enCalle(x,z,m=0){ for(let cz of CALLES_Z) if(Math.abs(z-cz)<BORDE+m && x>=CALLE_X0 && x<=CALLE_X1) return true; for(let cx of CALLES_X) if(Math.abs(x-cx)<BORDE+m && z>=CALLE_Z0 && z<=CALLE_Z1) return true; return false; }
+function enCalle(x,z,m=0){
+  for(let cz of CALLES_Z) if(Math.abs(z-cz)<BORDE+m && x>=CALLE_XN0 && x<=CALLE_XN1) return true;
+  for(let cx of CALLES_X) if(Math.abs(x-cx)<BORDE+m && z>=CALLE_ZN0 && z<=CALLE_ZN1) return true;
+  for(let cz of CALLES_ZN) if(Math.abs(z-cz)<BORDE+m && x>=CALLE_XN0 && x<=CALLE_XN1) return true;
+  for(let cx of CALLES_XN) if(Math.abs(x-cx)<BORDE+m && z>=CALLE_ZN0 && z<=CALLE_ZN1) return true;
+  return false;
+}
 function escalarUV(geo, sx, sy){ let uv=geo.attributes.uv; for(let i=0;i<uv.count;i++) uv.setXY(i, uv.getX(i)*sx, uv.getY(i)*sy); uv.needsUpdate=true; return geo; }
 const MAT_CACHE={};
 function matC(color, opts){ let k=color+'|'+(opts?JSON.stringify(opts):''); if(!MAT_CACHE[k]) MAT_CACHE[k]=mat(color, opts||{}); return MAT_CACHE[k]; }
@@ -674,7 +833,24 @@ function poblarBorde(m){
 function texPapelHoja(){ let [c,x]=lienzoN(64,84); x.fillStyle='#e8e2d0'; x.fillRect(0,0,64,84); x.strokeStyle='rgba(60,80,160,0.5)'; for(let y=12;y<84;y+=7){ x.beginPath(); x.moveTo(4,y); x.lineTo(60,y); x.stroke(); } x.fillStyle='rgba(90,70,40,0.35)'; x.beginPath(); x.arc(40,50,14,0,7); x.fill(); let t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; return t; }
 // Autos abandonados, faroles y cerco del collar
 { let colores=[0x6a3a00,0x3a4a3a,0x4a2222,0x222a4a,0x5a5a5a,0x2a4a6a,0x6a6a2a];
-  for(let k=0;k<36;k++){ let horiz=R()<0.5, x, z, rot; if(horiz){ z=CALLES_Z[Math.floor(R()*CALLES_Z.length)]+(R()<0.5?-2.3:2.3); x=(R()-0.5)*(CALLE_X1*2-16); if(CALLES_X.some(cx=>Math.abs(x-cx)<8)) continue; rot=(R()<0.5?0:Math.PI)+(R()-0.5)*0.4; } else { x=CALLES_X[Math.floor(R()*CALLES_X.length)]+(R()<0.5?-2.3:2.3); z=(R()-0.5)*(CALLE_Z1*2-16); if(CALLES_Z.some(cz=>Math.abs(z-cz)<8)) continue; rot=Math.PI/2+(R()<0.5?0:Math.PI)+(R()-0.5)*0.4; } if(Math.abs(x+12)<6&&Math.abs(z-13)<8) continue; autoCaleta(x,z,rot,colores[k%colores.length]); }
+  for(let k=0;k<36;k++){ let horiz=R()<0.5, x, z, rot; if(horiz){ z=CALLES_Z[Math.floor(R()*CALLES_Z.length)]+(R()<0.5?-2.3:2.3); x=(R()-0.5)*(CALLE_X1*2-16); if(CALLES_X.some(cx=>Math.abs(x-cx)<8)) continue; rot=(R()<0.5?0:Math.PI)+(R()-0.5)*0.4; } else { x=CALLES_X[Math.floor(R()*CALLES_X.length)]+(R()<0.5?-2.3:2.3); z=(R()-0.5)*(CALLE_Z1*2-16); if(CALLES_Z.some(cz=>Math.abs(z-cz)<8)) continue; rot=Math.PI/2+(R()<0.5?0:Math.PI)+(R()-0.5)*0.4; }   if(Math.abs(x+12)<6&&Math.abs(z-13)<8) continue; autoCaleta(x,z,rot,colores[k%colores.length]); }
+  { let Rv=rng(909091);
+    for(let k=0;k<16;k++){ let horiz=Rv()<0.5, x, z, rot;
+      if(horiz){ z=CALLES_Z[Math.floor(Rv()*CALLES_Z.length)]; x=(Rv()-0.5)*(CALLE_X1*2-24); if(CALLES_X.some(cx=>Math.abs(x-cx)<9)) continue; rot=Rv()<0.5?0:Math.PI; }
+      else { x=CALLES_X[Math.floor(Rv()*CALLES_X.length)]; z=(Rv()-0.5)*(CALLE_Z1*2-24); if(CALLES_Z.some(cz=>Math.abs(z-cz)<9)) continue; rot=Math.PI/2; }
+      if(autosCiudad.some(a=>Math.hypot(a.position.x-x, a.position.z-z)<6)) continue;
+      if(Math.abs(x+12)<9 && Math.abs(z-13)<10) continue;
+      autoVolcado(x, z, rot, colores[k%colores.length]);
+    }
+    [[-54,2.3,0.25],[22,-34,1.35],[70,2.2,0.15],[-38,50,1.8],[40,-66,0.35],[-88,-2.2,2.7],[110,34,0.5],[-110,-30,1.1]].forEach((p,i)=>{
+      if(autosCiudad.some(a=>Math.hypot(a.position.x-p[0], a.position.z-p[1])<6)) return;
+      if(Math.abs(p[0]+12)<9 && Math.abs(p[1]-13)<10) return;
+      autoVolcado(p[0], p[1], p[2], colores[i%colores.length]);
+    });
+  }
+  ampliarCiudad();
+  cortarUnEdificio();
+  LIM_X=172; LIM_Z=156;
   let solares=[[-36,0],[0,0],[-36,32],[0,32],[36,0],[0,-32],[-72,0],[36,-32],[-108,0],[108,0],[0,64],[0,-64],[72,64],[-72,-64]];
   CALLES_X.forEach(cx=>CALLES_Z.forEach(cz=>{ let ok=solares.some(s=>s[0]===cx&&s[1]===cz); farol(cx+6.3, cz+6.3, -1, ok); }));
   CALLES_Z.forEach(cz=>{ for(let x=CALLES_X[0]+18;x<CALLES_X[CALLES_X.length-1];x+=36){ farol(x, cz-5.4, 1, false); } });
@@ -689,7 +865,7 @@ const MINI={W:150,H:150}; let miniFondo=null;
 function aMini(x,z){ return [(x+LIM_X+4)/(2*LIM_X+8)*MINI.W, (z+LIM_Z+4)/(2*LIM_Z+8)*MINI.H]; }
 function prepararMinimapa(){
   let [c,x]=lienzoN(MINI.W,MINI.H); x.fillStyle='#24401c'; x.fillRect(0,0,MINI.W,MINI.H);
-  x.fillStyle='#555'; CALLES_Z.forEach(cz=>{ let [a,b]=aMini(-LIM_X,cz-MEDIA_CALLE); let [a2,b2]=aMini(LIM_X,cz+MEDIA_CALLE); x.fillRect(a,b,a2-a,b2-b); }); CALLES_X.forEach(cx=>{ let [a,b]=aMini(cx-MEDIA_CALLE,-LIM_Z); let [a2,b2]=aMini(cx+MEDIA_CALLE,LIM_Z); x.fillRect(a,b,a2-a,b2-b); });
+  x.fillStyle='#555'; CALLES_Z.concat(CALLES_ZN).forEach(cz=>{ let [a,b]=aMini(-LIM_X,cz-MEDIA_CALLE); let [a2,b2]=aMini(LIM_X,cz+MEDIA_CALLE); x.fillRect(a,b,a2-a,b2-b); }); CALLES_X.concat(CALLES_XN).forEach(cx=>{ let [a,b]=aMini(cx-MEDIA_CALLE,-LIM_Z); let [a2,b2]=aMini(cx+MEDIA_CALLE,LIM_Z); x.fillRect(a,b,a2-a,b2-b); });
   const col={casa:'#8a6a4a', edificio:'#7a7a80', super:'#e03030', tienda:'#f09020', restaurante:'#f0d020', mall:'#b040f0', bodega:'#3a3a3a'};
   edificios.forEach(b=>{ let [a,bb]=aMini(b.x-b.w/2,b.z-b.d/2); let [a2,b2]=aMini(b.x+b.w/2,b.z+b.d/2); x.fillStyle=col[b.tipo]; x.fillRect(a,bb,a2-a,b2-bb); });
   let [hx,hz]=aMini(-17,9); let [hx2,hz2]=aMini(-7,17); x.fillStyle='#30a0ff'; x.fillRect(hx,hz,hx2-hx,hz2-hz);
@@ -703,6 +879,7 @@ function dibujarMinimapa(){
   let [hx,hz]=aMini(-12,13); x.font='12px system-ui'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('🏠',hx,hz);
   if(panelVisto && !panelInstalado){ let b=edificios.find(e=>e.tipo==='bodega'); let [bx2,bz2]=aMini(b.x,b.z); x.fillText('☀️',bx2,bz2); }
   if(!casaLimpia && !cargando.some(c=>c.userData.tipo==='limpiador')){ let f=edificios.find(e=>String(e.nombre).indexOf('FERRETER')>=0); if(f){ let [fx,fz]=aMini(f.x,f.z); x.fillText('🧹',fx,fz); } }
+  if(!puedeManejar()){ let b=edificios.find(e=>e.tipo==='bodega'); if(b){ let [tx,tz]=aMini(b.x,b.z+4); x.fillText('🧰',tx,tz); } }
   edificios.forEach(b=>{ if(b.nota && !b.nota.leida){ let [nx,nz]=aMini(b.x,b.z); x.fillText('📄',nx,nz); } });
   if(esNoche && vigilante.visible){ let [vx,vz]=aMini(vigilante.position.x,vigilante.position.z); x.fillStyle='#ff2222'; x.beginPath(); x.arc(vx,vz,3,0,7); x.fill(); }
   let [mx,mz]=aMini(wx,wz); x.save(); x.translate(mx,mz); x.rotate(-yaw); x.fillStyle='#fff'; x.strokeStyle='#000'; x.lineWidth=1.5; x.beginPath(); x.moveTo(0,-6); x.lineTo(4.5,5); x.lineTo(0,2.5); x.lineTo(-4.5,5); x.closePath(); x.fill(); x.stroke(); x.restore();
@@ -1082,6 +1259,11 @@ function crearMuebleRobable(nombre, emoji, tipo, color, x, z, parent, baseX){
     patasPanel.push(cajaP(0.5,0.3,0.25,0x333333,0.6,0.15,0.7,g)); brillo(0x55aaff,2.2,0,1.1,0,g,0.45);
   } else if(tipo==='caja'){
     cajaP(0.95,0.95,0.95,color, 0,0.48,0, g); cajaP(1,0.12,1,0x8a6a2a, 0,1,0, g); cajaP(0.5,0.3,0.06,0xffffff, 0,0.6,0.5, g);
+  } else if(tipo==='herramientas'){
+    cajaP(0.92,0.36,0.56,0xb42318,0,0.28,0,g); cajaP(0.96,0.07,0.6,0x8a1a12,0,0.48,0,g);
+    cajaP(0.46,0.05,0.07,0x2a2a2a,0,0.54,0,g);
+    cajaP(0.08,0.1,0.08,0xc8ccd0,-0.28,0.36,0.18,g); cajaP(0.08,0.1,0.08,0xc8ccd0,0.28,0.36,0.18,g);
+    let llave=cajaP(0.05,0.42,0.04,0xd0d4d8,0.22,0.62,0.08,g); llave.rotation.z=0.55;
   } else if(tipo==='limpiador'){
     cilindro(0.22,0.18,0.32,0x1f6f9a,0,0.2,0,g,14);
     cilindro(0.16,0.14,0.05,0x1a4a28,0,0.34,0,g,12);
@@ -1111,7 +1293,7 @@ let almacen=new THREE.Group();
   let mall=de('mall')[0]; robable(mall,'Planta del centro','🪴','planta',0xaa4400); robable(mall,'Lámpara del centro','💡','lampara',0xccaa44); robable(mall,'Tele del centro','📺','tele',0x111111); robable(mall,'Cuadro del centro','🖼️','cuadro',0x6a3a1a);
   let resto=de('restaurante')[0]; robable(resto,'Silla del restorán','🪑','silla',0x8a2222); robable(resto,'Mesa del restorán','🍽️','mesa',0x7a4a22);
   let ofi=de('edificio')[0]; robable(ofi,'Estante','📚','estante',0x8a5a2a); robable(ofi,'Planta de oficina','🪴','planta',0x885522);
-  let bodega=de('bodega')[0]; robable(bodega,'Panel solar','☀️','panel',0x9aa0a8); robable(bodega,'Caja de herramientas','🧰','caja',0xaa3322);
+  let bodega=de('bodega')[0]; robable(bodega,'Panel solar','☀️','panel',0x9aa0a8); robable(bodega,'Caja de herramientas','🧰','herramientas',0xb42318);
   let ferre=edificios.find(b=>String(b.nombre).indexOf('FERRETER')>=0); robable(ferre,'Limpiador','🧹','limpiador',0x1f6f9a);
 }
 let cargando=[]; let muebleCerca=null; let contadorDecoracion=0;
@@ -1137,7 +1319,8 @@ function checkMueblesCerca(){
 function agarrarCercano(){
   if(!muebleCerca) return; if(cargando.length>=maxCarga()){ document.getElementById('msg').innerHTML='💪 ¡Manos llenas! Fuerza: '+Math.floor(fuerza)+' - Necesitas 30 para 2 cosas.'; return; }
   let m=muebleCerca; sonidoAgarrar(); m.userData.estado='cargando'; m.userData.anillo.visible=false; cargando.push(m); subirFuerza(0.8);
-  document.getElementById('msg').innerHTML = m.userData.tipo==='limpiador' ? '🧹 Agarraste el limpiador. Entra a tu casa y úsalo con G. Sin esto no se limpia.' : '🤲 ¡Agarraste '+m.userData.emoji+' '+m.userData.nombre+'! Llévalo a tu casa. Llevas '+cargando.length+'/'+maxCarga();
+  document.getElementById('msg').innerHTML = m.userData.tipo==='limpiador' ? '🧹 Agarraste el limpiador. Entra a tu casa y úsalo con G. Sin esto no se limpia.' : m.userData.tipo==='herramientas' ? '🧰 Caja de herramientas. Un auto que esté parado ahora puede arrancar. Súbete con E. Los volcados no.' : '🤲 ¡Agarraste '+m.userData.emoji+' '+m.userData.nombre+'! Llévalo a tu casa. Llevas '+cargando.length+'/'+maxCarga();
+  if(m.userData.tipo==='herramientas') tieneHerramientas=true;
   actualizarManos(); checkMueblesCerca();
 }
 function cercaDeMiCasa(){ return donde==='afuera' && Math.abs(px+12)<8 && pz>4 && pz<20; }
@@ -1267,7 +1450,43 @@ function terminar(gano){
   document.getElementById('finTexto').innerHTML=(gano?'¡Lo lograste Facundo! Sobreviviste 3 días.':'Te quedaste sin salud el día '+dia+'. ¡Come, bebe y escóndete del vigilante!')+'<br>☀️ Panel solar: <b>'+(panelInstalado?'INSTALADO 💡':'sin instalar')+'</b><br>🏠 Muebles en tu casa: <b>'+deco+' / '+(mueblesRobables.length-1)+'</b> '+estrellas+'<br>💪 Fuerza final: <b>'+Math.floor(fuerza)+'</b>';
   document.getElementById('fin').style.display='flex';
 }
-function accionPuerta(){ if(!jugando) return; if(donde==='afuera' ? !puertaCerca : !salidaCerca) return; sonidoPuerta();
+function puedeManejar(){ return tieneHerramientas || cargando.some(c=>c.userData.tipo==='herramientas') || mueblesRobables.some(m=>m.userData.tipo==='herramientas' && m.userData.estado!=='enSuper'); }
+function autoCercano(){ if(donde!=='afuera') return null; let best=null, bd=3.5; for(let a of autosCiudad){ if(a.userData.volcado) continue; let d=Math.hypot(px-a.position.x, pz-a.position.z); if(d<bd){ best=a; bd=d; } } return best; }
+function autoVolcadoCerca(){ if(donde!=='afuera') return null; for(let a of autosCiudad){ if(a.userData.volcado && Math.hypot(px-a.position.x, pz-a.position.z)<3.3) return a; } return null; }
+function intentarSubir(){
+  let vol=autoVolcadoCerca(), a=autoCercano();
+  if(!a && vol){ document.getElementById('msg').innerHTML='🚗 Este está dado vuelta. No arranca. Busca uno que siga sobre las ruedas.'; return true; }
+  if(!a) return false;
+  if(!puedeManejar()){ document.getElementById('msg').innerHTML='🚗 El auto no arranca. En la bodega hay una caja de herramientas. Sin eso no hay caso.'; return true; }
+  conduciendo=a; px=a.position.x; pz=a.position.z;
+  document.getElementById('dondeEstoy').textContent='🚗 MANEJANDO';
+  document.getElementById('msg').innerHTML='🚗 El motor tose y arranca. W y S para andar, A y D para doblar, E para bajar. El collar sigue: el cerco quema.';
+  manoIzq.visible=false; manoDer.visible=false; linternaMesh.visible=false;
+  return true;
+}
+function bajarDelAuto(){
+  if(!conduciendo) return;
+  let a=conduciendo, ry=a.rotation.y; conduciendo=null;
+  px=a.position.x+Math.sin(ry)*2.3; pz=a.position.z+Math.cos(ry)*2.3;
+  if(chocaEdificio(px,pz)){ px=a.position.x-Math.sin(ry)*2.3; pz=a.position.z-Math.cos(ry)*2.3; }
+  document.getElementById('dondeEstoy').textContent='🌳 AFUERA · Ciudad Abandonada';
+  document.getElementById('msg').innerHTML='🚗 Bajaste. El auto queda donde lo dejaste.';
+  manoIzq.visible=true; manoDer.visible=true; linternaMesh.visible=true;
+}
+function moverAuto(fwd, side, f){
+  let a=conduciendo; if(!a) return;
+  a.rotation.y-=side*0.05*f;
+  if(Math.abs(fwd)<0.08) return;
+  let ry=a.rotation.y, paso=fwd*0.46*f;
+  let nx=a.position.x+Math.cos(ry)*paso, nz=a.position.z-Math.sin(ry)*paso;
+  if(Math.abs(nx)>LIM_X-1.6 || Math.abs(nz)>LIM_Z-1.6){ shockCollar(); return; }
+  let nx2=nx+Math.cos(ry)*1.7*Math.sign(fwd||1), nz2=nz-Math.sin(ry)*1.7*Math.sign(fwd||1);
+  if(chocaEdificio(nx,nz) || chocaEdificio(nx2,nz2)) return;
+  a.position.x=nx; a.position.z=nz; px=nx; pz=nz; condujo=true;
+  a.userData.giro=(a.userData.giro||0)+fwd*0.55*f;
+  a.traverse(o=>{ if(o.material===GOMA_AUTO){ o.rotation.x=Math.PI/2; o.rotation.z=a.userData.giro; } });
+}
+function accionPuerta(){ if(!jugando) return; if(conduciendo){ bajarDelAuto(); return; } if(donde==='afuera' && !puertaCerca && (autoCercano()||autoVolcadoCerca())){ intentarSubir(); return; } if(donde==='afuera' ? !puertaCerca : !salidaCerca) return; sonidoPuerta();
   if(donde==='afuera'){ if(puertaCerca==='casa') entrarA('casa', 100, 0, 3.5, 0); else entrarEdificio(puertaCerca); }
   else if(donde==='casa'){ salirA(-12, 7.3, 0); }
   else { let b=edificioActual; limpiarInterior(); edificioActual=null; salirA(b.salidaX, b.salidaZ, b.dir<0?0:Math.PI); } }
@@ -1281,9 +1500,12 @@ function entrarEdificio(b){ construirInterior(b); edificioActual=b; donde='inter
   document.getElementById('msg').innerHTML=txt+' <b>La 🚪 SALIDA está detrás de ti.</b>'; ponerLinterna(true); }
 function salirA(x,z,ry=Math.PI){ donde='afuera'; pisoEd=0; murosAhora=null; px=x; pz=z; yaw=ry; pitch=0; grupoExterior.visible=true; grupoCielo.visible=true; grupoCasa.visible=false; document.getElementById('btnEntrar').style.display='none'; document.getElementById('dondeEstoy').textContent='🌳 AFUERA · Ciudad Abandonada'; if(cargando.length>0) document.getElementById('msg').innerHTML='🌳 Saliste con '+cargando.map(m=>m.userData.emoji).join(' ')+' en la mano. ¡Corre a tu casa!'; else document.getElementById('msg').innerHTML='🌳 Saliste afuera.'; ponerLinterna(esNoche); }
 function checkPuertas(){ let btn=document.getElementById('btnEntrar'); puertaCerca=null; salidaCerca=false;
+  if(conduciendo){ btn.textContent='🚗 BAJAR (E)'; btn.style.display='block'; return; }
   if(donde==='afuera'){ if(Math.abs(px+12)<2.2 && Math.abs(pz-7.6)<1.8){ puertaCerca='casa'; btn.textContent='🚪 ENTRAR A MI CASA'; }
     else { for(let b of edificios){ if(Math.abs(px-b.doorX)<(b.tipo==='mall'?2.6:2) && Math.abs(pz-b.doorZ)<1.8){ puertaCerca=b; btn.textContent='🚪 ENTRAR: '+b.nombre; break; } } }
-    btn.style.display=puertaCerca?'block':'none'; }
+    btn.style.display=puertaCerca?'block':'none';
+    if(!puertaCerca){ if(autoCercano()){ btn.textContent=puedeManejar()?'🚗 SUBIR AL AUTO (E)':'🚗 NO ARRANCA SIN LA CAJA'; btn.style.display='block'; } else if(autoVolcadoCerca()){ btn.textContent='🚗 ESTÁ VOLCADO'; btn.style.display='block'; } }
+  }
   else if(donde==='casa'){ if(Math.abs(px-100)<1.6 && pz>2.8){ salidaCerca=true; btn.textContent='🚪 SALIR AFUERA'; btn.style.display='block'; } else btn.style.display='none'; }
   else if(donde==='interior' && edificioActual){ if(Math.abs(px-INTERIOR_X)<1.8 && pz>edificioActual.idp/2-2.2){ salidaCerca=true; btn.textContent='🚪 SALIR AFUERA'; btn.style.display='block'; } else btn.style.display='none'; } }
 function corriendo(){ return (keys['ShiftLeft']||keys['ShiftRight']||keys['shift']||correrMovil) && energia>5; }
@@ -1299,6 +1521,11 @@ const MISIONES=[
   {id:'panel', t:'El panel de la bodega', d:'En la bodega del sur hay un panel solar. Encontrarlo no te libera: solo puede alumbrar la casa.'},
   {id:'luz', t:'Luz en la casa', d:'Instala el panel. La partida sigue. El collar no se abre con electricidad.'},
   {id:'noche', t:'Pasar la noche', d:'Cuando caiga la noche, duerme en tu cama. El vigilante no entra a la casa.'},
+  {id:'corte', t:'El edificio partido', d:'Hay un solo edificio cortado a la mitad. Acércate: se ven los pisos y lo que quedó adentro.'},
+  {id:'volcados', t:'Autos dados vuelta', d:'En las calles hay autos volcados, además de los que siguen parados. Míralos. Esos no arrancan.'},
+  {id:'juegos', t:'La plaza del condominio', d:'En los condominios nuevos quedó la plaza: columpios y un resbalín, rotos y sucios.'},
+  {id:'herramientas', t:'La caja de la bodega', d:'En la bodega hay una caja de herramientas. Sin ella el auto no arranca. El mapa marca 🧰.'},
+  {id:'conducir', t:'Salir a manejar', d:'Con la caja, súbete a un auto que esté parado (E). El collar sigue: si llegas al cerco, quema igual.'},
   {id:'seguir', t:'Seguir con el collar', d:'Sobrevive dos noches más. No hay final: se vive un día, y después otro.'}
 ];
 let misionHecha={}, misionAvisada={}, msgNota=false;
@@ -1311,6 +1538,11 @@ function misionOk(id){
   if(id==='panel') return panelVisto || panelInstalado || cargando.some(c=>c.userData.tipo==='panel');
   if(id==='luz') return panelInstalado;
   if(id==='noche') return nochesDormidas>=1;
+  if(id==='corte') return vioCorte;
+  if(id==='volcados') return vioVolcado;
+  if(id==='juegos') return vioJuegos;
+  if(id==='herramientas') return puedeManejar();
+  if(id==='conducir') return condujo;
   if(id==='seguir') return nochesDormidas>=3;
   return false;
 }
@@ -1462,7 +1694,7 @@ window.__lianas=construirLianas();
 let reloj=0;
 function fusionarEstaticos(raiz, celda=48){
   raiz.updateMatrixWorld(true); let inv=new THREE.Matrix4().copy(raiz.matrixWorld).invert();
-  let dinamicos=new Set([...mariposas.map(m=>m.g), ...particulas, ...nieblas, ...comidas3D, ...aguas3D]);
+  let dinamicos=new Set([...mariposas.map(m=>m.g), ...particulas, ...nieblas, ...comidas3D, ...aguas3D, ...autosCiudad]);
   let protegidos=new Set([puertaCasa.material, puertaSuper.material, ...matsNoche.map(r=>r.m), ...faroles.map(f=>f.foco.material)]);
   let grupos=new Map(), v=new THREE.Vector3();
   raiz.traverse(o=>{ if(!o.isMesh || o.isInstancedMesh || Array.isArray(o.material) || o.children.length) return; let m=o.material; if(!m.isMeshStandardMaterial || protegidos.has(m) || m.transparent || m.map || m.bumpMap || m.emissive.getHex()!==0) return; for(let a=o.parent;a;a=a.parent){ if(dinamicos.has(a)) return; } let g=o.geometry; if(!g.attributes.position || !g.attributes.normal) return;
@@ -1686,6 +1918,11 @@ function orientarCuerpo(){
   jugador.userData.rumbo+=d*0.22; jugador.rotation.y=jugador.userData.rumbo;
 }
 function pasoExtra(){
+  if(donde==='afuera' && !conduciendo){
+    if(window.__corte && Math.hypot(px-window.__corte.x, pz-window.__corte.z)<14) vioCorte=true;
+    if(autosCiudad.some(a=>a.userData.volcado && Math.hypot(px-a.position.x, pz-a.position.z)<5)) vioVolcado=true;
+    if(window.__condo && Math.hypot(px-window.__condo.x, pz-window.__condo.z)<6.5) vioJuegos=true;
+  }
   if(escaleraCd>0) escaleraCd--;
   if(!durmiendo && donde==='interior' && edificioActual && edificioActual.escalera && escaleraCd<=0){
     let e=edificioActual.escalera, lx=px-INTERIOR_X;
@@ -1817,7 +2054,7 @@ function cerrarCine(){
 }
 function renderizar(){ if(enCine) return; if(REAL.on && !calidadAlta) REAL.apagar(); if(REAL.on){ REAL.ambiente(); REAL.render(); } else renderer.render(scene,camera); }
 
-function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"; } } hambre=Math.max(0,hambre-0.003*f); sed=Math.max(0,sed-0.0044*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo){ fwd=0; side=0; } if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
+function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"; } } hambre=Math.max(0,hambre-0.003*f); sed=Math.max(0,sed-0.0044*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo){ fwd=0; side=0; } if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
   if(donde==='afuera' && (Math.abs(px)>LIM_X || Math.abs(pz)>LIM_Z)){ shockCollar(); px=Math.max(-LIM_X+1,Math.min(LIM_X-1,px)); pz=Math.max(-LIM_Z+1,Math.min(LIM_Z-1,pz)); }
   checkPuertas(); checkMueblesCerca(); actualizarManos(); pasoExtra(); let altPiso=(donde==='interior'?pisoEd*3.08:0); if(!durmiendo) jugador.position.set(px, altPiso, pz);
   cargando.forEach((m, idx)=>{ let offsetX = -Math.sin(yaw)*1.6 + (idx- (cargando.length-1)/2)*1*Math.cos(yaw); let offsetZ = -Math.cos(yaw)*1.6 - (idx- (cargando.length-1)/2)*1*Math.sin(yaw); if(m.parent!==scene){ scene.add(m); } m.position.set(px+offsetX, 0.85, pz+offsetZ); m.rotation.y=yaw; });
@@ -1831,7 +2068,8 @@ function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahora
   itemsInterior.forEach(o=>{ if(o.it.tomado) return; o.m.rotation.y+=0.03; if(donde==='interior' && Math.abs(px-(INTERIOR_X+o.it.x))<1.3 && Math.abs(pz-o.it.z)<1.3){ o.it.tomado=true; o.m.visible=false; if(o.it.tipo==='comida') invComida++; else invAgua++; sonidoRecoger(); document.getElementById('msg').innerHTML=(o.it.tipo==='comida'?'🍗 ¡Comida! Tienes '+invComida:'💧 ¡Agua! Tienes '+invAgua); } });
   mueblesRobables.forEach((m,i)=>{ if(m.userData.anillo && m.userData.anillo.visible){ m.userData.anillo.material.emissiveIntensity = 0.6+Math.sin(reloj*3+i)*0.5; m.userData.anillo.rotation.z+=0.012; } });
   aplicarAmbiente();
-  if(durmiendo && camaJugador){ camera.position.set(camaJugador.x+2.1, 1.7, camaJugador.z+1.35); camera.lookAt(camaJugador.x-0.35, 0.55, camaJugador.z); }
+  if(conduciendo){ let ry=conduciendo.rotation.y, bx=-Math.cos(ry), bz=Math.sin(ry); camera.position.set(conduciendo.position.x+bx*7.2, 3.2, conduciendo.position.z+bz*7.2); camera.lookAt(conduciendo.position.x-bx*3.2, 0.85, conduciendo.position.z-bz*3.2); }
+  else if(durmiendo && camaJugador){ camera.position.set(camaJugador.x+2.1, 1.7, camaJugador.z+1.35); camera.lookAt(camaJugador.x-0.35, 0.55, camaJugador.z); }
   else if(camaraFrontal){ let ojo=1.62+altPiso; camera.position.set(px, ojo, pz); camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.rotation.z=0; }
   else { camera.position.set(px + Math.sin(yaw)*3.4, 1.55+altPiso, pz + Math.cos(yaw)*3.4); camera.lookAt(px, 1.2+altPiso, pz); }
   update(); renderizar(); }

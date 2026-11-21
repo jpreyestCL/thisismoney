@@ -65,6 +65,11 @@
   #cineFade{position:absolute;inset:0;background:#000;opacity:0}
   body.cine #top, body.cine #stats, body.cine #msg, body.cine #btns, body.cine #joy, body.cine #btnEntrar, body.cine #btnAgarrar, body.cine #btnSoltar, body.cine #avisoCollar, body.cine #hudExtra{display:none!important}
   body.cine #controles, body.cine #objetivo, body.cine #manos, body.cine #dondeEstoy, body.cine #minimapa, body.cine #mira{opacity:0}
+  #mapaBox{position:fixed;inset:0;z-index:80;background:rgba(4,8,6,.86);display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+  #mapaCv{width:min(960px,96vw);height:auto;background:#1e3a18;border:3px solid #FFD700;border-radius:12px;box-shadow:0 12px 40px #000}
+  #mapaAyuda{color:#ffe9a0;font:700 15px system-ui,sans-serif;text-align:center;max-width:92vw}
+  #guiaMarca{position:fixed;left:50%;bottom:108px;transform:translateX(-50%);z-index:16;display:none;align-items:center;gap:8px;background:rgba(0,0,0,.78);color:#fff;border:2px solid #FFD700;border-radius:14px;padding:6px 14px;font:700 16px system-ui,sans-serif;pointer-events:none}
+  #guiaFlecha{display:inline-block;font-size:22px;color:#ffe14a;line-height:1}
 </style>
 </head>
 <body>
@@ -76,7 +81,7 @@
   <div><span class="pill">🏙️ Ciudad gigante</span><span class="pill">🔦 Linterna</span><span class="pill">☀️ Panel solar</span><span class="pill">✨ CALETA ULTRA</span><span class="pill">💪 Fuerza</span><span class="pill">🤲 Robar y decorar</span><span class="pill">🏠 Interiores 3D</span><span class="pill">🌿 Selva Real</span></div>
   <p style="font-size:14px;background:rgba(40,90,160,.35);border:1px solid #4aaaff;border-radius:12px;padding:8px 12px"><b>☀️ LA LUZ:</b> Adentro está oscuro y solo ves con la 🔦 linterna. El <b>PANEL SOLAR</b> está escondido en la ciudad: tráelo e instálalo en tu casa (G) para tener luz. Encontrarlo <b>no termina la partida</b>. El collar sigue, y el juego continúa.</p>
   <p style="font-size:13px"><b>CÓMO JUGAR:</b><br>La ciudad es enorme y sigue más allá: calles nuevas, casas, condominios con juegos rotos y autos volcados. Hay un solo edificio partido a la mitad. Tu casa empieza destruida por dentro. El limpiador está en la ferretería: sin eso no se limpia. En la bodega hay una caja de herramientas: sin eso el auto no arranca. Entra (E) → agarra los muebles con anillo dorado (F) → llévalos a tu casa y suéltalos (G). Fuerza 10=1 cosa, 30=2, 60=3, 90=4.<br><b>🎯 SE SIGUE:</b> sobrevive, duerme en tu cama cuando caiga la noche y lee las notas de las casas. Junta 🍗 y 💧. De noche sale el VIGILANTE. Si cruzas el cerco, el collar te electrocuta.</p>
-  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar (Esc suelta) · Shift correr · E puerta o auto · F agarrar · G soltar donde miras · L linterna · C comer · X beber · R dormir<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
+  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar (Esc suelta) · Shift correr · E puerta o auto · F agarrar · G soltar donde miras · L linterna · M mapa · N marcar · B zoom · C comer · X beber · R dormir<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
   <button id="jugar" onclick="empezar()">▶️ JUGAR CALETA ULTRA</button>
 </div>
 <div id="cine"><div class="barra top"></div><div class="barra bot"></div><div id="cineSub"></div><button id="cineSaltar" onclick="saltarCine()">SALTAR »</button><div id="cineFade"></div></div>
@@ -89,6 +94,8 @@
   <div class="stat">❤️ SALUD<div class="bar"><div id="barSalud" class="fill" style="width:100%;background:linear-gradient(90deg,#ff2222,#ff8888)"></div></div><span id="txtSalud">100</span></div>
   <div class="stat">💪 FUERZA<div class="bar"><div id="barFuerza" class="fill" style="width:10%;background:linear-gradient(90deg,#ff00ff,#ff88ff,#ffff00)"></div></div><span id="txtFuerza">10</span> / 100</div>
 </div>
+<div id="mapaBox"><canvas id="mapaCv" width="960" height="640"></canvas><div id="mapaAyuda">M cierra · flechas o WASD mueven la mira · N marca el punto · B hace zoom</div></div>
+<div id="guiaMarca"><span id="guiaFlecha">▲</span><span id="guiaTxt"></span></div>
 <div id="gameWrap"><div id="vignette"></div><div id="mira">+</div><div id="dondeEstoy">🌳 AFUERA · Ciudad Abandonada</div><div id="manos">🤲 Manos: VACÍAS</div><div id="controles">✨ CALETA ULTRA<br>⌨️ WASD caminar · Shift correr · ←→ girar<br>🚪 E puerta · 🤲 F agarrar · ⬇️ G soltar donde miras · 🔦 L linterna<br>🍗 C comer · 💧 X beber · 🛏️ R dormir (de noche)</div><canvas id="minimapa" width="150" height="150"></canvas><div id="objetivo">🎯 Entra a tu casa. El panel alumbra: no termina la partida.</div><div id="zonaCamara"></div></div>
 <div id="msg">Facundo, mira el cielo, las sombras y los charcos. ¡Ahora se ve caleta mejor! Entra al SÚPER a robar.</div>
 <button id="btnEntrar" onclick="accionPuerta()">🚪 ENTRAR</button>
@@ -862,6 +869,7 @@ function texComercio(color, w, h, tipo){
 function texMetalOxidado(){ let [c,x]=lienzoN(512,512); x.fillStyle='#6a6e70'; x.fillRect(0,0,512,512); for(let i=0;i<512;i+=16){ let g=x.createLinearGradient(i,0,i+16,0); g.addColorStop(0,'#7a7e80'); g.addColorStop(0.5,'#4a4e50'); g.addColorStop(1,'#7a7e80'); x.fillStyle=g; x.fillRect(i,0,16,512); } let r=rng(5); for(let i=0;i<60;i++){ let g=x.createRadialGradient(0,0,0,0,0,10+r()*50); g.addColorStop(0,'rgba(140,60,20,0.7)'); g.addColorStop(1,'rgba(140,60,20,0)'); x.save(); x.translate(r()*512,r()*512); x.fillStyle=g; x.fillRect(-60,-60,120,120); x.restore(); } grafiti(x,512,512,r); return texDe(c,2,1); }
 function texTejas(){ let [c,x]=lienzoN(256,256); x.fillStyle='#5a2a1a'; x.fillRect(0,0,256,256); let r=rng(9); for(let y=0;y<256;y+=21){ for(let xx=-16+(y/21%2)*16;xx<256;xx+=32){ let v=r()*40; x.fillStyle='rgb('+(130+v)+','+(60+v*0.4)+','+(40+v*0.3)+')'; x.beginPath(); x.ellipse(xx+16,y+12,15,11,0,0,Math.PI); x.fill(); x.fillStyle='rgba(0,0,0,0.3)'; x.fillRect(xx+2,y+18,28,3); } } for(let i=0;i<30;i++){ x.fillStyle='rgba(40,80,20,0.5)'; x.fillRect(r()*256,r()*256,6+r()*14,4+r()*8); } return texDe(c); }
 const TEX_TEJAS=texTejas(), TEX_METAL=texMetalOxidado();
+const TEX_CLARO=(()=>{ let [c,x]=lienzoN(64,64); x.fillStyle='#eeeae2'; x.fillRect(0,0,64,64); for(let i=0;i<240;i++){ x.fillStyle='rgba(0,0,0,0.07)'; x.fillRect(Math.random()*64, Math.random()*64, 2, 2); } return texDe(c); })();
 texCalle.repeat.set(1,1); let texVeredaC=texVeredaHD(); texVeredaC.repeat.set(1,1);
 const mCalle=new THREE.MeshStandardMaterial({map:texCalle, bumpMap:calidadAlta?texCalle:null, bumpScale:0.05, roughness:0.88});
 const mVereda=new THREE.MeshStandardMaterial({map:texVeredaC, bumpMap:calidadAlta?texVeredaC:null, bumpScale:0.03, roughness:0.9});
@@ -908,8 +916,20 @@ function puertaExterior(x, zCara, dir, ancho=1.6, alto=2.6, marco=0x3a2a1a){
 function letrero3D(texto, fondo, x, y, z, dir, ancho=5){ let t=texLetrero(texto, fondo, '#fff4d0'); let mm=new THREE.MeshStandardMaterial({map:t, roughness:0.6}); let caras=[matC(0x2a2a2a),matC(0x2a2a2a),matC(0x2a2a2a),matC(0x2a2a2a),dir>0?mm:matC(0x2a2a2a),dir>0?matC(0x2a2a2a):mm]; let m=new THREE.Mesh(new THREE.BoxGeometry(ancho,ancho*0.22,0.2), caras); m.position.set(x,y,z); m.rotation.z=(R()-0.5)*0.12; m.castShadow=true; grupoExterior.add(m); return m; }
 const COLOR_COMERCIO={super:'#b8b0a0', tienda:'#a0a8b8', restaurante:'#c0a080', bodega:'#777', mall:'#c8c0b8'};
 const FONDO_LETRERO={super:['#b01010','#600000'], tienda:['#1050b0','#002060'], restaurante:['#d07010','#703000'], bodega:['#555','#222'], mall:['#7a20b0','#300050']};
+function azarCasa(x,z){ let n=Math.sin(x*127.1+z*311.7)*43758.5453; return n-Math.floor(n); }
+const TINTES_CASA=[0xfff4e8,0x7eb0e8,0xf0c14a,0x7dcea0,0xe07a58];
+const TECHO_COLORES=[0xffffff,0xb7c0c8,0xf0c14a,0x2f6b45,0xc4502a];
+const BANDAS_CASA=[0xc23b2e,0x1d4e89,0xd4a017,0x1e6b3a,0x8a3a28];
 function crearEdificio(tipo, nombre, x, z, w, d, h, dir){
-  let b={id:edificios.length, tipo, nombre, x, z, w, d, h, dir, seed:Math.floor(R()*1e9), items:null};
+  let b={id:edificios.length, tipo, nombre, x, z, w, d, h, dir, seed:Math.floor(R()*1e9), items:null, forma:-1};
+  let formaCasa=-1;
+  if(tipo==='casa'){
+    formaCasa=Math.floor(azarCasa(x,z)*5)%5; b.forma=formaCasa;
+    if(formaCasa===1) h+=2.15;
+    else if(formaCasa===2) h=Math.max(3.25, h-0.9);
+    else if(formaCasa===4) h+=0.85;
+    b.h=h;
+  }
   let zCara=z+dir*d/2; b.doorX=x; b.doorZ=zCara+dir*1.1; b.salidaX=x; b.salidaZ=zCara+dir*1.7;
   b.iw=Math.max(9, w-0.6); b.idp=Math.max(8, d-0.6); b.ih=4.3;
   if(tipo==='casa'){ b.iw=10.6; b.idp=8.6; b.ih=2.7; }
@@ -918,8 +938,8 @@ function crearEdificio(tipo, nombre, x, z, w, d, h, dir){
   let caras;
   let volumen = calidadAlta && tipo!=='bodega';
   if(tipo==='casa'){
-    if(volumen){ let mf=fachadaConMaterial(); caras=[mf,mf,matC(0x3a3530),matC(0x3a3530),mf,mf]; }
-    else { let tf=texCasaFachada(Math.floor(R()*6), w, h); let mf=new THREE.MeshStandardMaterial({map:tf, bumpMap:calidadAlta?tf:null, bumpScale:0.03, roughness:0.95}); caras=[mf,mf,matC(0x3a3530),matC(0x3a3530),mf,mf]; }
+    if(volumen){ let mf=fachadaConMaterial().clone(); if(formaCasa!==0){ mf.map=MAT_YESO[0].map; mf.bumpMap=calidadAlta?mf.map:null; mf.color.setHex(TINTES_CASA[formaCasa]); } caras=[mf,mf,matC(0x3a3530),matC(0x3a3530),mf,mf]; }
+    else { let tf=texCasaFachada(Math.floor(R()*6), w, h); let mf=new THREE.MeshStandardMaterial({map:tf, color:TINTES_CASA[formaCasa], bumpMap:calidadAlta?tf:null, bumpScale:0.03, roughness:0.95}); caras=[mf,mf,matC(0x3a3530),matC(0x3a3530),mf,mf]; }
   }
   else if(tipo==='edificio'){
     let lado=new THREE.MeshStandardMaterial({map:texLadrilloTex, bumpMap:calidadAlta?texLadrilloTex:null, bumpScale:0.05, roughness:0.9});
@@ -930,9 +950,15 @@ function crearEdificio(tipo, nombre, x, z, w, d, h, dir){
   else if(volumen){ let mf=fachadaConMaterial(); caras=[mf,mf,matC(0x3a3530),matC(0x3a3530),mf,mf]; }
   else { let tf=texComercio(COLOR_COMERCIO[tipo], w, h, tipo); let mf=new THREE.MeshStandardMaterial({map:tf, bumpMap:calidadAlta?tf:null, bumpScale:0.03, roughness:0.9}); caras=[mf,mf,matC(0x3a3530),matC(0x3a3530),mf,mf]; }
   let cuerpo=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), caras); cuerpo.position.set(x,h/2,z); cuerpo.castShadow=true; cuerpo.receiveShadow=true; grupoExterior.add(cuerpo);
-  if(tipo==='casa'){ let geo=new THREE.ConeGeometry(Math.SQRT1_2,1,4); geo.rotateY(Math.PI/4); let techo=new THREE.Mesh(escalarUV(geo,3,2), new THREE.MeshStandardMaterial({map:TEX_TEJAS, roughness:0.85})); techo.scale.set(w+0.8,2.4+R()*0.8,d+0.8); techo.position.set(x,h+techo.scale.y/2,z); techo.castShadow=true; grupoExterior.add(techo);
+  if(tipo==='casa'){ let geo=new THREE.ConeGeometry(Math.SQRT1_2,1,4); geo.rotateY(Math.PI/4); let techo=new THREE.Mesh(escalarUV(geo,3,2), new THREE.MeshStandardMaterial({map:formaCasa===0?TEX_TEJAS:TEX_CLARO, color:TECHO_COLORES[formaCasa], roughness:0.82})); techo.scale.set(w+0.8,2.4+R()*0.8,d+0.8); techo.position.set(x,h+techo.scale.y/2,z); techo.castShadow=true; grupoExterior.add(techo);
+    if(formaCasa===1) techo.scale.y*=1.35;
+    if(formaCasa===2) techo.scale.y*=0.62;
+    if(formaCasa===3){ techo.visible=false; bx(w+0.55,0.34,d+0.55,0x4e5458,x,h+0.2,z,grupoExterior); bx(w+0.7,0.42,0.16,0x6a6e72,x,h+0.5,z+d/2,grupoExterior); bx(w+0.7,0.42,0.16,0x6a6e72,x,h+0.5,z-d/2,grupoExterior); bx(0.16,0.42,d+0.7,0x6a6e72,x-w/2,h+0.5,z,grupoExterior); bx(0.16,0.42,d+0.7,0x6a6e72,x+w/2,h+0.5,z,grupoExterior); }
+    if(formaCasa===4){ techo.visible=false; let mt=techo.material; let s1=new THREE.Mesh(new THREE.BoxGeometry(w+1.05,0.18,d*0.7), mt); s1.position.set(x,h+0.78,z+d*0.16); s1.rotation.x=0.52; s1.castShadow=true; grupoExterior.add(s1); let s2=new THREE.Mesh(new THREE.BoxGeometry(w+1.05,0.18,d*0.7), mt); s2.position.set(x,h+0.78,z-d*0.16); s2.rotation.x=-0.52; s2.castShadow=true; grupoExterior.add(s2); }
     if(R()<0.6) bx(0.7,1.6,0.7,0x6a4a3a,x+w*0.25,h+1.4,z-d*0.15,grupoExterior);
     if(R()<0.35){ let hoyo=bx(1.4,0.1,1.2,0x111111,x-w*0.2,h+1.05,z+dir*d*0.2,grupoExterior,false); hoyo.rotation.x=dir*0.55; }
+    bx(w+0.12,0.46,d+0.12,BANDAS_CASA[formaCasa],x,Math.max(2.2,h-0.4),z,grupoExterior);
+    if(formaCasa===1){ for(let k=-1;k<=1;k++) caja(0.7,0.85,0.1,0xc5e4f5,x+k*(w/4),h-1.2,z+dir*(d/2+0.02),0,null,{emissive:0x123044,emissiveIntensity:0.35,roughness:0.15,metalness:0.4},grupoExterior); }
   } else {
     bx(w+0.3,0.5,d+0.3,0x5a5650,x,h+0.25,z,grupoExterior);
     if(R()<0.7){ cilindro(0.6,0.6,1.2,0x5a5a5a,x-w*0.25,h+1.1,z,grupoExterior,12); }
@@ -1085,7 +1111,86 @@ function dibujarMinimapa(){
   edificios.forEach(b=>{ if(b.nota && !b.nota.leida){ let [nx,nz]=aMini(b.x,b.z); x.fillText('📄',nx,nz); } });
   if(esNoche && vigilante.visible){ let [vx,vz]=aMini(vigilante.position.x,vigilante.position.z); x.fillStyle='#ff2222'; x.beginPath(); x.arc(vx,vz,3,0,7); x.fill(); }
   let [mx,mz]=aMini(wx,wz); x.save(); x.translate(mx,mz); x.rotate(-yaw); x.fillStyle='#fff'; x.strokeStyle='#000'; x.lineWidth=1.5; x.beginPath(); x.moveTo(0,-6); x.lineTo(4.5,5); x.lineTo(0,2.5); x.lineTo(-4.5,5); x.closePath(); x.fill(); x.stroke(); x.restore();
+  if(marcaMapa){ let [qx,qz]=aMini(marcaMapa.x, marcaMapa.z); x.fillStyle='#ff4040'; x.beginPath(); x.arc(qx,qz,4,0,7); x.fill(); x.strokeStyle='#fff'; x.lineWidth=1; x.stroke(); }
+  if(!linternaPotente){ let h=casaLinterna(); if(h){ let [lx,lz]=aMini(h.x,h.z); x.fillText('🔦',lx,lz); } }
 }
+
+let mapaAbierto=false, mapaZoom=1, zoomIdx=0, marcaMapa=null, cursorMapa=null;
+const ZOOMS_MAPA=[1, 3.6, 8];
+function centroMapa(){ return mapaZoom<=1 ? {x:0,z:0} : {x:cursorMapa.x, z:cursorMapa.z}; }
+function dibujarMapaGrande(){
+  let cv=document.getElementById('mapaCv'); if(!cv || !cursorMapa) return;
+  let g=cv.getContext('2d'), W=cv.width, H=cv.height, c=centroMapa();
+  let medioX=(LIM_X+8)/mapaZoom, medioZ=(LIM_Z+8)/mapaZoom;
+  function P(x,z){ return [(x-(c.x-medioX))/(2*medioX)*W, (z-(c.z-medioZ))/(2*medioZ)*H]; }
+  g.fillStyle='#1e3a18'; g.fillRect(0,0,W,H);
+  g.fillStyle='#6a6a6a';
+  CALLES_Z.concat(CALLES_ZN).forEach(cz=>{ let [a,b]=P(-LIM_X-6,cz-4); let [a2,b2]=P(LIM_X+6,cz+4); g.fillRect(a,b,a2-a,b2-b); });
+  CALLES_X.concat(CALLES_XN).forEach(cx=>{ let [a,b]=P(cx-4,-LIM_Z-6); let [a2,b2]=P(cx+4,LIM_Z+6); g.fillRect(a,b,a2-a,b2-b); });
+  g.fillStyle='#8d8d86';
+  CALLES_Z.concat(CALLES_ZN).forEach(cz=>{ let [a,b]=P(-LIM_X-6,cz-5.3); let [a2,b2]=P(LIM_X+6,cz-4); g.fillRect(a,b,a2-a,Math.max(1,b2-b)); let [c1,d1]=P(-LIM_X-6,cz+4); let [c2,d2]=P(LIM_X+6,cz+5.3); g.fillRect(c1,d1,c2-c1,Math.max(1,d2-d1)); });
+  const colF=['#e6d3b4','#7eb0e8','#f0c14a','#7dcea0','#e07a58'];
+  edificios.forEach(b=>{
+    let [a,bb]=P(b.x-b.w/2,b.z-b.d/2), [a2,b2]=P(b.x+b.w/2,b.z+b.d/2), rw=a2-a, rh=b2-bb;
+    if(a2< -20||b2< -20||a>W+20||bb>H+20) return;
+    g.fillStyle=b.tipo==='casa'?colF[b.forma]||colF[0]: b.tipo==='super'?'#d04545': b.tipo==='bodega'?'#3a3a3a': b.tipo==='mall'?'#9a48c8': b.tipo==='tienda'?'#e09030': b.tipo==='restaurante'?'#e6c24a':'#9a9aa2';
+    g.fillRect(a,bb,rw,rh);
+    g.strokeStyle='rgba(20,16,12,.7)'; g.lineWidth=Math.max(1, Math.min(4, rw/30)); g.strokeRect(a+0.5,bb+0.5,rw-1,rh-1);
+    if(b.tipo==='casa' && rw>26){
+      g.fillStyle='rgba(70,36,24,.62)';
+      if(b.forma===3) g.fillRect(a+rw*0.1, bb+rh*0.12, rw*0.8, rh*0.76);
+      else if(b.forma===4){ g.beginPath(); g.moveTo(a+2,bb+rh*0.5); g.lineTo(a+rw/2,bb+3); g.lineTo(a2-2,bb+rh*0.5); g.lineTo(a+rw/2,b2-3); g.closePath(); g.fill(); }
+      else { g.beginPath(); g.moveTo(a+rw/2,bb+3); g.lineTo(a2-3,bb+rh/2); g.lineTo(a+rw/2,b2-3); g.lineTo(a+3,bb+rh/2); g.closePath(); g.fill(); }
+    }
+    if(rw>22){ let [dx,dz]=P(b.doorX,b.doorZ); g.fillStyle='#2a1a10'; g.fillRect(dx-Math.max(3,rw*0.06), dz-Math.max(3,rh*0.08), Math.max(6,rw*0.12), Math.max(6,rh*0.16)); }
+    if(rw>70){ g.fillStyle='#1a120c'; g.font='bold '+Math.max(11, Math.min(18, rw/7))+'px system-ui,sans-serif'; g.textAlign='center'; g.textBaseline='middle';
+      let nom=b.tipo==='casa'?(b.forma===1?'Casa alta':b.forma===2?'Casa baja':b.forma===3?'Techo plano':b.forma===4?'Dos aguas':'Casa'):String(b.nombre).replace(/[\u{1F300}-\u{1FAFF}]/gu,'').trim().slice(0,18);
+      g.fillText(nom,(a+a2)/2,(bb+b2)/2);
+    }
+  });
+  let [ha,hb]=P(-17,9), [ha2,hb2]=P(-7,17);
+  g.fillStyle='#3aa0ff'; g.fillRect(ha,hb,ha2-ha,hb2-hb); g.strokeStyle='#083050'; g.lineWidth=2; g.strokeRect(ha,hb,ha2-ha,hb2-hb);
+  if(ha2-ha>36){ g.fillStyle='#fff'; g.font='bold '+Math.max(11, Math.min(16,(ha2-ha)/5))+'px system-ui,sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('TU CASA',(ha+ha2)/2,(hb+hb2)/2); }
+  let wx=px, wz=pz; if(donde==='casa'){ wx=-12; wz=13; } else if(donde==='interior' && edificioActual){ wx=edificioActual.x; wz=edificioActual.z; }
+  let [ux,uz]=P(wx,wz); g.save(); g.translate(ux,uz); g.rotate(-yaw); g.fillStyle='#fff'; g.strokeStyle='#111'; g.lineWidth=2; g.beginPath(); g.moveTo(0,-11); g.lineTo(7,8); g.lineTo(0,3); g.lineTo(-7,8); g.closePath(); g.fill(); g.stroke(); g.restore();
+  if(marcaMapa){ let [mx,mz]=P(marcaMapa.x,marcaMapa.z); g.fillStyle='#ff2a2a'; g.beginPath(); g.arc(mx,mz,9,0,7); g.fill(); g.strokeStyle='#fff'; g.lineWidth=2; g.stroke(); g.fillStyle='#fff'; g.beginPath(); g.arc(mx,mz,3,0,7); g.fill(); }
+  let [kx,kz]=P(cursorMapa.x,cursorMapa.z); g.strokeStyle='#ffe14a'; g.lineWidth=2; g.beginPath(); g.moveTo(kx-14,kz); g.lineTo(kx+14,kz); g.moveTo(kx,kz-14); g.lineTo(kx,kz+14); g.stroke();
+  g.fillStyle='#ffe9a0'; g.font='bold 16px system-ui,sans-serif'; g.textAlign='center'; g.textBaseline='top'; g.fillText('N', W/2, 8);
+  g.textAlign='left'; g.fillText(mapaZoom<=1?'ciudad entera':'zoom ×'+mapaZoom.toFixed(1), 12, 8);
+}
+function abrirMapa(){ if(!cursorMapa) cursorMapa={x:px,z:pz}; mapaAbierto=true; if(document.pointerLockElement) document.exitPointerLock(); document.getElementById('mapaBox').style.display='flex'; document.getElementById('mapaAyuda').textContent='M cierra · flechas o WASD mueven la mira · N marca el punto · B hace zoom'; dibujarMapaGrande(); }
+function cerrarMapa(){ mapaAbierto=false; document.getElementById('mapaBox').style.display='none'; if(marcaMapa) decirRumbo(); else document.getElementById('guiaMarca').style.display='none'; }
+function toggleMapa(){ mapaAbierto?cerrarMapa():abrirMapa(); }
+function zoomMapa(){ if(!mapaAbierto) abrirMapa(); zoomIdx=(zoomIdx+1)%ZOOMS_MAPA.length; mapaZoom=ZOOMS_MAPA[zoomIdx]; if(mapaZoom>1){ mapaCx=cursorMapa.x; mapaCz=cursorMapa.z; } dibujarMapaGrande(); }
+function marcarEnMapa(){ if(!mapaAbierto) abrirMapa(); marcaMapa={x:cursorMapa.x, z:cursorMapa.z}; dibujarMapaGrande(); document.getElementById('mapaAyuda').textContent='Punto marcado. Cierra con M y sigue la flecha.'; }
+function pasoMapa(f){
+  if(!cursorMapa) cursorMapa={x:px,z:pz};
+  let mx=0, mz=0;
+  if(keys['ArrowLeft']||keys['KeyA']||keys['a']) mx-=1;
+  if(keys['ArrowRight']||keys['KeyD']||keys['d']) mx+=1;
+  if(keys['ArrowUp']||keys['KeyW']||keys['w']) mz-=1;
+  if(keys['ArrowDown']||keys['KeyS']||keys['s']) mz+=1;
+  if(!mx && !mz) return;
+  let sp=(1.7/mapaZoom)*f, l=Math.hypot(mx,mz);
+  cursorMapa.x=Math.max(-LIM_X, Math.min(LIM_X, cursorMapa.x+mx/l*sp));
+  cursorMapa.z=Math.max(-LIM_Z, Math.min(LIM_Z, cursorMapa.z+mz/l*sp));
+  dibujarMapaGrande();
+}
+function cardinal(dx,dz){ let a=Math.atan2(dx,-dz); let i=Math.round((((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2))/(Math.PI/4))%8; return ['norte','noreste','este','sureste','sur','suroeste','oeste','noroeste'][i]; }
+function actualizarGuia(){
+  if(!marcaMapa || mapaAbierto){ document.getElementById('guiaMarca').style.display='none'; return ''; }
+  let ox=donde==='casa'?-12: donde==='interior'&&edificioActual?edificioActual.x:px;
+  let oz=donde==='casa'?13: donde==='interior'&&edificioActual?edificioActual.z:pz;
+  let dx=marcaMapa.x-ox, dz=marcaMapa.z-oz, dist=Math.hypot(dx,dz);
+  let txt=dist<2.4?'Llegaste al punto marcado.':'El punto está al '+cardinal(dx,dz)+', a '+Math.round(dist)+' m.';
+  document.getElementById('guiaTxt').textContent=txt;
+  document.getElementById('guiaMarca').style.display='flex';
+  let mira=Math.atan2(-dx,-dz), diff=mira-yaw; while(diff>Math.PI) diff-=Math.PI*2; while(diff<-Math.PI) diff+=Math.PI*2;
+  document.getElementById('guiaFlecha').style.transform='rotate('+(-diff)+'rad)';
+  return txt;
+}
+function decirRumbo(){ let txt=actualizarGuia(); if(txt) document.getElementById('msg').innerHTML='📍 '+txt+' La flecha apunta hacia allá.'; }
+document.getElementById('mapaCv').addEventListener('click', function(e){ if(!mapaAbierto) return; let r=this.getBoundingClientRect(), u=(e.clientX-r.left)/r.width, v=(e.clientY-r.top)/r.height, c=centroMapa(); let medioX=(LIM_X+8)/mapaZoom, medioZ=(LIM_Z+8)/mapaZoom; cursorMapa={x:Math.max(-LIM_X,Math.min(LIM_X,c.x+(u*2-1)*medioX)), z:Math.max(-LIM_Z,Math.min(LIM_Z,c.z+(v*2-1)*medioZ))}; marcaMapa={x:cursorMapa.x, z:cursorMapa.z}; dibujarMapaGrande(); });
 
 
 // ============ INTERIORES ABANDONADOS (se arman al entrar) ============
@@ -1185,7 +1290,36 @@ function construirInterior(b){
   let mios=mueblesRobables.filter(m=>m.userData.edificio===b.id && m.userData.estado==='enSuper');
   let n=mios.filter(m=>m.userData.tipo!=='panel').length, k=0;
   mios.forEach(m=>{ if(m.userData.tipo==='panel'){ m.position.set(W/2-1.8,0,-D/2+1.8); m.rotation.y=-0.6; } else if(b.tipo==='casa'){ m.position.set(-W*0.22+k*1.15,0,D*0.28); m.rotation.y=(r()-0.5)*0.4; k++; } else { let sep=Math.min(2.6,(W-3)/Math.max(1,n)); m.position.set(-(n-1)/2*sep+k*sep,0,D/2-3.8); m.rotation.y=(r()-0.5)*0.6; k++; } m.userData.anillo.visible=true; g.add(m); });
+  if(casaLinterna() && b.id===casaLinterna().id && !linternaPotente) focoLinterna=ponerFocoEnCasa(g, -1.6, -0.8);
   return g;
+}
+function ponerFocoEnCasa(g, x, z){
+  let o=new THREE.Group(); o.position.set(x,0,z); o.rotation.z=Math.PI/2; o.rotation.y=0.4; g.add(o);
+  let cuerpo=cilindro(0.075,0.09,0.62,0x141414,0,0.34,0,o,14); cuerpo.material.metalness=0.45; cuerpo.material.roughness=0.4;
+  cilindro(0.1,0.1,0.06,0xd8ecff,0,0.66,0,o,14).material.emissive=new THREE.Color(0x9fd4ff);
+  cilindro(0.04,0.05,0.12,0x222222,0,0.08,0,o,8);
+  brillo(0x9fd4ff,0.7,0,0.7,0,o,0.85);
+  return o;
+}
+function tomarLinternaPotente(){
+  if(linternaPotente) return;
+  linternaPotente=true;
+  if(focoLinterna) focoLinterna.visible=false;
+  linternaJ.distance=70; linternaJ.angle=0.34; linternaJ.penumbra=0.22; linternaJ.decay=0.85;
+  linternaObj.position.set(0.05,-0.15,-24);
+  linternaMesh.scale.set(1.08,1.08,1.75);
+  linternaLente.material.color.setHex(0xd7f2ff); linternaLente.material.emissive.setHex(0x9fd4ff);
+  ponerLinterna(true);
+  document.getElementById('msg').innerHTML='🔦 Agarraste la linterna grande. El cono llega mucho más lejos que la que tenías.';
+}
+let casaDeLaLinterna=null, focoLinterna=null;
+function casaLinterna(){
+  if(casaDeLaLinterna) return casaDeLaLinterna;
+  let perro=casaPerro();
+  let casas=edificios.filter(b=>b.tipo==='casa' && String(b.nombre).indexOf('Condominio')<0 && b!==perro);
+  casas.sort((a,b)=>a.x-b.x || a.z-b.z);
+  casaDeLaLinterna=casas[Math.min(4, casas.length-1)]||casas[0]||null;
+  return casaDeLaLinterna;
 }
 function estante(g, x, z, largo, alto, r, cayo, productos, color=0x8a8e90){
   let e=new THREE.Group(); e.position.set(x,0,z); g.add(e);
@@ -1744,7 +1878,9 @@ jugador.position.set(px,0,pz); jugador.visible=false;
 let manoIzq=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.28,0.5), mat(0xd9a080)); manoIzq.position.set(-0.46,-0.54,-0.8); manoIzq.scale.setScalar(0.7); camera.add(manoIzq);
 let manoDer=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.28,0.5), mat(0xd9a080)); manoDer.position.set(0.46,-0.54,-0.8); manoDer.scale.setScalar(0.7); camera.add(manoDer);
 scene.add(camera);
+let linternaPotente=false;
 let linternaJ=new THREE.SpotLight(0xfff0d0,0,30,0.52,0.45,1.3); linternaJ.position.set(0.3,-0.3,-0.4); camera.add(linternaJ); let linternaObj=new THREE.Object3D(); linternaObj.position.set(0.1,-0.6,-8); camera.add(linternaObj); linternaJ.target=linternaObj;
+let conoJugador=new THREE.Mesh(new THREE.ConeGeometry(1,1,28,1,true), new THREE.MeshBasicMaterial({color:0xfff3c4, transparent:true, opacity:0.08, blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false})); conoJugador.rotation.x=-Math.PI/2; conoJugador.visible=false; camera.add(conoJugador);
 if(calidadAlta){ linternaJ.castShadow=true; linternaJ.shadow.mapSize.set(512,512); linternaJ.shadow.bias=-0.002; }
 let linternaMesh=new THREE.Group(); linternaMesh.position.set(0.44,-0.42,-0.9); camera.add(linternaMesh); { let cu=cilindro(0.06,0.075,0.36,0x222222,0,0,0,linternaMesh,10); cu.rotation.x=Math.PI/2; cu.castShadow=false; }
 let linternaLente=cilindro(0.08,0.08,0.03,0xfff6dd,0,0,-0.19,linternaMesh,12); linternaLente.rotation.x=Math.PI/2; linternaLente.material.emissive=new THREE.Color(0xfff0c0); linternaLente.material.emissiveIntensity=0; linternaLente.castShadow=false;
@@ -1831,7 +1967,9 @@ function accionPuerta(){ if(!jugando) return; if(conduciendo){ bajarDelAuto(); r
   if(donde==='afuera'){ if(puertaCerca==='casa') entrarA('casa', 100, 0, 3.5, 0); else entrarEdificio(puertaCerca); }
   else if(donde==='casa'){ salirA(-12, 7.3, 0); }
   else { let b=edificioActual; limpiarInterior(); edificioActual=null; salirA(b.salidaX, b.salidaZ, b.dir<0?0:Math.PI); } }
-function ponerLinterna(on){ linternaOn=on; linternaJ.intensity=on?(donde==='afuera'?1.8:2.4):0; linternaLente.material.emissiveIntensity=on?2:0; haloLinterna.visible=on; document.getElementById('btnLinterna').textContent=on?'🔦 LINTERNA: PRENDIDA':'🔦 LINTERNA'; }
+function fuerzaLinterna(){ if(!linternaOn) return 0; if(linternaPotente) return donde==='afuera'?(esNoche?3.2:1.45):3.8; return donde==='afuera'?(esNoche?1.8:0.6):2.4; }
+function poseConoLinterna(){ if(!conoJugador) return; let largo=linternaPotente?26:9, radio=linternaPotente?6.4:2.6; conoJugador.scale.set(radio, largo, radio); conoJugador.position.set(0.22,-0.2,-largo*0.5-0.35); conoJugador.visible=!!(linternaOn && (esNoche || donde!=='afuera')); conoJugador.material.opacity=linternaPotente?0.16:0.07; }
+function ponerLinterna(on){ linternaOn=on; linternaJ.intensity=fuerzaLinterna(); linternaLente.material.emissiveIntensity=on?(linternaPotente?3.2:2):0; haloLinterna.visible=on; poseConoLinterna(); document.getElementById('btnLinterna').textContent=on?(linternaPotente?'🔦 LINTERNA GRANDE':'🔦 LINTERNA: PRENDIDA'):'🔦 LINTERNA'; }
 function toggleLinterna(){ if(!jugando) return; ponerLinterna(!linternaOn); beep(linternaOn?1200:700,0.05,'square',0.12); }
 function entrarA(lugar, gx, lx, lz, rot){ donde=lugar; px=gx+lx; pz=lz; yaw=rot; pitch=0; pisoEd=0; grupoExterior.visible=false; grupoCielo.visible=false; grupoCasa.visible=(lugar==='casa'); visitoCasa=true; murosAhora=murosCasa; origenMuros=100; document.getElementById('btnEntrar').style.display='none'; document.getElementById('dondeEstoy').textContent = casaLimpia ? ('🏠 ADENTRO DE TU CASA'+(panelInstalado?' 💡':' (sin luz)')) : '🏠 ADENTRO · CASA DESTRUIDA'; document.getElementById('msg').innerHTML = !casaLimpia ? '🏠 Tu casa está destruida por dentro. Sin el limpiador no se limpia, pero puedes soltar lo que llevas con G, donde mires.' : panelInstalado?'🏠 Tu casa tiene luz. Cocina, living, dormitorio y baño. Si llevas algo, suéltalo con G donde mires.':'🏠 Tu casa está oscura. Cocina, living, dormitorio y baño. 🔦 Linterna (L). El panel da luz: no te saca de aquí.'; if(!panelInstalado) ponerLinterna(true); verSueltos(null); }
 function entrarEdificio(b){ construirInterior(b); edificioActual=b; donde='interior'; pisoEd=0; px=INTERIOR_X; pz=b.idp/2-1.6; yaw=0; pitch=0; grupoExterior.visible=false; grupoCielo.visible=false; grupoCasa.visible=false; murosAhora=b.muros||null; origenMuros=INTERIOR_X; document.getElementById('btnEntrar').style.display='none'; document.getElementById('dondeEstoy').textContent=b.nombre+' 🔦 (sin luz)';
@@ -1839,6 +1977,7 @@ function entrarEdificio(b){ construirInterior(b); edificioActual=b; donde='inter
   let txt={super:'🛒 Súper abandonado: estanterías caídas y cosas por el suelo. Busca 🍗 y 💧, y los muebles con anillo dorado.', tienda:'🏪 Tienda abandonada. Revisa el mesón.', restaurante:'🍽️ Restorán abandonado: sillas volcadas y platos rotos. Revisa la cocina.', mall:'🛍️ ¡El centro comercial! Tiendas rotas, fuente seca y el patio de comidas.', casa:'🏚️ Casa abandonada: muebles volcados, polvo y telarañas.', edificio:'🏢 Oficinas abandonadas: escritorios tirados y papeles por todos lados.', bodega:'🏭 Bodega oscura llena de cajas...'}[b.tipo];
   if(tienePanel){ panelVisto=true; txt='🏭 Al fondo brilla el panel solar. Agárralo (F) y llévalo a tu casa: da luz, y la partida sigue.'; }
   if(b.tipo==='casa' && casaPerro() && b.id===casaPerro().id && !perroContigo) txt='🏚️ En el living hay un perrito. Acércate y acarícialo con E. Se queda contigo.';
+  if(casaLinterna() && b.id===casaLinterna().id && !linternaPotente) txt='🏚️ En el suelo brilla una linterna más grande que la tuya. Acércate y se queda contigo: alumbra más lejos.';
   document.getElementById('msg').innerHTML=txt+' <b>La 🚪 SALIDA está detrás de ti.</b>'; ponerLinterna(true); verSueltos(b.id); }
 function salirA(x,z,ry=Math.PI){ donde='afuera'; pisoEd=0; murosAhora=null; px=x; pz=z; yaw=ry; pitch=0; grupoExterior.visible=true; grupoCielo.visible=true; grupoCasa.visible=false; document.getElementById('btnEntrar').style.display='none'; document.getElementById('dondeEstoy').textContent='🌳 AFUERA · Ciudad Abandonada'; if(cargando.length>0) document.getElementById('msg').innerHTML='🌳 Saliste con '+cargando.map(m=>m.userData.emoji).join(' ')+' en la mano. ¡Corre a tu casa!'; else document.getElementById('msg').innerHTML='🌳 Saliste afuera.'; ponerLinterna(esNoche); verSueltos(null); }
 function checkPuertas(){ let btn=document.getElementById('btnEntrar'); puertaCerca=null; salidaCerca=false;
@@ -1897,7 +2036,7 @@ function actualizarObjetivo(){
   MISIONES.forEach(m=>{ if(misionOk(m.id) && !misionAvisada[m.id]){ misionAvisada[m.id]=true; misionHecha[m.id]=true; if(!msgNota) document.getElementById('msg').innerHTML='✅ '+m.t+'. '+m.d; } });
   msgNota=false;
 }
-window.addEventListener('keydown', function(e){ if(enCine){ if(e.key==='Escape'||e.key===' '||e.key==='Enter') saltarCine(); return; } if(!jugando||durmiendo) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys[e.code]=true; keys[e.key.toLowerCase()]=true; if(e.repeat) return; if(e.key.toLowerCase()==='c') comer(); if(e.key.toLowerCase()==='x') beber(); if(e.key.toLowerCase()==='r') dormir(); if(e.key.toLowerCase()==='e') accionPuerta(); if(e.key.toLowerCase()==='f') agarrarCercano(); if(e.key.toLowerCase()==='g') soltarEnCasa(); if(e.key.toLowerCase()==='l') toggleLinterna(); });
+window.addEventListener('keydown', function(e){ if(enCine){ if(e.key==='Escape'||e.key===' '||e.key==='Enter') saltarCine(); return; } if(!jugando||durmiendo) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys[e.code]=true; keys[e.key.toLowerCase()]=true; if(e.repeat) return; let tecla=e.key.toLowerCase(); if(tecla==='m'){ toggleMapa(); return; } if(tecla==='n'){ marcarEnMapa(); return; } if(tecla==='b'){ zoomMapa(); return; } if(mapaAbierto){ if(e.key==='Escape') cerrarMapa(); return; } if(tecla==='c') comer(); if(tecla==='x') beber(); if(tecla==='r') dormir(); if(tecla==='e') accionPuerta(); if(tecla==='f') agarrarCercano(); if(tecla==='g') soltarEnCasa(); if(tecla==='l') toggleLinterna(); });
 window.addEventListener('keyup', function(e){ keys[e.code]=false; keys[e.key.toLowerCase()]=false; });
 const gameWrap=document.getElementById('gameWrap');
 gameWrap.addEventListener('mousedown', e=>{ if(!jugando) return; arrastrando=true; if(gameWrap.requestPointerLock && !document.pointerLockElement){ try{ let p=gameWrap.requestPointerLock(); if(p && p.catch) p.catch(()=>{}); }catch(err){} } });
@@ -1913,7 +2052,7 @@ const joy=document.getElementById('joy'),stick=document.getElementById('stick');
 joy.addEventListener('touchstart', function(e){ e.preventDefault(); joyTouchId=e.changedTouches[0].identifier; }, {passive:false});
 joy.addEventListener('touchend',function(e){ e.preventDefault(); joyX=0; joyY=0; stick.style.left='33px'; stick.style.top='33px'; joyTouchId=null; }, {passive:false});
 joy.addEventListener('touchmove',function(e){ e.preventDefault(); for(let i=0;i<e.changedTouches.length;i++){ let t=e.changedTouches[i]; if(t.identifier===joyTouchId){ let r=joy.getBoundingClientRect(),dx=t.clientX-(r.left+57),dy=t.clientY-(r.top+57); joyX=Math.max(-1,Math.min(1,dx/40)); joyY=Math.max(-1,Math.min(1,dy/40)); stick.style.left=(33+joyX*25)+'px'; stick.style.top=(33+joyY*25)+'px'; } } }, {passive:false});
-function update(){ document.getElementById('barHambre').style.width=hambre+'%'; document.getElementById('barSed').style.width=sed+'%'; document.getElementById('barEnergia').style.width=energia+'%'; document.getElementById('barSalud').style.width=salud+'%'; document.getElementById('barFuerza').style.width=fuerza+'%'; document.getElementById('txtHambre').textContent=Math.round(hambre); document.getElementById('txtSed').textContent=Math.round(sed); document.getElementById('txtEnergia').textContent=Math.round(energia); document.getElementById('txtSalud').textContent=Math.round(salud); document.getElementById('txtFuerza').textContent=Math.floor(fuerza); document.getElementById('txtFuerzaTop').textContent=Math.floor(fuerza); document.getElementById('invComida').textContent=invComida; document.getElementById('invAgua').textContent=invAgua; document.getElementById('dia').textContent=dia; document.getElementById('hora').textContent=esNoche?'🌙 NOCHE':'☀️ DÍA'; let seg=Math.ceil(tiempoRestante/60); document.getElementById('tiempoDia').textContent=(esNoche?'🌙 NOCHE - Quedan ':'☀️ DÍA - Quedan ')+Math.floor(seg/60)+':'+(seg%60<10?'0'+seg%60:seg%60); dibujarMinimapa(); actualizarObjetivo(); }
+function update(){ document.getElementById('barHambre').style.width=hambre+'%'; document.getElementById('barSed').style.width=sed+'%'; document.getElementById('barEnergia').style.width=energia+'%'; document.getElementById('barSalud').style.width=salud+'%'; document.getElementById('barFuerza').style.width=fuerza+'%'; document.getElementById('txtHambre').textContent=Math.round(hambre); document.getElementById('txtSed').textContent=Math.round(sed); document.getElementById('txtEnergia').textContent=Math.round(energia); document.getElementById('txtSalud').textContent=Math.round(salud); document.getElementById('txtFuerza').textContent=Math.floor(fuerza); document.getElementById('txtFuerzaTop').textContent=Math.floor(fuerza); document.getElementById('invComida').textContent=invComida; document.getElementById('invAgua').textContent=invAgua; document.getElementById('dia').textContent=dia; document.getElementById('hora').textContent=esNoche?'🌙 NOCHE':'☀️ DÍA'; let seg=Math.ceil(tiempoRestante/60); document.getElementById('tiempoDia').textContent=(esNoche?'🌙 NOCHE - Quedan ':'☀️ DÍA - Quedan ')+Math.floor(seg/60)+':'+(seg%60<10?'0'+seg%60:seg%60); dibujarMinimapa(); actualizarObjetivo(); actualizarGuia(); }
 function enCasaCheck(){ return donde==='casa'; }
 function comer(){ if(invComida<=0){document.getElementById('msg').innerHTML="No tienes comida. Entra al Súper.";return;} invComida--; hambre=Math.min(100,hambre+35); salud=Math.min(100,salud+5); sonidoComer(); document.getElementById('msg').innerHTML="🍗 ¡Ñam! Te quedan "+invComida; update(); }
 function beber(){ if(invAgua<=0){document.getElementById('msg').innerHTML="No tienes agua.";return;} invAgua--; sed=Math.min(100,sed+40); sonidoBeber(); document.getElementById('msg').innerHTML="💧 ¡Glup!"; update(); }
@@ -1943,7 +2082,7 @@ function aplicarAmbiente(){
       else { setCielo('dia'); sol.color.setHex(0xfff0d0); sol.intensity=1.6; solOff.set(28,38,18); solVisual.position.set(28,30,-22); brilloSol.position.copy(solVisual.position); amb.color.setHex(0xc8e0ff); amb.groundColor.setHex(0x3a5a2a); amb.intensity=0.95; }
       solNoche.intensity=0; lunaLuz.intensity=0.1; solVisual.visible=true; brilloSol.visible=true; lunaVisual.visible=false; brilloLuna.visible=false; collarLuz.intensity=0.8; renderer.toneMappingExposure=1.12; estrellas.forEach(s=>s.material.opacity=0); }
   } else { setCielo('interior'); let luz=(donde==='casa' && panelInstalado); sol.intensity=0; lunaLuz.intensity=0; solNoche.intensity=0; amb.color.setHex(luz?0xffe0c0:0x4a5068); amb.groundColor.setHex(0x1a1410); amb.intensity=luz?0.55:0.06; collarLuz.intensity=0.8; renderer.toneMappingExposure=luz?0.95:1.05; let cl=colorLuzExterior(); puertasLuz.forEach(p=>{ p.luz.material.color.setHex(cl); if(p.suelo) p.suelo.material.color.setHex(cl); }); if(polvoInterior) polvoInterior.rotation.y+=0.0004; }
-  grupoCielo.position.set(px,0,pz); if(linternaOn) linternaJ.intensity=(donde==='afuera'?(esNoche?1.8:0.6):2.4);
+  grupoCielo.position.set(px,0,pz); if(linternaOn) linternaJ.intensity=fuerzaLinterna(); poseConoLinterna();
   sol.position.copy(solOff).add(vecTmp.set(px,0,pz)); sol.target.position.set(px,0,pz); sol.target.updateMatrixWorld();
   orientarCuerpo();
   if(!durmiendo){ let andando=Math.hypot(velX,velZ)>0.0008; let sw=andando?Math.sin(reloj*9)*0.45:0; cuerpoJugador.piernas[0].rotation.x=sw; cuerpoJugador.piernas[1].rotation.x=-sw; cuerpoJugador.brazos[0].rotation.x=-sw*0.7; cuerpoJugador.brazos[1].rotation.x=sw*0.7; }
@@ -2490,7 +2629,7 @@ function cerrarCine(){
 }
 function renderizar(){ if(enCine) return; if(REAL.on && !calidadAlta) REAL.apagar(); if(REAL.on){ REAL.ambiente(); REAL.render(); } else renderer.render(scene,camera); }
 
-function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"; } } hambre=Math.max(0,hambre-0.003*f); sed=Math.max(0,sed-0.0044*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo){ fwd=0; side=0; } if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
+function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"; } } hambre=Math.max(0,hambre-0.0015*f); sed=Math.max(0,sed-0.0022*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && !mapaAbierto && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && !mapaAbierto && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo||mapaAbierto){ fwd=0; side=0; } if(mapaAbierto) pasoMapa(f); if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
   if(donde==='afuera' && (Math.abs(px)>LIM_X || Math.abs(pz)>LIM_Z)){ shockCollar(); px=Math.max(-LIM_X+1,Math.min(LIM_X-1,px)); pz=Math.max(-LIM_Z+1,Math.min(LIM_Z-1,pz)); }
   checkPuertas(); checkMueblesCerca(); actualizarManos(); pasoExtra(); let altPiso=(donde==='interior'?pisoEd*3.08:0); if(!durmiendo) jugador.position.set(px, altPiso, pz);
   cargando.forEach((m, idx)=>{ let offsetX = -Math.sin(yaw)*1.6 + (idx- (cargando.length-1)/2)*1*Math.cos(yaw); let offsetZ = -Math.cos(yaw)*1.6 - (idx- (cargando.length-1)/2)*1*Math.sin(yaw); if(m.parent!==scene){ scene.add(m); } m.position.set(px+offsetX, 0.85, pz+offsetZ); m.rotation.y=yaw; });
@@ -2501,7 +2640,7 @@ function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahora
   comidasSuper.forEach(m=>{ if(!m.userData.tomado){ m.rotation.y+=0.03; m.position.y=1.2+Math.sin(reloj*2+m.position.x)*0.1; } if(!m.userData.tomado && donde==='super' && Math.abs(px-(130+m.position.x))<1.2 && Math.abs(pz-m.position.z)<1.2){ m.userData.tomado=true; m.visible=false; invComida++; sonidoRecoger(); document.getElementById('msg').innerHTML="🛒 ¡Comida del Súper! Tienes "+invComida; } });
   vigilante.visible=(esNoche && donde==='afuera'); if(vigilante.visible){ let vx=px-vigilante.position.x, vz=pz-vigilante.position.z, vl=Math.sqrt(vx*vx+vz*vz)||1; vigilante.position.x+=vx/vl*0.07*f; vigilante.position.z+=vz/vl*0.07*f; vigilante.rotation.y=Math.atan2(vx,vz); linterna.intensity=1.7; if(Math.abs(px-vigilante.position.x)<1.2 && Math.abs(pz-vigilante.position.z)<1.2){ sonidoGolpe(); salud=Math.max(0,salud-20); px=-12; pz=6.2; spawnVigilante(); document.getElementById('msg').innerHTML="¡EL VIGILANTE TE PEGÓ!"; } } else { linterna.intensity=0; }
   puertaCasa.material.emissiveIntensity = puertaCerca==='casa' ? 1 : 0.2; if(donde==='afuera') edificios.forEach(b=>{ let p=b.puerta; if(p) p.material.emissiveIntensity = puertaCerca===b ? 1 : (p===puertaSuper?0.2:0); });
-  itemsInterior.forEach(o=>{ if(o.it.tomado) return; o.m.rotation.y+=0.03; if(donde==='interior' && Math.abs(px-(INTERIOR_X+o.it.x))<1.3 && Math.abs(pz-o.it.z)<1.3){ o.it.tomado=true; o.m.visible=false; if(o.it.tipo==='comida') invComida++; else invAgua++; sonidoRecoger(); document.getElementById('msg').innerHTML=(o.it.tipo==='comida'?'🍗 ¡Comida! Tienes '+invComida:'💧 ¡Agua! Tienes '+invAgua); } });
+  itemsInterior.forEach(o=>{ if(o.it.tomado) return; o.m.rotation.y+=0.03; if(donde==='interior' && Math.abs(px-(INTERIOR_X+o.it.x))<1.3 && Math.abs(pz-o.it.z)<1.3){ o.it.tomado=true; o.m.visible=false; if(o.it.tipo==='comida') invComida++; else invAgua++; sonidoRecoger(); document.getElementById('msg').innerHTML=(o.it.tipo==='comida'?'🍗 ¡Comida! Tienes '+invComida:'💧 ¡Agua! Tienes '+invAgua); } }); if(focoLinterna && focoLinterna.visible && donde==='interior' && edificioActual && casaLinterna() && edificioActual.id===casaLinterna().id && Math.abs(px-(INTERIOR_X+focoLinterna.position.x))<1.6 && Math.abs(pz-focoLinterna.position.z)<1.6) tomarLinternaPotente();
   mueblesRobables.forEach((m,i)=>{ if(m.userData.anillo && m.userData.anillo.visible){ m.userData.anillo.material.emissiveIntensity = 0.6+Math.sin(reloj*3+i)*0.5; m.userData.anillo.rotation.z+=0.012; } });
   aplicarAmbiente();
   if(conduciendo){ let ry=conduciendo.rotation.y, bx=-Math.cos(ry), bz=Math.sin(ry); camera.position.set(conduciendo.position.x+bx*7.2, 3.2, conduciendo.position.z+bz*7.2); camera.lookAt(conduciendo.position.x-bx*3.2, 0.85, conduciendo.position.z-bz*3.2); }

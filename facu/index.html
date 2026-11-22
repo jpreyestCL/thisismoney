@@ -43,6 +43,16 @@
   #portada h2{color:#FFD700;margin:6px 0;font-size:19px;text-shadow:0 0 20px #FFD700}
   #portada p{margin:6px 0;max-width:580px;color:#ccc;line-height:1.5;font-size:14px}
   #jugar{padding:20px 44px;background:linear-gradient(#2a8a2a,#1a5a1a);color:white;border:none;border-radius:50px;font-size:21px;font-weight:bold;margin-top:12px;box-shadow:0 5px 30px rgba(42,138,42,.8)}
+  #btnContinuar{display:none;padding:16px 36px;background:linear-gradient(#8a6a20,#5a4010);color:white;border:none;border-radius:50px;font-size:18px;font-weight:bold;margin:10px 8px 0;box-shadow:0 5px 24px rgba(180,140,40,.55)}
+  #menuEsc{position:fixed;inset:0;z-index:45;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.72)}
+  #menuEsc .caja{background:#102010;border:2px solid #4aff4a;border-radius:16px;padding:22px 28px 16px;text-align:center;min-width:280px;box-shadow:0 0 40px rgba(42,138,42,.45)}
+  #menuEsc h2{color:#4aff4a;margin:0 0 6px;font-size:28px;text-shadow:0 0 18px #2a8a2a}
+  #menuEsc p{color:#ddd;margin:4px 0 10px;font-size:14px}
+  #avisoGuardado{display:none;color:#FFD700;font-weight:bold;font-size:16px}
+  #menuEsc button{display:block;width:100%;margin:8px 0;padding:12px 18px;border:none;border-radius:40px;font-size:18px;font-weight:bold;color:#fff;cursor:pointer}
+  #btnGuardar{background:linear-gradient(#2a8a2a,#1a5a1a)}
+  #btnSalir{background:linear-gradient(#8a3030,#4a1818)}
+  #btnSeguir{background:linear-gradient(#2a5a8a,#1a3a5a)}
   .pill{display:inline-block;background:#222;border:1px solid #555;padding:4px 10px;border-radius:20px;font-size:11px;margin:2px}
   #sonidoBtn,#musicaBtn,#camaraBtn,#calidadBtn{padding:7px 12px;background:#222;color:white;border:1px solid #444;border-radius:20px;margin:3px;font-size:11px}
   #avisoCollar{position:fixed;top:115px;left:50%;transform:translateX(-50%);background:linear-gradient(#ff0000,#aa0000);color:white;padding:10px 18px;border-radius:22px;font-weight:bold;display:none;z-index:25;box-shadow:0 0 30px red}
@@ -81,9 +91,11 @@
   <div><span class="pill">🏙️ Ciudad gigante</span><span class="pill">🔦 Linterna</span><span class="pill">☀️ Panel solar</span><span class="pill">✨ CALETA ULTRA</span><span class="pill">💪 Fuerza</span><span class="pill">🤲 Robar y decorar</span><span class="pill">🏠 Interiores 3D</span><span class="pill">🌿 Selva Real</span></div>
   <p style="font-size:14px;background:rgba(40,90,160,.35);border:1px solid #4aaaff;border-radius:12px;padding:8px 12px"><b>☀️ LA LUZ:</b> Adentro está oscuro y solo ves con la 🔦 linterna. El <b>PANEL SOLAR</b> está escondido en la ciudad: tráelo e instálalo en tu casa (G) para tener luz. Encontrarlo <b>no termina la partida</b>. El collar sigue, y el juego continúa.</p>
   <p style="font-size:13px"><b>CÓMO JUGAR:</b><br>La ciudad es enorme y sigue más allá: calles nuevas, casas, condominios con juegos rotos y autos volcados. Hay un solo edificio partido a la mitad. Tu casa empieza destruida por dentro. El limpiador está en la ferretería: G limpia una parte por vez y solo se duerme cuando no queda ninguna sucia. En la bodega hay una caja de herramientas: sin eso el auto no arranca. Entra (E) → agarra los muebles con anillo dorado (F) → llévalos a tu casa y suéltalos (G). Fuerza 10=1 cosa, 30=2, 60=3, 90=4.<br><b>🎯 SE SIGUE:</b> sobrevive, duerme en tu cama cuando caiga la noche y lee las notas de las casas. Junta 🍗 y 💧: van a la mochila (Y), caben 10 y solo eso entra. De noche sale el VIGILANTE. Si cruzas el cerco, el collar te electrocuta.</p>
-  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar (Esc suelta) · Shift correr · E puerta o auto · F agarrar · G soltar donde miras · Y mochila · L linterna · M mapa · N marcar · B zoom · C comer · X beber · R dormir<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
+  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar · Shift correr · E puerta o auto · F agarrar · G soltar donde miras · Y mochila · L linterna · M mapa · N marcar · B zoom · C comer · X beber · R dormir · Esc pausa (guardar y salir)<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
   <button id="jugar" onclick="empezar()">▶️ JUGAR CALETA ULTRA</button>
+  <button id="btnContinuar" onclick="continuarPartida()">▶️ CONTINUAR</button>
 </div>
+<div id="menuEsc"><div class="caja"><h2>PAUSA</h2><p>La ciudad se queda donde la dejaste.</p><p id="avisoGuardado">Partida guardada.</p><button id="btnGuardar" type="button" onclick="guardarPartida()">GUARDAR</button><button id="btnSalir" type="button" onclick="salirAlInicio()">SALIR</button><button id="btnSeguir" type="button" onclick="cerrarMenuEsc()">SEGUIR</button></div></div>
 <div id="cine"><div class="barra top"></div><div class="barra bot"></div><div id="cineSub"></div><button id="cineSaltar" onclick="saltarCine()">SALTAR »</button><div id="cineFade"></div></div>
 <div id="fin"><h1 id="finTitulo"></h1><p id="finTexto"></p><button onclick="location.reload()">🔁 JUGAR DE NUEVO</button></div>
 <div id="top"><span>📅 DÍA <span id="dia">1</span></span><span id="hora">☀️ DÍA</span><span id="tiempoDia">⏰ 2:00</span><span>💪 <span id="txtFuerzaTop">10</span></span><span>🎒 <span id="invMochila">0</span>/10 · 🍗 <span id="invComida">0</span> | 💧 <span id="invAgua">0</span> | 🐶 <span id="invPerro">0</span></span></div>
@@ -96,7 +108,7 @@
 </div>
 <div id="mapaBox"><canvas id="mapaCv" width="960" height="640"></canvas><div id="mapaAyuda">M cierra · flechas o WASD mueven la mira · N marca el punto · B hace zoom</div></div>
 <div id="guiaMarca"><span id="guiaFlecha">▲</span><span id="guiaTxt"></span></div>
-<div id="gameWrap"><div id="vignette"></div><div id="mira">+</div><div id="dondeEstoy">🌳 AFUERA · Ciudad Abandonada</div><div id="manos">🤲 Manos: VACÍAS</div><div id="controles">✨ CALETA ULTRA<br>⌨️ WASD caminar · Shift correr · ←→ girar<br>🚪 E puerta · 🤲 F agarrar · ⬇️ G soltar donde miras · 🎒 Y mochila · 🔦 L linterna<br>🍗 C comer · 💧 X beber · 🛏️ R dormir (de noche)</div><canvas id="minimapa" width="150" height="150"></canvas><div id="objetivo">🎯 Entra a tu casa. El panel alumbra: no termina la partida.</div><div id="zonaCamara"></div></div>
+<div id="gameWrap"><div id="vignette"></div><div id="mira">+</div><div id="dondeEstoy">🌳 AFUERA · Ciudad Abandonada</div><div id="manos">🤲 Manos: VACÍAS</div><div id="controles">✨ CALETA ULTRA<br>⌨️ WASD caminar · Shift correr · ←→ girar<br>🚪 E puerta · 🤲 F agarrar · ⬇️ G soltar donde miras · 🎒 Y mochila · 🔦 L linterna<br>🍗 C comer · 💧 X beber · 🛏️ R dormir (de noche) · Esc guardar y salir</div><canvas id="minimapa" width="150" height="150"></canvas><div id="objetivo">🎯 Entra a tu casa. El panel alumbra: no termina la partida.</div><div id="zonaCamara"></div></div>
 <div id="msg">Facundo, mira el cielo, las sombras y los charcos. ¡Ahora se ve caleta mejor! Entra al SÚPER a robar.</div>
 <button id="btnEntrar" onclick="accionPuerta()">🚪 ENTRAR</button>
 <button id="btnAgarrar" onclick="agarrarCercano()">🤲 AGARRAR</button>
@@ -124,7 +136,7 @@ let yaw=Math.PI,pitch=0,camaraFrontal=true;
 let panelInstalado=false, panelVisto=false, casaLimpia=false, linternaOn=false, correrMovil=false, tieneHerramientas=false, conduciendo=null, vioCorte=false, vioVolcado=false, vioJuegos=false, condujo=false, perroContigo=false, casaDelPerro=null, perroJornada=1, perroComidoEn=0, invComidaPerro=0;
 let enCine=false, durmiendo=false, suenoT=0, pisoEd=0, escaleraCd=0, visitoCasa=false, notasLeidas=0, nochesDormidas=0, camaraAntesSueno=true;
 let velX=0, velZ=0, murosAhora=null, origenMuros=0;
-let donde='afuera', puertaCerca=null, salidaCerca=false, ultimoT=0, arrastrando=false;
+let donde='afuera', puertaCerca=null, salidaCerca=false, ultimoT=0, arrastrando=false, menuEsc=false;
 const OBSTACULOS=[[-12,6,10,8],[12,-6,12,9],[-25,-15,10,4],[25,-15,9,4],[-25,16,8,4],[28,14,10,4],[0,-20,12,4]];
 function chocaEdificio(x,z){ for(let [ox,oz,w,d] of OBSTACULOS){ if(Math.abs(x-ox)<w/2+0.4 && Math.abs(z-oz)<d/2+0.4) return true; } return false; }
 let audioCtx=null;
@@ -1169,7 +1181,7 @@ function dibujarMapaGrande(){
 }
 function abrirMapa(){ if(!cursorMapa) cursorMapa={x:px,z:pz}; mapaAbierto=true; if(document.pointerLockElement) document.exitPointerLock(); document.getElementById('mapaBox').style.display='flex'; document.getElementById('mapaAyuda').textContent='M cierra · flechas o WASD mueven la mira · N marca el punto · B hace zoom'; dibujarMapaGrande(); }
 function cerrarMapa(){ mapaAbierto=false; document.getElementById('mapaBox').style.display='none'; if(marcaMapa) decirRumbo(); else document.getElementById('guiaMarca').style.display='none'; }
-function toggleMapa(){ mapaAbierto?cerrarMapa():abrirMapa(); }
+function toggleMapa(){ if(menuEsc) return; mapaAbierto?cerrarMapa():abrirMapa(); }
 function zoomMapa(){ if(!mapaAbierto) abrirMapa(); zoomIdx=(zoomIdx+1)%ZOOMS_MAPA.length; mapaZoom=ZOOMS_MAPA[zoomIdx]; if(mapaZoom>1){ mapaCx=cursorMapa.x; mapaCz=cursorMapa.z; } dibujarMapaGrande(); }
 function marcarEnMapa(){ if(!mapaAbierto) abrirMapa(); marcaMapa={x:cursorMapa.x, z:cursorMapa.z}; dibujarMapaGrande(); document.getElementById('mapaAyuda').textContent='Punto marcado. Cierra con M y sigue la flecha.'; }
 function pasoMapa(f){
@@ -1956,7 +1968,7 @@ function abrirMochila(){
   mochila.forEach((it,i)=>{ let b=document.createElement('button'); b.textContent=(it.tipo==='comida'?'🍗 Sacar esta comida':'💧 Sacar esta agua'); b.style.cssText='font:700 15px system-ui;padding:8px 12px;border-radius:10px;border:2px solid #ffd76a;background:#1c2418;color:#fff;cursor:pointer'; b.onclick=function(){ sacarRacion(i); }; box.appendChild(b); });
   document.getElementById('msg').innerHTML='🎒 Mochila '+mochila.length+'/'+MOCHILA_TOPE+'. Elige la comida o el agua para sacarla. Y cierra.';
 }
-function toggleMochila(){ if(!jugando||enCine||durmiendo) return; if(mochilaAbierta) cerrarMochila(); else abrirMochila(); }
+function toggleMochila(){ if(!jugando||enCine||durmiendo||menuEsc) return; if(mochilaAbierta) cerrarMochila(); else abrirMochila(); }
 function sacarRacion(i){
   if(tomando||racionEnMano){ document.getElementById('msg').innerHTML='Ya tienes algo en la mano. Déjalo con G antes de sacar otra cosa.'; return; }
   if(i<0||i>=mochila.length) return;
@@ -2163,8 +2175,112 @@ function botella(x,y,z,parent,esc=1){
 [[0,8],[-6,-3],[6,9],[17,1],[-22,-5]].forEach(p=>{ let m=pollo(p[0],0.55,p[1],grupoExterior,1.2); comidas3D.push(m); m.userData={tomado:false}; });
 [[-3,14],[14,9],[-14,-6]].forEach(p=>{ let m=botella(p[0],0.65,p[1],grupoExterior,1.2); aguas3D.push(m); m.userData={tomado:false}; });
 let comidasSuper=[], aguasSuper=[];
+const CLAVE_PARTIDA='facu_partida';
+function leerPartida(){ try{ let t=localStorage.getItem(CLAVE_PARTIDA); if(!t) return null; let d=JSON.parse(t); return d&&typeof d==='object'?d:null; }catch(e){ return null; } }
+function hayPartida(){ return !!leerPartida(); }
+function mostrarContinuar(){ let b=document.getElementById('btnContinuar'); if(b) b.style.display=hayPartida()?'inline-block':'none'; }
+function numPartida(v,def,min,max){ let n=Number(v); if(!isFinite(n)) n=def; if(min!=null) n=Math.max(min,n); if(max!=null) n=Math.min(max,n); return n; }
+function mochilaValida(arr){ let out=[]; (arr||[]).forEach(it=>{ if(!it||(it.tipo!=='comida'&&it.tipo!=='agua')||out.length>=MOCHILA_TOPE) return; out.push({tipo:it.tipo}); }); return out; }
+function contarMochila(){ invComida=mochila.filter(x=>x.tipo==='comida').length; invAgua=mochila.filter(x=>x.tipo==='agua').length; }
+function aplicarPartes(ids){ let set={}; (ids||[]).forEach(id=>{ set[id]=true; }); PARTES_CASA.forEach(def=>{ let p=partesCasa[def.id]; if(!p) return; let on=!!set[def.id]; p.limpia=on; p.ruina.visible=!on; p.limpio.visible=on; }); casaLimpia=faltanPartes().length===0; }
+function vaciarRaciones(){ racionesSueltas.forEach(m=>{ if(m.parent) m.parent.remove(m); }); racionesSueltas.length=0; if(racionEnMano&&racionEnMano.parent) racionEnMano.parent.remove(racionEnMano); racionEnMano=null; tomando=null; soltando=null; }
+function aplicarLinternaPotente(on){ linternaPotente=!!on; if(linternaPotente){ if(focoLinterna) focoLinterna.visible=false; linternaJ.distance=70; linternaJ.angle=0.34; linternaJ.penumbra=0.22; linternaJ.decay=0.85; } else { linternaJ.distance=30; linternaJ.angle=0.52; linternaJ.penumbra=0.45; linternaJ.decay=1.3; } }
+function ponerRacionSuelta(it){ if(!it||(it.tipo!=='comida'&&it.tipo!=='agua')) return; let parent=it.lugar==='casa'?grupoCasa:(it.lugar==='interior'?scene:grupoExterior); let mesh=it.tipo==='comida'?pollo(it.x,it.y,it.z,parent,0.7):botella(it.x,it.y,it.z,parent,0.7); mesh.userData.racion=it.tipo; mesh.userData.suelta=true; mesh.userData.tomado=false; mesh.userData.sueltaEn=-30; racionesSueltas.push(mesh); }
+function ponerEnMano(tipo){ if(tipo!=='comida'&&tipo!=='agua') return; let mesh=tipo==='comida'?pollo(0,0,0,camera,0.62):botella(0,0,0,camera,0.62); mesh.userData.racion=tipo; mesh.userData.tomado=true; racionEnMano=mesh; anclarRacion(); }
+function marcarTomados(lista, meshes){ if(!Array.isArray(lista)) return; meshes.forEach((m,i)=>{ if(lista[i]==null) return; m.userData.tomado=!!lista[i]; m.visible=!lista[i]; }); }
+function aplicarPanelGuardado(){ if(!panelInstalado){ setLuzCasa(false); return; } let m=mueblesRobables.find(x=>x.userData.tipo==='panel'&&x.userData.estado==='enSuper'); if(m){ m.userData.estado='instalado'; if(m.userData.anillo) m.userData.anillo.visible=false; if(m.userData.patas) m.userData.patas.forEach(p=>p.visible=false); grupoMiCasa.add(m); if(m.userData.placa) m.userData.placa.rotation.x=0; m.position.set(-12.3,5.52,7.87); m.rotation.set(0.54,0,0); } setLuzCasa(true); }
+function aplicarHerramientasGuardadas(){ if(!tieneHerramientas) return; let m=mueblesRobables.find(x=>x.userData.tipo==='herramientas'&&x.userData.estado==='enSuper'); if(!m) return; m.visible=false; m.userData.estado='usado'; if(m.userData.anillo) m.userData.anillo.visible=false; }
+function colocarCamara(){ let alt=(donde==='interior'?pisoEd*3.08:0); jugador.position.set(px,alt,pz); jugador.visible=!camaraFrontal; if(camaraFrontal){ camera.position.set(px,1.62+alt,pz); camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.rotation.z=0; } }
+function abrirMenuEsc(){ if(!jugando||enCine||mapaAbierto||mochilaAbierta) return; menuEsc=true; arrastrando=false; ['KeyW','KeyA','KeyS','KeyD','w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','shift'].forEach(k=>{ keys[k]=false; }); joyX=0; joyY=0; if(document.pointerLockElement) document.exitPointerLock(); document.getElementById('avisoGuardado').style.display='none'; document.getElementById('menuEsc').style.display='flex'; }
+function cerrarMenuEsc(){ menuEsc=false; document.getElementById('menuEsc').style.display='none'; ultimoT=performance.now(); }
+function guardarPartida(){
+  if(!jugando) return;
+  let prev=leerPartida()||{};
+  let sueltas=racionesSueltas.filter(m=>m.parent).map(m=>({tipo:m.userData.racion, x:m.position.x, y:m.position.y, z:m.position.z, lugar:m.parent===grupoCasa?'casa':(m.parent===grupoExterior?'afuera':'interior')}));
+  let neu={
+    v:1, px, pz, yaw, pitch, donde, pisoEd, edificioId:edificioActual?edificioActual.id:null,
+    dia, esNoche, tiempoRestante, hambre, sed, energia, salud, fuerza,
+    mochila:mochila.map(x=>({tipo:x.tipo})),
+    mano:racionEnMano?racionEnMano.userData.racion:null,
+    sueltas,
+    partes:PARTES_CASA.filter(p=>partesCasa[p.id]&&partesCasa[p.id].limpia).map(p=>p.id),
+    casaLimpia, perroContigo, perroJornada, perroComidoEn, invComidaPerro,
+    linternaOn, linternaPotente, tieneHerramientas, panelInstalado, panelVisto,
+    visitoCasa, notasLeidas, nochesDormidas, camaraFrontal,
+    comidasTomadas:comidas3D.map(m=>!!m.userData.tomado),
+    aguasTomadas:aguas3D.map(m=>!!m.userData.tomado),
+    comidasSuperTomadas:comidasSuper.map(m=>!!m.userData.tomado),
+    aguasSuperTomadas:aguasSuper.map(m=>!!m.userData.tomado),
+    tomadosInterior:edificios.map(b=>(b.items||[]).map(it=>it.tomado?1:0)),
+    notas:edificios.filter(b=>b.nota&&b.nota.leida).map(b=>b.id)
+  };
+  try{
+    localStorage.setItem(CLAVE_PARTIDA, JSON.stringify(Object.assign({}, prev, neu)));
+    document.getElementById('avisoGuardado').textContent='Partida guardada.';
+    document.getElementById('avisoGuardado').style.display='block';
+    document.getElementById('msg').innerHTML='💾 Partida guardada.';
+    if(typeof sonidoRecoger==='function') sonidoRecoger();
+    mostrarContinuar();
+  }catch(err){
+    document.getElementById('avisoGuardado').textContent='No se pudo guardar.';
+    document.getElementById('avisoGuardado').style.display='block';
+  }
+}
+function aplicarPartida(){
+  let d=leerPartida(); if(!d) return false;
+  try{
+    if(mapaAbierto) cerrarMapa(); if(mochilaAbierta) cerrarMochila(); menuEsc=false; document.getElementById('menuEsc').style.display='none';
+    hambre=numPartida(d.hambre,100,0,100); sed=numPartida(d.sed,100,0,100); energia=numPartida(d.energia,100,0,100); salud=numPartida(d.salud,100,0,100); fuerza=numPartida(d.fuerza,10,10,100);
+    dia=Math.max(1,Math.round(numPartida(d.dia,1,1,9999))); esNoche=!!d.esNoche; tiempoRestante=numPartida(d.tiempoRestante,DURACION,1,DURACION); nocheAplicada=null;
+    mochila=mochilaValida(d.mochila); contarMochila();
+    vaciarRaciones();
+    let partes=Array.isArray(d.partes)?d.partes.slice():[]; if(d.casaLimpia && !partes.length) partes=PARTES_CASA.map(p=>p.id); aplicarPartes(partes);
+    perroContigo=!!d.perroContigo; perroJornada=numPartida(d.perroJornada,1,1,9999); perroComidoEn=numPartida(d.perroComidoEn,0,0,9999); invComidaPerro=Math.max(0,Math.round(numPartida(d.invComidaPerro,0,0,99)));
+    tieneHerramientas=!!d.tieneHerramientas; panelInstalado=!!d.panelInstalado; panelVisto=!!d.panelVisto||panelInstalado;
+    visitoCasa=!!d.visitoCasa; notasLeidas=Math.max(0,Math.round(numPartida(d.notasLeidas,0,0,99))); nochesDormidas=Math.max(0,Math.round(numPartida(d.nochesDormidas,0,0,9999)));
+    camaraFrontal=d.camaraFrontal!==false;
+    aplicarLinternaPotente(d.linternaPotente);
+    marcarTomados(d.comidasTomadas, comidas3D); marcarTomados(d.aguasTomadas, aguas3D); marcarTomados(d.comidasSuperTomadas, comidasSuper); marcarTomados(d.aguasSuperTomadas, aguasSuper);
+    if(Array.isArray(d.tomadosInterior)) edificios.forEach((b,i)=>{ let arr=d.tomadosInterior[i]; if(!b.items||!arr) return; b.items.forEach((it,k)=>{ if(arr[k]) it.tomado=true; }); });
+    if(Array.isArray(d.notas)) edificios.forEach(b=>{ if(b.nota&&d.notas.indexOf(b.id)>=0) b.nota.leida=true; });
+    aplicarPanelGuardado(); aplicarHerramientasGuardadas();
+    if(edificioActual){ limpiarInterior(); edificioActual=null; }
+    let lugar=d.donde||'afuera';
+    if(lugar==='casa') entrarA('casa', 100, numPartida(d.px,100)-100, numPartida(d.pz,0), numPartida(d.yaw,Math.PI));
+    else if(lugar==='interior'){ let b=edificios.find(e=>e.id===d.edificioId); if(b){ entrarEdificio(b); px=numPartida(d.px,INTERIOR_X); pz=numPartida(d.pz,0); yaw=numPartida(d.yaw,0); pisoEd=Math.max(0,Math.round(numPartida(d.pisoEd,0,0,8))); } else salirA(-12,6.2,Math.PI); }
+    else salirA(numPartida(d.px,-12), numPartida(d.pz,6.2), numPartida(d.yaw,Math.PI));
+    pitch=numPartida(d.pitch,0,-1.2,1.2); visitoCasa=!!d.visitoCasa||donde==='casa';
+    (d.sueltas||[]).forEach(ponerRacionSuelta); ponerEnMano(d.mano);
+    ponerLinterna(!!d.linternaOn); if(perroContigo) traerPerro(); else if(perro){ if(perro.parent!==scene) scene.add(perro); perro.visible=false; }
+    if(vigilante) vigilante.visible=!!(esNoche&&donde==='afuera');
+    colocarCamara(); actualizarManos(); update();
+    return true;
+  }catch(err){ return false; }
+}
+function reiniciarPartidaNueva(){
+  menuEsc=false; document.getElementById('menuEsc').style.display='none';
+  if(mapaAbierto) cerrarMapa(); if(mochilaAbierta) cerrarMochila();
+  durmiendo=false; conduciendo=null; keys={}; joyX=0; joyY=0;
+  px=-12; pz=6.2; yaw=Math.PI; pitch=0; pisoEd=0;
+  hambre=100; sed=100; energia=100; salud=100; fuerza=10;
+  dia=1; esNoche=false; tiempoRestante=DURACION; nocheAplicada=null;
+  mochila=[]; invComida=0; invAgua=0; vaciarRaciones(); aplicarPartes([]);
+  perroContigo=false; perroJornada=1; perroComidoEn=0; invComidaPerro=0;
+  if(perro){ if(perro.parent!==scene) scene.add(perro); perro.visible=false; }
+  tieneHerramientas=false; panelInstalado=false; panelVisto=false; visitoCasa=false; notasLeidas=0; nochesDormidas=0;
+  camaraFrontal=true; jugador.visible=false;
+  aplicarLinternaPotente(false); ponerLinterna(false); setLuzCasa(false);
+  comidas3D.forEach(m=>{ m.visible=true; m.userData.tomado=false; }); aguas3D.forEach(m=>{ m.visible=true; m.userData.tomado=false; });
+  comidasSuper.forEach(m=>{ m.visible=true; m.userData.tomado=false; }); aguasSuper.forEach(m=>{ m.visible=true; m.userData.tomado=false; });
+  edificios.forEach(b=>{ if(b.nota) b.nota.leida=false; if(b.items) b.items.forEach(it=>it.tomado=false); });
+  if(edificioActual){ limpiarInterior(); edificioActual=null; }
+  donde='afuera'; grupoExterior.visible=true; grupoCielo.visible=true; grupoCasa.visible=false; murosAhora=null;
+  if(vigilante) vigilante.visible=false;
+}
+function salirAlInicio(){ cerrarMenuEsc(); if(mochilaAbierta) cerrarMochila(); if(mapaAbierto) cerrarMapa(); jugando=false; keys={}; joyX=0; joyY=0; arrastrando=false; if(document.pointerLockElement) document.exitPointerLock(); document.getElementById('portada').style.display='flex'; mostrarContinuar(); }
+function continuarPartida(){ if(!aplicarPartida()){ empezar(); return; } document.getElementById('portada').style.display='none'; document.body.classList.remove('cine'); document.getElementById('cine').style.display='none'; enCine=false; jugando=true; getAudio(); ajustarTamano(); ultimoT=performance.now(); document.getElementById('msg').innerHTML='💾 Continuaste. La mochila volvió con lo guardado: '+mochila.length+'/'+MOCHILA_TOPE+'.'; loop3D(); }
 function empezar(){ document.getElementById('portada').style.display='none'; if(location.search.indexOf('nocine')>=0){ arrancarPartida(); return; } iniciarCinematica(); }
-function arrancarPartida(){ document.body.classList.remove('cine'); document.getElementById('cine').style.display='none'; enCine=false; jugando=true; getAudio(); sonidoRecoger(); actualizarManos(); ajustarTamano(); ultimoT=performance.now(); donde='afuera'; grupoExterior.visible=true; grupoCielo.visible=true; if(REAL.cielo) REAL.cielo.visible=false; document.getElementById('dondeEstoy').textContent='🌳 AFUERA · Ciudad Abandonada'; document.getElementById('msg').innerHTML='Te dejaron frente a la casa. El collar ya está puesto. Sobrevive.'; loop3D(); }
+function arrancarPartida(){ reiniciarPartidaNueva(); document.body.classList.remove('cine'); document.getElementById('cine').style.display='none'; enCine=false; jugando=true; getAudio(); sonidoRecoger(); actualizarManos(); ajustarTamano(); ultimoT=performance.now(); donde='afuera'; grupoExterior.visible=true; grupoCielo.visible=true; grupoCasa.visible=false; if(REAL.cielo) REAL.cielo.visible=false; document.getElementById('dondeEstoy').textContent='🌳 AFUERA · Ciudad Abandonada'; document.getElementById('msg').innerHTML='Te dejaron frente a la casa. El collar ya está puesto. Sobrevive.'; colocarCamara(); update(); loop3D(); }
 function terminar(gano){
   jugando=false; if(document.pointerLockElement) document.exitPointerLock();
   let deco=mueblesRobables.filter(m=>m.userData.estado==='decorado').length;
@@ -2285,17 +2401,17 @@ function actualizarObjetivo(){
   MISIONES.forEach(m=>{ if(misionOk(m.id) && !misionAvisada[m.id]){ misionAvisada[m.id]=true; misionHecha[m.id]=true; if(!msgNota) document.getElementById('msg').innerHTML='✅ '+m.t+'. '+m.d; } });
   msgNota=false;
 }
-window.addEventListener('keydown', function(e){ if(enCine){ if(e.key==='Escape'||e.key===' '||e.key==='Enter') saltarCine(); return; } if(!jugando||durmiendo) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys[e.code]=true; keys[e.key.toLowerCase()]=true; if(e.repeat) return; let tecla=e.key.toLowerCase(); if(tecla==='m'){ toggleMapa(); return; } if(tecla==='n'){ marcarEnMapa(); return; } if(tecla==='b'){ zoomMapa(); return; } if(mapaAbierto){ if(e.key==='Escape') cerrarMapa(); return; } if(tecla==='c') comer(); if(tecla==='x') beber(); if(tecla==='r') dormir(); if(tecla==='e') accionPuerta(); if(tecla==='f') agarrarCercano(); if(tecla==='y'){ toggleMochila(); return; } if(mochilaAbierta) return; if(tecla==='g'){ if(racionEnMano) dejarRacion(); else soltarEnCasa(); } if(tecla==='l') toggleLinterna(); });
+window.addEventListener('keydown', function(e){ if(enCine){ if(e.key==='Escape'||e.key===' '||e.key==='Enter') saltarCine(); return; } if(e.key==='Escape'){ if(!jugando) return; e.preventDefault(); if(mapaAbierto||mochilaAbierta){ if(mapaAbierto) cerrarMapa(); if(mochilaAbierta) cerrarMochila(); return; } if(menuEsc) cerrarMenuEsc(); else abrirMenuEsc(); return; } if(!jugando||durmiendo||menuEsc) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys[e.code]=true; keys[e.key.toLowerCase()]=true; if(e.repeat) return; let tecla=e.key.toLowerCase(); if(tecla==='m'){ toggleMapa(); return; } if(tecla==='n'){ marcarEnMapa(); return; } if(tecla==='b'){ zoomMapa(); return; } if(mapaAbierto) return; if(tecla==='c') comer(); if(tecla==='x') beber(); if(tecla==='r') dormir(); if(tecla==='e') accionPuerta(); if(tecla==='f') agarrarCercano(); if(tecla==='y'){ toggleMochila(); return; } if(mochilaAbierta) return; if(tecla==='g'){ if(racionEnMano) dejarRacion(); else soltarEnCasa(); } if(tecla==='l') toggleLinterna(); });
 window.addEventListener('keyup', function(e){ keys[e.code]=false; keys[e.key.toLowerCase()]=false; });
 const gameWrap=document.getElementById('gameWrap');
-gameWrap.addEventListener('mousedown', e=>{ if(!jugando||mochilaAbierta) return; arrastrando=true; if(gameWrap.requestPointerLock && !document.pointerLockElement){ try{ let p=gameWrap.requestPointerLock(); if(p && p.catch) p.catch(()=>{}); }catch(err){} } });
+gameWrap.addEventListener('mousedown', e=>{ if(!jugando||mochilaAbierta||menuEsc) return; arrastrando=true; if(gameWrap.requestPointerLock && !document.pointerLockElement){ try{ let p=gameWrap.requestPointerLock(); if(p && p.catch) p.catch(()=>{}); }catch(err){} } });
 window.addEventListener('mouseup', ()=>{ arrastrando=false; });
 function ajustarTamano(){ let h=Math.max(220, Math.min(560, window.innerHeight-210)); gameWrap.style.height=h+'px'; camera.aspect=window.innerWidth/h; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,h); }
 window.addEventListener('resize', ajustarTamano);
-document.addEventListener('mousemove',e=>{ if(!jugando||!camaraFrontal) return; if(document.pointerLockElement!==gameWrap && !arrastrando) return; yaw-=e.movementX*0.0025; pitch-=e.movementY*0.0025; pitch=Math.max(-1.2,Math.min(1.2,pitch)); });
+document.addEventListener('mousemove',e=>{ if(!jugando||!camaraFrontal||menuEsc) return; if(document.pointerLockElement!==gameWrap && !arrastrando) return; yaw-=e.movementX*0.0025; pitch-=e.movementY*0.0025; pitch=Math.max(-1.2,Math.min(1.2,pitch)); });
 let camTouchId=null, lastCamX=0, lastCamY=0; let zona=document.getElementById('zonaCamara');
 zona.addEventListener('touchstart', function(e){ e.preventDefault(); let t=e.changedTouches[0]; camTouchId=t.identifier; lastCamX=t.clientX; lastCamY=t.clientY; }, {passive:false});
-zona.addEventListener('touchmove', function(e){ e.preventDefault(); if(!camaraFrontal) return; for(let i=0;i<e.changedTouches.length;i++){ let t=e.changedTouches[i]; if(t.identifier===camTouchId){ let dx=t.clientX-lastCamX; let dy=t.clientY-lastCamY; yaw-=dx*0.005; pitch-=dy*0.005; pitch=Math.max(-1.2,Math.min(1.2,pitch)); lastCamX=t.clientX; lastCamY=t.clientY; } } }, {passive:false});
+zona.addEventListener('touchmove', function(e){ e.preventDefault(); if(!camaraFrontal||menuEsc) return; for(let i=0;i<e.changedTouches.length;i++){ let t=e.changedTouches[i]; if(t.identifier===camTouchId){ let dx=t.clientX-lastCamX; let dy=t.clientY-lastCamY; yaw-=dx*0.005; pitch-=dy*0.005; pitch=Math.max(-1.2,Math.min(1.2,pitch)); lastCamX=t.clientX; lastCamY=t.clientY; } } }, {passive:false});
 zona.addEventListener('touchend', function(e){ e.preventDefault(); camTouchId=null; }, {passive:false});
 const joy=document.getElementById('joy'),stick=document.getElementById('stick'); let joyTouchId=null;
 joy.addEventListener('touchstart', function(e){ e.preventDefault(); joyTouchId=e.changedTouches[0].identifier; }, {passive:false});
@@ -2924,7 +3040,7 @@ function cerrarCine(){
 }
 function renderizar(){ if(enCine) return; if(REAL.on && !calidadAlta) REAL.apagar(); if(REAL.on){ REAL.ambiente(); REAL.render(); } else renderer.render(scene,camera); }
 
-function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; let perroHambriento=pasarDiaPerro(); document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"+(perroHambriento?" 🐶 El perrito tiene hambre y gime. En el súper hay comida de perro.":""); } } hambre=Math.max(0,hambre-0.0015*f); sed=Math.max(0,sed-0.0022*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && !mapaAbierto && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && !mapaAbierto && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo||mapaAbierto||mochilaAbierta){ fwd=0; side=0; } if(mapaAbierto) pasoMapa(f); if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
+function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); if(menuEsc){ ultimoT=performance.now(); renderizar(); return; } let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; let perroHambriento=pasarDiaPerro(); document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"+(perroHambriento?" 🐶 El perrito tiene hambre y gime. En el súper hay comida de perro.":""); } } hambre=Math.max(0,hambre-0.0015*f); sed=Math.max(0,sed-0.0022*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && !mapaAbierto && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && !mapaAbierto && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo||mapaAbierto||mochilaAbierta||menuEsc){ fwd=0; side=0; } if(mapaAbierto) pasoMapa(f); if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
   if(donde==='afuera' && (Math.abs(px)>LIM_X || Math.abs(pz)>LIM_Z)){ shockCollar(); px=Math.max(-LIM_X+1,Math.min(LIM_X-1,px)); pz=Math.max(-LIM_Z+1,Math.min(LIM_Z-1,pz)); }
   checkPuertas(); checkMueblesCerca(); actualizarManos(); pasoExtra(); let altPiso=(donde==='interior'?pisoEd*3.08:0); if(!durmiendo) jugador.position.set(px, altPiso, pz);
   cargando.forEach((m, idx)=>{ let offsetX = -Math.sin(yaw)*1.6 + (idx- (cargando.length-1)/2)*1*Math.cos(yaw); let offsetZ = -Math.cos(yaw)*1.6 - (idx- (cargando.length-1)/2)*1*Math.sin(yaw); if(m.parent!==scene){ scene.add(m); } m.position.set(px+offsetX, 0.85, pz+offsetZ); m.rotation.y=yaw; });
@@ -2943,6 +3059,7 @@ function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahora
   else if(camaraFrontal){ let ojo=1.62+altPiso; camera.position.set(px, ojo, pz); camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.rotation.z=0; }
   else { camera.position.set(px + Math.sin(yaw)*3.4, 1.55+altPiso, pz + Math.cos(yaw)*3.4); camera.lookAt(px, 1.2+altPiso, pz); }
   pasoMochila(f); update(); renderizar(); }
+mostrarContinuar();
 </script>
 </body>
 </html>

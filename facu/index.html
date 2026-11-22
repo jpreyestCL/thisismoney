@@ -413,38 +413,90 @@ caja(0.5,2.2,0.5,0x333333, 6,6.2,-1,0,null,{},grupoSuperExt);
 for(let i=0;i<14;i++){ lianasAnim.push(liana(6+Math.random()*12, 6, -1.2, 2+Math.random()*4, grupoSuperExt)); }
 
 const PINTURA_AUTO={};
-const VIDRIO_AUTO=new THREE.MeshStandardMaterial({color:0xb7e6f4, roughness:0.05, metalness:0.08, transparent:true, opacity:0.5, envMapIntensity:1.6});
+const VIDRIO_AUTO=new THREE.MeshBasicMaterial({color:0x1e7ec4, transparent:true, opacity:0.55, depthWrite:false, side:THREE.DoubleSide, fog:false});
 const GOMA_AUTO=new THREE.MeshStandardMaterial({color:0x141414, roughness:0.96, metalness:0.02});
-const LLANTA_AUTO=new THREE.MeshStandardMaterial({color:0xe8eaee, roughness:0.18, metalness:0.88});
+const LLANTA_AUTO=new THREE.MeshStandardMaterial({color:0xe4e7ee, roughness:0.22, metalness:0.82});
 const CROMO_AUTO=new THREE.MeshStandardMaterial({color:0xdfe3e8, roughness:0.16, metalness:0.94});
+const TELA_AUTO=new THREE.MeshStandardMaterial({color:0x8d4e28, roughness:0.92});
+const TELA_OSCURA=new THREE.MeshStandardMaterial({color:0x3f2416, roughness:0.94});
+const PLASTICO_AUTO=new THREE.MeshStandardMaterial({color:0x161616, roughness:0.74});
+const FARO_AUTO=new THREE.MeshStandardMaterial({color:0xfff1cc, emissive:0xffe0a0, emissiveIntensity:1.05, roughness:0.25});
+const PILOTO_AUTO=new THREE.MeshStandardMaterial({color:0xb01010, emissive:0xff2418, emissiveIntensity:0.75, roughness:0.34});
+const AMBAR_AUTO=new THREE.MeshStandardMaterial({color:0xffaa22, emissive:0xff7a00, emissiveIntensity:0.5, roughness:0.4});
+const OXIDO_AUTO=new THREE.MeshStandardMaterial({color:0x6a3814, roughness:1});
+const GEO_AUTO={
+  nariz:new THREE.BoxGeometry(0.9,0.48,1.5), cola:new THREE.BoxGeometry(0.7,0.42,1.42),
+  estribo:new THREE.BoxGeometry(3.55,0.22,0.1), puerta:new THREE.BoxGeometry(0.7,0.32,0.05),
+  pilar:new THREE.BoxGeometry(0.07,0.5,0.07), techo:new THREE.BoxGeometry(1.35,0.06,1.32),
+  capo:new THREE.BoxGeometry(1.2,0.07,1.4), maleta:new THREE.BoxGeometry(0.95,0.065,1.36),
+  vidrioF:new THREE.PlaneGeometry(1.22,0.58), vidrioT:new THREE.PlaneGeometry(1.16,0.5),
+  vidrioL:new THREE.PlaneGeometry(0.52,0.38), asiento:new THREE.BoxGeometry(0.42,0.14,0.4),
+  respaldo:new THREE.BoxGeometry(0.16,0.4,0.36), apoya:new THREE.BoxGeometry(0.14,0.12,0.22),
+  banca:new THREE.BoxGeometry(0.4,0.14,1.02), bancaR:new THREE.BoxGeometry(0.16,0.38,0.98),
+  piso:new THREE.BoxGeometry(1.7,0.05,1.28), tablero:new THREE.BoxGeometry(0.28,0.1,1.16),
+  defensa:new THREE.BoxGeometry(0.14,0.18,1.78), parrilla:new THREE.BoxGeometry(0.05,0.26,0.58),
+  lama:new THREE.BoxGeometry(0.02,0.012,0.52), casaFaro:new THREE.BoxGeometry(0.1,0.16,0.3),
+  piloto:new THREE.BoxGeometry(0.05,0.13,0.34), manilla:new THREE.BoxGeometry(0.16,0.05,0.05),
+  oxido:new THREE.BoxGeometry(0.28,0.08,0.02), rueda:new THREE.CylinderGeometry(0.34,0.34,0.22,18),
+  llanta:new THREE.CylinderGeometry(0.2,0.2,0.04,16), buje:new THREE.CylinderGeometry(0.055,0.055,0.045,10),
+  rayo:new THREE.BoxGeometry(0.2,0.016,0.03), arco:new THREE.TorusGeometry(0.43,0.05,6,12,Math.PI),
+  volante:new THREE.TorusGeometry(0.11,0.015,6,14), espejo:new THREE.BoxGeometry(0.16,0.07,0.05)
+};
 let autosCiudad=[];
 function autoCaleta(x,z,rot,color){
   let g=new THREE.Group(); g.name='autoCiudad'; g.position.set(x,0,z); g.rotation.y=rot; grupoExterior.add(g);
-  if(!PINTURA_AUTO[color]) PINTURA_AUTO[color]=new THREE.MeshStandardMaterial({color, roughness:0.2, metalness:0.78});
+  if(!PINTURA_AUTO[color]) PINTURA_AUTO[color]=new THREE.MeshStandardMaterial({color, roughness:0.28, metalness:0.62});
   let pin=PINTURA_AUTO[color];
-  let cuerpo=new THREE.Mesh(new THREE.BoxGeometry(3.85,0.58,1.68), pin); cuerpo.position.set(0,0.58,0); cuerpo.castShadow=true; g.add(cuerpo);
-  let hombros=new THREE.Mesh(new THREE.BoxGeometry(3.35,0.26,1.84), pin); hombros.position.set(0,0.46,0); hombros.castShadow=true; g.add(hombros);
-  let cabina=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.52,1.4), pin); cabina.position.set(-0.38,1.1,0); cabina.castShadow=true; g.add(cabina);
-  let capo=new THREE.Mesh(new THREE.BoxGeometry(1.05,0.1,1.56), pin); capo.position.set(1.12,0.92,0); capo.rotation.z=-0.07; capo.castShadow=true; g.add(capo);
-  let maleta=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.09,1.5), pin); maleta.position.set(-1.42,0.9,0); maleta.rotation.z=0.05; g.add(maleta);
-  let para=new THREE.Mesh(new THREE.BoxGeometry(0.045,0.58,1.26), VIDRIO_AUTO); para.position.set(0.42,1.2,0); para.rotation.z=0.62; g.add(para);
-  let luneta=new THREE.Mesh(new THREE.BoxGeometry(0.045,0.42,1.12), VIDRIO_AUTO); luneta.position.set(-1.08,1.16,0); luneta.rotation.z=-0.42; g.add(luneta);
-  for(let s of [-1,1]){ let lat=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.34,0.04), VIDRIO_AUTO); lat.position.set(-0.38,1.16,s*0.73); g.add(lat); }
-  for(let wx of [-1.22,1.22]) for(let wz of [-0.9,0.9]){
-    let neu=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.34,0.2,16), GOMA_AUTO); neu.rotation.x=Math.PI/2; neu.position.set(wx,0.34,wz); neu.castShadow=true; g.add(neu);
-    let ll=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.22,12), LLANTA_AUTO); ll.rotation.x=Math.PI/2; ll.position.set(wx,0.34,wz); g.add(ll);
-    let buje=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.24,8), CROMO_AUTO); buje.rotation.x=Math.PI/2; buje.position.set(wx,0.34,wz); g.add(buje);
+  function pieza(geo, material, x, y, z, sombra){
+    let o=new THREE.Mesh(geo, material); o.position.set(x,y,z); o.castShadow=!!sombra; o.receiveShadow=true; g.add(o); return o;
   }
-  let parrilla=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.2,0.62), CROMO_AUTO); parrilla.position.set(1.94,0.52,0); g.add(parrilla);
+  pieza(GEO_AUTO.nariz, pin, 1.42, 0.62, 0, true);
+  pieza(GEO_AUTO.cola, pin, -1.55, 0.6, 0, true);
+  for(let s of [-1,1]) pieza(GEO_AUTO.estribo, pin, 0, 0.46, s*0.72, true);
+  let capo=pieza(GEO_AUTO.capo, pin, 1.12, 0.9, 0, true); capo.rotation.z=-0.1;
+  let maleta=pieza(GEO_AUTO.maleta, pin, -1.32, 0.88, 0, true); maleta.rotation.z=0.08;
+  pieza(GEO_AUTO.techo, pin, -0.08, 1.36, 0, true);
   for(let s of [-1,1]){
-    let casaF=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.14,0.2), CROMO_AUTO); casaF.position.set(1.94,0.72,s*0.52); g.add(casaF);
-    let foco=new THREE.Mesh(new THREE.CircleGeometry(0.065,12), new THREE.MeshStandardMaterial({color:0xfff6d8, emissive:0xfff1c2, emissiveIntensity:0.85, roughness:0.18})); foco.position.set(1.98,0.72,s*0.52); foco.rotation.y=Math.PI/2; g.add(foco);
-    let trasera=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.1,0.2), new THREE.MeshStandardMaterial({color:0x8a1010, emissive:0xff2218, emissiveIntensity:0.7, roughness:0.3})); trasera.position.set(-1.94,0.66,s*0.55); g.add(trasera);
+    pieza(GEO_AUTO.puerta, pin, 0.22, 0.66, s*0.78);
+    pieza(GEO_AUTO.puerta, pin, -0.58, 0.66, s*0.78);
+    for(let px of [0.52,-0.08,-0.72]) pieza(GEO_AUTO.pilar, pin, px, 1.08, s*0.7);
+    let vf=pieza(GEO_AUTO.vidrioL, VIDRIO_AUTO, 0.22, 1.08, s*0.74); vf.renderOrder=3;
+    let vt=pieza(GEO_AUTO.vidrioL, VIDRIO_AUTO, -0.42, 1.06, s*0.74); vt.renderOrder=3;
+    pieza(GEO_AUTO.manilla, PLASTICO_AUTO, 0.4, 0.78, s*0.82);
+    pieza(GEO_AUTO.manilla, PLASTICO_AUTO, -0.4, 0.78, s*0.82);
+    let esp=pieza(GEO_AUTO.espejo, pin, 0.58, 1.14, s*0.82); esp.rotation.y=s*0.4;
   }
-  let defensaD=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,1.66), CROMO_AUTO); defensaD.position.set(1.96,0.4,0); g.add(defensaD);
-  let defensaT=defensaD.clone(); defensaT.position.x=-1.96; g.add(defensaT);
-  let oxido=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.16,0.02), new THREE.MeshStandardMaterial({color:0x6a3814, roughness:1})); oxido.position.set(0.35,0.5,0.85); g.add(oxido);
-  let franja=new THREE.Mesh(new THREE.BoxGeometry(3.95,0.09,1.72), new THREE.MeshStandardMaterial({color:0x141414, roughness:0.62, metalness:0.12})); franja.position.set(0,0.82,0); g.add(franja);
+  let para=pieza(GEO_AUTO.vidrioF, VIDRIO_AUTO, 0.66, 1.14, 0); para.rotation.y=Math.PI/2; para.rotation.z=0.5; para.renderOrder=3;
+  let luneta=pieza(GEO_AUTO.vidrioT, VIDRIO_AUTO, -0.82, 1.14, 0); luneta.rotation.y=Math.PI/2; luneta.rotation.z=-0.55; luneta.renderOrder=3;
+  pieza(GEO_AUTO.piso, PLASTICO_AUTO, -0.05, 0.7, 0);
+  pieza(GEO_AUTO.tablero, PLASTICO_AUTO, 0.55, 0.86, 0);
+  let volante=pieza(GEO_AUTO.volante, PLASTICO_AUTO, 0.48, 1.0, -0.32); volante.rotation.y=Math.PI/2;
+  for(let s of [-1,1]){
+    pieza(GEO_AUTO.asiento, TELA_AUTO, 0.24, 0.98, s*0.42);
+    pieza(GEO_AUTO.respaldo, TELA_OSCURA, 0.05, 1.12, s*0.42);
+    pieza(GEO_AUTO.apoya, TELA_AUTO, 0.05, 1.28, s*0.42);
+  }
+  pieza(GEO_AUTO.banca, TELA_AUTO, -0.4, 0.98, 0);
+  pieza(GEO_AUTO.bancaR, TELA_OSCURA, -0.56, 1.1, 0);
+  for(let wx of [-1.18,1.22]) for(let wz of [-0.88,0.88]){
+    let neu=new THREE.Mesh(GEO_AUTO.rueda, GOMA_AUTO); neu.rotation.x=Math.PI/2; neu.position.set(wx,0.34,wz); neu.castShadow=true; g.add(neu);
+    let fuera=Math.sign(wz);
+    let ll=new THREE.Mesh(GEO_AUTO.llanta, LLANTA_AUTO); ll.position.y=fuera*0.1; neu.add(ll);
+    let buje=new THREE.Mesh(GEO_AUTO.buje, CROMO_AUTO); buje.position.y=fuera*0.135; neu.add(buje);
+    for(let k=0;k<3;k++){ let rayo=new THREE.Mesh(GEO_AUTO.rayo, PLASTICO_AUTO); rayo.rotation.y=k*Math.PI/3; rayo.position.y=fuera*0.12; neu.add(rayo); }
+    let arco=pieza(GEO_AUTO.arco, pin, wx, 0.34, wz-Math.sign(wz)*0.04, true); arco.rotation.y=Math.sign(wz)*0.15;
+  }
+  pieza(GEO_AUTO.defensa, CROMO_AUTO, 1.98, 0.4, 0);
+  pieza(GEO_AUTO.defensa, CROMO_AUTO, -1.98, 0.4, 0);
+  pieza(GEO_AUTO.parrilla, PLASTICO_AUTO, 1.94, 0.58, 0);
+  for(let i=0;i<4;i++) pieza(GEO_AUTO.lama, CROMO_AUTO, 1.97, 0.5+i*0.055, 0);
+  for(let s of [-1,1]){
+    pieza(GEO_AUTO.casaFaro, CROMO_AUTO, 1.9, 0.74, s*0.5);
+    let foco=new THREE.Mesh(new THREE.CircleGeometry(0.075,14), FARO_AUTO); foco.position.set(1.96,0.74,s*0.5); foco.rotation.y=Math.PI/2; g.add(foco);
+    pieza(new THREE.BoxGeometry(0.05,0.07,0.1), AMBAR_AUTO, 1.95, 0.58, s*0.72);
+    pieza(GEO_AUTO.piloto, PILOTO_AUTO, -1.94, 0.7, s*0.5);
+  }
+  pieza(GEO_AUTO.oxido, OXIDO_AUTO, 0.15, 0.5, 0.8);
   g.userData={volcado:false, giro:0};
   autosCiudad.push(g);
   return g;

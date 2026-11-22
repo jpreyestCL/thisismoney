@@ -90,8 +90,8 @@
   <p><b>El juego de Facundo.</b> Gráficos caleta mejorados: cielo real, sombras suaves, selva gigante, interiores con muebles 3D, charcos que brillan y luciérnagas.</p>
   <div><span class="pill">🏙️ Ciudad gigante</span><span class="pill">🔦 Linterna</span><span class="pill">☀️ Panel solar</span><span class="pill">✨ CALETA ULTRA</span><span class="pill">💪 Fuerza</span><span class="pill">🤲 Robar y decorar</span><span class="pill">🏠 Interiores 3D</span><span class="pill">🌿 Selva Real</span></div>
   <p style="font-size:14px;background:rgba(40,90,160,.35);border:1px solid #4aaaff;border-radius:12px;padding:8px 12px"><b>☀️ LA LUZ:</b> Adentro está oscuro y solo ves con la 🔦 linterna. El <b>PANEL SOLAR</b> está escondido en la ciudad: tráelo e instálalo en tu casa (G) para tener luz. Encontrarlo <b>no termina la partida</b>. El collar sigue, y el juego continúa.</p>
-  <p style="font-size:13px"><b>CÓMO JUGAR:</b><br>La ciudad es enorme y sigue más allá: calles nuevas, casas, condominios con juegos rotos y autos volcados. Hay un solo edificio partido a la mitad. Tu casa empieza destruida por dentro. El limpiador está en la ferretería: G limpia una parte por vez y solo se duerme cuando no queda ninguna sucia. En la bodega hay una caja de herramientas: sin eso el auto no arranca. Entra (E) → agarra los muebles con anillo dorado (F) → llévalos a tu casa y suéltalos (G). Fuerza 10=1 cosa, 30=2, 60=3, 90=4.<br><b>🎯 SE SIGUE:</b> sobrevive, duerme en tu cama cuando caiga la noche y lee las notas de las casas. Junta 🍗 y 💧: van a la mochila (Y), caben 10 y solo eso entra. En la calle hay muy poca: la mayoría está en los refrigeradores y las despensas de las casas, y también en los súper, el mall y las tiendas. El agua está fría y beberla así trae bacterias: baja la salud. Junto a una parrilla con carbón, E cocina la comida cruda y hierve el agua. Sin carbón no prende. Una bolsa de gasolina sirve de combustible, pero no se come. La comida cruda llena menos que la cocida. De noche sale el VIGILANTE. Si cruzas el cerco, el collar te electrocuta.</p>
-  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar · Shift correr · E puerta o auto · F agarrar · G soltar donde miras · Y mochila · L linterna · M mapa · N marcar · B zoom · C comer · X beber · R dormir · E parrilla · Esc pausa (guardar y salir)<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
+  <p style="font-size:13px"><b>CÓMO JUGAR:</b><br>La ciudad es enorme y sigue más allá: calles nuevas, casas, condominios con juegos rotos y autos volcados. Hay un solo edificio partido a la mitad. Tu casa empieza destruida por dentro. El limpiador está en la ferretería: G limpia una parte por vez y solo se duerme cuando no queda ninguna sucia. En la bodega hay una caja de herramientas: sin eso el auto no arranca. Entra (E) → agarra los muebles con anillo dorado (F) → llévalos a tu casa y suéltalos (G). Fuerza 10=1 cosa, 30=2, 60=3, 90=4.<br><b>🎯 SE SIGUE:</b> sobrevive, duerme en tu cama cuando caiga la noche y lee las notas de las casas. Junta 🍗 y 💧: van a la mochila (Y), caben 10 y solo eso entra. En la calle hay muy poca: la mayoría está en los refrigeradores y las despensas de las casas, y también en los súper, el mall y las tiendas. El agua está fría y beberla así trae bacterias: baja la salud. Junto a una parrilla con carbón, E cocina la comida cruda y hierve el agua. Sin carbón no prende. Una bolsa de gasolina sirve de combustible, pero no se come. La comida cruda llena menos que la cocida. Frente al refrigerador de tu casa o de una casa abandonada, E lo abre y muestra lo de adentro: puedes dejar comida o agua de la mochila, y al sacarla comerla, beberla o llevarla. De noche sale el VIGILANTE. Si cruzas el cerco, el collar te electrocuta.</p>
+  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar · Shift correr · E puerta o auto · F agarrar · G soltar donde miras · Y mochila · L linterna · M mapa · N marcar · B zoom · C comer · X beber · R dormir · E parrilla · E refri · Esc pausa (guardar y salir)<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
   <button id="jugar" onclick="empezar()">▶️ JUGAR CALETA ULTRA</button>
   <button id="btnContinuar" onclick="continuarPartida()">▶️ CONTINUAR</button>
 </div>
@@ -131,6 +131,8 @@ if(!window.THREE){ document.getElementById('portada').innerHTML='<h1>CIUDAD<br>A
 let px=-12,pz=6.2,speed=0.13,keys={},jugando=false,hambre=100,sed=100,energia=100,salud=100,fuerza=10,invComida=0,invAgua=0,dia=1,esNoche=false,sonidoOn=true,musicaOn=true,ultimoPaso=0,pasoIzq=true,musicaIdx=0,ultimoShock=0;
 const MOCHILA_TOPE=10;
 let mochila=[], mochilaAbierta=false, racionEnMano=null, tomando=null, soltando=null, racionesSueltas=[], vistaMochila=null, slotsVista=[];
+let refriCasa=[], refriAbierto=null, vistaRefri=null, refriDeCasa=null;
+const REFRI_TOPE=8;
 let parrillas=[], gasolinas3D=[], invGasolina=0;
 let joyX=0,joyY=0,DURACION=10800,tiempoRestante=DURACION;
 let yaw=Math.PI,pitch=0,camaraFrontal=true;
@@ -1307,7 +1309,13 @@ function construirInterior(b){
   instancias(new THREE.PlaneGeometry(1,1.3), t.mPapel, papeles, g);
   instancias(new THREE.CircleGeometry(1,3), t.mVidrio, vidrios, g);
   { let n=calidadAlta?260:120, pos=new Float32Array(n*3); for(let k=0;k<n;k++){ pos[k*3]=(r()-0.5)*W; pos[k*3+1]=0.3+r()*(H-0.5); pos[k*3+2]=(r()-0.5)*D; } let geo=new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos,3)); polvoInterior=new THREE.Points(geo, new THREE.PointsMaterial({color:0xd8d0b8, size:0.035, transparent:true, opacity:0.45, depthWrite:false})); g.add(polvoInterior); }
-  if(!b.items){ b.items=[]; (extra.puntos||[]).forEach(p=>b.items.push({tipo:p.tipo, estado:p.estado||(p.tipo==='agua'?'fria':p.tipo==='comida'?'cruda':null), x:p.x, z:p.z, y:p.y||0.45, lugar:p.lugar||'', tomado:false})); }
+  if(!b.items){ b.items=[]; (extra.puntos||[]).forEach(p=>{ if(b.tipo==='casa' && p.lugar==='refri') return; b.items.push({tipo:p.tipo, estado:p.estado||(p.tipo==='agua'?'fria':p.tipo==='comida'?'cruda':null), x:p.x, z:p.z, y:p.y||0.45, lugar:p.lugar||'', tomado:false}); }); }
+  if(b.tipo==='casa' && !b.refriInicial){
+    if(!Array.isArray(b.refriContenido)) b.refriContenido=[];
+    if(!b.refriDesdeSave) (extra.puntos||[]).forEach(p=>{ if(p.lugar!=='refri' || b.refriContenido.length>=REFRI_TOPE) return; let tipo=p.tipo==='agua'?'agua':'comida'; b.refriContenido.push({tipo, estado:estadoItem(tipo, p.estado)}); });
+    b.refriInicial=true;
+  }
+  if(b.tipo==='casa') pintarRefriGrupo(g, b.refriContenido);
   b.items.forEach(it=>{ if(it.tomado) return; let m=it.tipo==='comida'?pollo(it.x,it.y,it.z,g,0.95,it.estado):it.tipo==='perro'?bolsaPerro(it.x,it.y||0,it.z,g,1.2):it.tipo==='gasolina'?bidon(it.x,it.y||0.2,it.z,g,1.1):botella(it.x,it.y,it.z,g,0.95,it.estado||'fria'); m.userData.estado=it.estado; m.userData.racion=it.tipo; itemsInterior.push({m,it}); });
   let mios=mueblesRobables.filter(m=>m.userData.edificio===b.id && m.userData.estado==='enSuper');
   let n=mios.filter(m=>m.userData.tipo!=='panel').length, k=0;
@@ -1563,7 +1571,7 @@ function amoblarCasaReal(g, W, D, opt){
   }
   if(opt.mia) murosCasa=muros; else if(opt.b) opt.b.muros=muros;
   let fx=x1-1.05, fz=zM+0.15, dxp=xM+0.85, dzp=z1-0.72;
-  modeloRefri(dest, fx, fz); modeloDespensa(dest, dxp, dzp);
+  modeloRefri(dest, fx, fz, opt.mia?'casa':'ajena'); modeloDespensa(dest, dxp, dzp);
   let puntos=opt.abandonada && r()<0.7 ? [{tipo:r()<0.5?'comida':'agua', x:x0+0.8, z:z1-1.1}] : [];
   if(opt.abandonada && opt.b){
     let az=rng((opt.b.seed||1)^0x51F00D);
@@ -1639,7 +1647,7 @@ function partirCasa(){
     }
     parteEn(ch.position.x, ch.position.z).ruina.add(ch);
   });
-  grupoHabitable.children.slice().forEach(ch=>parteEn(ch.position.x, ch.position.z).limpio.add(ch));
+  grupoHabitable.children.slice().forEach(ch=>{ if(ch.userData && ch.userData.esRefriCasa){ grupoCasa.add(ch); refriDeCasa=ch; } else parteEn(ch.position.x, ch.position.z).limpio.add(ch); });
   grupoRuinas.visible=false; grupoHabitable.visible=false;
 }
 partirCasa();
@@ -2217,8 +2225,9 @@ function bidon(x,y,z,parent,esc=1){
   cara.position.set(0,0.3,0.12); g.add(cara);
   return g;
 }
-function modeloRefri(parent,x,z){
+function modeloRefri(parent,x,z, marca){
   let g=new THREE.Group(); g.position.set(x,0,z); g.rotation.y=-Math.PI/2; parent.add(g);
+  g.userData.esRefri=true; if(marca==='casa') g.userData.esRefriCasa=true;
   bx(0.74,1.58,0.64,0xe7eef3,0,0.8,0,g);
   bx(0.62,0.04,0.5,0xc5ced6,0,0.58,-0.02,g,false);
   bx(0.62,0.04,0.5,0xc5ced6,0,1.08,-0.02,g,false);
@@ -2235,6 +2244,142 @@ function modeloDespensa(parent,x,z){
   bx(0.08,1.72,0.46,0x5a3822,0.36,0.86,0,g);
   for(let y of [0.48,0.95,1.4]) bx(0.64,0.05,0.4,0xc4a574,0,y,0.02,g,false);
   return g;
+}
+function tirarGrupo(g){
+  if(!g) return;
+  if(g.parent) g.parent.remove(g);
+  g.traverse(o=>{
+    if(o.geometry && o.geometry.dispose) o.geometry.dispose();
+    let mats=Array.isArray(o.material)?o.material:(o.material?[o.material]:[]);
+    mats.forEach(mat=>{ if(!mat||!mat.dispose) return; if(typeof MAT_CACHE!=='undefined' && Object.values(MAT_CACHE).indexOf(mat)>=0) return; mat.dispose(); });
+  });
+}
+function hallarRefri(grupo){ let hall=null; if(!grupo) return null; grupo.traverse(o=>{ if(o.userData && o.userData.esRefri) hall=o; }); return hall; }
+function listaRefriAbierta(){ if(refriAbierto==='casa') return refriCasa; if(refriAbierto && refriAbierto.refriContenido) return refriAbierto.refriContenido; return null; }
+function grupoRefriMundo(){ if(refriAbierto==='casa' || donde==='casa') return refriDeCasa; return hallarRefri(grupoInterior); }
+const PUESTOS_REFRI=[[-0.16,0.7,-0.02],[0.02,0.7,0.02],[0.16,0.7,-0.04],[-0.14,1.2,-0.02],[0.04,1.2,0.02],[0.16,1.2,-0.05],[-0.06,0.44,0],[0.12,0.44,0.02]];
+function pintarRefriGrupo(grupo, lista){
+  let g=hallarRefri(grupo); if(!g) return;
+  (g.userData.cosas||[]).forEach(m=>tirarGrupo(m));
+  g.userData.cosas=[];
+  (lista||[]).forEach((it,i)=>{
+    let p=PUESTOS_REFRI[i%PUESTOS_REFRI.length];
+    let m=it.tipo==='comida'?pollo(p[0],p[1],p[2],g,0.4,it.estado):botella(p[0],p[1],p[2],g,0.4,it.estado);
+    g.userData.cosas.push(m);
+  });
+}
+function posRefriMundo(){
+  if(donde==='casa' && refriDeCasa) return {x:100+refriDeCasa.position.x, z:refriDeCasa.position.z};
+  if(donde==='interior' && edificioActual && edificioActual.tipo==='casa' && edificioActual.refri) return {x:INTERIOR_X+edificioActual.refri.x, z:edificioActual.refri.z};
+  return null;
+}
+function refriCerca(){
+  let p=posRefriMundo(); if(!p) return null;
+  let dx=px-p.x, dz=pz-p.z;
+  if(dx<-1.55 || dx>-0.2 || Math.abs(dz)>0.9) return null;
+  return donde==='casa'?'casa':edificioActual;
+}
+function nombreRacion(it){ if(!it) return ''; if(it.tipo==='comida') return it.estado==='cocida'?'comida cocida':'comida cruda'; return it.estado==='hervida'?'agua hervida':'agua fría'; }
+function cerrarRefri(){
+  refriAbierto=null;
+  if(vistaRefri){ camera.remove(vistaRefri); tirarGrupo(vistaRefri); vistaRefri=null; }
+  let box=document.getElementById('panelRefri'); if(box) box.style.display='none';
+  let btn=document.getElementById('btnEntrar'); if(btn){ btn.style.top=''; btn.style.bottom='210px'; }
+  if(!conduciendo && !mochilaAbierta){ manoIzq.visible=true; manoDer.visible=true; punoIzq.visible=true; punoDer.visible=true; }
+}
+function armarVistaRefri(lista){
+  if(vistaRefri){ camera.remove(vistaRefri); tirarGrupo(vistaRefri); }
+  vistaRefri=new THREE.Group(); vistaRefri.position.set(0,0.16,-1.28); vistaRefri.rotation.x=-0.08; camera.add(vistaRefri);
+  bx(0.92,1.2,0.06,0xd7e2ea,0,0,-0.3,vistaRefri,false);
+  bx(0.06,1.2,0.52,0xeef5f8,-0.44,0,-0.04,vistaRefri,false);
+  bx(0.06,1.2,0.52,0xeef5f8,0.44,0,-0.04,vistaRefri,false);
+  bx(0.94,0.07,0.52,0xeef5f8,0,0.58,-0.04,vistaRefri,false);
+  bx(0.94,0.07,0.52,0xc5ced6,0,-0.58,-0.04,vistaRefri,false);
+  bx(0.8,0.045,0.4,0xb7c2cb,0,-0.16,-0.06,vistaRefri,false);
+  bx(0.8,0.045,0.4,0xb7c2cb,0,0.24,-0.06,vistaRefri,false);
+  let puerta=new THREE.Group(); puerta.position.set(0.46,0,0.2); puerta.rotation.y=-1.25; vistaRefri.add(puerta);
+  bx(0.06,1.12,0.52,0xf7fbfd,0.16,0,0.16,puerta,false);
+  let luz=new THREE.PointLight(0xf7fbff,0.7,3.2,1.4); luz.position.set(0,0.1,0.7); vistaRefri.add(luz);
+  const puestos=[[-0.2,-0.02,0.16],[0.06,-0.02,0.2],[0.24,-0.02,0.12],[-0.18,0.38,0.16],[0.08,0.38,0.18],[0.24,0.38,0.12],[-0.06,-0.38,0.16],[0.16,-0.38,0.14]];
+  (lista||[]).forEach((it,i)=>{ let p=puestos[i%puestos.length]; if(it.tipo==='comida') pollo(p[0],p[1],p[2],vistaRefri,0.62,it.estado); else botella(p[0],p[1],p[2],vistaRefri,0.62,it.estado); });
+}
+function estiloBtnRefri(b, fondo){ b.style.cssText='font:700 15px system-ui;padding:8px 12px;border-radius:10px;border:2px solid #9fd7ff;background:'+(fondo||'#163044')+';color:#fff;cursor:pointer'; }
+function pintarPanelRefri(){
+  let lista=listaRefriAbierta()||[];
+  let box=document.getElementById('panelRefri');
+  if(!box){ box=document.createElement('div'); box.id='panelRefri'; box.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:42;display:flex;flex-direction:column;gap:8px;max-width:94vw;align-items:center'; document.body.appendChild(box); }
+  box.style.display='flex'; box.innerHTML='';
+  let titulo=document.createElement('div'); titulo.style.cssText='color:#fff;background:#071018ee;padding:8px 14px;border-radius:12px;font:700 16px system-ui;border:2px solid #9fd7ff'; titulo.textContent=lista.length?('🧊 Refrigerador · '+lista.length+' dentro'):'🧊 Refrigerador vacío. Desde la mochila puedes dejar comida o agua.'; box.appendChild(titulo);
+  lista.forEach((it,i)=>{
+    let fila=document.createElement('div'); fila.style.cssText='display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center';
+    let nom=document.createElement('span'); nom.style.cssText='color:#fff;background:#071018cc;padding:6px 8px;border-radius:8px;font:700 14px system-ui'; nom.textContent=(it.tipo==='comida'?'🍗 ':'💧 ')+nombreRacion(it); fila.appendChild(nom);
+    if(it.tipo==='comida'){ let c=document.createElement('button'); c.textContent='Comer'; estiloBtnRefri(c,'#6a3018'); c.onclick=function(){ consumirRefri(i); }; fila.appendChild(c); }
+    if(it.tipo==='agua'){ let c=document.createElement('button'); c.textContent='Beber'; estiloBtnRefri(c,'#14506a'); c.onclick=function(){ consumirRefri(i); }; fila.appendChild(c); }
+    let ll=document.createElement('button'); ll.textContent='A la mochila'; estiloBtnRefri(ll); ll.onclick=function(){ llevarRefri(i); }; fila.appendChild(ll);
+    box.appendChild(fila);
+  });
+  if(mochila.length){
+    let sub=document.createElement('div'); sub.style.cssText='color:#ffe7a8;background:#071018ee;padding:6px 10px;border-radius:10px;font:700 14px system-ui'; sub.textContent='Mochila · dejar en este refri'; box.appendChild(sub);
+    mochila.forEach((it,i)=>{
+      let b=document.createElement('button'); b.textContent='Dejar '+(it.tipo==='comida'?(it.estado==='cocida'?'comida cocida':'comida cruda'):(it.estado==='hervida'?'agua hervida':'agua fría')); estiloBtnRefri(b,'#1c2418'); b.onclick=function(){ dejarEnRefri(i); }; box.appendChild(b);
+    });
+  }
+}
+function refrescarRefri(){
+  let lista=listaRefriAbierta(); if(!lista) return;
+  pintarRefriGrupo(refriAbierto==='casa'?grupoCasa:grupoInterior, lista);
+  armarVistaRefri(lista); pintarPanelRefri(); update();
+}
+function abrirRefri(){
+  let cual=refriCerca(); if(!cual) return false;
+  if(mochilaAbierta) cerrarMochila();
+  if(document.exitPointerLock) document.exitPointerLock();
+  ['KeyW','KeyA','KeyS','KeyD','w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','shift'].forEach(k=>{ keys[k]=false; });
+  joyX=0; joyY=0;
+  refriAbierto=cual;
+  if(cual!=='casa' && !cual.refriInicial){ cual.refriContenido=cual.refriContenido||[]; cual.refriInicial=true; }
+  manoIzq.visible=false; manoDer.visible=false; punoIzq.visible=false; punoDer.visible=false;
+  let n=(listaRefriAbierta()||[]).length;
+  document.getElementById('msg').innerHTML=n?('🧊 El refrigerador está abierto. Adentro hay '+n+'. Puedes comer, beber o llevar a la mochila, y dejar lo que traes.'):'🧊 El refrigerador está abierto y vacío. Elige en la mochila qué comida o agua dejas aquí.';
+  let btn=document.getElementById('btnEntrar'); if(btn){ btn.textContent='🧊 CERRAR REFRI (E)'; btn.style.display='block'; btn.style.bottom='auto'; btn.style.top='74px'; }
+  refrescarRefri();
+  return true;
+}
+function consumirRefri(i){
+  let lista=listaRefriAbierta(); if(!lista||!lista[i]) return;
+  let it=lista.splice(i,1)[0];
+  if(it.tipo==='comida'){
+    if(it.estado==='cocida'){ hambre=Math.min(100,hambre+35); salud=Math.min(100,salud+5); document.getElementById('msg').innerHTML='🍗 Comida cocida, del refrigerador. Llena bien.'; }
+    else { hambre=Math.min(100,hambre+14); document.getElementById('msg').innerHTML='🍗 Comida cruda, del refrigerador. Llena poco. En una parrilla queda cocida.'; }
+    if(typeof sonidoComer==='function') sonidoComer();
+  } else {
+    if(it.estado==='hervida'){ sed=Math.min(100,sed+40); document.getElementById('msg').innerHTML='💧 Agua hervida, del refrigerador. Segura.'; }
+    else { sed=Math.min(100,sed+18); salud=Math.max(0,salud-12); document.getElementById('msg').innerHTML='💧 Agua fría, del refrigerador. Bacterias: baja la salud. Hiérvela en una parrilla.'; }
+    if(typeof sonidoBeber==='function') sonidoBeber();
+  }
+  refrescarRefri();
+}
+function llevarRefri(i){
+  let lista=listaRefriAbierta(); if(!lista||!lista[i]) return;
+  let it=lista[i];
+  if(it.tipo!=='comida' && it.tipo!=='agua') return;
+  if(mochila.length>=MOCHILA_TOPE){ document.getElementById('msg').innerHTML='🎒 La mochila está llena (10/10). Solo entran comida y agua, y no cabe más.'; return; }
+  lista.splice(i,1);
+  guardarEnMochila(null, it.tipo, null, it.estado);
+  document.getElementById('msg').innerHTML=etiquetaRacion(it.tipo, it.estado)+' a la mochila ('+mochila.length+'/'+MOCHILA_TOPE+'). Sigue '+nombreRacion(it)+'.';
+  refrescarRefri();
+}
+function dejarEnRefri(i){
+  let lista=listaRefriAbierta(); if(!lista) return;
+  if(!mochila[i]||(mochila[i].tipo!=='comida'&&mochila[i].tipo!=='agua')) return;
+  if(lista.length>=REFRI_TOPE){ document.getElementById('msg').innerHTML='🧊 El refrigerador no da para más.'; return; }
+  let it=mochila.splice(i,1)[0];
+  if(it.tipo==='comida') invComida=Math.max(0,invComida-1); else invAgua=Math.max(0,invAgua-1);
+  let est=estadoItem(it.tipo, it.estado);
+  lista.push({tipo:it.tipo, estado:est});
+  document.getElementById('msg').innerHTML='🧊 Dejaste '+nombreRacion({tipo:it.tipo, estado:est})+' en el refrigerador. Se queda así.';
+  if(typeof sonidoRecoger==='function') sonidoRecoger();
+  refrescarRefri();
 }
 function pintarCarbon(p){ if(!p||!p.carbonos) return; p.carbonos.forEach((c,i)=>{ c.visible=i<p.carbon; }); }
 function hacerParrilla(x,z,carbon){
@@ -2354,7 +2499,7 @@ function marcarTomados(lista, meshes){ if(!Array.isArray(lista)) return; meshes.
 function aplicarPanelGuardado(){ if(!panelInstalado){ setLuzCasa(false); return; } let m=mueblesRobables.find(x=>x.userData.tipo==='panel'&&x.userData.estado==='enSuper'); if(m){ m.userData.estado='instalado'; if(m.userData.anillo) m.userData.anillo.visible=false; if(m.userData.patas) m.userData.patas.forEach(p=>p.visible=false); grupoMiCasa.add(m); if(m.userData.placa) m.userData.placa.rotation.x=0; m.position.set(-12.3,5.52,7.87); m.rotation.set(0.54,0,0); } setLuzCasa(true); }
 function aplicarHerramientasGuardadas(){ if(!tieneHerramientas) return; let m=mueblesRobables.find(x=>x.userData.tipo==='herramientas'&&x.userData.estado==='enSuper'); if(!m) return; m.visible=false; m.userData.estado='usado'; if(m.userData.anillo) m.userData.anillo.visible=false; }
 function colocarCamara(){ let alt=(donde==='interior'?pisoEd*3.08:0); jugador.position.set(px,alt,pz); jugador.visible=!camaraFrontal; if(camaraFrontal){ camera.position.set(px,1.62+alt,pz); camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.rotation.z=0; } }
-function abrirMenuEsc(){ if(!jugando||enCine||mapaAbierto||mochilaAbierta) return; menuEsc=true; arrastrando=false; ['KeyW','KeyA','KeyS','KeyD','w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','shift'].forEach(k=>{ keys[k]=false; }); joyX=0; joyY=0; if(document.pointerLockElement) document.exitPointerLock(); document.getElementById('avisoGuardado').style.display='none'; document.getElementById('menuEsc').style.display='flex'; }
+function abrirMenuEsc(){ if(!jugando||enCine||mapaAbierto||mochilaAbierta||refriAbierto) return; menuEsc=true; arrastrando=false; ['KeyW','KeyA','KeyS','KeyD','w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','shift'].forEach(k=>{ keys[k]=false; }); joyX=0; joyY=0; if(document.pointerLockElement) document.exitPointerLock(); document.getElementById('avisoGuardado').style.display='none'; document.getElementById('menuEsc').style.display='flex'; }
 function cerrarMenuEsc(){ menuEsc=false; document.getElementById('menuEsc').style.display='none'; ultimoT=performance.now(); }
 function guardarPartida(){
   if(!jugando) return;
@@ -2368,6 +2513,8 @@ function guardarPartida(){
     gasolina:invGasolina,
     gasolinasTomadas:gasolinas3D.map(m=>!!m.userData.tomado),
     parrillas:parrillas.map(p=>({x:p.x, z:p.z, carbon:p.carbon})),
+    refriCasa:refriCasa.map(it=>({tipo:it.tipo, estado:it.estado})),
+    refris:edificios.map(b=>b.tipo==='casa' && b.refriInicial ? (b.refriContenido||[]).map(it=>({tipo:it.tipo, estado:it.estado})) : null),
     sueltas,
     partes:PARTES_CASA.filter(p=>partesCasa[p.id]&&partesCasa[p.id].limpia).map(p=>p.id),
     casaLimpia, perroContigo, perroJornada, perroComidoEn, invComidaPerro,
@@ -2410,6 +2557,10 @@ function aplicarPartida(){
     invGasolina=Math.max(0, Math.round(numPartida(d.gasolina,0,0,99)));
     if(Array.isArray(d.gasolinasTomadas)) gasolinas3D.forEach((m,i)=>{ let t=!!d.gasolinasTomadas[i]; m.userData.tomado=t; m.visible=!t; });
     if(Array.isArray(d.parrillas)) d.parrillas.forEach(s=>{ let p=parrillas.find(q=>Math.hypot(q.x-s.x, q.z-s.z)<0.4); if(p){ p.carbon=Math.max(0, Math.round(numPartida(s.carbon, p.carbon, 0, 9))); pintarCarbon(p); } });
+    if(refriAbierto) cerrarRefri();
+    refriCasa=Array.isArray(d.refriCasa)?d.refriCasa.filter(it=>it&&(it.tipo==='comida'||it.tipo==='agua')).slice(0,REFRI_TOPE).map(it=>({tipo:it.tipo, estado:estadoItem(it.tipo, it.estado)})):[];
+    if(refriDeCasa) pintarRefriGrupo(grupoCasa, refriCasa);
+    if(Array.isArray(d.refris)) edificios.forEach((b,i)=>{ if(!Array.isArray(d.refris[i])) return; b.refriContenido=d.refris[i].filter(it=>it&&(it.tipo==='comida'||it.tipo==='agua')).slice(0,REFRI_TOPE).map(it=>({tipo:it.tipo, estado:estadoItem(it.tipo, it.estado)})); b.refriInicial=true; b.refriDesdeSave=true; });
     if(Array.isArray(d.tomadosInterior)) edificios.forEach((b,i)=>{ let arr=d.tomadosInterior[i]; if(!b.items||!arr) return; b.items.forEach((it,k)=>{ if(arr[k]) it.tomado=true; }); });
     if(Array.isArray(d.notas)) edificios.forEach(b=>{ if(b.nota&&d.notas.indexOf(b.id)>=0) b.nota.leida=true; });
     aplicarPanelGuardado(); aplicarHerramientasGuardadas();
@@ -2434,6 +2585,8 @@ function reiniciarPartidaNueva(){
   hambre=100; sed=100; energia=100; salud=100; fuerza=10;
   dia=1; esNoche=false; tiempoRestante=DURACION; nocheAplicada=null;
   mochila=[]; invComida=0; invAgua=0; invGasolina=0; vaciarRaciones(); aplicarPartes([]);
+  if(refriAbierto) cerrarRefri(); refriCasa=[]; if(refriDeCasa) pintarRefriGrupo(grupoCasa, refriCasa);
+  edificios.forEach(b=>{ if(b.tipo==='casa'){ b.refriContenido=null; b.refriInicial=false; b.refriDesdeSave=false; } });
   gasolinas3D.forEach(m=>{ m.visible=true; if(m.userData) m.userData.tomado=false; });
   parrillas.forEach(p=>{ p.carbon=p.carbonMax; p.llamaHasta=0; if(p.llama) p.llama.visible=false; pintarCarbon(p); });
   perroContigo=false; perroJornada=1; perroComidoEn=0; invComidaPerro=0;
@@ -2448,7 +2601,7 @@ function reiniciarPartidaNueva(){
   donde='afuera'; grupoExterior.visible=true; grupoCielo.visible=true; grupoCasa.visible=false; murosAhora=null;
   if(vigilante) vigilante.visible=false;
 }
-function salirAlInicio(){ cerrarMenuEsc(); if(mochilaAbierta) cerrarMochila(); if(mapaAbierto) cerrarMapa(); jugando=false; keys={}; joyX=0; joyY=0; arrastrando=false; if(document.pointerLockElement) document.exitPointerLock(); document.getElementById('portada').style.display='flex'; mostrarContinuar(); }
+function salirAlInicio(){ cerrarMenuEsc(); if(refriAbierto) cerrarRefri(); if(mochilaAbierta) cerrarMochila(); if(mapaAbierto) cerrarMapa(); jugando=false; keys={}; joyX=0; joyY=0; arrastrando=false; if(document.pointerLockElement) document.exitPointerLock(); document.getElementById('portada').style.display='flex'; mostrarContinuar(); }
 function continuarPartida(){ if(!aplicarPartida()){ empezar(); return; } document.getElementById('portada').style.display='none'; document.body.classList.remove('cine'); document.getElementById('cine').style.display='none'; enCine=false; jugando=true; getAudio(); ajustarTamano(); ultimoT=performance.now(); document.getElementById('msg').innerHTML='💾 Continuaste. La mochila volvió con lo guardado: '+mochila.length+'/'+MOCHILA_TOPE+'.'; loop3D(); }
 function empezar(){ document.getElementById('portada').style.display='none'; if(location.search.indexOf('nocine')>=0){ arrancarPartida(); return; } iniciarCinematica(); }
 function arrancarPartida(){ reiniciarPartidaNueva(); document.body.classList.remove('cine'); document.getElementById('cine').style.display='none'; enCine=false; jugando=true; getAudio(); sonidoRecoger(); actualizarManos(); ajustarTamano(); ultimoT=performance.now(); donde='afuera'; grupoExterior.visible=true; grupoCielo.visible=true; grupoCasa.visible=false; if(REAL.cielo) REAL.cielo.visible=false; document.getElementById('dondeEstoy').textContent='🌳 AFUERA · Ciudad Abandonada'; document.getElementById('msg').innerHTML='Te dejaron frente a la casa. El collar ya está puesto. Sobrevive.'; colocarCamara(); update(); loop3D(); }
@@ -2497,7 +2650,7 @@ function moverAuto(fwd, side, f){
   a.userData.giro=(a.userData.giro||0)+fwd*0.55*f;
   a.traverse(o=>{ if(o.material===GOMA_AUTO){ o.rotation.x=Math.PI/2; o.rotation.z=a.userData.giro; } });
 }
-function accionPuerta(){ if(!jugando) return; if(conduciendo){ bajarDelAuto(); return; } if(!perroContigo && perroCerca()){ llevarPerro(); return; } if(donde==='afuera' && !puertaCerca && parrillaCerca()){ usarParrilla(); return; } if(donde==='afuera' && !puertaCerca && (autoCercano()||autoVolcadoCerca())){ intentarSubir(); return; } if(donde==='afuera' ? !puertaCerca : !salidaCerca){ if(perroContigo && perroCerca()) accionPerro(); return; } sonidoPuerta();
+function accionPuerta(){ if(!jugando) return; if(conduciendo){ bajarDelAuto(); return; } if(!perroContigo && perroCerca()){ llevarPerro(); return; } if(donde==='afuera' && !puertaCerca && parrillaCerca()){ usarParrilla(); return; } if(refriAbierto){ cerrarRefri(); return; } if(!salidaCerca && refriCerca()){ abrirRefri(); return; } if(donde==='afuera' && !puertaCerca && (autoCercano()||autoVolcadoCerca())){ intentarSubir(); return; } if(donde==='afuera' ? !puertaCerca : !salidaCerca){ if(perroContigo && perroCerca()) accionPerro(); return; } sonidoPuerta();
   if(donde==='afuera'){ if(puertaCerca==='casa') entrarA('casa', 100, 0, 3.5, 0); else entrarEdificio(puertaCerca); }
   else if(donde==='casa'){ salirA(-12, 7.3, 0); }
   else { let b=edificioActual; limpiarInterior(); edificioActual=null; salirA(b.salidaX, b.salidaZ, b.dir<0?0:Math.PI); } }
@@ -2508,7 +2661,7 @@ function toggleLinterna(){ if(!jugando) return; ponerLinterna(!linternaOn); beep
 function entrarA(lugar, gx, lx, lz, rot){ donde=lugar; px=gx+lx; pz=lz; yaw=rot; pitch=0; pisoEd=0; grupoExterior.visible=false; grupoCielo.visible=false; grupoCasa.visible=(lugar==='casa'); visitoCasa=true; murosAhora=murosCasa; origenMuros=100; document.getElementById('btnEntrar').style.display='none'; document.getElementById('dondeEstoy').textContent = casaLimpia ? ('🏠 ADENTRO DE TU CASA'+(panelInstalado?' 💡':' (sin luz)')) : ('🏠 CASA A MEDIAS · '+textoFalta()); document.getElementById('msg').innerHTML = !casaLimpia ? '🏠 '+textoFalta()+' G con el limpiador limpia solo la parte donde estás. Puedes soltar cosas aunque siga sucia.' : panelInstalado?'🏠 Tu casa tiene luz. Cocina, living, dormitorio y baño. Si llevas algo, suéltalo con G donde mires.':'🏠 Tu casa está oscura. Cocina, living, dormitorio y baño. 🔦 Linterna (L). El panel da luz: no te saca de aquí.'; if(!panelInstalado) ponerLinterna(true); verSueltos(null); traerPerro(); }
 function entrarEdificio(b){ construirInterior(b); edificioActual=b; donde='interior'; pisoEd=0; px=INTERIOR_X; pz=b.idp/2-1.6; yaw=0; pitch=0; grupoExterior.visible=false; grupoCielo.visible=false; grupoCasa.visible=false; murosAhora=b.muros||null; origenMuros=INTERIOR_X; document.getElementById('btnEntrar').style.display='none'; document.getElementById('dondeEstoy').textContent=b.nombre+' 🔦 (sin luz)';
   let tienePanel=mueblesRobables.some(m=>m.userData.tipo==='panel' && m.userData.estado==='enSuper' && m.userData.edificio===b.id);
-  let txt={super:'🛒 Súper abandonado: estanterías caídas y cosas por el suelo. Busca 🍗 y 💧, y los muebles con anillo dorado.', tienda:'🏪 Tienda abandonada. Revisa el mesón.', restaurante:'🍽️ Restorán abandonado: sillas volcadas y platos rotos. Revisa la cocina.', mall:'🛍️ ¡El centro comercial! Tiendas rotas, fuente seca y el patio de comidas.', casa:'🏚️ Casa abandonada: muebles volcados, polvo y telarañas.', edificio:'🏢 Oficinas abandonadas: escritorios tirados y papeles por todos lados.', bodega:'🏭 Bodega oscura llena de cajas...'}[b.tipo];
+  let txt={super:'🛒 Súper abandonado: estanterías caídas y cosas por el suelo. Busca 🍗 y 💧, y los muebles con anillo dorado.', tienda:'🏪 Tienda abandonada. Revisa el mesón.', restaurante:'🍽️ Restorán abandonado: sillas volcadas y platos rotos. Revisa la cocina.', mall:'🛍️ ¡El centro comercial! Tiendas rotas, fuente seca y el patio de comidas.', casa:'🏚️ Casa abandonada: muebles volcados, polvo y telarañas. El refrigerador se abre con E y no se vacía solo.', edificio:'🏢 Oficinas abandonadas: escritorios tirados y papeles por todos lados.', bodega:'🏭 Bodega oscura llena de cajas...'}[b.tipo];
   if(tienePanel){ panelVisto=true; txt='🏭 Al fondo brilla el panel solar. Agárralo (F) y llévalo a tu casa: da luz, y la partida sigue.'; }
   if(b.tipo==='super' && !tienePanel) txt='🛒 Súper abandonado: estanterías caídas y cosas por el suelo. Busca 🍗, 💧 y la 🐶 comida de perro. Se toma al acercarte, como la otra comida.';
   if(b.tipo==='casa' && casaPerro() && b.id===casaPerro().id && !perroContigo) txt='🏚️ En el living hay un perrito. Acércate y acarícialo con E. Se queda contigo y te sigue a todas partes.';
@@ -2522,8 +2675,8 @@ function checkPuertas(){ let btn=document.getElementById('btnEntrar'); puertaCer
     btn.style.display=puertaCerca?'block':'none';
     if(!puertaCerca){ let pr=parrillaCerca(); if(pr){ btn.textContent=pr.carbon>0?('🔥 PARRILLA · carbón '+pr.carbon):'🔥 PARRILLA · sin carbón'; btn.style.display='block'; } else if(autoCercano()){ btn.textContent=puedeManejar()?'🚗 SUBIR AL AUTO (E)':'🚗 NO ARRANCA SIN LA CAJA'; btn.style.display='block'; } else if(autoVolcadoCerca()){ btn.textContent='🚗 ESTÁ VOLCADO'; btn.style.display='block'; } }
   }
-  else if(donde==='casa'){ if(Math.abs(px-100)<1.6 && pz>2.8){ salidaCerca=true; btn.textContent='🚪 SALIR AFUERA'; btn.style.display='block'; } else btn.style.display='none'; }
-  else if(donde==='interior' && edificioActual){ if(Math.abs(px-INTERIOR_X)<1.8 && pz>edificioActual.idp/2-2.2){ salidaCerca=true; btn.textContent='🚪 SALIR AFUERA'; btn.style.display='block'; } else if(perroCerca() && !perroContigo){ btn.textContent='🐶 ACARICIAR Y LLEVAR (E)'; btn.style.display='block'; } else btn.style.display='none'; }
+  else if(donde==='casa'){ if(Math.abs(px-100)<1.6 && pz>2.8){ salidaCerca=true; btn.textContent='🚪 SALIR AFUERA'; btn.style.display='block'; } else if(refriCerca()){ btn.textContent=refriAbierto?'🧊 CERRAR REFRI (E)':'🧊 ABRIR REFRI (E)'; btn.style.display='block'; } else btn.style.display='none'; }
+  else if(donde==='interior' && edificioActual){ if(Math.abs(px-INTERIOR_X)<1.8 && pz>edificioActual.idp/2-2.2){ salidaCerca=true; btn.textContent='🚪 SALIR AFUERA'; btn.style.display='block'; } else if(refriCerca()){ btn.textContent=refriAbierto?'🧊 CERRAR REFRI (E)':'🧊 ABRIR REFRI (E)'; btn.style.display='block'; } else if(perroCerca() && !perroContigo){ btn.textContent='🐶 ACARICIAR Y LLEVAR (E)'; btn.style.display='block'; } else btn.style.display='none'; }
   if(!conduciendo && btn.style.display==='none' && perroContigo && perroCerca()){ btn.style.display='block'; btn.textContent=perroTieneHambre()?(invComidaPerro>0?'🐶 DARLE DE COMER (E)':'🐶 TIENE HAMBRE'):(invComidaPerro>0?'🐶 YA COMIÓ HOY':'🐶 ACARICIAR (E)'); } }
 function corriendo(){ return (keys['ShiftLeft']||keys['ShiftRight']||keys['shift']||correrMovil) && energia>5; }
 function toggleCorrer(){ correrMovil=!correrMovil; document.getElementById('btnCorrer').textContent=correrMovil?'🏃 CORRIENDO':'🏃 CORRER'; }
@@ -2572,10 +2725,10 @@ function actualizarObjetivo(){
   MISIONES.forEach(m=>{ if(misionOk(m.id) && !misionAvisada[m.id]){ misionAvisada[m.id]=true; misionHecha[m.id]=true; if(!msgNota) document.getElementById('msg').innerHTML='✅ '+m.t+'. '+m.d; } });
   msgNota=false;
 }
-window.addEventListener('keydown', function(e){ if(enCine){ if(e.key==='Escape'||e.key===' '||e.key==='Enter') saltarCine(); return; } if(e.key==='Escape'){ if(!jugando) return; e.preventDefault(); if(mapaAbierto||mochilaAbierta){ if(mapaAbierto) cerrarMapa(); if(mochilaAbierta) cerrarMochila(); return; } if(menuEsc) cerrarMenuEsc(); else abrirMenuEsc(); return; } if(!jugando||durmiendo||menuEsc) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys[e.code]=true; keys[e.key.toLowerCase()]=true; if(e.repeat) return; let tecla=e.key.toLowerCase(); if(tecla==='m'){ toggleMapa(); return; } if(tecla==='n'){ marcarEnMapa(); return; } if(tecla==='b'){ zoomMapa(); return; } if(mapaAbierto) return; if(tecla==='c') comer(); if(tecla==='x') beber(); if(tecla==='r') dormir(); if(tecla==='e') accionPuerta(); if(tecla==='f') agarrarCercano(); if(tecla==='y'){ toggleMochila(); return; } if(mochilaAbierta) return; if(tecla==='g'){ if(racionEnMano) dejarRacion(); else soltarEnCasa(); } if(tecla==='l') toggleLinterna(); });
+window.addEventListener('keydown', function(e){ if(enCine){ if(e.key==='Escape'||e.key===' '||e.key==='Enter') saltarCine(); return; } if(e.key==='Escape'){ if(!jugando) return; e.preventDefault(); if(mapaAbierto||mochilaAbierta||refriAbierto){ if(mapaAbierto) cerrarMapa(); if(mochilaAbierta) cerrarMochila(); if(refriAbierto) cerrarRefri(); return; } if(menuEsc) cerrarMenuEsc(); else abrirMenuEsc(); return; } if(refriAbierto){ if(!e.repeat && e.key.toLowerCase()==='e') cerrarRefri(); return; } if(!jugando||durmiendo||menuEsc) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys[e.code]=true; keys[e.key.toLowerCase()]=true; if(e.repeat) return; let tecla=e.key.toLowerCase(); if(tecla==='m'){ toggleMapa(); return; } if(tecla==='n'){ marcarEnMapa(); return; } if(tecla==='b'){ zoomMapa(); return; } if(mapaAbierto) return; if(tecla==='c') comer(); if(tecla==='x') beber(); if(tecla==='r') dormir(); if(tecla==='e') accionPuerta(); if(tecla==='f') agarrarCercano(); if(tecla==='y'){ toggleMochila(); return; } if(mochilaAbierta) return; if(tecla==='g'){ if(racionEnMano) dejarRacion(); else soltarEnCasa(); } if(tecla==='l') toggleLinterna(); });
 window.addEventListener('keyup', function(e){ keys[e.code]=false; keys[e.key.toLowerCase()]=false; });
 const gameWrap=document.getElementById('gameWrap');
-gameWrap.addEventListener('mousedown', e=>{ if(!jugando||mochilaAbierta||menuEsc) return; arrastrando=true; if(gameWrap.requestPointerLock && !document.pointerLockElement){ try{ let p=gameWrap.requestPointerLock(); if(p && p.catch) p.catch(()=>{}); }catch(err){} } });
+gameWrap.addEventListener('mousedown', e=>{ if(!jugando||mochilaAbierta||menuEsc||refriAbierto) return; arrastrando=true; if(gameWrap.requestPointerLock && !document.pointerLockElement){ try{ let p=gameWrap.requestPointerLock(); if(p && p.catch) p.catch(()=>{}); }catch(err){} } });
 window.addEventListener('mouseup', ()=>{ arrastrando=false; });
 function ajustarTamano(){ let h=Math.max(220, Math.min(560, window.innerHeight-210)); gameWrap.style.height=h+'px'; camera.aspect=window.innerWidth/h; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,h); }
 window.addEventListener('resize', ajustarTamano);
@@ -3211,7 +3364,7 @@ function cerrarCine(){
 }
 function renderizar(){ if(enCine) return; if(REAL.on && !calidadAlta) REAL.apagar(); if(REAL.on){ REAL.ambiente(); REAL.render(); } else renderer.render(scene,camera); }
 
-function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); if(menuEsc){ ultimoT=performance.now(); renderizar(); return; } let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; let perroHambriento=pasarDiaPerro(); document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"+(perroHambriento?" 🐶 El perrito tiene hambre y gime. En el súper hay comida de perro.":""); } } hambre=Math.max(0,hambre-0.0015*f); sed=Math.max(0,sed-0.0022*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && !mapaAbierto && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && !mapaAbierto && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo||mapaAbierto||mochilaAbierta||menuEsc){ fwd=0; side=0; } if(mapaAbierto) pasoMapa(f); if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
+function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); if(menuEsc||refriAbierto){ ultimoT=performance.now(); renderizar(); return; } let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; let perroHambriento=pasarDiaPerro(); document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"+(perroHambriento?" 🐶 El perrito tiene hambre y gime. En el súper hay comida de perro.":""); } } hambre=Math.max(0,hambre-0.0015*f); sed=Math.max(0,sed-0.0022*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && !mapaAbierto && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && !mapaAbierto && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo||mapaAbierto||mochilaAbierta||menuEsc){ fwd=0; side=0; } if(mapaAbierto) pasoMapa(f); if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
   if(donde==='afuera' && (Math.abs(px)>LIM_X || Math.abs(pz)>LIM_Z)){ shockCollar(); px=Math.max(-LIM_X+1,Math.min(LIM_X-1,px)); pz=Math.max(-LIM_Z+1,Math.min(LIM_Z-1,pz)); }
   checkPuertas(); checkMueblesCerca(); actualizarManos(); pasoExtra(); let altPiso=(donde==='interior'?pisoEd*3.08:0); if(!durmiendo) jugador.position.set(px, altPiso, pz);
   cargando.forEach((m, idx)=>{ let offsetX = -Math.sin(yaw)*1.6 + (idx- (cargando.length-1)/2)*1*Math.cos(yaw); let offsetZ = -Math.cos(yaw)*1.6 - (idx- (cargando.length-1)/2)*1*Math.sin(yaw); if(m.parent!==scene){ scene.add(m); } m.position.set(px+offsetX, 0.85, pz+offsetZ); m.rotation.y=yaw; });
@@ -3222,7 +3375,7 @@ function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); if(menuEs
   comidasSuper.forEach(m=>{ if(!m.userData.tomado){ m.rotation.y+=0.03; m.position.y=1.2+Math.sin(reloj*2+m.position.x)*0.1; } if(!m.userData.tomado && donde==='super' && Math.abs(px-(130+m.position.x))<1.2 && Math.abs(pz-m.position.z)<1.2) guardarEnMochila(m,'comida'); });
   vigilante.visible=(esNoche && donde==='afuera'); if(vigilante.visible){ let vx=px-vigilante.position.x, vz=pz-vigilante.position.z, vl=Math.sqrt(vx*vx+vz*vz)||1; vigilante.position.x+=vx/vl*0.07*f; vigilante.position.z+=vz/vl*0.07*f; vigilante.rotation.y=Math.atan2(vx,vz); linterna.intensity=1.7; if(Math.abs(px-vigilante.position.x)<1.2 && Math.abs(pz-vigilante.position.z)<1.2){ sonidoGolpe(); salud=Math.max(0,salud-20); px=-12; pz=6.2; spawnVigilante(); document.getElementById('msg').innerHTML="¡EL VIGILANTE TE PEGÓ!"; } } else { linterna.intensity=0; }
   puertaCasa.material.emissiveIntensity = puertaCerca==='casa' ? 1 : 0.2; if(donde==='afuera') edificios.forEach(b=>{ let p=b.puerta; if(p) p.material.emissiveIntensity = puertaCerca===b ? 1 : (p===puertaSuper?0.2:0); });
-  itemsInterior.forEach(o=>{ if(o.it.tomado) return; o.m.rotation.y+=0.03; if(donde==='interior' && Math.abs(px-(INTERIOR_X+o.it.x))<1.3 && Math.abs(pz-o.it.z)<1.3){ if(o.it.tipo==='perro'){ o.it.tomado=true; o.m.visible=false; invComidaPerro++; sonidoRecoger(); document.getElementById('msg').innerHTML='🐶 Comida de perro. Tienes '+invComidaPerro+'. Con E se la das, una vez al día. No entra en la mochila.'; update(); } else if(o.it.tipo==='gasolina'){ o.it.tomado=true; o.m.visible=false; invGasolina++; sonidoRecoger(); document.getElementById('msg').innerHTML='⛽ Bolsa de gasolina. No se come. Si la parrilla se queda sin carbón, esto la prende.'; update(); } else guardarEnMochila(o.m, o.it.tipo, o.it); } }); if(focoLinterna && focoLinterna.visible && donde==='interior' && edificioActual && casaLinterna() && edificioActual.id===casaLinterna().id && Math.abs(px-(INTERIOR_X+focoLinterna.position.x))<1.6 && Math.abs(pz-focoLinterna.position.z)<1.6) tomarLinternaPotente();
+  itemsInterior.forEach(o=>{ if(o.it.tomado) return; if(o.it.lugar==='refri' && edificioActual && edificioActual.tipo==='casa') return; o.m.rotation.y+=0.03; if(donde==='interior' && Math.abs(px-(INTERIOR_X+o.it.x))<1.3 && Math.abs(pz-o.it.z)<1.3){ if(o.it.tipo==='perro'){ o.it.tomado=true; o.m.visible=false; invComidaPerro++; sonidoRecoger(); document.getElementById('msg').innerHTML='🐶 Comida de perro. Tienes '+invComidaPerro+'. Con E se la das, una vez al día. No entra en la mochila.'; update(); } else if(o.it.tipo==='gasolina'){ o.it.tomado=true; o.m.visible=false; invGasolina++; sonidoRecoger(); document.getElementById('msg').innerHTML='⛽ Bolsa de gasolina. No se come. Si la parrilla se queda sin carbón, esto la prende.'; update(); } else guardarEnMochila(o.m, o.it.tipo, o.it); } }); if(focoLinterna && focoLinterna.visible && donde==='interior' && edificioActual && casaLinterna() && edificioActual.id===casaLinterna().id && Math.abs(px-(INTERIOR_X+focoLinterna.position.x))<1.6 && Math.abs(pz-focoLinterna.position.z)<1.6) tomarLinternaPotente();
   mueblesRobables.forEach((m,i)=>{ if(m.userData.anillo && m.userData.anillo.visible){ m.userData.anillo.material.emissiveIntensity = 0.6+Math.sin(reloj*3+i)*0.5; m.userData.anillo.rotation.z+=0.012; } });
   aplicarAmbiente();
   if(conduciendo){ let ry=conduciendo.rotation.y, bx=-Math.cos(ry), bz=Math.sin(ry); camera.position.set(conduciendo.position.x+bx*7.2, 3.2, conduciendo.position.z+bz*7.2); camera.lookAt(conduciendo.position.x-bx*3.2, 0.85, conduciendo.position.z-bz*3.2); }

@@ -80,13 +80,13 @@
   <p><b>El juego de Facundo.</b> Gráficos caleta mejorados: cielo real, sombras suaves, selva gigante, interiores con muebles 3D, charcos que brillan y luciérnagas.</p>
   <div><span class="pill">🏙️ Ciudad gigante</span><span class="pill">🔦 Linterna</span><span class="pill">☀️ Panel solar</span><span class="pill">✨ CALETA ULTRA</span><span class="pill">💪 Fuerza</span><span class="pill">🤲 Robar y decorar</span><span class="pill">🏠 Interiores 3D</span><span class="pill">🌿 Selva Real</span></div>
   <p style="font-size:14px;background:rgba(40,90,160,.35);border:1px solid #4aaaff;border-radius:12px;padding:8px 12px"><b>☀️ LA LUZ:</b> Adentro está oscuro y solo ves con la 🔦 linterna. El <b>PANEL SOLAR</b> está escondido en la ciudad: tráelo e instálalo en tu casa (G) para tener luz. Encontrarlo <b>no termina la partida</b>. El collar sigue, y el juego continúa.</p>
-  <p style="font-size:13px"><b>CÓMO JUGAR:</b><br>La ciudad es enorme y sigue más allá: calles nuevas, casas, condominios con juegos rotos y autos volcados. Hay un solo edificio partido a la mitad. Tu casa empieza destruida por dentro. El limpiador está en la ferretería: G limpia una parte por vez y solo se duerme cuando no queda ninguna sucia. En la bodega hay una caja de herramientas: sin eso el auto no arranca. Entra (E) → agarra los muebles con anillo dorado (F) → llévalos a tu casa y suéltalos (G). Fuerza 10=1 cosa, 30=2, 60=3, 90=4.<br><b>🎯 SE SIGUE:</b> sobrevive, duerme en tu cama cuando caiga la noche y lee las notas de las casas. Junta 🍗 y 💧. De noche sale el VIGILANTE. Si cruzas el cerco, el collar te electrocuta.</p>
-  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar (Esc suelta) · Shift correr · E puerta o auto · F agarrar · G soltar donde miras · L linterna · M mapa · N marcar · B zoom · C comer · X beber · R dormir<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
+  <p style="font-size:13px"><b>CÓMO JUGAR:</b><br>La ciudad es enorme y sigue más allá: calles nuevas, casas, condominios con juegos rotos y autos volcados. Hay un solo edificio partido a la mitad. Tu casa empieza destruida por dentro. El limpiador está en la ferretería: G limpia una parte por vez y solo se duerme cuando no queda ninguna sucia. En la bodega hay una caja de herramientas: sin eso el auto no arranca. Entra (E) → agarra los muebles con anillo dorado (F) → llévalos a tu casa y suéltalos (G). Fuerza 10=1 cosa, 30=2, 60=3, 90=4.<br><b>🎯 SE SIGUE:</b> sobrevive, duerme en tu cama cuando caiga la noche y lee las notas de las casas. Junta 🍗 y 💧: van a la mochila (Y), caben 10 y solo eso entra. De noche sale el VIGILANTE. Si cruzas el cerco, el collar te electrocuta.</p>
+  <p style="font-size:12px"><b>⌨️ TECLADO:</b> WASD / ↑↓ caminar · ←→ girar · clic en el juego para mirar (Esc suelta) · Shift correr · E puerta o auto · F agarrar · G soltar donde miras · Y mochila · L linterna · M mapa · N marcar · B zoom · C comer · X beber · R dormir<br><b>📱 CELULAR:</b> la palanca a la izquierda, arrastra a la derecha para mirar, y los botones.</p>
   <button id="jugar" onclick="empezar()">▶️ JUGAR CALETA ULTRA</button>
 </div>
 <div id="cine"><div class="barra top"></div><div class="barra bot"></div><div id="cineSub"></div><button id="cineSaltar" onclick="saltarCine()">SALTAR »</button><div id="cineFade"></div></div>
 <div id="fin"><h1 id="finTitulo"></h1><p id="finTexto"></p><button onclick="location.reload()">🔁 JUGAR DE NUEVO</button></div>
-<div id="top"><span>📅 DÍA <span id="dia">1</span></span><span id="hora">☀️ DÍA</span><span id="tiempoDia">⏰ 2:00</span><span>💪 <span id="txtFuerzaTop">10</span></span><span>🎒 🍗 <span id="invComida">0</span> | 💧 <span id="invAgua">0</span> | 🐶 <span id="invPerro">0</span></span></div>
+<div id="top"><span>📅 DÍA <span id="dia">1</span></span><span id="hora">☀️ DÍA</span><span id="tiempoDia">⏰ 2:00</span><span>💪 <span id="txtFuerzaTop">10</span></span><span>🎒 <span id="invMochila">0</span>/10 · 🍗 <span id="invComida">0</span> | 💧 <span id="invAgua">0</span> | 🐶 <span id="invPerro">0</span></span></div>
 <div id="stats">
   <div class="stat">🍗 HAMBRE<div class="bar"><div id="barHambre" class="fill" style="width:100%;background:linear-gradient(90deg,#ff8c00,#ffcc00)"></div></div><span id="txtHambre">100</span></div>
   <div class="stat">💧 SED<div class="bar"><div id="barSed" class="fill" style="width:100%;background:linear-gradient(90deg,#00aaff,#00ffff)"></div></div><span id="txtSed">100</span></div>
@@ -96,7 +96,7 @@
 </div>
 <div id="mapaBox"><canvas id="mapaCv" width="960" height="640"></canvas><div id="mapaAyuda">M cierra · flechas o WASD mueven la mira · N marca el punto · B hace zoom</div></div>
 <div id="guiaMarca"><span id="guiaFlecha">▲</span><span id="guiaTxt"></span></div>
-<div id="gameWrap"><div id="vignette"></div><div id="mira">+</div><div id="dondeEstoy">🌳 AFUERA · Ciudad Abandonada</div><div id="manos">🤲 Manos: VACÍAS</div><div id="controles">✨ CALETA ULTRA<br>⌨️ WASD caminar · Shift correr · ←→ girar<br>🚪 E puerta · 🤲 F agarrar · ⬇️ G soltar donde miras · 🔦 L linterna<br>🍗 C comer · 💧 X beber · 🛏️ R dormir (de noche)</div><canvas id="minimapa" width="150" height="150"></canvas><div id="objetivo">🎯 Entra a tu casa. El panel alumbra: no termina la partida.</div><div id="zonaCamara"></div></div>
+<div id="gameWrap"><div id="vignette"></div><div id="mira">+</div><div id="dondeEstoy">🌳 AFUERA · Ciudad Abandonada</div><div id="manos">🤲 Manos: VACÍAS</div><div id="controles">✨ CALETA ULTRA<br>⌨️ WASD caminar · Shift correr · ←→ girar<br>🚪 E puerta · 🤲 F agarrar · ⬇️ G soltar donde miras · 🎒 Y mochila · 🔦 L linterna<br>🍗 C comer · 💧 X beber · 🛏️ R dormir (de noche)</div><canvas id="minimapa" width="150" height="150"></canvas><div id="objetivo">🎯 Entra a tu casa. El panel alumbra: no termina la partida.</div><div id="zonaCamara"></div></div>
 <div id="msg">Facundo, mira el cielo, las sombras y los charcos. ¡Ahora se ve caleta mejor! Entra al SÚPER a robar.</div>
 <button id="btnEntrar" onclick="accionPuerta()">🚪 ENTRAR</button>
 <button id="btnAgarrar" onclick="agarrarCercano()">🤲 AGARRAR</button>
@@ -111,10 +111,14 @@
   <button id="btnCorrer" style="background:linear-gradient(#aa2266,#661133)" onclick="toggleCorrer()">🏃 CORRER</button>
   <button style="background:#444" onclick="girarIzq()">⬅️ GIRAR</button>
   <button style="background:#444" onclick="girarDer()">GIRAR ➡️</button>
+  <button style="background:linear-gradient(#2f6a34,#1c3d1e)" onclick="toggleMochila()">🎒 MOCHILA</button>
+  <button id="btnVaciar" style="display:none;background:linear-gradient(#6a4a28,#3a2814)" onclick="vaciarMochila()">🎒 VACIAR EN CASA</button>
 </div>
 <script>
 if(!window.THREE){ document.getElementById('portada').innerHTML='<h1>CIUDAD<br>ABANDONADA</h1><p>⚠️ No se pudo cargar el motor 3D (three.js). Conéctate a internet y vuelve a abrir el juego.</p>'; throw new Error('three.js no cargó'); }
 let px=-12,pz=6.2,speed=0.13,keys={},jugando=false,hambre=100,sed=100,energia=100,salud=100,fuerza=10,invComida=0,invAgua=0,dia=1,esNoche=false,sonidoOn=true,musicaOn=true,ultimoPaso=0,pasoIzq=true,musicaIdx=0,ultimoShock=0;
+const MOCHILA_TOPE=10;
+let mochila=[], mochilaAbierta=false, racionEnMano=null, tomando=null, soltando=null, racionesSueltas=[], vistaMochila=null, slotsVista=[];
 let joyX=0,joyY=0,DURACION=10800,tiempoRestante=DURACION;
 let yaw=Math.PI,pitch=0,camaraFrontal=true;
 let panelInstalado=false, panelVisto=false, casaLimpia=false, linternaOn=false, correrMovil=false, tieneHerramientas=false, conduciendo=null, vioCorte=false, vioVolcado=false, vioJuegos=false, condujo=false, perroContigo=false, casaDelPerro=null, perroJornada=1, perroComidoEn=0, invComidaPerro=0;
@@ -1685,7 +1689,8 @@ function actualizarManos(){
   else el.textContent='🤲 Llevas: '+cargando.map(m=>m.userData.emoji+' '+m.userData.nombre).join(', ')+' ('+cargando.length+'/'+maxCarga()+') | 💪 '+Math.floor(fuerza);
   let ultimo=cargando[cargando.length-1], bs=document.getElementById('btnSoltar');
   bs.textContent = ultimo && ultimo.userData.tipo==='limpiador' && donde==='casa' && !casaLimpia ? '🧹 LIMPIAR ESTA PARTE (G)' : ultimo && ultimo.userData.tipo==='panel' ? ((donde==='casa'||cercaDeMiCasa())?'☀️ INSTALAR EN EL TECHO (G)':'☀️ SOLO EN EL TECHO DE TU CASA') : ultimo && ultimo.userData.tipo==='cuadro' ? '🖼️ PONER EN PARED O ESCRITORIO (G)' : '⬇️ SOLTAR DONDE MIRAS (G)';
-  bs.style.display = (cargando.length>0 && !conduciendo) ? 'block' : 'none';
+  if(racionEnMano){ bs.textContent='⬇️ DEJAR '+(racionEnMano.userData.racion==='comida'?'LA COMIDA':'EL AGUA')+' (G)'; bs.style.display=conduciendo?'none':'block'; }
+  else bs.style.display = (cargando.length>0 && !conduciendo) ? 'block' : 'none';
   document.getElementById('txtFuerza').textContent=Math.floor(fuerza); document.getElementById('txtFuerzaTop').textContent=Math.floor(fuerza); document.getElementById('barFuerza').style.width=fuerza+'%';
 }
 function posMundo(m){ let p=new THREE.Vector3(); m.updateWorldMatrix(true,false); m.getWorldPosition(p); return p; }
@@ -1883,6 +1888,166 @@ function soltarEnCasa(){
   document.getElementById('msg').innerHTML='⬇️ Soltaste '+m.userData.emoji+' '+m.userData.nombre+' donde mirabas.';
   actualizarManos();
 }
+function modeloMochila(abierta){
+  let g=new THREE.Group();
+  let lona=new THREE.MeshStandardMaterial({color:0x2f6a34, roughness:0.78, metalness:0.04});
+  let oscura=new THREE.MeshStandardMaterial({color:0x214a26, roughness:0.82});
+  let cuero=new THREE.MeshStandardMaterial({color:0x6b4524, roughness:0.5, metalness:0.12});
+  let hebilla=new THREE.MeshStandardMaterial({color:0xe2c56a, roughness:0.28, metalness:0.72});
+  let cuerpo=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.72,0.36), lona); cuerpo.castShadow=true; g.add(cuerpo);
+  let base=new THREE.Mesh(new THREE.BoxGeometry(0.86,0.1,0.4), oscura); base.position.y=-0.34; g.add(base);
+  let bolsillo=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.24,0.07), oscura); bolsillo.position.set(0,-0.1,0.2); g.add(bolsillo);
+  let heb=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.08,0.04), hebilla); heb.position.set(0,0.02,0.24); g.add(heb);
+  for(let s of [-1,1]){ let correa=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.66,0.07), cuero); correa.position.set(s*0.24,0.02,-0.22); g.add(correa); let anilla=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.06,0.04), hebilla); anilla.position.set(s*0.24,0.28,-0.2); g.add(anilla); }
+  let tapa=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.38,0.06), lona);
+  if(abierta){ tapa.position.set(0,0.48,-0.18); tapa.rotation.x=1.2; let hueco=new THREE.Mesh(new THREE.BoxGeometry(0.68,0.46,0.24), new THREE.MeshStandardMaterial({color:0x1a120c, roughness:0.95})); hueco.position.set(0,0.1,0.04); g.add(hueco); }
+  else { tapa.position.set(0,0.3,0.16); tapa.rotation.x=-0.2; }
+  g.add(tapa);
+  return g;
+}
+function guardarEnMochila(m, tipo, it){
+  if(tipo!=='comida' && tipo!=='agua') return false;
+  if(mochila.length>=MOCHILA_TOPE){
+    if(m.userData.avisoLlena==null || reloj-m.userData.avisoLlena>80){ m.userData.avisoLlena=reloj; document.getElementById('msg').innerHTML='🎒 La mochila está llena (10/10). Solo entran comida y agua, y no cabe más.'; }
+    return false;
+  }
+  if(it) it.tomado=true; else if(m.userData) m.userData.tomado=true;
+  if(m.visible!==undefined) m.visible=false;
+  mochila.push({tipo:tipo});
+  if(tipo==='comida') invComida++; else invAgua++;
+  sonidoRecoger();
+  document.getElementById('msg').innerHTML=(tipo==='comida'?'🍗 Comida':'💧 Agua')+' guardada en la mochila ('+mochila.length+'/'+MOCHILA_TOPE+'). Y la abre.';
+  update();
+  return true;
+}
+function quitarDeMochila(tipo){
+  let i=mochila.findIndex(x=>x.tipo===tipo); if(i<0) return false;
+  mochila.splice(i,1);
+  if(tipo==='comida') invComida=Math.max(0,invComida-1); else invAgua=Math.max(0,invAgua-1);
+  if(mochilaAbierta) abrirMochila();
+  return true;
+}
+function cerrarMochila(){
+  mochilaAbierta=false;
+  if(vistaMochila){ camera.remove(vistaMochila); vistaMochila.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material && o.material.dispose) o.material.dispose(); }); vistaMochila=null; }
+  slotsVista=[];
+  let box=document.getElementById('eligeMochila'); if(box) box.style.display='none';
+  if(!conduciendo){ manoIzq.visible=true; manoDer.visible=true; punoIzq.visible=true; punoDer.visible=true; }
+}
+function abrirMochila(){
+  if(document.exitPointerLock) document.exitPointerLock();
+  cerrarMochila();
+  mochilaAbierta=true;
+  manoIzq.visible=false; manoDer.visible=false; punoIzq.visible=false; punoDer.visible=false;
+  vistaMochila=new THREE.Group(); vistaMochila.position.set(0,-0.08,-1.45); vistaMochila.rotation.x=-0.15; vistaMochila.scale.setScalar(1.05); camera.add(vistaMochila);
+  vistaMochila.add(modeloMochila(true));
+  let luz=new THREE.PointLight(0xfff2d2,0.9,2.4); luz.position.set(0,0.45,0.55); vistaMochila.add(luz);
+  mochila.forEach((it,i)=>{
+    let col=i%5, fila=Math.floor(i/5);
+    let pieza=it.tipo==='comida'?pollo(0,0,0,vistaMochila,0.28):botella(0,0,0,vistaMochila,0.28);
+    pieza.position.set(-0.24+col*0.12, 0.08-fila*0.16, 0.16);
+    pieza.traverse(o=>{ if(o.isMesh) o.userData.indiceMochila=i; });
+    slotsVista.push(pieza);
+  });
+  let box=document.getElementById('eligeMochila');
+  if(!box){ box=document.createElement('div'); box.id='eligeMochila'; box.style.cssText='position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:40;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:92vw'; document.body.appendChild(box); }
+  box.style.display='flex'; box.innerHTML='';
+  if(!mochila.length){ box.innerHTML='<span style="color:#fff;background:#000a;padding:8px 12px;border-radius:10px;font:700 16px system-ui">La mochila está vacía. Solo guarda comida y agua.</span>'; }
+  mochila.forEach((it,i)=>{ let b=document.createElement('button'); b.textContent=(it.tipo==='comida'?'🍗 Sacar esta comida':'💧 Sacar esta agua'); b.style.cssText='font:700 15px system-ui;padding:8px 12px;border-radius:10px;border:2px solid #ffd76a;background:#1c2418;color:#fff;cursor:pointer'; b.onclick=function(){ sacarRacion(i); }; box.appendChild(b); });
+  document.getElementById('msg').innerHTML='🎒 Mochila '+mochila.length+'/'+MOCHILA_TOPE+'. Elige la comida o el agua para sacarla. Y cierra.';
+}
+function toggleMochila(){ if(!jugando||enCine||durmiendo) return; if(mochilaAbierta) cerrarMochila(); else abrirMochila(); }
+function sacarRacion(i){
+  if(tomando||racionEnMano){ document.getElementById('msg').innerHTML='Ya tienes algo en la mano. Déjalo con G antes de sacar otra cosa.'; return; }
+  if(i<0||i>=mochila.length) return;
+  let it=mochila.splice(i,1)[0];
+  if(it.tipo==='comida') invComida=Math.max(0,invComida-1); else invAgua=Math.max(0,invAgua-1);
+  let desde=new THREE.Vector3();
+  if(slotsVista[i]){ slotsVista[i].updateWorldMatrix(true,false); slotsVista[i].getWorldPosition(desde); }
+  else camera.getWorldPosition(desde);
+  cerrarMochila();
+  let mesh=it.tipo==='comida'?pollo(desde.x,desde.y,desde.z,scene,0.7):botella(desde.x,desde.y,desde.z,scene,0.7);
+  mesh.userData.racion=it.tipo; mesh.userData.tomado=true;
+  tomando={mesh:mesh, desde:desde.clone(), t:0};
+  document.getElementById('msg').innerHTML=(it.tipo==='comida'?'🍗 Agarraste la comida':'💧 Agarraste el agua')+' de la mochila. Mira al suelo y pulsa G: queda donde tú la dejes.';
+  update();
+}
+function anclarRacion(){
+  if(!racionEnMano||tomando) return;
+  if(camaraFrontal){
+    if(racionEnMano.parent!==camera) camera.add(racionEnMano);
+    racionEnMano.position.set(0.46,-0.28,-0.62); racionEnMano.rotation.set(0.5,0.2,0.15); racionEnMano.scale.setScalar(0.62);
+  } else {
+    let brazo=cuerpoJugador.brazos[1];
+    if(racionEnMano.parent!==brazo) brazo.add(racionEnMano);
+    racionEnMano.position.set(0.02,-0.58,0.14); racionEnMano.rotation.set(0.8,0,0.2); racionEnMano.scale.setScalar(0.5);
+  }
+}
+function fijarRacion(mesh, x, y, z){
+  mesh.userData.suelta=true; mesh.userData.tomado=false; mesh.userData.sueltaEn=reloj; racionesSueltas.push(mesh);
+  if(donde==='casa'){ grupoCasa.add(mesh); mesh.position.set(x-100, y, z); }
+  else if(donde==='interior'){ scene.add(mesh); mesh.position.set(x, y, z); }
+  else { grupoExterior.add(mesh); mesh.position.set(x, y, z); }
+  mesh.rotation.set(0, yaw, 0); mesh.scale.setScalar(1); mesh.visible=true;
+}
+function dejarRacion(){
+  if(!racionEnMano||tomando||conduciendo) return;
+  let mesh=racionEnMano, desde=new THREE.Vector3(); mesh.updateWorldMatrix(true,false); mesh.getWorldPosition(desde);
+  let p=puntoSuelo(), y=p.y+(mesh.userData.racion==='comida'?0.42:0.5);
+  scene.add(mesh); mesh.position.copy(desde); mesh.scale.setScalar(0.85);
+  racionEnMano=null; soltando={mesh:mesh, desde:desde, hasta:new THREE.Vector3(p.x,y,p.z), t:0};
+  actualizarManos();
+}
+function vaciarMochila(){
+  if(donde!=='casa'){ document.getElementById('msg').innerHTML='🎒 La mochila solo se vacía dentro de tu casa.'; return; }
+  if(!mochila.length){ document.getElementById('msg').innerHTML='🎒 La mochila ya está vacía.'; return; }
+  if(mochilaAbierta) cerrarMochila();
+  let n=mochila.length;
+  mochila.forEach((it,i)=>{
+    let ang=yaw+(i-(n-1)/2)*0.42;
+    let x=Math.max(94.8, Math.min(105.2, px-Math.sin(ang)*1.35));
+    let z=Math.max(-4.3, Math.min(4.3, pz-Math.cos(ang)*1.35));
+    let mesh=it.tipo==='comida'?pollo(0,0,0,scene,1):botella(0,0,0,scene,1);
+    mesh.userData.racion=it.tipo;
+    fijarRacion(mesh, x, it.tipo==='comida'?0.42:0.5, z);
+  });
+  mochila=[]; invComida=0; invAgua=0;
+  document.getElementById('msg').innerHTML='🎒 Vaciada. La comida y el agua quedaron en el suelo de tu casa, delante de ti.';
+  update();
+}
+function pasoMochila(f){
+  if(tomando){
+    tomando.t=Math.min(1, tomando.t+0.045*f);
+    let u=tomando.t, s=u*u*(3-2*u), dest=new THREE.Vector3(0.46,-0.28,-0.62);
+    camera.localToWorld(dest);
+    tomando.mesh.position.lerpVectors(tomando.desde, dest, s);
+    tomando.mesh.rotation.y+=0.08*f;
+    if(tomando.t>=1){ racionEnMano=tomando.mesh; tomando=null; anclarRacion(); }
+  } else anclarRacion();
+  if(soltando){
+    soltando.t=Math.min(1, soltando.t+0.05*f);
+    let u=soltando.t, s=u*u*(3-2*u);
+    soltando.mesh.position.lerpVectors(soltando.desde, soltando.hasta, s);
+    if(soltando.t>=1){ let m=soltando.mesh, h=soltando.hasta; soltando=null; fijarRacion(m, h.x, h.y, h.z); document.getElementById('msg').innerHTML=(m.userData.racion==='comida'?'🍗 La comida':'💧 El agua')+' quedó en el suelo, donde la dejaste. No se fue a otro lado.'; }
+  }
+  for(let i=racionesSueltas.length-1;i>=0;i--){
+    let m=racionesSueltas[i]; if(!m.userData.suelta||m.userData.tomado||reloj-(m.userData.sueltaEn||0)<20) continue;
+    let p=posMundo(m);
+    if(Math.hypot(px-p.x, pz-p.z)<1.25 && Math.abs((donde==='interior'?pisoEd*3.08:0)-p.y)<1.4){
+      if(guardarEnMochila(m, m.userData.racion)){ racionesSueltas.splice(i,1); }
+    }
+  }
+  let bv=document.getElementById('btnVaciar'); if(bv) bv.style.display=(donde==='casa' && mochila.length>0 && !mochilaAbierta)?'block':'none';
+}
+renderer.domElement.addEventListener('pointerdown', function(e){
+  if(!mochilaAbierta||!vistaMochila) return;
+  e.stopPropagation();
+  let r=renderer.domElement.getBoundingClientRect();
+  let ndc=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1);
+  let ray=new THREE.Raycaster(); ray.setFromCamera(ndc, camera);
+  let hits=ray.intersectObjects(slotsVista, true);
+  if(hits.length && hits[0].object.userData.indiceMochila!=null) sacarRacion(hits[0].object.userData.indiceMochila);
+});
 let jugador=new THREE.Group(); scene.add(jugador);
 let poseJugador=new THREE.Group(); jugador.add(poseJugador);
 function persona(g, c){
@@ -1933,6 +2098,7 @@ const TEX_PIEL=texPielJ(), TEX_TELA=texTelaJ(), TEX_JEAN=texJeanJ();
 function vestir(g, piel, polera, pantalon){ g.traverse(o=>{ if(!o.isMesh||!o.material||!o.material.color) return; let h=o.material.color.getHex(); if(h===piel){ o.material.map=TEX_PIEL; o.material.color.setHex(0xffffff); o.material.roughness=0.4; o.material.metalness=0; } else if(h===polera){ o.material.map=TEX_TELA; o.material.color.setHex(0xffffff); o.material.roughness=0.94; o.material.metalness=0; } else if(h===pantalon){ o.material.map=TEX_JEAN; o.material.color.setHex(0xffffff); o.material.roughness=0.82; o.material.metalness=0.02; } }); }
 let cuerpoJugador=persona(poseJugador, {pantalon:0x2c3340, zapato:0x1a1a1a, polera:0x3e5344, cinturon:0x2a241c, piel:0xc48a62, pelo:0x24160e, ceja:0x24160e, labio:0xa86a58});
 vestir(poseJugador, 0xc48a62, 0x3e5344, 0x2c3340);
+let mochilaEspalda=modeloMochila(false); mochilaEspalda.position.set(0,1.2,-0.18); mochilaEspalda.scale.setScalar(0.42); poseJugador.add(mochilaEspalda);
 let collar=new THREE.Mesh(new THREE.TorusGeometry(0.078,0.016,8,18), new THREE.MeshStandardMaterial({color:0x8a1010, emissive:0xff2200, emissiveIntensity:0.8, roughness:0.35, metalness:0.55})); collar.rotation.x=Math.PI/2; collar.position.set(0,1.48,0); poseJugador.add(collar);
 brillo(0xff3333,0.35,0,1.48,0.08,poseJugador,0.7);
 let collarLuz=new THREE.PointLight(0xff2200,0.45,1.6); collarLuz.position.set(0,1.48,0.12); poseJugador.add(collarLuz);
@@ -2119,10 +2285,10 @@ function actualizarObjetivo(){
   MISIONES.forEach(m=>{ if(misionOk(m.id) && !misionAvisada[m.id]){ misionAvisada[m.id]=true; misionHecha[m.id]=true; if(!msgNota) document.getElementById('msg').innerHTML='✅ '+m.t+'. '+m.d; } });
   msgNota=false;
 }
-window.addEventListener('keydown', function(e){ if(enCine){ if(e.key==='Escape'||e.key===' '||e.key==='Enter') saltarCine(); return; } if(!jugando||durmiendo) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys[e.code]=true; keys[e.key.toLowerCase()]=true; if(e.repeat) return; let tecla=e.key.toLowerCase(); if(tecla==='m'){ toggleMapa(); return; } if(tecla==='n'){ marcarEnMapa(); return; } if(tecla==='b'){ zoomMapa(); return; } if(mapaAbierto){ if(e.key==='Escape') cerrarMapa(); return; } if(tecla==='c') comer(); if(tecla==='x') beber(); if(tecla==='r') dormir(); if(tecla==='e') accionPuerta(); if(tecla==='f') agarrarCercano(); if(tecla==='g') soltarEnCasa(); if(tecla==='l') toggleLinterna(); });
+window.addEventListener('keydown', function(e){ if(enCine){ if(e.key==='Escape'||e.key===' '||e.key==='Enter') saltarCine(); return; } if(!jugando||durmiendo) return; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys[e.code]=true; keys[e.key.toLowerCase()]=true; if(e.repeat) return; let tecla=e.key.toLowerCase(); if(tecla==='m'){ toggleMapa(); return; } if(tecla==='n'){ marcarEnMapa(); return; } if(tecla==='b'){ zoomMapa(); return; } if(mapaAbierto){ if(e.key==='Escape') cerrarMapa(); return; } if(tecla==='c') comer(); if(tecla==='x') beber(); if(tecla==='r') dormir(); if(tecla==='e') accionPuerta(); if(tecla==='f') agarrarCercano(); if(tecla==='y'){ toggleMochila(); return; } if(mochilaAbierta) return; if(tecla==='g'){ if(racionEnMano) dejarRacion(); else soltarEnCasa(); } if(tecla==='l') toggleLinterna(); });
 window.addEventListener('keyup', function(e){ keys[e.code]=false; keys[e.key.toLowerCase()]=false; });
 const gameWrap=document.getElementById('gameWrap');
-gameWrap.addEventListener('mousedown', e=>{ if(!jugando) return; arrastrando=true; if(gameWrap.requestPointerLock && !document.pointerLockElement){ try{ let p=gameWrap.requestPointerLock(); if(p && p.catch) p.catch(()=>{}); }catch(err){} } });
+gameWrap.addEventListener('mousedown', e=>{ if(!jugando||mochilaAbierta) return; arrastrando=true; if(gameWrap.requestPointerLock && !document.pointerLockElement){ try{ let p=gameWrap.requestPointerLock(); if(p && p.catch) p.catch(()=>{}); }catch(err){} } });
 window.addEventListener('mouseup', ()=>{ arrastrando=false; });
 function ajustarTamano(){ let h=Math.max(220, Math.min(560, window.innerHeight-210)); gameWrap.style.height=h+'px'; camera.aspect=window.innerWidth/h; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,h); }
 window.addEventListener('resize', ajustarTamano);
@@ -2135,10 +2301,10 @@ const joy=document.getElementById('joy'),stick=document.getElementById('stick');
 joy.addEventListener('touchstart', function(e){ e.preventDefault(); joyTouchId=e.changedTouches[0].identifier; }, {passive:false});
 joy.addEventListener('touchend',function(e){ e.preventDefault(); joyX=0; joyY=0; stick.style.left='33px'; stick.style.top='33px'; joyTouchId=null; }, {passive:false});
 joy.addEventListener('touchmove',function(e){ e.preventDefault(); for(let i=0;i<e.changedTouches.length;i++){ let t=e.changedTouches[i]; if(t.identifier===joyTouchId){ let r=joy.getBoundingClientRect(),dx=t.clientX-(r.left+57),dy=t.clientY-(r.top+57); joyX=Math.max(-1,Math.min(1,dx/40)); joyY=Math.max(-1,Math.min(1,dy/40)); stick.style.left=(33+joyX*25)+'px'; stick.style.top=(33+joyY*25)+'px'; } } }, {passive:false});
-function update(){ document.getElementById('barHambre').style.width=hambre+'%'; document.getElementById('barSed').style.width=sed+'%'; document.getElementById('barEnergia').style.width=energia+'%'; document.getElementById('barSalud').style.width=salud+'%'; document.getElementById('barFuerza').style.width=fuerza+'%'; document.getElementById('txtHambre').textContent=Math.round(hambre); document.getElementById('txtSed').textContent=Math.round(sed); document.getElementById('txtEnergia').textContent=Math.round(energia); document.getElementById('txtSalud').textContent=Math.round(salud); document.getElementById('txtFuerza').textContent=Math.floor(fuerza); document.getElementById('txtFuerzaTop').textContent=Math.floor(fuerza); document.getElementById('invComida').textContent=invComida; document.getElementById('invAgua').textContent=invAgua; document.getElementById('invPerro').textContent=invComidaPerro; document.getElementById('dia').textContent=dia; document.getElementById('hora').textContent=esNoche?'🌙 NOCHE':'☀️ DÍA'; let seg=Math.ceil(tiempoRestante/60); document.getElementById('tiempoDia').textContent=(esNoche?'🌙 NOCHE - Quedan ':'☀️ DÍA - Quedan ')+Math.floor(seg/60)+':'+(seg%60<10?'0'+seg%60:seg%60); dibujarMinimapa(); actualizarObjetivo(); actualizarGuia(); }
+function update(){ document.getElementById('barHambre').style.width=hambre+'%'; document.getElementById('barSed').style.width=sed+'%'; document.getElementById('barEnergia').style.width=energia+'%'; document.getElementById('barSalud').style.width=salud+'%'; document.getElementById('barFuerza').style.width=fuerza+'%'; document.getElementById('txtHambre').textContent=Math.round(hambre); document.getElementById('txtSed').textContent=Math.round(sed); document.getElementById('txtEnergia').textContent=Math.round(energia); document.getElementById('txtSalud').textContent=Math.round(salud); document.getElementById('txtFuerza').textContent=Math.floor(fuerza); document.getElementById('txtFuerzaTop').textContent=Math.floor(fuerza); document.getElementById('invComida').textContent=invComida; document.getElementById('invAgua').textContent=invAgua; document.getElementById('invPerro').textContent=invComidaPerro; document.getElementById('invMochila').textContent=mochila.length; document.getElementById('dia').textContent=dia; document.getElementById('hora').textContent=esNoche?'🌙 NOCHE':'☀️ DÍA'; let seg=Math.ceil(tiempoRestante/60); document.getElementById('tiempoDia').textContent=(esNoche?'🌙 NOCHE - Quedan ':'☀️ DÍA - Quedan ')+Math.floor(seg/60)+':'+(seg%60<10?'0'+seg%60:seg%60); dibujarMinimapa(); actualizarObjetivo(); actualizarGuia(); }
 function enCasaCheck(){ return donde==='casa'; }
-function comer(){ if(invComida<=0){document.getElementById('msg').innerHTML="No tienes comida. Entra al Súper.";return;} invComida--; hambre=Math.min(100,hambre+35); salud=Math.min(100,salud+5); sonidoComer(); document.getElementById('msg').innerHTML="🍗 ¡Ñam! Te quedan "+invComida; update(); }
-function beber(){ if(invAgua<=0){document.getElementById('msg').innerHTML="No tienes agua.";return;} invAgua--; sed=Math.min(100,sed+40); sonidoBeber(); document.getElementById('msg').innerHTML="💧 ¡Glup!"; update(); }
+function comer(){ if(!quitarDeMochila('comida')){document.getElementById('msg').innerHTML="No tienes comida en la mochila. Entra al Súper.";return;} hambre=Math.min(100,hambre+35); salud=Math.min(100,salud+5); sonidoComer(); document.getElementById('msg').innerHTML="🍗 ¡Ñam! En la mochila quedan "+invComida; update(); }
+function beber(){ if(!quitarDeMochila('agua')){document.getElementById('msg').innerHTML="No tienes agua en la mochila.";return;} sed=Math.min(100,sed+40); sonidoBeber(); document.getElementById('msg').innerHTML="💧 ¡Glup! En la mochila quedan "+invAgua; update(); }
 function dormir(){ if(!jugando||durmiendo||enCine) return; if(!enCasaCheck()){document.getElementById('msg').innerHTML="Para dormir tienes que entrar a tu casa.";return;} if(!casaLimpia){document.getElementById('msg').innerHTML="🧹 Todavía no se puede dormir. "+textoFalta();return;} if(!esNoche && energia>30){document.getElementById('msg').innerHTML="☀️ Todavía es de día. Cuando caiga la noche podrás acostarte en tu cama.";return;} if(!camaJugador){document.getElementById('msg').innerHTML="No encuentro la cama.";return;} durmiendo=true; suenoT=0; camaraAntesSueno=camaraFrontal; camaraFrontal=false; jugador.visible=true; sonidoDormir(); document.getElementById('msg').innerHTML="Te acuestas. La manta sube. Afuera, la ciudad sigue."; }
 function amanecer(){ durmiendo=false; suenoT=0; poseJugador.rotation.set(0,0,0); poseJugador.position.set(0,0,0); if(manta){ manta.scale.set(1,1,1); manta.position.x=manta.userData.baseX; } camaraFrontal=camaraAntesSueno; jugador.visible=!camaraFrontal; nochesDormidas++; energia=100; hambre=Math.max(0,hambre-3); sed=Math.max(0,sed-3); subirFuerza(5); dia++; let perroHambriento=pasarDiaPerro(); esNoche=false; tiempoRestante=DURACION; comidas3D.forEach(m=>{m.visible=true; m.userData.tomado=false;}); aguas3D.forEach(m=>{m.visible=true; m.userData.tomado=false;}); aguasSuper.forEach(m=>{m.visible=true; m.userData.tomado=false;}); comidasSuper.forEach(m=>{m.visible=true; m.userData.tomado=false;}); edificios.forEach(b=>{ if(b.items) b.items.forEach(it=>it.tomado=false); }); vigilante.visible=false; px=camaJugador.x+0.9; pz=camaJugador.z+1.1; document.getElementById('msg').innerHTML="🛏️ Amaneció. Día "+dia+". El collar sigue"+(panelInstalado?" y la casa tiene luz.":". El panel solo alumbra: no termina esto.")+(perroHambriento?" 🐶 El perrito no comió: agacha la cabeza y gime. Dale comida de perro, una sola vez hoy.":""); update(); }
 function shockCollar(){ let ahora=Date.now(); if(ahora-ultimoShock<1000) return; ultimoShock=ahora; sonidoShock(); salud=Math.max(1,salud-5); document.getElementById('avisoCollar').style.display='block'; setTimeout(()=>document.getElementById('avisoCollar').style.display='none',1500); document.getElementById('msg').innerHTML="⛓️ ¡BZZZT! ¡EL COLLAR! No puedes salir de la ciudad."; }
@@ -2758,25 +2924,25 @@ function cerrarCine(){
 }
 function renderizar(){ if(enCine) return; if(REAL.on && !calidadAlta) REAL.apagar(); if(REAL.on){ REAL.ambiente(); REAL.render(); } else renderer.render(scene,camera); }
 
-function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; let perroHambriento=pasarDiaPerro(); document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"+(perroHambriento?" 🐶 El perrito tiene hambre y gime. En el súper hay comida de perro.":""); } } hambre=Math.max(0,hambre-0.0015*f); sed=Math.max(0,sed-0.0022*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && !mapaAbierto && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && !mapaAbierto && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo||mapaAbierto){ fwd=0; side=0; } if(mapaAbierto) pasoMapa(f); if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
+function loop3D(){ if(!jugando) return; requestAnimationFrame(loop3D); let ahoraT=performance.now(), f=Math.max(0.2,Math.min(3,(ahoraT-ultimoT)/16.67)); ultimoT=ahoraT; reloj+=0.02*f; tiempoRestante-=f; if(tiempoRestante<=0){ esNoche=!esNoche; tiempoRestante=DURACION; if(esNoche){ sonidoNoche(); spawnVigilante(); if(donde==='afuera'){ vigilante.visible=true; ponerLinterna(true); } document.getElementById('msg').innerHTML="🌙 ¡NOCHE! Vuelve a tu casa. 🔦 Prende la linterna (L)."; } else { vigilante.visible=false; let perroHambriento=pasarDiaPerro(); document.getElementById('msg').innerHTML="☀️ ¡AMANECE!"+(perroHambriento?" 🐶 El perrito tiene hambre y gime. En el súper hay comida de perro.":""); } } hambre=Math.max(0,hambre-0.0015*f); sed=Math.max(0,sed-0.0022*f); energia=Math.max(0,energia-0.002*f); if(hambre<=0||sed<=0||energia<=0) salud=Math.max(0,salud-0.03*f); if(salud<=0){ sonidoPerder(); document.getElementById('msg').innerHTML="💀 NO SOBREVIVISTE..."; update(); terminar(false); return; } if(!durmiendo && !mapaAbierto && keys['ArrowLeft']) yaw+=0.04*f; if(!durmiendo && !mapaAbierto && keys['ArrowRight']) yaw-=0.04*f; velX=0; velZ=0; let fwd=0,side=0; if(keys['KeyW'] || keys['w'] || keys['ArrowUp']) fwd=1; if(keys['KeyS'] || keys['s'] || keys['ArrowDown']) fwd=-1; if(keys['KeyA'] || keys['a']) side=-1; if(keys['KeyD'] || keys['d']) side=1; fwd+= -joyY; side+= joyX; let largo=Math.hypot(fwd,side); if(largo>1){ fwd/=largo; side/=largo; } if(durmiendo||mapaAbierto||mochilaAbierta){ fwd=0; side=0; } if(mapaAbierto) pasoMapa(f); if(conduciendo){ moverAuto(fwd, side, f); } else if(fwd!=0||side!=0){ let sin=Math.sin(yaw), cos=Math.cos(yaw); let dx=(side*cos - fwd*sin)*speed*0.8*f*(corriendo()?1.7:1); let dz=(-fwd*cos - side*sin)*speed*0.8*f*(corriendo()?1.7:1); velX=dx; velZ=dz; let nx=px+dx, nz=pz+dz; let puede=true; if(donde==='afuera'){ if(chocaEdificio(nx,nz)){ if(!chocaEdificio(nx,pz)) nz=pz; else if(!chocaEdificio(px,nz)) nx=px; else puede=false; } } else if(donde==='casa'){ if(nx<100-5.55||nx>100+5.55||nz<-4.55||nz>4.55) puede=false; } else if(donde==='interior' && edificioActual){ let b=edificioActual; if(nx<INTERIOR_X-b.iw/2+0.4||nx>INTERIOR_X+b.iw/2-0.4||nz<-b.idp/2+0.4||nz>b.idp/2-0.4) puede=false; } if(puede && murosAhora && chocaMuro(nx-origenMuros, nz)){ if(!chocaMuro(nx-origenMuros, pz)) nz=pz; else if(!chocaMuro(px-origenMuros, nz)) nx=px; else puede=false; } if(puede){ px=nx; pz=nz; sonidoPaso(); if(corriendo()) energia=Math.max(0,energia-0.004*f); manoIzq.position.y=-0.54+Math.sin(reloj*10)*0.03; manoDer.position.y=-0.54-Math.sin(reloj*10)*0.03; } }
   if(donde==='afuera' && (Math.abs(px)>LIM_X || Math.abs(pz)>LIM_Z)){ shockCollar(); px=Math.max(-LIM_X+1,Math.min(LIM_X-1,px)); pz=Math.max(-LIM_Z+1,Math.min(LIM_Z-1,pz)); }
   checkPuertas(); checkMueblesCerca(); actualizarManos(); pasoExtra(); let altPiso=(donde==='interior'?pisoEd*3.08:0); if(!durmiendo) jugador.position.set(px, altPiso, pz);
   cargando.forEach((m, idx)=>{ let offsetX = -Math.sin(yaw)*1.6 + (idx- (cargando.length-1)/2)*1*Math.cos(yaw); let offsetZ = -Math.cos(yaw)*1.6 - (idx- (cargando.length-1)/2)*1*Math.sin(yaw); if(m.parent!==scene){ scene.add(m); } m.position.set(px+offsetX, 0.85, pz+offsetZ); m.rotation.y=yaw; });
   lianasAnim.forEach((l,i)=>{ l.rotation.z=Math.sin(reloj*0.8+i)*0.045; }); pastos.forEach((p,i)=>{ p.rotation.z=Math.sin(reloj*1.2+i)*0.07; }); nubes.forEach((n,i)=>{ n.position.x+=0.03; if(n.position.x>45) n.position.x=-45; }); pajaros.forEach((p,i)=>{ p.g.position.x+=0.09; if(p.g.position.x>42) p.g.position.x=-42; p.a1.rotation.z=Math.sin(reloj*8+i)*0.5; p.a2.rotation.z=-Math.sin(reloj*8+i)*0.5; }); mariposas.forEach((m,i)=>{ m.g.position.x+=Math.sin(reloj*0.8+i)*0.02; m.g.position.y=1.2+Math.sin(reloj*2+i)*0.4; m.a1.rotation.y=Math.sin(reloj*10+i)*0.6; m.a2.rotation.y=-Math.sin(reloj*10+i)*0.6; }); particulas.forEach((p,i)=>{ p.position.x+=Math.sin(reloj+i)*0.012; p.position.y+=Math.sin(reloj*2+i)*0.005; if(esNoche) p.material.opacity=0.95; else p.material.opacity=0.45; }); nieblas.forEach((n,i)=>{ n.position.x+=Math.sin(reloj*0.3+i)*0.012; n.rotation.y+=0.002; });
-  comidas3D.forEach(m=>{ if(!m.userData.tomado){ m.rotation.y+=0.03; m.position.y=0.55+Math.sin(reloj*2+m.position.x)*0.1; } if(!m.userData.tomado && donde==='afuera' && Math.abs(px-m.position.x)<1.4 && Math.abs(pz-m.position.z)<1.4){ m.userData.tomado=true; m.visible=false; invComida++; sonidoRecoger(); document.getElementById('msg').innerHTML="🍗 ¡Comida! Tienes "+invComida; } });
-  aguasSuper.forEach(m=>{ if(!m.userData.tomado && donde==='super' && Math.abs(px-(130+m.position.x))<1.2 && Math.abs(pz-m.position.z)<1.2){ m.userData.tomado=true; m.visible=false; invAgua++; sonidoRecoger(); document.getElementById('msg').innerHTML="🛒 ¡Agua del Súper! Tienes "+invAgua; } });
-  aguas3D.forEach(m=>{ if(!m.userData.tomado && donde==='afuera' && Math.abs(px-m.position.x)<1.4 && Math.abs(pz-m.position.z)<1.4){ m.userData.tomado=true; m.visible=false; invAgua++; sonidoRecoger(); document.getElementById('msg').innerHTML="💧 ¡Agua! Tienes "+invAgua; } });
-  comidasSuper.forEach(m=>{ if(!m.userData.tomado){ m.rotation.y+=0.03; m.position.y=1.2+Math.sin(reloj*2+m.position.x)*0.1; } if(!m.userData.tomado && donde==='super' && Math.abs(px-(130+m.position.x))<1.2 && Math.abs(pz-m.position.z)<1.2){ m.userData.tomado=true; m.visible=false; invComida++; sonidoRecoger(); document.getElementById('msg').innerHTML="🛒 ¡Comida del Súper! Tienes "+invComida; } });
+  comidas3D.forEach(m=>{ if(!m.userData.tomado){ m.rotation.y+=0.03; m.position.y=0.55+Math.sin(reloj*2+m.position.x)*0.1; } if(!m.userData.tomado && donde==='afuera' && Math.abs(px-m.position.x)<1.4 && Math.abs(pz-m.position.z)<1.4) guardarEnMochila(m,'comida'); });
+  aguasSuper.forEach(m=>{ if(!m.userData.tomado && donde==='super' && Math.abs(px-(130+m.position.x))<1.2 && Math.abs(pz-m.position.z)<1.2) guardarEnMochila(m,'agua'); });
+  aguas3D.forEach(m=>{ if(!m.userData.tomado && donde==='afuera' && Math.abs(px-m.position.x)<1.4 && Math.abs(pz-m.position.z)<1.4) guardarEnMochila(m,'agua'); });
+  comidasSuper.forEach(m=>{ if(!m.userData.tomado){ m.rotation.y+=0.03; m.position.y=1.2+Math.sin(reloj*2+m.position.x)*0.1; } if(!m.userData.tomado && donde==='super' && Math.abs(px-(130+m.position.x))<1.2 && Math.abs(pz-m.position.z)<1.2) guardarEnMochila(m,'comida'); });
   vigilante.visible=(esNoche && donde==='afuera'); if(vigilante.visible){ let vx=px-vigilante.position.x, vz=pz-vigilante.position.z, vl=Math.sqrt(vx*vx+vz*vz)||1; vigilante.position.x+=vx/vl*0.07*f; vigilante.position.z+=vz/vl*0.07*f; vigilante.rotation.y=Math.atan2(vx,vz); linterna.intensity=1.7; if(Math.abs(px-vigilante.position.x)<1.2 && Math.abs(pz-vigilante.position.z)<1.2){ sonidoGolpe(); salud=Math.max(0,salud-20); px=-12; pz=6.2; spawnVigilante(); document.getElementById('msg').innerHTML="¡EL VIGILANTE TE PEGÓ!"; } } else { linterna.intensity=0; }
   puertaCasa.material.emissiveIntensity = puertaCerca==='casa' ? 1 : 0.2; if(donde==='afuera') edificios.forEach(b=>{ let p=b.puerta; if(p) p.material.emissiveIntensity = puertaCerca===b ? 1 : (p===puertaSuper?0.2:0); });
-  itemsInterior.forEach(o=>{ if(o.it.tomado) return; o.m.rotation.y+=0.03; if(donde==='interior' && Math.abs(px-(INTERIOR_X+o.it.x))<1.3 && Math.abs(pz-o.it.z)<1.3){ o.it.tomado=true; o.m.visible=false; let aviso=o.it.tipo==='comida'?(invComida++, '🍗 ¡Comida! Tienes '+invComida):o.it.tipo==='perro'?(invComidaPerro++, '🐶 Comida de perro. Tienes '+invComidaPerro+'. Con E se la das, una vez al día.'):(invAgua++, '💧 ¡Agua! Tienes '+invAgua); sonidoRecoger(); document.getElementById('msg').innerHTML=aviso; update(); } }); if(focoLinterna && focoLinterna.visible && donde==='interior' && edificioActual && casaLinterna() && edificioActual.id===casaLinterna().id && Math.abs(px-(INTERIOR_X+focoLinterna.position.x))<1.6 && Math.abs(pz-focoLinterna.position.z)<1.6) tomarLinternaPotente();
+  itemsInterior.forEach(o=>{ if(o.it.tomado) return; o.m.rotation.y+=0.03; if(donde==='interior' && Math.abs(px-(INTERIOR_X+o.it.x))<1.3 && Math.abs(pz-o.it.z)<1.3){ if(o.it.tipo==='perro'){ o.it.tomado=true; o.m.visible=false; invComidaPerro++; sonidoRecoger(); document.getElementById('msg').innerHTML='🐶 Comida de perro. Tienes '+invComidaPerro+'. Con E se la das, una vez al día. No entra en la mochila.'; update(); } else guardarEnMochila(o.m, o.it.tipo, o.it); } }); if(focoLinterna && focoLinterna.visible && donde==='interior' && edificioActual && casaLinterna() && edificioActual.id===casaLinterna().id && Math.abs(px-(INTERIOR_X+focoLinterna.position.x))<1.6 && Math.abs(pz-focoLinterna.position.z)<1.6) tomarLinternaPotente();
   mueblesRobables.forEach((m,i)=>{ if(m.userData.anillo && m.userData.anillo.visible){ m.userData.anillo.material.emissiveIntensity = 0.6+Math.sin(reloj*3+i)*0.5; m.userData.anillo.rotation.z+=0.012; } });
   aplicarAmbiente();
   if(conduciendo){ let ry=conduciendo.rotation.y, bx=-Math.cos(ry), bz=Math.sin(ry); camera.position.set(conduciendo.position.x+bx*7.2, 3.2, conduciendo.position.z+bz*7.2); camera.lookAt(conduciendo.position.x-bx*3.2, 0.85, conduciendo.position.z-bz*3.2); }
   else if(durmiendo && camaJugador){ camera.position.set(camaJugador.x+2.1, 1.7, camaJugador.z+1.35); camera.lookAt(camaJugador.x-0.35, 0.55, camaJugador.z); }
   else if(camaraFrontal){ let ojo=1.62+altPiso; camera.position.set(px, ojo, pz); camera.rotation.order='YXZ'; camera.rotation.y=yaw; camera.rotation.x=pitch; camera.rotation.z=0; }
   else { camera.position.set(px + Math.sin(yaw)*3.4, 1.55+altPiso, pz + Math.cos(yaw)*3.4); camera.lookAt(px, 1.2+altPiso, pz); }
-  update(); renderizar(); }
+  pasoMochila(f); update(); renderizar(); }
 </script>
 </body>
 </html>

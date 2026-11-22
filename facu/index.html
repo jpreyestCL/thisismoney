@@ -2280,36 +2280,83 @@ function refriCerca(){
   return donde==='casa'?'casa':edificioActual;
 }
 function nombreRacion(it){ if(!it) return ''; if(it.tipo==='comida') return it.estado==='cocida'?'comida cocida':'comida cruda'; return it.estado==='hervida'?'agua hervida':'agua fría'; }
+let fovAntesRefri=null;
+function acercarRefri(){ if(fovAntesRefri==null) fovAntesRefri=camera.fov; camera.fov=52; camera.updateProjectionMatrix(); }
+function alejarRefri(){ if(fovAntesRefri==null) return; camera.fov=fovAntesRefri; fovAntesRefri=null; camera.clearViewOffset(); camera.updateProjectionMatrix(); }
 function cerrarRefri(){
   refriAbierto=null;
+  alejarRefri();
   if(vistaRefri){ camera.remove(vistaRefri); tirarGrupo(vistaRefri); vistaRefri=null; }
   let box=document.getElementById('panelRefri'); if(box) box.style.display='none';
   let btn=document.getElementById('btnEntrar'); if(btn){ btn.style.top=''; btn.style.bottom='210px'; }
   if(!conduciendo && !mochilaAbierta){ manoIzq.visible=true; manoDer.visible=true; punoIzq.visible=true; punoDer.visible=true; }
 }
+function cajaRefri(w,h,d,color,x,y,z,parent,opts){
+  let m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial(Object.assign({color, roughness:0.62, metalness:0.04}, opts||{})));
+  m.position.set(x,y,z); m.castShadow=false; m.receiveShadow=true; parent.add(m); return m;
+}
+function comidaEnEstante(parent,x,y,z,estado){
+  let g=new THREE.Group(); g.position.set(x,y,z); parent.add(g);
+  let cocida=estado==='cocida';
+  let carne=new THREE.Mesh(new THREE.SphereGeometry(0.11,16,12), new THREE.MeshStandardMaterial({color:cocida?0x3a180c:0xff7d78, roughness:cocida?0.86:0.34, metalness:0.02, emissive:cocida?0x1a0a04:0x7a2830, emissiveIntensity:cocida?0.28:0.2}));
+  carne.scale.set(1.25,0.55,1.05); carne.position.y=0.062; g.add(carne);
+  if(cocida){ cajaRefri(0.2,0.02,0.045,0x120804,-0.01,0.09,0.02,g); cajaRefri(0.2,0.02,0.045,0x120804,0.02,0.075,-0.02,g); }
+  else cajaRefri(0.14,0.028,0.055,0xfff3dc,0.02,0.095,0.01,g);
+  let hueso=cilindro(0.018,0.02,0.16,0xf4ecdc,0.02,0.05,0.1,g,8); hueso.rotation.x=1.15; hueso.rotation.z=0.4;
+  return g;
+}
+function aguaEnEstante(parent,x,y,z,estado){
+  let g=new THREE.Group(); g.position.set(x,y,z); parent.add(g);
+  let hervida=estado==='hervida';
+  let vidrio=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.055,0.2,16), new THREE.MeshStandardMaterial({color:hervida?0xd7e8f2:0x1f6b3c, transparent:true, opacity:hervida?0.45:0.88, roughness:0.12, metalness:0.04}));
+  vidrio.position.y=0.11; g.add(vidrio);
+  let liquido=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.044,0.15,14), new THREE.MeshStandardMaterial({color:hervida?0x7ec4f2:0x08381c, transparent:true, opacity:hervida?0.9:0.98, roughness:0.2, emissive:hervida?0x2a7eae:0x021408, emissiveIntensity:hervida?0.35:0.2}));
+  liquido.position.y=0.09; g.add(liquido);
+  let cuello=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.046,0.05,12), vidrio.material); cuello.position.y=0.225; g.add(cuello);
+  cilindro(0.058,0.058,0.012,0x5c6a74,0,0.006,0,g,12);
+  cilindro(0.024,0.024,0.03,hervida?0xf4f7f8:0x0c2414,0,0.26,0,g,10);
+  if(hervida){
+    let vaporMat=new THREE.MeshStandardMaterial({color:0xffffff, transparent:true, opacity:0.42, roughness:1, depthWrite:false, emissive:0xffffff, emissiveIntensity:0.15});
+    let v=new THREE.Mesh(new THREE.SphereGeometry(0.024,8,8), vaporMat); v.position.set(0.01,0.31,0); g.add(v);
+    let v2=new THREE.Mesh(new THREE.SphereGeometry(0.016,8,8), vaporMat.clone()); v2.position.set(-0.014,0.35,0.008); g.add(v2);
+  }
+  return g;
+}
 function armarVistaRefri(lista){
   if(vistaRefri){ camera.remove(vistaRefri); tirarGrupo(vistaRefri); }
-  vistaRefri=new THREE.Group(); vistaRefri.position.set(0,0.16,-1.28); vistaRefri.rotation.x=-0.08; camera.add(vistaRefri);
-  bx(0.92,1.2,0.06,0xd7e2ea,0,0,-0.3,vistaRefri,false);
-  bx(0.06,1.2,0.52,0xeef5f8,-0.44,0,-0.04,vistaRefri,false);
-  bx(0.06,1.2,0.52,0xeef5f8,0.44,0,-0.04,vistaRefri,false);
-  bx(0.94,0.07,0.52,0xeef5f8,0,0.58,-0.04,vistaRefri,false);
-  bx(0.94,0.07,0.52,0xc5ced6,0,-0.58,-0.04,vistaRefri,false);
-  bx(0.8,0.045,0.4,0xb7c2cb,0,-0.16,-0.06,vistaRefri,false);
-  bx(0.8,0.045,0.4,0xb7c2cb,0,0.24,-0.06,vistaRefri,false);
-  let puerta=new THREE.Group(); puerta.position.set(0.46,0,0.2); puerta.rotation.y=-1.25; vistaRefri.add(puerta);
-  bx(0.06,1.12,0.52,0xf7fbfd,0.16,0,0.16,puerta,false);
-  let luz=new THREE.PointLight(0xf7fbff,0.7,3.2,1.4); luz.position.set(0,0.1,0.7); vistaRefri.add(luz);
-  const puestos=[[-0.2,-0.02,0.16],[0.06,-0.02,0.2],[0.24,-0.02,0.12],[-0.18,0.38,0.16],[0.08,0.38,0.18],[0.24,0.38,0.12],[-0.06,-0.38,0.16],[0.16,-0.38,0.14]];
-  (lista||[]).forEach((it,i)=>{ let p=puestos[i%puestos.length]; if(it.tipo==='comida') pollo(p[0],p[1],p[2],vistaRefri,0.62,it.estado); else botella(p[0],p[1],p[2],vistaRefri,0.62,it.estado); });
+  vistaRefri=new THREE.Group(); vistaRefri.position.set(-0.32,0.16,-1.38); vistaRefri.rotation.y=0.34; vistaRefri.rotation.x=0.2; camera.add(vistaRefri);
+  cajaRefri(1.02,1.52,0.07,0xd5dee6,0,0,-0.34,vistaRefri);
+  cajaRefri(0.9,1.38,0.02,0xa9b8c4,0,0,-0.3,vistaRefri);
+  cajaRefri(0.055,1.52,0.56,0xf3f7fb,-0.48,0,-0.08,vistaRefri);
+  cajaRefri(0.055,1.52,0.56,0xf3f7fb,0.48,0,-0.08,vistaRefri);
+  cajaRefri(1.02,0.06,0.56,0xf7fafc,0,0.73,-0.08,vistaRefri);
+  cajaRefri(1.02,0.07,0.56,0xc5d0d8,0,-0.72,-0.08,vistaRefri);
+  let luzTira=cajaRefri(0.7,0.03,0.06,0xfff3c4,0,0.64,-0.02,vistaRefri,{emissive:0xffe7a0, emissiveIntensity:0.7, roughness:0.35});
+  luzTira.material.color.setHex(0xfff6d2);
+  let luz=new THREE.PointLight(0xfff4e2,0.55,2.6,2); luz.position.set(0,0.48,0.08); vistaRefri.add(luz);
+  let estantes=[-0.42,-0.02,0.38];
+  estantes.forEach(y=>{ cajaRefri(0.86,0.03,0.4,0xc5d0da,0,y-0.015,-0.08,vistaRefri,{roughness:0.35, metalness:0.22}); cajaRefri(0.86,0.018,0.014,0x8ea0ad,0,y+0.002,0.112,vistaRefri); });
+  let puerta=new THREE.Group(); puerta.position.set(-0.5,0,0.18); puerta.rotation.y=-1.32; vistaRefri.add(puerta);
+  cajaRefri(0.78,1.42,0.05,0xf7fbfd,0.39,0,0,puerta);
+  cajaRefri(0.66,1.24,0.02,0xdce6ee,0.39,0,0.032,puerta);
+  cajaRefri(0.04,0.28,0.045,0x222222,0.7,0.02,0.045,puerta);
+  const cols=[-0.24,0.0,0.24];
+  (lista||[]).forEach((it,i)=>{
+    let fila=Math.min(2, Math.floor(i/3)), col=i%3;
+    let x=cols[col], y=estantes[fila], z=0.03;
+    if(it.tipo==='comida') comidaEnEstante(vistaRefri,x,y,z,it.estado);
+    else aguaEnEstante(vistaRefri,x,y,z,it.estado);
+  });
 }
-function estiloBtnRefri(b, fondo){ b.style.cssText='font:700 15px system-ui;padding:8px 12px;border-radius:10px;border:2px solid #9fd7ff;background:'+(fondo||'#163044')+';color:#fff;cursor:pointer'; }
+function estiloBtnRefri(b, fondo){ b.style.cssText='font:700 14px system-ui;padding:7px 10px;border-radius:10px;border:2px solid #9fd7ff;background:'+(fondo||'#163044')+';color:#fff;cursor:pointer'; }
 function pintarPanelRefri(){
   let lista=listaRefriAbierta()||[];
   let box=document.getElementById('panelRefri');
-  if(!box){ box=document.createElement('div'); box.id='panelRefri'; box.style.cssText='position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:42;display:flex;flex-direction:column;gap:8px;max-width:94vw;align-items:center'; document.body.appendChild(box); }
-  box.style.display='flex'; box.innerHTML='';
-  let titulo=document.createElement('div'); titulo.style.cssText='color:#fff;background:#071018ee;padding:8px 14px;border-radius:12px;font:700 16px system-ui;border:2px solid #9fd7ff'; titulo.textContent=lista.length?('🧊 Refrigerador · '+lista.length+' dentro'):'🧊 Refrigerador vacío. Desde la mochila puedes dejar comida o agua.'; box.appendChild(titulo);
+  if(!box){ box=document.createElement('div'); box.id='panelRefri'; document.body.appendChild(box); }
+  box.style.cssText='position:fixed;right:14px;top:168px;width:268px;max-height:calc(100vh - 186px);z-index:42;display:flex;flex-direction:column;gap:6px;overflow:auto;padding:10px;background:rgba(7,16,24,.88);border:2px solid #9fd7ff;border-radius:14px';
+  box.innerHTML='';
+  let cerrar=document.createElement('button'); cerrar.textContent='Cerrar (E)'; estiloBtnRefri(cerrar,'#10283a'); cerrar.onclick=function(){ cerrarRefri(); }; box.appendChild(cerrar);
+  let titulo=document.createElement('div'); titulo.style.cssText='color:#fff;background:#071018ee;padding:8px 10px;border-radius:12px;font:700 15px system-ui;border:2px solid #9fd7ff'; titulo.textContent=lista.length?('🧊 Refrigerador · '+lista.length+' dentro'):'🧊 Refrigerador vacío. Desde la mochila puedes dejar comida o agua.'; box.appendChild(titulo);
   lista.forEach((it,i)=>{
     let fila=document.createElement('div'); fila.style.cssText='display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center';
     let nom=document.createElement('span'); nom.style.cssText='color:#fff;background:#071018cc;padding:6px 8px;border-radius:8px;font:700 14px system-ui'; nom.textContent=(it.tipo==='comida'?'🍗 ':'💧 ')+nombreRacion(it); fila.appendChild(nom);
@@ -2341,7 +2388,8 @@ function abrirRefri(){
   manoIzq.visible=false; manoDer.visible=false; punoIzq.visible=false; punoDer.visible=false;
   let n=(listaRefriAbierta()||[]).length;
   document.getElementById('msg').innerHTML=n?('🧊 El refrigerador está abierto. Adentro hay '+n+'. Puedes comer, beber o llevar a la mochila, y dejar lo que traes.'):'🧊 El refrigerador está abierto y vacío. Elige en la mochila qué comida o agua dejas aquí.';
-  let btn=document.getElementById('btnEntrar'); if(btn){ btn.textContent='🧊 CERRAR REFRI (E)'; btn.style.display='block'; btn.style.bottom='auto'; btn.style.top='74px'; }
+  acercarRefri();
+  let btn=document.getElementById('btnEntrar'); if(btn) btn.style.display='none';
   refrescarRefri();
   return true;
 }

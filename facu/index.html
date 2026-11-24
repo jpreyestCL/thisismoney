@@ -3470,25 +3470,75 @@ function iniciarCinematica(){
 }
 function armarCinematica(g){
   let callejon=new THREE.Group(); g.add(callejon);
-  bx(0.28,3.6,8.5,0x3a342e,-1.7,1.8,0.2,callejon); bx(0.28,3.6,8.5,0x2c2824,1.7,1.8,0.2,callejon);
-  bx(3.6,0.08,9,0x2a2622,0,0.02,0.2,callejon);
-  bx(1.1,2.05,0.08,0x4a3828,-1.55,1.05,-2.6,callejon);
-  let farol=new THREE.PointLight(0xffc07a,2.2,11); farol.position.set(0,2.8,-0.4); callejon.add(farol);
-  esfera(0.1,0xffe0a0,0,2.8,-0.4,0xffaa55,8,callejon);
+  let ladrillo=new THREE.MeshStandardMaterial({map:texLadrilloTex, color:0x6a5044, roughness:0.94, bumpMap:calidadAlta?texLadrilloTex:null, bumpScale:0.05});
+  let ladrilloOsc=ladrillo.clone(); ladrilloOsc.color=new THREE.Color(0x3e302c);
+  let sueloCine=new THREE.MeshStandardMaterial({map:texCalle, color:0x5a5854, roughness:0.96});
+  let vidrioCine=new THREE.MeshStandardMaterial({color:0x6eb8d8, roughness:0.06, metalness:0.02, transparent:true, opacity:0.82, depthWrite:false, side:THREE.DoubleSide, emissive:0x123040, emissiveIntensity:0.4});
+  let marco=new THREE.MeshStandardMaterial({color:0x1c1814, roughness:0.8});
+  bx(0.28,3.6,8.5,ladrillo,-1.7,1.8,0.2,callejon); bx(0.28,3.6,8.5,ladrilloOsc,1.7,1.8,0.2,callejon);
+  bx(0.34,0.22,8.5,0x2a241c,-1.7,0.12,0.2,callejon); bx(0.34,0.22,8.5,0x241e18,1.7,0.12,0.2,callejon);
+  bx(3.7,0.16,8.6,0x2a2620,0,3.55,0.2,callejon);
+  bx(3.4,0.08,9,sueloCine,0,0.02,0.2,callejon);
+  bx(3.2,2.4,0.22,ladrilloOsc,0,1.2,-3.95,callejon);
+  let charco=new THREE.Mesh(new THREE.CircleGeometry(0.38,18), new THREE.MeshStandardMaterial({color:0x1a2428, roughness:0.12, metalness:0.2, transparent:true, opacity:0.55}));
+  charco.rotation.x=-Math.PI/2; charco.position.set(0.55,0.07,0.45); callejon.add(charco);
+  function ventanaCalle(x,y,z){
+    let hacia=-Math.sign(x);
+    bx(0.04,1.02,0.78,0x07080a,x+hacia*0.012,y,z,callejon,false);
+    bx(0.05,1.16,0.06,marco,x+hacia*0.03,y,z-0.4,callejon,false);
+    bx(0.05,1.16,0.06,marco,x+hacia*0.03,y,z+0.4,callejon,false);
+    bx(0.05,0.06,0.86,marco,x+hacia*0.03,y+0.55,z,callejon,false);
+    bx(0.08,0.07,0.96,0x3a3228,x+hacia*0.04,y-0.54,z,callejon,false);
+    let vid=new THREE.Mesh(new THREE.PlaneGeometry(0.7,0.9), vidrioCine);
+    vid.position.set(x+hacia*0.05,y,z); vid.rotation.y=hacia>0?Math.PI/2:-Math.PI/2; vid.renderOrder=3; callejon.add(vid);
+    let glow=new THREE.Mesh(new THREE.PlaneGeometry(0.58,0.76), new THREE.MeshBasicMaterial({color:0xffc878, transparent:true, opacity:0.62}));
+    glow.position.set(x+hacia*0.028,y,z); glow.rotation.y=vid.rotation.y; glow.renderOrder=2; callejon.add(glow);
+    bx(0.025,0.9,0.035,marco,x+hacia*0.058,y,z,callejon,false);
+    bx(0.025,0.035,0.7,marco,x+hacia*0.058,y,z,callejon,false);
+  }
+  ventanaCalle(-1.56,1.85,1.15); ventanaCalle(-1.56,1.85,-1.35);
+  ventanaCalle(1.56,1.75,0.35); ventanaCalle(1.56,1.75,-2.15);
+  bx(0.08,2.15,1.05,0x4a3424,-1.52,1.08,-2.6,callejon);
+  bx(0.04,0.9,0.42,0x3a2a1c,-1.46,1.35,-2.78,callejon); bx(0.04,0.9,0.42,0x3a2a1c,-1.46,1.35,-2.42,callejon);
+  bx(0.04,0.7,0.42,0x3a2a1c,-1.46,0.55,-2.78,callejon); bx(0.04,0.7,0.42,0x3a2a1c,-1.46,0.55,-2.42,callejon);
+  let vidrioPuerta=new THREE.Mesh(new THREE.PlaneGeometry(0.28,0.42), vidrioCine);
+  vidrioPuerta.position.set(-1.44,1.55,-2.6); vidrioPuerta.rotation.y=Math.PI/2; callejon.add(vidrioPuerta);
+  esfera(0.035,0xc8b070,-1.4,1.05,-2.35,0x000000,8,callejon);
+  cilindro(0.012,0.012,0.7,0x222018,0,3.15,-0.4,callejon,6);
+  bx(0.34,0.1,0.34,0x1a1814,0,2.78,-0.4,callejon,false);
+  let farol=new THREE.PointLight(0xffc07a,2.6,12,1.4); farol.position.set(0,2.55,-0.4); callejon.add(farol);
+  let bombilla=esfera(0.09,0xffe6b0,0,2.62,-0.4,0xffaa44,10,callejon); bombilla.castShadow=false;
+  let relleno=new THREE.PointLight(0x8aa4c8,0.35,9); relleno.position.set(0.4,1.4,2.4); callejon.add(relleno);
+  for(let i=0;i<4;i++) cilindro(0.035,0.035,3.2,0x2a2e30,-1.42,2.5,-1.2+i*0.9,callejon,6);
+  bx(0.55,0.42,0.7,0x3a3e32,1.15,0.25,2.15,callejon); bx(0.5,0.08,0.64,0x22241c,1.15,0.48,2.15,callejon,false);
+  esfera(0.16,0x1a1c18,1.22,0.18,1.55,0,8,callejon); esfera(0.13,0x141612,0.95,0.14,1.7,0,8,callejon);
   let agresor=new THREE.Group(); agresor.position.set(-0.15,0,-1.15); callejon.add(agresor);
   persona(agresor,{pantalon:0x2a3140,zapato:0x111,polera:0x6a3030,cinturon:0x222,piel:0xc48a62,pelo:0x1a120c});
   let victima=new THREE.Group(); victima.position.set(0.2,0,0.85); victima.rotation.order='YXZ'; victima.rotation.y=Math.PI; callejon.add(victima);
   persona(victima,{pantalon:0x3a3a3a,zapato:0x111,polera:0x8a8a90,cinturon:0x222,piel:0xb8896a,pelo:0x3a2a18});
   let sala=new THREE.Group(); sala.visible=false; g.add(sala);
-  bx(8,3.2,0.2,0x4a4038,0,1.6,-2.4,sala); bx(0.2,3.2,6,0x4a4038,-3.2,1.6,0,sala); bx(0.2,3.2,6,0x4a4038,3.2,1.6,0,sala);
-  bx(6,0.08,5,0x6a5a48,0,0.02,0,sala);
-  bx(2.2,0.9,0.8,0x3a2a1c,0,0.5,-1.15,sala);
+  let maderaSala=new THREE.MeshStandardMaterial({map:texMadera, color:0xc4a888, roughness:0.78, bumpMap:calidadAlta?texMadera:null, bumpScale:0.03});
+  bx(8,3.2,0.2,maderaSala,0,1.6,-2.4,sala); bx(0.2,3.2,6,maderaSala,-3.2,1.6,0,sala); bx(0.2,3.2,6,maderaSala,3.2,1.6,0,sala);
+  bx(6.2,0.08,5.2,maderaSala,0,0.02,0,sala);
+  bx(7.4,0.12,0.12,0x5a4030,0,2.55,-2.28,sala,false);
+  for(let s of [-1.6,1.6]){
+    bx(0.08,1.5,1.05,0x120e0c,s,1.7,-2.26,sala,false);
+    let v=new THREE.Mesh(new THREE.PlaneGeometry(0.9,1.35), vidrioCine); v.position.set(s,1.7,-2.2); sala.add(v);
+    bx(0.06,1.6,0.06,0x3a2c20,s-0.5,1.7,-2.2,sala,false); bx(0.06,1.6,0.06,0x3a2c20,s+0.5,1.7,-2.2,sala,false);
+  }
+  bx(2.4,0.08,0.9,0x4a3422,0,0.92,-1.15,sala);
+  bx(0.08,0.9,0.08,0x3a2a1c,-1.05,0.46,-1.4,sala,false); bx(0.08,0.9,0.08,0x3a2a1c,1.05,0.46,-1.4,sala,false);
+  bx(2.2,0.9,0.08,0x2a2118,0,0.5,-0.78,sala);
+  bx(0.9,1.1,0.08,0x241c16,0,0.6,-1.7,sala,false);
   let juez=new THREE.Group(); juez.position.set(0,0,-1.7); sala.add(juez);
   persona(juez,{pantalon:0x1a1a1a,zapato:0x111,polera:0x1c1c22,cinturon:0x111,piel:0xc4a080,pelo:0x888888});
   let acusado=new THREE.Group(); acusado.position.set(0,0,1.3); acusado.rotation.y=Math.PI; sala.add(acusado);
   persona(acusado,{pantalon:0x2c3340,zapato:0x1a1a1a,polera:0x3e5344,cinturon:0x2a241c,piel:0xc48a62,pelo:0x24160e});
   let luzSala=new THREE.PointLight(0xffe8c8,0.9,8); luzSala.position.set(0,2.6,0); sala.add(luzSala);
   let collarSet=new THREE.Group(); collarSet.visible=false; g.add(collarSet);
+  bx(3.2,2.4,0.16,ladrilloOsc,0,1.4,-0.85,collarSet);
+  let vCollar=new THREE.Mesh(new THREE.PlaneGeometry(0.7,0.9), vidrioCine); vCollar.position.set(0.7,1.7,-0.74); collarSet.add(vCollar);
+  bx(0.06,1.05,0.06,marco,0.32,1.7,-0.72,collarSet,false); bx(0.06,1.05,0.06,marco,1.08,1.7,-0.72,collarSet,false);
   let busto=new THREE.Group(); collarSet.add(busto);
   persona(busto,{pantalon:0x2c3340,zapato:0x1a1a1a,polera:0x3e5344,cinturon:0x2a241c,piel:0xc48a62,pelo:0x24160e});
   let collarCine=new THREE.Mesh(new THREE.TorusGeometry(0.09,0.02,8,20), new THREE.MeshStandardMaterial({color:0x8a1010, emissive:0xff2200, emissiveIntensity:0.5, metalness:0.6, roughness:0.3}));
@@ -3511,7 +3561,7 @@ function loopCine(){
   manoIzq.visible=false; manoDer.visible=false; punoIzq.visible=false; punoDer.visible=false; linternaMesh.visible=false;
   if(REAL.cielo) REAL.cielo.visible=false;
   if(esc===0){
-    nieblaCine(0x100e0c, 0.045, 4, 16); sol.intensity=0.05; amb.intensity=0.22;
+    nieblaCine(0x100e0c, 0.028, 5, 18); sol.intensity=0.08; amb.intensity=0.28;
     let lt=cineT;
     s.agresor.position.z=lt<2.1?-1.7+lt*0.28:-1.1;
     s.agresor.rotation.y=0;
@@ -3540,7 +3590,8 @@ function loopCine(){
   document.getElementById('cineSub').textContent=linea[1];
   let o=0; [0,7.2,14.2,21.5,28.2].forEach(c=>{ let d=Math.abs(cineT-c); if(d<0.4) o=Math.max(o,1-d/0.4); });
   document.getElementById('cineFade').style.opacity=String(o);
-  renderer.render(scene, camera);
+  if(REAL.cielo) REAL.cielo.visible=esc===2;
+  if(REAL.on) REAL.render(); else renderer.render(scene, camera);
   requestAnimationFrame(loopCine);
 }
 function cerrarCine(){
